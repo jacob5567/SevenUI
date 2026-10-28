@@ -11,10 +11,16 @@ namespace SevenUI.Tests
         // give_item arguments, for items that add stacked icons to the item bar.
         public const string Syringe = "Syringe";
         public const string Hoof = "Hoof";
+        // Titanic Knurl, for more max health.
+        public const string Knurl = "Knurl";
 
         // The run info's timer box, and the part of the difficulty bar that holds its scrolling segments.
         public const string TimerPanel = "TimerPanel";
         public const string DifficultySegments = "Scroll View/Viewport";
+
+        // The player's health bar in the bottom left, and its sprite digits.
+        public const string PlayerHealthBar = "MainContainer/MainUIArea/SpringCanvas/BottomLeftCluster/BarRoots/HealthbarRoot";
+        public const string HealthSpriteDigits = "Managed_Sprite_HP";
 
         // The objective panel in the run info, and its title.
         public const string ObjectivePanel = "ObjectivePanel";

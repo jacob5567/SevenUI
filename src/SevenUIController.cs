@@ -16,6 +16,7 @@ namespace SevenUI
         private HudFontSwapper fontSwapper;
         private RunInfoStyler runInfo;
         private RightInfoBarStyler rightInfoBar;
+        private PlayerBarsStyler playerBars;
         private int lastHierarchyCount = -1;
         private bool fontApplied;
         private bool panelsApplied;
@@ -28,6 +29,7 @@ namespace SevenUI
             fontSwapper = new HudFontSwapper(root);
             runInfo = new RunInfoStyler(root);
             rightInfoBar = new RightInfoBarStyler(root);
+            playerBars = new PlayerBarsStyler(root);
             SevenUIPlugin.Settings.BarlowFont.SettingChanged += OnSettingChanged;
             SevenUIPlugin.Settings.FlatPanels.SettingChanged += OnSettingChanged;
         }
@@ -54,12 +56,14 @@ namespace SevenUI
         {
             runInfo.Apply();
             rightInfoBar.Apply();
+            playerBars.Apply();
         }
 
         private void RestorePanels()
         {
             runInfo.Restore();
             rightInfoBar.Restore();
+            playerBars.Restore();
         }
 
         private static bool Toggle(ConfigEntry<bool> setting, bool applied, Action apply, Action restore)
@@ -88,12 +92,14 @@ namespace SevenUI
             fontSwapper.Describe(output);
             runInfo.Describe(output);
             rightInfoBar.Describe(output);
+            playerBars.Describe(output);
         }
 
         private void OnDestroy()
         {
             SevenUIPlugin.Settings.BarlowFont.SettingChanged -= OnSettingChanged;
             SevenUIPlugin.Settings.FlatPanels.SettingChanged -= OnSettingChanged;
+            playerBars.Dispose();
         }
     }
 }

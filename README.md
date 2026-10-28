@@ -4,11 +4,12 @@ A client-side Risk of Rain 2 mod that restyles the HUD with the Barlow font and 
 
 ## What it changes
 
-- **Text:** HUD text uses Barlow instead of the game's Bombardier font, and the run timer uses Barlow Condensed. This covers new HUD text too: item and buff icons, notifications, ally cards, the scoreboard, and panels added by other mods.
+- **Text:** HUD text uses Barlow instead of the game's Bombardier font, and the run timer and your level use Barlow Condensed. This covers new HUD text too: item and buff icons, notifications, ally cards, the scoreboard, and panels added by other mods.
 - **Run info:** the timer, stage, level and difficulty icon share one flat translucent panel. The scrolling difficulty segments are replaced by a thin bar that fills as the current difficulty progresses, with the difficulty's name beside it in spaced capitals.
+- **Health and level:** the health, shield, barrier and experience bars are flat, on a dark trough, with the experience bar thin and in the accent color. The health numbers are text instead of sprite digits, with the current health in bold and the maximum in grey. The level sits under a small "LV" header, in the accent color. Bars whose pattern means something, such as curse or the execute threshold, keep the game's look.
 - **Panels:** the panels under the run info (artifacts, objectives, and panels other mods add there) are flat and translucent, with a small gap between them. The objective panel's title sits in a header strip in spaced capitals.
 
-Not yet restyled: the other HUD panels and bars, health and boss health numbers (the game draws those from sprite digits, not text), tooltips, and menus outside the HUD.
+Not yet restyled: skills and equipment, buffs, items, money, ally cards, the boss bar (its numbers are sprite digits), the chat, the scoreboard, tooltips, and menus outside the HUD.
 
 ## LookingGlass
 
@@ -25,7 +26,7 @@ Edit `BepInEx/config/sevenstack.SevenUI.cfg`, or use the in-game settings menu i
 | Setting | Default | Description |
 |---|---|---|
 | `BarlowFont` | true | Draw HUD text in Barlow instead of the game's font. Languages the game draws in Noto Sans keep it. |
-| `FlatPanels` | true | Draw the run info, objective, artifact and LookingGlass stats panels in the top right as flat translucent panels, with a header strip on the objective panel and a thin bar for the difficulty. |
+| `FlatPanels` | true | Draw the HUD's panels and bars flat: translucent panels with header strips in the top right, a thin difficulty bar, and flat health and experience bars with the health numbers as text. |
 | `DebugLogging` | false | Log extra detail, and enable the dump key. |
 | `DebugAlwaysShow` | false | Show the mod's visuals even when they wouldn't normally appear, for testing. |
 | `DumpKey` | F8 | With `DebugLogging` on, press to log each HUD's fonts and what the mod restyled. |

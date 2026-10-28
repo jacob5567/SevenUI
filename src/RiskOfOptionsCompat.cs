@@ -19,7 +19,7 @@ namespace SevenUI
         public static void Register(PluginConfig settings)
         {
             ModSettingsManager.SetModDescription(
-                "Restyles the HUD: the Barlow font, and flat translucent panels and a thin difficulty bar in the top right.");
+                "Restyles the HUD: the Barlow font, flat translucent panels, and flat bars.");
             Sprite icon = LoadIcon();
             if (icon)
             {

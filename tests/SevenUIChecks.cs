@@ -226,5 +226,68 @@ namespace SevenUI.Tests
                 },
                 () => $"the run timer in Barlow Condensed (font {(timer && timer.font ? timer.font.name : "none")}) {h.Diagnosis()}");
         }
+
+        private static HealthBar PlayerHealthBar(Harness h) =>
+            HudRoot(h).Find(GameNames.PlayerHealthBar)?.GetComponent<HealthBar>();
+
+        private static bool UsesFlatStyle(HealthBar bar) =>
+            bar._style && bar._style.name.EndsWith(Texts.FlatStyleSuffix) &&
+            (!bar._allyStyle || bar._allyStyle.name.EndsWith(Texts.FlatStyleSuffix));
+
+        private static string HealthLook(HealthBar bar)
+        {
+            if (!bar) return "no player health bar";
+            Transform digits = bar.transform.Find(GameNames.HealthSpriteDigits);
+            return $"style={(bar._style ? bar._style.name : "none")}, sprite digits field={(bool)bar.spriteAsNumberManager}, " +
+                   $"digits active={(digits ? digits.gameObject.activeSelf.ToString() : "-")}, " +
+                   $"text={(bar.currentHealthText ? bar.currentHealthText.text : "-")}/{(bar.fullHealthText ? bar.fullHealthText.text : "-")}, " +
+                   $"health={(bar.source ? $"{Mathf.Ceil(bar.source.combinedHealth)}/{Mathf.Ceil(bar.source.fullHealth)}" : "-")}";
+        }
+
+        // Flat bars, and the health numbers as text that matches the body's health.
+        public static IEnumerator ExpectPlayerBarsFlat(this Harness h)
+        {
+            HealthBar bar = null;
+            yield return h.Until(
+                () =>
+                {
+                    bar = PlayerHealthBar(h);
+                    if (!bar || !bar.source || !bar.currentHealthText) return false;
+                    Transform digits = bar.transform.Find(GameNames.HealthSpriteDigits);
+                    return UsesFlatStyle(bar) && !bar.spriteAsNumberManager && digits && !digits.gameObject.activeSelf &&
+                           bar.currentHealthText.isActiveAndEnabled &&
+                           bar.currentHealthText.text == Mathf.Ceil(bar.source.combinedHealth).ToString() &&
+                           bar.fullHealthText && bar.fullHealthText.text == Mathf.Ceil(bar.source.fullHealth).ToString();
+                },
+                () => $"flat player bars with the health as text ({HealthLook(bar)}) {h.Diagnosis()}");
+        }
+
+        public static IEnumerator ExpectPlayerBarsVanilla(this Harness h)
+        {
+            HealthBar bar = null;
+            yield return h.Until(
+                () =>
+                {
+                    bar = PlayerHealthBar(h);
+                    if (!bar) return false;
+                    Transform digits = bar.transform.Find(GameNames.HealthSpriteDigits);
+                    return bar._style && !UsesFlatStyle(bar) && bar.spriteAsNumberManager && digits &&
+                           digits.gameObject.activeSelf;
+                },
+                () => $"the game's player bars back ({HealthLook(bar)}) {h.Diagnosis()}");
+        }
+
+        public static IEnumerator ExpectLevelCondensed(this Harness h)
+        {
+            TMP_Text level = null;
+            yield return h.Until(
+                () =>
+                {
+                    LevelText levelText = HudRoot(h).GetComponentsInChildren<LevelText>(true).FirstOrDefault();
+                    level = levelText ? levelText.targetText : null;
+                    return level && level.font && level.font.name.StartsWith(Texts.CondensedFontPrefix);
+                },
+                () => $"the level in Barlow Condensed (font {(level && level.font ? level.font.name : "none")}) {h.Diagnosis()}");
+        }
     }
 }

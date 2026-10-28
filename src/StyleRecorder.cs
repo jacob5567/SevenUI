@@ -39,13 +39,15 @@ namespace SevenUI
         private readonly Dictionary<TMP_Text, LabelLook> labels = new Dictionary<TMP_Text, LabelLook>();
         private readonly Dictionary<TMP_Text, string> texts = new Dictionary<TMP_Text, string>();
         private readonly Dictionary<Behaviour, bool> enabledStates = new Dictionary<Behaviour, bool>();
+        private readonly Dictionary<GameObject, bool> activeStates = new Dictionary<GameObject, bool>();
+        private readonly List<System.Action> undos = new List<System.Action>();
         private readonly Dictionary<HorizontalOrVerticalLayoutGroup, LayoutLook> layouts =
             new Dictionary<HorizontalOrVerticalLayoutGroup, LayoutLook>();
         private readonly Dictionary<LayoutElement, Vector2> minAndPreferredHeights = new Dictionary<LayoutElement, Vector2>();
         private readonly List<Object> added = new List<Object>();
 
-        public int Count => images.Count + labels.Count + texts.Count + enabledStates.Count + layouts.Count +
-                            minAndPreferredHeights.Count + added.Count;
+        public int Count => images.Count + labels.Count + texts.Count + enabledStates.Count + activeStates.Count +
+                            layouts.Count + minAndPreferredHeights.Count + added.Count + undos.Count;
 
         public static ImageLook Capture(Image image) => new ImageLook
         {
@@ -111,16 +113,39 @@ namespace SevenUI
             }
         }
 
-        // For a graphic or other component the mod turns off. Only for ones the game leaves on or off for good, or
-        // turning the setting off would undo the game's own toggling.
-        public void Disable(Behaviour behaviour)
+        // For a graphic or other component the mod turns on or off. Only for ones the game leaves on or off for good,
+        // or turning the setting off would undo the game's own toggling.
+        public void SetEnabled(Behaviour behaviour, bool enabled)
         {
             if (!behaviour) return;
             if (!enabledStates.ContainsKey(behaviour))
             {
                 enabledStates[behaviour] = behaviour.enabled;
             }
-            behaviour.enabled = false;
+            behaviour.enabled = enabled;
+        }
+
+        public void Disable(Behaviour behaviour)
+        {
+            SetEnabled(behaviour, false);
+        }
+
+        // Likewise for objects the game leaves active or inactive for good.
+        public void SetActive(GameObject gameObject, bool active)
+        {
+            if (!gameObject) return;
+            if (!activeStates.ContainsKey(gameObject))
+            {
+                activeStates[gameObject] = gameObject.activeSelf;
+            }
+            gameObject.SetActive(active);
+        }
+
+        // For a change that isn't a plain value, put back by the given action, which must check its objects still
+        // exist. Run in the order recorded, after the values above are put back.
+        public void OnRestore(System.Action undo)
+        {
+            undos.Add(undo);
         }
 
         public void Record(HorizontalOrVerticalLayoutGroup group)
@@ -216,6 +241,17 @@ namespace SevenUI
                 entry.Key.minHeight = entry.Value.x;
                 entry.Key.preferredHeight = entry.Value.y;
             }
+            foreach (KeyValuePair<GameObject, bool> entry in activeStates)
+            {
+                if (entry.Key)
+                {
+                    entry.Key.SetActive(entry.Value);
+                }
+            }
+            foreach (System.Action undo in undos)
+            {
+                undo();
+            }
             foreach (Object created in added)
             {
                 if (created)
@@ -227,6 +263,8 @@ namespace SevenUI
             labels.Clear();
             texts.Clear();
             enabledStates.Clear();
+            activeStates.Clear();
+            undos.Clear();
             layouts.Clear();
             minAndPreferredHeights.Clear();
             added.Clear();

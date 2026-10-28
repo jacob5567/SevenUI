@@ -26,22 +26,21 @@ namespace SevenUI
 
         public int SwappedCount => originals.Count;
 
-        // Swaps every text not yet swapped. Cheap to repeat, but walks the whole hierarchy, so call it only when
-        // the hierarchy changed.
+        // Swaps every text still in the game's font. Cheap to repeat, but walks the whole hierarchy, so call it only
+        // when the hierarchy changed.
         public void Apply()
         {
             root.GetComponentsInChildren(true, scratch);
             foreach (TMP_Text text in scratch)
             {
                 TMP_FontAsset font = text.font;
-                if (!font || !font.name.StartsWith(GameFontPrefix) || originals.ContainsKey(text)) continue;
+                // A text already swapped can be back in the game's font: an HGTextMeshProUGUI sets the language's
+                // font when it first wakes, which for one swapped while inactive comes after the swap.
+                if (!font || !font.name.StartsWith(GameFontPrefix)) continue;
 
                 Material material = text.fontSharedMaterial;
                 Material template = material ? material : font.material;
-                // The run timer is numbers only, which read best in Barlow Condensed, like the design canvas.
-                TMP_FontAsset barlow = text.GetComponent<TimerText>()
-                    ? FontLibrary.Condensed(template)
-                    : FontLibrary.Body(template);
+                TMP_FontAsset barlow = IsNumber(text) ? FontLibrary.Condensed(template) : FontLibrary.Body(template);
                 if (!barlow)
                 {
                     if (!warnedBakeFailed)
@@ -52,13 +51,25 @@ namespace SevenUI
                     return;
                 }
 
-                originals[text] = (font, material);
+                if (!originals.ContainsKey(text))
+                {
+                    originals[text] = (font, material);
+                }
                 FontLibrary.AddFallback(barlow, font);
                 text.font = barlow;
                 // Setting the font resets the material to the font's own, so put the retargeted preset back after.
                 text.fontSharedMaterial = FontLibrary.Retarget(template, barlow);
             }
             scratch.Clear();
+        }
+
+        // The run timer and the player's level are numbers only, which read best in Barlow Condensed, as in the design
+        // canvas.
+        private static bool IsNumber(TMP_Text text)
+        {
+            if (text.GetComponent<TimerText>()) return true;
+            LevelText level = text.GetComponentInParent<LevelText>();
+            return level && level.targetText == text;
         }
 
         public void Restore()
