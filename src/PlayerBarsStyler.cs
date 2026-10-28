@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text;
 using RoR2.UI;
 using TMPro;
@@ -6,8 +7,8 @@ using UnityEngine.UI;
 
 namespace SevenUI
 {
-    // Restyles the player's level, experience and health in the bottom left: flat bars on a dark trough, the health
-    // numbers as text instead of sprite digits, and the level under a small "LV" header. The game keeps filling the
+    // Restyles the player's level, experience, health and buffs in the bottom left: flat bars on a dark trough, the
+    // health numbers as text instead of sprite digits, the level under a small "LV" header, and bold buff counts. The game keeps filling the
     // bars and writing the numbers.
     internal sealed class PlayerBarsStyler
     {
@@ -21,14 +22,14 @@ namespace SevenUI
         private const string ExpBarPath = "LevelDisplayCluster/ExpBarRoot";
         private const string ExpTroughPath = "LevelDisplayCluster/ExpBarRoot/ShrunkenRoot";
         private const string ExpFillPath = "LevelDisplayCluster/ExpBarRoot/ShrunkenRoot/FillPanel";
+        private const string BuffsPath = "LevelDisplayCluster/BuffDisplayRoot";
 
         // In HUD canvas units, where the game draws the health numbers' text at 24 and its sprite digits about 16 high.
         private const float HealthFontSize = 18f;
 
         private readonly Transform root;
         private readonly StyleRecorder recorder = new StyleRecorder();
-        private HealthBarStyle flatStyle;
-        private HealthBarStyle flatAllyStyle;
+        private readonly List<BuffIcon> buffIcons = new List<BuffIcon>();
 
         public PlayerBarsStyler(Transform root)
         {
@@ -42,17 +43,12 @@ namespace SevenUI
             StyleHealthBar(bars);
             StyleLevel(bars);
             StyleExpBar(bars);
+            StyleBuffs(bars);
         }
 
         public void Restore()
         {
             recorder.Restore();
-        }
-
-        // The flat style copies are assets outside the HUD, so they go with the HUD.
-        public void Dispose()
-        {
-            DestroyStyles();
         }
 
         private void StyleHealthBar(Transform bars)
@@ -67,24 +63,7 @@ namespace SevenUI
                 FlattenTrough(trough);
             }
 
-            if (!flatStyle && healthBar._style)
-            {
-                HealthBarStyle originalStyle = healthBar._style;
-                HealthBarStyle originalAllyStyle = healthBar._allyStyle;
-                flatStyle = Flatten(originalStyle);
-                flatAllyStyle = originalAllyStyle ? Flatten(originalAllyStyle) : null;
-                healthBar._style = flatStyle;
-                healthBar._allyStyle = flatAllyStyle;
-                recorder.OnRestore(() =>
-                {
-                    if (healthBar)
-                    {
-                        healthBar._style = originalStyle;
-                        healthBar._allyStyle = originalAllyStyle;
-                    }
-                    DestroyStyles();
-                });
-            }
+            FlatHealthStyles.Apply(healthBar, recorder);
 
             // The health bar writes its numbers as text when it has no sprite-digit manager, into the text labels
             // its prefab still has under "Slash".
@@ -180,49 +159,27 @@ namespace SevenUI
             }
         }
 
+        // The buffs' stack counts, and the timers LookingGlass writes into the same text, in bold Barlow Condensed.
+        private void StyleBuffs(Transform bars)
+        {
+            Transform buffs = bars.Find(BuffsPath);
+            if (!buffs) return;
+            buffs.GetComponentsInChildren(true, buffIcons);
+            foreach (BuffIcon buff in buffIcons)
+            {
+                if (!buff.stackCount) continue;
+                recorder.Record(buff.stackCount);
+                buff.stackCount.fontStyle |= FontStyles.Bold;
+                buff.stackCount.color = Palette.Text;
+            }
+            buffIcons.Clear();
+        }
+
         private static void FlattenTrough(Image image)
         {
             image.sprite = null;
             image.type = Image.Type.Simple;
             image.color = Palette.Trough;
-        }
-
-        // A copy of the game's style with the plain bars (health, its trailing parts, shield, barrier) drawn flat in
-        // their own colors. Bars whose pattern means something (curse, the execute threshold, one-shot protection,
-        // low health) keep their sprites.
-        private static HealthBarStyle Flatten(HealthBarStyle original)
-        {
-            HealthBarStyle copy = Object.Instantiate(original);
-            copy.name = original.name + " (SevenUI)";
-            FlattenBar(ref copy.trailingUnderHealthBarStyle);
-            FlattenBar(ref copy.instantHealthBarStyle);
-            FlattenBar(ref copy.trailingOverHealthBarStyle);
-            FlattenBar(ref copy.regainableHealthStyle);
-            FlattenBar(ref copy.shieldBarStyle);
-            FlattenBar(ref copy.barrierBarStyle);
-            return copy;
-        }
-
-        private static void FlattenBar(ref HealthBarStyle.BarStyle bar)
-        {
-            if (bar.sprite)
-            {
-                bar.sprite = FlatSprite.White;
-            }
-        }
-
-        private void DestroyStyles()
-        {
-            if (flatStyle)
-            {
-                Object.Destroy(flatStyle);
-            }
-            if (flatAllyStyle)
-            {
-                Object.Destroy(flatAllyStyle);
-            }
-            flatStyle = null;
-            flatAllyStyle = null;
         }
 
         private static T Find<T>(Transform parent, string path) where T : Component

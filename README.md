@@ -5,14 +5,15 @@ A client-side Risk of Rain 2 mod that restyles the HUD with the Barlow font and 
 ## What it changes
 
 - **Flat HUD:** the game turns the HUD's corners slightly inward, so they lean toward the middle of the screen. SevenUI levels them so the whole HUD faces the screen squarely.
-- **Text:** HUD text uses Barlow instead of the game's Bombardier font, and numbers (the run timer, your level, item stacks, and skill and equipment cooldowns) and the boss's name use Barlow Condensed. This covers new HUD text too: item and buff icons, notifications, ally cards, the scoreboard, and panels added by other mods.
+- **Text:** HUD text uses Barlow instead of the game's Bombardier font, and numbers (the run timer, your level, item and buff stacks, and skill and equipment cooldowns) and the boss's name use Barlow Condensed. This covers new HUD text too: item and buff icons, notifications, ally cards, the scoreboard, and panels added by other mods.
 - **Run info:** the timer, stage, level and difficulty icon share one flat translucent panel. The scrolling difficulty segments are replaced by a thin bar that fills as the current difficulty progresses, with the difficulty's name beside it in spaced capitals.
 - **Health and level:** the health, shield, barrier and experience bars are flat, on a dark trough, with the experience bar thin and in the accent color. The health numbers are text instead of sprite digits, with the current health in bold and the maximum in grey. The level sits under a small "LV" header, in the accent color. Bars whose pattern means something, such as curse or the execute threshold, keep the game's look.
+- **Ally cards and buffs:** ally cards sit on flat panels with flat health bars like yours. Buff stack counts, and LookingGlass's buff timers, are bold Barlow Condensed.
 - **Skills and equipment:** the slots are flat and dark. A recharging skill gets a dark cover over the top of its icon that shrinks as it recharges, in place of the game's radial sweep, and the game's white ready outline is gone (the icon still turns grey while a skill isn't ready). The equipment keeps a thin orange ready outline. Cooldowns and stocks use Barlow Condensed, and the key labels are small grey capitals without their dark plates.
 - **Top:** money, void coins and lunar coins each sit on their own flat panel, without the cluster's frame, and the item bar loses its frame. Each item sits on a dark slot with its tier's color along the bottom, and stack counts are Barlow Condensed numbers instead of sprite digits. The boss bar is flat in a muted red, with the boss's name in Barlow Condensed capitals.
 - **Panels:** the panels under the run info (artifacts, objectives, and panels other mods add there) are flat and translucent, with a small gap between them. The objective panel's title sits in a header strip in spaced capitals.
 
-Not yet restyled: buffs, ally cards, the chat, the scoreboard, tooltips, and menus outside the HUD.
+Not yet restyled: the buff icons themselves, the interaction prompt, pickup notifications, the chat, the scoreboard, tooltips, and menus outside the HUD.
 
 ## LookingGlass
 
