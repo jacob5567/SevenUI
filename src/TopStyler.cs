@@ -16,7 +16,10 @@ namespace SevenUI
         // Under each currency's MoneyText object.
         private const string CurrencyBackgroundName = "BackgroundPanel";
         // Under the boss bar's container.
-        private const string BossTroughName = "BossHealthBarContainer";
+        // The container's backdrop is wider than the fills, its faded ends hiding the difference, so the trough goes on
+        // the panel that holds the fills instead, whose own image the game leaves off.
+        private const string BossBackdropName = "BossHealthBarContainer";
+        private const string BossTroughPath = "BossHealthBarContainer/BackgroundPanel";
         private const string BossShieldPath = "BossHealthBarContainer/BackgroundPanel/ShieldPanel";
 
         // In HUD canvas units, where the game draws the boss's name at 32.
@@ -88,7 +91,9 @@ namespace SevenUI
         {
             if (boss.container)
             {
-                Transform trough = boss.container.transform.Find(BossTroughName);
+                Transform backdrop = boss.container.transform.Find(BossBackdropName);
+                recorder.Disable(backdrop ? backdrop.GetComponent<Image>() : null);
+                Transform trough = boss.container.transform.Find(BossTroughPath);
                 Image troughImage = trough ? trough.GetComponent<Image>() : null;
                 if (troughImage)
                 {
@@ -96,6 +101,7 @@ namespace SevenUI
                     troughImage.sprite = null;
                     troughImage.type = Image.Type.Simple;
                     troughImage.color = Palette.Trough;
+                    recorder.SetEnabled(troughImage, true);
                 }
                 Transform shield = boss.container.transform.Find(BossShieldPath);
                 FlattenFill(shield ? shield.GetComponent<Image>() : null, null);

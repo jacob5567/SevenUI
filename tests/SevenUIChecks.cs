@@ -409,6 +409,24 @@ namespace SevenUI.Tests
         private static HUDBossHealthBarController BossBar(Harness h) =>
             HudRoot(h).GetComponentsInChildren<HUDBossHealthBarController>(true).FirstOrDefault();
 
+        // The panel that holds the boss bar's fills, and the wider backdrop around it.
+        private static Image BossTrough(HUDBossHealthBarController boss) =>
+            boss && boss.fillRectImage ? boss.fillRectImage.transform.parent.GetComponent<Image>() : null;
+
+        private static Image BossBackdrop(HUDBossHealthBarController boss)
+        {
+            Image trough = BossTrough(boss);
+            return trough && trough.transform.parent ? trough.transform.parent.GetComponent<Image>() : null;
+        }
+
+        // The trough fits the fills: it is drawn on their panel, and the wider backdrop is off.
+        private static bool BossTroughFitsFills(HUDBossHealthBarController boss)
+        {
+            Image trough = BossTrough(boss);
+            Image backdrop = BossBackdrop(boss);
+            return trough && trough.enabled && !trough.sprite && Near(trough.color, Palette.Trough) && backdrop && !backdrop.enabled;
+        }
+
         private static List<RawImage> CurrencyStrips(Harness h)
         {
             Transform cluster = HudRoot(h).Find(GameNames.MoneyCluster);
@@ -425,7 +443,9 @@ namespace SevenUI.Tests
             HUDBossHealthBarController boss = BossBar(h);
             return $"money frame on={(frame ? frame.enabled.ToString() : "-")}, " +
                    $"currency strips={string.Join("/", CurrencyStrips(h).Select(strip => strip.texture ? strip.texture.name : "flat"))}, " +
-                   $"boss fill={(boss && boss.fillRectImage && boss.fillRectImage.sprite ? boss.fillRectImage.sprite.name : "-")}";
+                   $"boss fill={(boss && boss.fillRectImage && boss.fillRectImage.sprite ? boss.fillRectImage.sprite.name : "-")}, " +
+                   $"boss trough on={(BossTrough(boss) ? BossTrough(boss).enabled.ToString() : "-")}, " +
+                   $"boss backdrop on={(BossBackdrop(boss) ? BossBackdrop(boss).enabled.ToString() : "-")}";
         }
 
         public static IEnumerator ExpectTopFlat(this Harness h)
@@ -439,7 +459,8 @@ namespace SevenUI.Tests
                     HUDBossHealthBarController boss = BossBar(h);
                     return frame && !frame.enabled && strips.Count > 0 &&
                            strips.All(strip => !strip.texture && Near(strip.color, Palette.Panel)) &&
-                           boss && boss.fillRectImage.sprite && boss.fillRectImage.sprite.name == Texts.FlatSpriteName;
+                           boss && boss.fillRectImage.sprite && boss.fillRectImage.sprite.name == Texts.FlatSpriteName &&
+                           BossTroughFitsFills(boss);
                 },
                 () => $"flat currency panels and boss bar ({TopLook(h)}) {h.Diagnosis()}");
         }
@@ -453,7 +474,8 @@ namespace SevenUI.Tests
                     Image frame = cluster ? cluster.GetComponent<Image>() : null;
                     HUDBossHealthBarController boss = BossBar(h);
                     return frame && frame.enabled && CurrencyStrips(h).All(strip => strip.texture) &&
-                           boss && boss.fillRectImage.sprite && boss.fillRectImage.sprite.name != Texts.FlatSpriteName;
+                           boss && boss.fillRectImage.sprite && boss.fillRectImage.sprite.name != Texts.FlatSpriteName &&
+                           BossBackdrop(boss) && BossBackdrop(boss).enabled && BossTrough(boss) && !BossTrough(boss).enabled;
                 },
                 () => $"the game's currency panels and boss bar back ({TopLook(h)}) {h.Diagnosis()}");
         }
