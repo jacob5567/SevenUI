@@ -38,7 +38,10 @@ namespace SevenUI
         // The game's timer format sets every character, the colon too, 0.5em apart (<mspace>), which leaves Barlow
         // Condensed's narrow digits loose; this pulls them a little closer, in hundredths of an em.
         private const float TimerTracking = -4f;
-        private const float PanelPadding = 3f;
+        private const float PanelPadding = 6f;
+        // How far the top row's parts stay inside the panel's sides. The stage and level are right-aligned in their
+        // box, which the swap puts at the panel's right edge.
+        private const float RowInset = 8f;
         private const float BarInset = 8f;
         private const float BarHeight = 4f;
         // The bar takes the left part of the difficulty row, the name the rest.
@@ -153,13 +156,26 @@ namespace SevenUI
                 min = Mathf.Min(min, panel.InverseTransformPoint(corners[0]).x);
                 max = Mathf.Max(max, panel.InverseTransformPoint(corners[2]).x);
             }
+            // The panel's sides are the panels' below it, when there are any (see FitBackground).
+            float left = min;
+            float right = max;
+            if (panel.Find(RightInfoBarPath) is RectTransform bar)
+            {
+                bar.GetWorldCorners(corners);
+                left = panel.InverseTransformPoint(corners[0]).x;
+                right = panel.InverseTransformPoint(corners[2]).x;
+            }
             foreach (string path in CoveredPaths)
             {
                 if (!(panel.Find(path) is RectTransform rect)) continue;
                 rect.GetWorldCorners(corners);
                 float center = (panel.InverseTransformPoint(corners[0]).x + panel.InverseTransformPoint(corners[2]).x) / 2f;
-                // Moving a part's center from c to (min + max - c) mirrors it within the row.
-                float shift = min + max - 2f * center;
+                // Moving a part's center from c to (min + max - c) mirrors it within the row; then it is kept inside
+                // the row's inset.
+                float half = (panel.InverseTransformPoint(corners[2]).x - panel.InverseTransformPoint(corners[0]).x) / 2f;
+                float mirrored = min + max - center;
+                mirrored = Mathf.Clamp(mirrored, left + RowInset + half, Mathf.Max(left + RowInset + half, right - RowInset - half));
+                float shift = mirrored - center;
                 recorder.SetAnchoredPosition(rect, rect.anchoredPosition + new Vector2(shift, 0f));
             }
         }
