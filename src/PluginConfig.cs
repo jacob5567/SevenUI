@@ -18,8 +18,9 @@ namespace SevenUI
             BarlowFont = config.Bind("Text", "BarlowFont", true,
                 "Draw HUD text in Barlow instead of the game's font. Languages the game draws in Noto Sans keep it.");
             FlatPanels = config.Bind("Panels", "FlatPanels", true,
-                "Draw the HUD's panels and bars flat: translucent panels with header strips in the top right, a thin " +
-                "difficulty bar, and flat health and experience bars with the health numbers as text.");
+                "Draw the HUD's panels, bars and slots flat: translucent panels with header strips in the top right, a " +
+                "thin difficulty bar, flat health and experience bars with the health numbers as text, and flat skill " +
+                "and equipment slots with a top-down cooldown cover.");
 
             // Risk Of Options uses the section name as the menu header, so keep it exactly "Debug".
             DebugLogging = config.Bind("Debug", "DebugLogging", false,

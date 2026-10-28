@@ -289,5 +289,65 @@ namespace SevenUI.Tests
                 },
                 () => $"the level in Barlow Condensed (font {(level && level.font ? level.font.name : "none")}) {h.Diagnosis()}");
         }
+
+        private static List<SkillIcon> SkillSlots(Harness h) =>
+            HudRoot(h).GetComponentsInChildren<SkillIcon>(true).Where(skill => skill.cooldownRemapPanel).ToList();
+
+        private static bool IsSlotFlat(SkillIcon skill)
+        {
+            Image slot = skill.GetComponent<Image>();
+            CanvasGroup overlay = skill.cooldownRemapPanel.GetComponent<CanvasGroup>();
+            return slot && !slot.sprite && Near(slot.color, Palette.Trough) && overlay && overlay.alpha == 0f &&
+                   skill.GetComponentInChildren<CooldownCover>(true);
+        }
+
+        private static bool IsSlotVanilla(SkillIcon skill)
+        {
+            Image slot = skill.GetComponent<Image>();
+            return slot && slot.sprite && !skill.cooldownRemapPanel.GetComponent<CanvasGroup>() &&
+                   !skill.GetComponentInChildren<CooldownCover>(true);
+        }
+
+        private static string SlotsLook(List<SkillIcon> skills)
+        {
+            return skills.Count == 0
+                ? "no skill slots"
+                : string.Join(", ", skills.Select(skill =>
+                {
+                    Image slot = skill.GetComponent<Image>();
+                    return $"{skill.name}: sprite={(slot && slot.sprite ? slot.sprite.name : "none")} " +
+                           $"overlay group={(bool)skill.cooldownRemapPanel.GetComponent<CanvasGroup>()} " +
+                           $"cover={(bool)skill.GetComponentInChildren<CooldownCover>(true)} " +
+                           $"cooldown font={(skill.cooldownText && skill.cooldownText.font ? skill.cooldownText.font.name : "-")}";
+                }));
+        }
+
+        // Every skill slot flat, with the mod's cooldown cover in place of the radial overlay, and its cooldown in
+        // Barlow Condensed.
+        public static IEnumerator ExpectSkillSlotsFlat(this Harness h)
+        {
+            List<SkillIcon> skills = new List<SkillIcon>();
+            yield return h.Until(
+                () =>
+                {
+                    skills = SkillSlots(h);
+                    return skills.Count > 0 && skills.All(IsSlotFlat) && skills.All(skill =>
+                        skill.cooldownText && skill.cooldownText.font &&
+                        skill.cooldownText.font.name.StartsWith(Texts.CondensedFontPrefix));
+                },
+                () => $"flat skill slots with cooldown covers ({SlotsLook(skills)}) {h.Diagnosis()}");
+        }
+
+        public static IEnumerator ExpectSkillSlotsVanilla(this Harness h)
+        {
+            List<SkillIcon> skills = new List<SkillIcon>();
+            yield return h.Until(
+                () =>
+                {
+                    skills = SkillSlots(h);
+                    return skills.Count > 0 && skills.All(IsSlotVanilla);
+                },
+                () => $"the game's skill slots back ({SlotsLook(skills)}) {h.Diagnosis()}");
+        }
     }
 }

@@ -17,6 +17,7 @@ namespace SevenUI
         private RunInfoStyler runInfo;
         private RightInfoBarStyler rightInfoBar;
         private PlayerBarsStyler playerBars;
+        private SkillSlotsStyler skillSlots;
         private int lastHierarchyCount = -1;
         private bool fontApplied;
         private bool panelsApplied;
@@ -30,6 +31,7 @@ namespace SevenUI
             runInfo = new RunInfoStyler(root);
             rightInfoBar = new RightInfoBarStyler(root);
             playerBars = new PlayerBarsStyler(root);
+            skillSlots = new SkillSlotsStyler(root);
             SevenUIPlugin.Settings.BarlowFont.SettingChanged += OnSettingChanged;
             SevenUIPlugin.Settings.FlatPanels.SettingChanged += OnSettingChanged;
         }
@@ -57,6 +59,7 @@ namespace SevenUI
             runInfo.Apply();
             rightInfoBar.Apply();
             playerBars.Apply();
+            skillSlots.Apply();
         }
 
         private void RestorePanels()
@@ -64,6 +67,7 @@ namespace SevenUI
             runInfo.Restore();
             rightInfoBar.Restore();
             playerBars.Restore();
+            skillSlots.Restore();
         }
 
         private static bool Toggle(ConfigEntry<bool> setting, bool applied, Action apply, Action restore)
@@ -93,6 +97,7 @@ namespace SevenUI
             runInfo.Describe(output);
             rightInfoBar.Describe(output);
             playerBars.Describe(output);
+            skillSlots.Describe(output);
         }
 
         private void OnDestroy()

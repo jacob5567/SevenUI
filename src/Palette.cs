@@ -14,6 +14,10 @@ namespace SevenUI
         public static readonly Color Text = new Color(0.906f, 0.914f, 0.941f, 1f);
         // #b8c4ff, the accent, for bar fills.
         public static readonly Color Accent = new Color(0.722f, 0.769f, 1f, 1f);
+        // #e8a25a, the equipment tier's orange, for the equipment slot's ready outline.
+        public static readonly Color Equipment = new Color(0.910f, 0.635f, 0.353f, 1f);
+        // rgba(10,12,16,0.72), the cover over a skill that is recharging.
+        public static readonly Color CooldownCover = new Color(0.039f, 0.047f, 0.063f, 0.72f);
         // #3a3f4c, the empty part of a bar.
         public static readonly Color Trough = new Color(0.227f, 0.247f, 0.298f, 1f);
     }

@@ -63,13 +63,17 @@ namespace SevenUI
             scratch.Clear();
         }
 
-        // The run timer and the player's level are numbers only, which read best in Barlow Condensed, as in the design
-        // canvas.
+        // The run timer, the player's level, and the cooldowns and stocks on skills and equipment are numbers only,
+        // which read best in Barlow Condensed, as in the design canvas.
         private static bool IsNumber(TMP_Text text)
         {
             if (text.GetComponent<TimerText>()) return true;
             LevelText level = text.GetComponentInParent<LevelText>();
-            return level && level.targetText == text;
+            if (level && level.targetText == text) return true;
+            SkillIcon skill = text.GetComponentInParent<SkillIcon>();
+            if (skill && (skill.cooldownText == text || skill.stockText == text)) return true;
+            EquipmentIcon equipment = text.GetComponentInParent<EquipmentIcon>();
+            return equipment && (equipment.cooldownText == text || equipment.stockText == text);
         }
 
         public void Restore()
