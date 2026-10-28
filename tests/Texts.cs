@@ -19,5 +19,7 @@ namespace SevenUI.Tests
         public const string RunInfoBackgroundName = "SevenUIRunInfoPanel";
         // The strip the mod adds behind the objective panel's title (RightInfoBarStyler).
         public const string HeaderStripName = "SevenUIHeaderStrip";
+        // The panel the mod fits behind the interaction prompt's text (PromptPanel).
+        public const string PromptPanelName = "SevenUIPromptPanel";
     }
 }

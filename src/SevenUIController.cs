@@ -59,6 +59,10 @@ namespace SevenUI
         {
             // Tooltips live outside the HUD, so they don't change its count; checking for a new one is one read.
             tooltips.Update(SevenUIPlugin.Settings.BarlowFont.Value, SevenUIPlugin.Settings.FlatPanels.Value);
+            if (panelsApplied)
+            {
+                prompts.Update();
+            }
 
             // Any object added under the HUD changes this count, and reading it is cheap, so it is the signal to
             // restyle new objects without walking the hierarchy every frame.

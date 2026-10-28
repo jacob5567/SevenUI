@@ -8,8 +8,8 @@ using UnityEngine.UI;
 namespace SevenUI
 {
     // Restyles the interaction prompt ("Open Chest") and the pickup notifications: flat translucent panels in place of
-    // the soft gradients, with the notification's description in grey. Found by their components, wherever they sit
-    // in the HUD: LookingGlass moves the prompt.
+    // the soft gradients, the prompt's fitted to its text (PromptPanel), with the notification's description in grey.
+    // Found by their components, wherever they sit in the HUD: LookingGlass moves the prompt.
     internal sealed class PromptsStyler
     {
         // Under a notification's canvas group.
@@ -19,6 +19,7 @@ namespace SevenUI
         private readonly Transform root;
         private readonly StyleRecorder recorder = new StyleRecorder();
         private readonly List<ContextManager> prompts = new List<ContextManager>();
+        private readonly List<PromptPanel> panels = new List<PromptPanel>();
         private readonly List<GenericNotification> notifications = new List<GenericNotification>();
 
         public PromptsStyler(Transform root)
@@ -29,10 +30,15 @@ namespace SevenUI
         public void Apply()
         {
             root.GetComponentsInChildren(true, prompts);
+            panels.RemoveAll(panel => !panel.Alive);
             foreach (ContextManager prompt in prompts)
             {
-                FlattenStrip(prompt.contextDisplay);
-                FlattenStrip(prompt.inspectDisplay);
+                HideStrip(prompt.contextDisplay);
+                HideStrip(prompt.inspectDisplay);
+                if (!panels.Exists(panel => panel.Prompt == prompt))
+                {
+                    panels.Add(new PromptPanel(prompt, recorder));
+                }
             }
             prompts.Clear();
             root.GetComponentsInChildren(true, notifications);
@@ -46,16 +52,23 @@ namespace SevenUI
         public void Restore()
         {
             recorder.Restore();
+            panels.Clear();
         }
 
-        // The prompt's soft strip, which the game shows and hides by its object, becomes a flat panel.
-        private void FlattenStrip(GameObject display)
+        // Every frame while the panels are on: the prompt's text changes without adding objects to the HUD.
+        public void Update()
         {
-            RawImage strip = display ? display.GetComponent<RawImage>() : null;
-            if (!strip) return;
-            recorder.Record(strip);
-            strip.texture = null;
-            strip.color = Palette.Panel;
+            foreach (PromptPanel panel in panels)
+            {
+                panel.Update();
+            }
+        }
+
+        // Each prompt row's soft strip gives way to the one fitted panel. The game shows and hides the rows by their
+        // objects, never the strip's component.
+        private void HideStrip(GameObject display)
+        {
+            recorder.Disable(display ? display.GetComponent<RawImage>() : null);
         }
 
         private void StyleNotification(GenericNotification notification)
@@ -90,6 +103,12 @@ namespace SevenUI
         public void Describe(StringBuilder output)
         {
             output.AppendLine($"  restyled prompt and notification values: {recorder.Count}");
+            foreach (PromptPanel panel in panels)
+            {
+                if (!panel.Alive) continue;
+                output.AppendLine($"  prompt panel: active={panel.Panel.gameObject.activeSelf} position={panel.Panel.anchoredPosition} " +
+                                  $"size={panel.Panel.sizeDelta}");
+            }
         }
     }
 }

@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using ModTestRunner;
+using RoR2;
 using UnityEngine;
 
 namespace SevenUI.Tests
@@ -22,6 +23,7 @@ namespace SevenUI.Tests
             yield return new Scenario(1, Suite, "top_is_flat", Stages.TitanicPlains, TopIsFlat);
             yield return new Scenario(1, Suite, "item_icons_are_flat", Stages.TitanicPlains, ItemIconsAreFlat);
             yield return new Scenario(1, Suite, "prompt_is_flat", Stages.TitanicPlains, PromptIsFlat);
+            yield return new Scenario(1, Suite, "prompt_panel_fits_text", Stages.TitanicPlains, PromptPanelFitsText);
             yield return new Scenario(1, Suite, "scoreboard_and_chat_are_flat", Stages.TitanicPlains, ScoreboardAndChatAreFlat);
             yield return new Scenario(1, Suite, "turning_off_restores_panels", Stages.TitanicPlains, TurningOffRestoresPanels);
             yield return new Scenario(1, Suite, "lookingglass_stats_panel_is_plain", Stages.TitanicPlains, LookingGlassStatsPanelIsPlain);
@@ -71,6 +73,14 @@ namespace SevenUI.Tests
         private static IEnumerator PromptIsFlat(Harness h)
         {
             yield return h.ExpectPromptFlat();
+        }
+
+        private static IEnumerator PromptPanelFitsText(Harness h)
+        {
+            PurchaseInteraction chest = null;
+            yield return h.Spawned<PurchaseInteraction>($"{Commands.SpawnInteractable} {GameNames.SmallChest}", found => chest = found);
+            yield return h.StandBefore(chest.gameObject);
+            yield return h.ExpectPromptPanelFitsText();
         }
 
         private static IEnumerator ScoreboardAndChatAreFlat(Harness h)

@@ -517,37 +517,82 @@ namespace SevenUI.Tests
                 () => $"the game's item icons back ({ItemsLook(icons)}) {h.Diagnosis()}");
         }
 
-        private static RawImage PromptStrip(Harness h)
+        private static ContextManager Prompt(Harness h) =>
+            HudRoot(h).GetComponentsInChildren<ContextManager>(true).FirstOrDefault();
+
+        private static RawImage PromptStrip(ContextManager prompt) =>
+            prompt && prompt.contextDisplay ? prompt.contextDisplay.GetComponent<RawImage>() : null;
+
+        private static RectTransform PromptPanel(ContextManager prompt) =>
+            prompt ? prompt.transform.Find(Texts.PromptPanelName) as RectTransform : null;
+
+        private static string PromptLook(ContextManager prompt)
         {
-            ContextManager prompt = HudRoot(h).GetComponentsInChildren<ContextManager>(true).FirstOrDefault();
-            return prompt && prompt.contextDisplay ? prompt.contextDisplay.GetComponent<RawImage>() : null;
+            if (!prompt) return "no prompt";
+            RawImage strip = PromptStrip(prompt);
+            RectTransform panel = PromptPanel(prompt);
+            return $"strip={(strip ? $"enabled={strip.enabled} texture={(strip.texture ? strip.texture.name : "none")}" : "none")}, " +
+                   $"panel={(panel ? $"active={panel.gameObject.activeSelf} size={panel.rect.size}" : "none")}, " +
+                   $"prompt width={((RectTransform)prompt.transform).rect.width:0}, " +
+                   $"text='{(prompt.descriptionTMP ? prompt.descriptionTMP.text : "-")}'";
         }
 
-        private static string PromptLook(RawImage strip) =>
-            strip ? $"texture={(strip.texture ? strip.texture.name : "none")} color={strip.color}" : "no prompt";
-
+        // The game's strips are hidden for the mod's one panel, which only shows with a prompt.
         public static IEnumerator ExpectPromptFlat(this Harness h)
         {
-            RawImage strip = null;
+            ContextManager prompt = null;
             yield return h.Until(
                 () =>
                 {
-                    strip = PromptStrip(h);
-                    return strip && !strip.texture && Near(strip.color, Palette.Panel);
+                    prompt = Prompt(h);
+                    RawImage strip = PromptStrip(prompt);
+                    RectTransform panel = PromptPanel(prompt);
+                    return strip && !strip.enabled && panel && panel.GetComponent<Image>() &&
+                           Near(panel.GetComponent<Image>().color, Palette.Panel);
                 },
-                () => $"the interaction prompt on a flat panel ({PromptLook(strip)}) {h.Diagnosis()}");
+                () => $"the interaction prompt's strips hidden for a flat panel ({PromptLook(prompt)}) {h.Diagnosis()}");
+        }
+
+        // With a prompt showing, the panel covers its text and is far narrower than the game's strips.
+        public static IEnumerator ExpectPromptPanelFitsText(this Harness h)
+        {
+            ContextManager prompt = null;
+            yield return h.Until(
+                () =>
+                {
+                    prompt = Prompt(h);
+                    RectTransform panel = PromptPanel(prompt);
+                    if (!panel || !panel.gameObject.activeSelf || !prompt.descriptionTMP) return false;
+                    if (string.IsNullOrEmpty(prompt.descriptionTMP.text)) return false;
+                    float promptWidth = ((RectTransform)prompt.transform).rect.width;
+                    return panel.rect.width < promptWidth * 0.8f && Covers(panel, prompt.descriptionTMP);
+                },
+                () => $"the prompt's panel fitted to its text ({PromptLook(prompt)}) {h.Diagnosis()}");
+        }
+
+        // Whether the panel's rectangle holds the text's drawn characters.
+        private static bool Covers(RectTransform panel, TMP_Text text)
+        {
+            Bounds bounds = text.textBounds;
+            Vector3 min = panel.InverseTransformPoint(text.transform.TransformPoint(bounds.min));
+            Vector3 max = panel.InverseTransformPoint(text.transform.TransformPoint(bounds.max));
+            Rect rect = panel.rect;
+            const float Slack = 1f;
+            return Mathf.Min(min.x, max.x) >= rect.xMin - Slack && Mathf.Max(min.x, max.x) <= rect.xMax + Slack &&
+                   Mathf.Min(min.y, max.y) >= rect.yMin - Slack && Mathf.Max(min.y, max.y) <= rect.yMax + Slack;
         }
 
         public static IEnumerator ExpectPromptVanilla(this Harness h)
         {
-            RawImage strip = null;
+            ContextManager prompt = null;
             yield return h.Until(
                 () =>
                 {
-                    strip = PromptStrip(h);
-                    return strip && strip.texture;
+                    prompt = Prompt(h);
+                    RawImage strip = PromptStrip(prompt);
+                    return strip && strip.enabled && strip.texture && !PromptPanel(prompt);
                 },
-                () => $"the game's interaction prompt back ({PromptLook(strip)}) {h.Diagnosis()}");
+                () => $"the game's interaction prompt back ({PromptLook(prompt)}) {h.Diagnosis()}");
         }
 
         // The scoreboard is closed during a run, but its board is already in the HUD, so it is checked closed.

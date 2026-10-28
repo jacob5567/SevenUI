@@ -14,6 +14,9 @@ namespace SevenUI.Tests
         // Titanic Knurl, for more max health.
         public const string Knurl = "Knurl";
 
+        // A spawn_interactable argument: a small chest, for an interaction prompt.
+        public const string SmallChest = "iscChest1";
+
         // The damage number particle's start size is this many characters wide by one tall.
         public const float DamageNumberCharacters = 4f;
 
