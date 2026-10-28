@@ -1,0 +1,18 @@
+# Thunderstore CLI (tcli) settings for publishing. The release workflow uploads the zip from the GitHub release, so
+# the package contents, version and dependencies come from that zip's manifest.json; this file only says where it goes.
+[config]
+schemaVersion = "0.0.1"
+
+[package]
+namespace = "sevenstack"
+name = "SevenUI"
+description = "Restyles the HUD. So far it draws HUD text in the Barlow font. Works alongside LookingGlass. Client-side."
+websiteUrl = "https://github.com/jacob5567/SevenUI"
+containsNsfwContent = false
+
+[publish]
+repository = "https://thunderstore.io"
+communities = ["riskofrain2"]
+
+[publish.categories]
+riskofrain2 = ["mods", "client-side", "tweaks", "ai-generated"]
