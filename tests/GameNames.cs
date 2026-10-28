@@ -27,6 +27,10 @@ namespace SevenUI.Tests
         public const string MoneyCluster = "MainContainer/MainUIArea/SpringCanvas/UpperLeftCluster";
         public const string CurrencyBackground = "BackgroundPanel";
 
+        // The scoreboard's board, under its panel, and the chat's input field, under its chat box.
+        public const string ScoreboardBoard = "Container/StripContainer";
+        public const string ChatInputField = "PermanentBG/Input Field";
+
         // The run info's timer box, and the part of the difficulty bar that holds its scrolling segments.
         public const string TimerPanel = "TimerPanel";
         public const string DifficultySegments = "Scroll View/Viewport";

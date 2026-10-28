@@ -527,5 +527,51 @@ namespace SevenUI.Tests
                 },
                 () => $"the game's interaction prompt back ({PromptLook(strip)}) {h.Diagnosis()}");
         }
+
+        // The scoreboard is closed during a run, but its board is already in the HUD, so it is checked closed.
+        private static Image ScoreboardBoard(Harness h)
+        {
+            ScoreboardController board = HudRoot(h).GetComponentsInChildren<ScoreboardController>(true).FirstOrDefault();
+            return board ? board.transform.Find(GameNames.ScoreboardBoard)?.GetComponent<Image>() : null;
+        }
+
+        private static Image ChatInput(Harness h)
+        {
+            ChatBox chat = HudRoot(h).GetComponentsInChildren<ChatBox>(true).FirstOrDefault();
+            return chat ? chat.transform.Find(GameNames.ChatInputField)?.GetComponent<Image>() : null;
+        }
+
+        private static string OverlaysLook(Image board, Image input) =>
+            $"board sprite={(board ? (board.sprite ? board.sprite.name : "none") : "-")}, " +
+            $"chat input sprite={(input ? (input.sprite ? input.sprite.name : "none") : "-")}";
+
+        public static IEnumerator ExpectOverlaysFlat(this Harness h)
+        {
+            Image board = null;
+            Image input = null;
+            yield return h.Until(
+                () =>
+                {
+                    board = ScoreboardBoard(h);
+                    input = ChatInput(h);
+                    return board && !board.sprite && Near(board.color, Palette.ScoreboardPanel) &&
+                           input && !input.sprite && Near(input.color, Palette.ScoreboardPanel);
+                },
+                () => $"a flat scoreboard and chat input ({OverlaysLook(board, input)}) {h.Diagnosis()}");
+        }
+
+        public static IEnumerator ExpectOverlaysVanilla(this Harness h)
+        {
+            Image board = null;
+            Image input = null;
+            yield return h.Until(
+                () =>
+                {
+                    board = ScoreboardBoard(h);
+                    input = ChatInput(h);
+                    return board && board.sprite && input && input.sprite;
+                },
+                () => $"the game's scoreboard and chat input back ({OverlaysLook(board, input)}) {h.Diagnosis()}");
+        }
     }
 }

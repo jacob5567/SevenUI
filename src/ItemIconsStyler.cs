@@ -7,12 +7,11 @@ using UnityEngine.UI;
 
 namespace SevenUI
 {
-    // Restyles the item icons in the item bar at the top: each on a dark slot with its tier's color along the bottom,
-    // and the stack count as Barlow Condensed text instead of sprite digits. The game keeps laying out the icons and
-    // choosing what they show.
+    // Restyles the item icons in the HUD's item displays (the item bar at the top, the scoreboard's rows): each on a
+    // dark slot with its tier's color along the bottom, and the stack count as Barlow Condensed text instead of sprite
+    // digits. The game keeps laying out the icons and choosing what they show.
     internal sealed class ItemIconsStyler
     {
-        private const string TopCenterPath = "MainContainer/MainUIArea/SpringCanvas/TopCenterCluster";
         // Under each item icon.
         private const string SpriteCountName = "Managed_Sprite_ItemCounter";
         private const string SlotName = "SevenUIItemSlot";
@@ -34,9 +33,7 @@ namespace SevenUI
 
         public void Apply()
         {
-            Transform topCenter = root.Find(TopCenterPath);
-            if (!topCenter) return;
-            topCenter.GetComponentsInChildren(true, displays);
+            root.GetComponentsInChildren(true, displays);
             foreach (ItemInventoryDisplay display in displays)
             {
                 display.GetComponentsInChildren(true, icons);
