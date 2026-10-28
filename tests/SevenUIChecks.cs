@@ -698,5 +698,25 @@ namespace SevenUI.Tests
                 () => $"the damage numbers {(monospace ? "in the mod's monospace sheet, on a narrowed particle" : "back on the game's sheet and particle")} " +
                       $"(sheet {(sheet ? sheet.name : "none")}, particle {width:0.00} characters wide) {h.Diagnosis()}");
         }
+
+        // How long to let the HUD switch between looks before the next screenshot.
+        private const float LookSwitchSeconds = 0.5f;
+
+        // Two screenshots of the screen as it is: in SevenUI's look, then with all of SevenUI's settings off. The
+        // settings come back on afterwards, and at cleanup as the runner puts config back.
+        public static IEnumerator CaptureLooks(this Harness h)
+        {
+            yield return h.Screenshot("sevenui");
+            PluginConfig settings = SevenUIPlugin.Settings;
+            h.SetConfig(settings.FlatPanels, false);
+            h.SetConfig(settings.BarlowFont, false);
+            h.SetConfig(settings.MonospaceDamageNumbers, false);
+            yield return h.Wait(LookSwitchSeconds);
+            yield return h.Screenshot("vanilla");
+            h.SetConfig(settings.FlatPanels, true);
+            h.SetConfig(settings.BarlowFont, true);
+            h.SetConfig(settings.MonospaceDamageNumbers, true);
+            yield return h.Wait(LookSwitchSeconds);
+        }
     }
 }

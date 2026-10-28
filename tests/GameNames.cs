@@ -13,12 +13,31 @@ namespace SevenUI.Tests
         public const string Hoof = "Hoof";
         // Titanic Knurl, for more max health.
         public const string Knurl = "Knurl";
+        // Personal Shield Generator, for a shield, and Foreign Fruit, an equipment with a cooldown.
+        public const string PersonalShield = "PersonalShield";
+        public const string Fruit = "Fruit";
 
-        // A spawn_interactable argument: a small chest, for an interaction prompt.
+        // spawn_interactable and spawn_ai arguments: a small chest, a broken Gunner Drone to buy, and a monster with
+        // enough health to take several hits.
         public const string SmallChest = "iscChest1";
+        public const string BrokenDrone = "iscBrokenDrone1";
+        public const string ToughMonster = "BeetleQueen";
 
         // The damage number particle's start size is this many characters wide by one tall.
         public const float DamageNumberCharacters = 4f;
+
+        // DebugToolkit's command that turns the player into another body on the spot (master.TransformBody). It also
+        // changes the body the player respawns as, so the scenarios switch back.
+        public const string SpawnAs = "spawn_as";
+
+        // Survivors that add HUD elements of their own, through HudOverlayManager: Railgunner's backpack charge,
+        // Void Fiend's corruption meter, Seeker's, Drone Tech's, Drifter's junk meter and Acolyte's.
+        public const string Railgunner = "RailgunnerBody";
+        public const string VoidFiend = "VoidSurvivorBody";
+        public const string Seeker = "SeekerBody";
+        public const string DroneTech = "DroneTechBody";
+        public const string Drifter = "DrifterBody";
+        public const string Acolyte = "AcolyteBody";
 
         // The HUD's corner clusters, which the game turns 6 degrees about the vertical axis.
         public static readonly string[] TiltedClusters =

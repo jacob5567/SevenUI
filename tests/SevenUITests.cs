@@ -13,7 +13,7 @@ namespace SevenUI.Tests
 
         public override IEnumerable<Scenario> Scenarios()
         {
-            return FontScenarios.All().Concat(PanelScenarios.All());
+            return FontScenarios.All().Concat(PanelScenarios.All()).Concat(ScreenshotScenarios.All());
         }
 
         public override string Precondition(Scenario scenario)
