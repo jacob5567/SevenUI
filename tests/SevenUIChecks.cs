@@ -387,6 +387,55 @@ namespace SevenUI.Tests
         private static HUDBossHealthBarController BossBar(Harness h) =>
             HudRoot(h).GetComponentsInChildren<HUDBossHealthBarController>(true).FirstOrDefault();
 
+        private static List<RawImage> CurrencyStrips(Harness h)
+        {
+            Transform cluster = HudRoot(h).Find(GameNames.MoneyCluster);
+            if (!cluster) return new List<RawImage>();
+            return cluster.GetComponentsInChildren<MoneyText>(true)
+                .Select(currency => currency.transform.Find(GameNames.CurrencyBackground)?.GetComponent<RawImage>())
+                .Where(strip => strip).ToList();
+        }
+
+        private static string TopLook(Harness h)
+        {
+            Transform cluster = HudRoot(h).Find(GameNames.MoneyCluster);
+            Image frame = cluster ? cluster.GetComponent<Image>() : null;
+            HUDBossHealthBarController boss = BossBar(h);
+            return $"money frame on={(frame ? frame.enabled.ToString() : "-")}, " +
+                   $"currency strips={string.Join("/", CurrencyStrips(h).Select(strip => strip.texture ? strip.texture.name : "flat"))}, " +
+                   $"boss fill={(boss && boss.fillRectImage && boss.fillRectImage.sprite ? boss.fillRectImage.sprite.name : "-")}";
+        }
+
+        public static IEnumerator ExpectTopFlat(this Harness h)
+        {
+            yield return h.Until(
+                () =>
+                {
+                    Transform cluster = HudRoot(h).Find(GameNames.MoneyCluster);
+                    Image frame = cluster ? cluster.GetComponent<Image>() : null;
+                    List<RawImage> strips = CurrencyStrips(h);
+                    HUDBossHealthBarController boss = BossBar(h);
+                    return frame && !frame.enabled && strips.Count > 0 &&
+                           strips.All(strip => !strip.texture && Near(strip.color, Palette.Panel)) &&
+                           boss && boss.fillRectImage.sprite && boss.fillRectImage.sprite.name == Texts.FlatSpriteName;
+                },
+                () => $"flat currency panels and boss bar ({TopLook(h)}) {h.Diagnosis()}");
+        }
+
+        public static IEnumerator ExpectTopVanilla(this Harness h)
+        {
+            yield return h.Until(
+                () =>
+                {
+                    Transform cluster = HudRoot(h).Find(GameNames.MoneyCluster);
+                    Image frame = cluster ? cluster.GetComponent<Image>() : null;
+                    HUDBossHealthBarController boss = BossBar(h);
+                    return frame && frame.enabled && CurrencyStrips(h).All(strip => strip.texture) &&
+                           boss && boss.fillRectImage.sprite && boss.fillRectImage.sprite.name != Texts.FlatSpriteName;
+                },
+                () => $"the game's currency panels and boss bar back ({TopLook(h)}) {h.Diagnosis()}");
+        }
+
         // The boss's name is inactive until a boss appears, and wakes up then; it must already be in Barlow and not
         // take the language's font when it wakes.
         public static IEnumerator ExpectSleepingTextBarlow(this Harness h)

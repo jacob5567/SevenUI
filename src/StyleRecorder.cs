@@ -36,6 +36,8 @@ namespace SevenUI
         }
 
         private readonly Dictionary<Image, ImageLook> images = new Dictionary<Image, ImageLook>();
+        private readonly Dictionary<RawImage, (Texture texture, Color color)> rawImages =
+            new Dictionary<RawImage, (Texture, Color)>();
         private readonly Dictionary<TMP_Text, LabelLook> labels = new Dictionary<TMP_Text, LabelLook>();
         private readonly Dictionary<TMP_Text, string> texts = new Dictionary<TMP_Text, string>();
         private readonly Dictionary<Behaviour, bool> enabledStates = new Dictionary<Behaviour, bool>();
@@ -47,7 +49,7 @@ namespace SevenUI
         private readonly Dictionary<LayoutElement, Vector2> minAndPreferredHeights = new Dictionary<LayoutElement, Vector2>();
         private readonly List<Object> added = new List<Object>();
 
-        public int Count => images.Count + labels.Count + texts.Count + enabledStates.Count + activeStates.Count +
+        public int Count => images.Count + rawImages.Count + labels.Count + texts.Count + enabledStates.Count + activeStates.Count +
                             rotations.Count + layouts.Count + minAndPreferredHeights.Count + added.Count + undos.Count;
 
         public static ImageLook Capture(Image image) => new ImageLook
@@ -91,6 +93,14 @@ namespace SevenUI
             if (image && !images.ContainsKey(image) && images.TryGetValue(original, out ImageLook look))
             {
                 images[image] = look;
+            }
+        }
+
+        public void Record(RawImage image)
+        {
+            if (image && !rawImages.ContainsKey(image))
+            {
+                rawImages[image] = (image.texture, image.color);
             }
         }
 
@@ -218,6 +228,12 @@ namespace SevenUI
                     Apply(entry.Key, entry.Value);
                 }
             }
+            foreach (KeyValuePair<RawImage, (Texture texture, Color color)> entry in rawImages)
+            {
+                if (!entry.Key) continue;
+                entry.Key.texture = entry.Value.texture;
+                entry.Key.color = entry.Value.color;
+            }
             foreach (KeyValuePair<TMP_Text, LabelLook> entry in labels)
             {
                 if (entry.Key)
@@ -278,6 +294,7 @@ namespace SevenUI
                 }
             }
             images.Clear();
+            rawImages.Clear();
             labels.Clear();
             texts.Clear();
             enabledStates.Clear();

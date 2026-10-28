@@ -23,6 +23,10 @@ namespace SevenUI.Tests
             "MainContainer/MainUIArea/SpringCanvas/BottomRightCluster",
         };
 
+        // The money cluster in the top left, and the strip behind each currency in it.
+        public const string MoneyCluster = "MainContainer/MainUIArea/SpringCanvas/UpperLeftCluster";
+        public const string CurrencyBackground = "BackgroundPanel";
+
         // The run info's timer box, and the part of the difficulty bar that holds its scrolling segments.
         public const string TimerPanel = "TimerPanel";
         public const string DifficultySegments = "Scroll View/Viewport";

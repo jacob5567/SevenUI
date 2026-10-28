@@ -19,6 +19,7 @@ namespace SevenUI.Tests
             yield return new Scenario(1, Suite, "objective_panel_is_flat", Stages.TitanicPlains, ObjectivePanelIsFlat);
             yield return new Scenario(1, Suite, "player_bars_are_flat", Stages.TitanicPlains, PlayerBarsAreFlat);
             yield return new Scenario(1, Suite, "skill_slots_are_flat", Stages.TitanicPlains, SkillSlotsAreFlat);
+            yield return new Scenario(1, Suite, "top_is_flat", Stages.TitanicPlains, TopIsFlat);
             yield return new Scenario(1, Suite, "turning_off_restores_panels", Stages.TitanicPlains, TurningOffRestoresPanels);
             yield return new Scenario(1, Suite, "lookingglass_stats_panel_is_plain", Stages.TitanicPlains, LookingGlassStatsPanelIsPlain);
         }
@@ -47,6 +48,11 @@ namespace SevenUI.Tests
             yield return h.ExpectSkillSlotsFlat();
         }
 
+        private static IEnumerator TopIsFlat(Harness h)
+        {
+            yield return h.ExpectTopFlat();
+        }
+
         private static IEnumerator ObjectivePanelIsFlat(Harness h)
         {
             yield return h.ExpectObjectivePanelFlat();
@@ -59,18 +65,21 @@ namespace SevenUI.Tests
             yield return h.ExpectPlayerBarsFlat();
             yield return h.ExpectSkillSlotsFlat();
             yield return h.ExpectHudLevel();
+            yield return h.ExpectTopFlat();
             h.SetConfig(SevenUIPlugin.Settings.FlatPanels, false);
             yield return h.ExpectRunInfoVanilla();
             yield return h.ExpectObjectivePanelVanilla();
             yield return h.ExpectPlayerBarsVanilla();
             yield return h.ExpectSkillSlotsVanilla();
             yield return h.ExpectHudTilted();
+            yield return h.ExpectTopVanilla();
             h.SetConfig(SevenUIPlugin.Settings.FlatPanels, true);
             yield return h.ExpectRunInfoFlat();
             yield return h.ExpectObjectivePanelFlat();
             yield return h.ExpectPlayerBarsFlat();
             yield return h.ExpectSkillSlotsFlat();
             yield return h.ExpectHudLevel();
+            yield return h.ExpectTopFlat();
         }
 
         // LookingGlass copies the objective panel for its stats, header strip and all if the copy is made after the

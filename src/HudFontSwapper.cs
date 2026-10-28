@@ -87,7 +87,9 @@ namespace SevenUI
             SkillIcon skill = text.GetComponentInParent<SkillIcon>();
             if (skill && (skill.cooldownText == text || skill.stockText == text)) return true;
             EquipmentIcon equipment = text.GetComponentInParent<EquipmentIcon>();
-            return equipment && (equipment.cooldownText == text || equipment.stockText == text);
+            if (equipment && (equipment.cooldownText == text || equipment.stockText == text)) return true;
+            HUDBossHealthBarController boss = text.GetComponentInParent<HUDBossHealthBarController>();
+            return boss && boss.bossNameLabel == text;
         }
 
         public void Restore()
