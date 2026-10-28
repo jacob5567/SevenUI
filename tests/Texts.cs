@@ -11,6 +11,8 @@ namespace SevenUI.Tests
         public const string FlatStyleSuffix = " (SevenUI)";
         // The plain sprite the mod draws flat bars with (FlatSprite.White).
         public const string FlatSpriteName = "SevenUIFlat";
+        // The strip the mod draws the barrier with, along the top of the health bar (FlatSprite.TopStrip).
+        public const string BarrierStripName = "SevenUITopStrip";
         // The panel the mod puts behind the run info (RunInfoStyler).
         public const string RunInfoBackgroundName = "SevenUIRunInfoPanel";
         // The strip the mod adds behind the objective panel's title (RightInfoBarStyler).

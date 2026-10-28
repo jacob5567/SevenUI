@@ -246,15 +246,20 @@ namespace SevenUI.Tests
         private static HealthBar PlayerHealthBar(Harness h) =>
             HudRoot(h).Find(GameNames.PlayerHealthBar)?.GetComponent<HealthBar>();
 
+        // The barrier is a strip along the top that stays within the bar, not the game's frame drawn larger than it.
         private static bool UsesFlatStyle(HealthBar bar) =>
             bar._style && bar._style.name.EndsWith(Texts.FlatStyleSuffix) &&
-            (!bar._allyStyle || bar._allyStyle.name.EndsWith(Texts.FlatStyleSuffix));
+            (!bar._allyStyle || bar._allyStyle.name.EndsWith(Texts.FlatStyleSuffix)) &&
+            bar._style.barrierBarStyle.sprite && bar._style.barrierBarStyle.sprite.name == Texts.BarrierStripName &&
+            bar._style.barrierBarStyle.sizeDelta <= 0f;
 
         private static string HealthLook(HealthBar bar)
         {
             if (!bar) return "no player health bar";
             Transform digits = bar.transform.Find(GameNames.HealthSpriteDigits);
-            return $"style={(bar._style ? bar._style.name : "none")}, sprite digits field={(bool)bar.spriteAsNumberManager}, " +
+            return $"style={(bar._style ? bar._style.name : "none")}, " +
+                   $"barrier sprite={(bar._style && bar._style.barrierBarStyle.sprite ? bar._style.barrierBarStyle.sprite.name : "-")} " +
+                   $"size delta={(bar._style ? bar._style.barrierBarStyle.sizeDelta.ToString() : "-")}, sprite digits field={(bool)bar.spriteAsNumberManager}, " +
                    $"digits active={(digits ? digits.gameObject.activeSelf.ToString() : "-")}, " +
                    $"text={(bar.currentHealthText ? bar.currentHealthText.text : "-")}/{(bar.fullHealthText ? bar.fullHealthText.text : "-")}, " +
                    $"health={(bar.source ? $"{Mathf.Ceil(bar.source.combinedHealth)}/{Mathf.Ceil(bar.source.fullHealth)}" : "-")}";

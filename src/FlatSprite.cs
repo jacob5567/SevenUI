@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace SevenUI
 {
-    // Plain sprites drawn in code: a white one for flat bars, and a sliced square outline.
+    // Plain sprites drawn in code: a white one for flat bars, a sliced square outline, and a sliced strip along the top.
     internal static class FlatSprite
     {
         // The outline texture's size and border, in pixels. At 100 pixels per unit the border is this many HUD canvas
@@ -10,9 +10,13 @@ namespace SevenUI
         private const int OutlineTextureSize = 8;
         private const int OutlineBorder = 2;
         private const float PixelsPerUnit = 100f;
+        // The top strip texture's height, and how much of it, from the top, is the strip: canvas units, as above.
+        private const int TopStripTextureHeight = 8;
+        private const int TopStripHeight = 6;
 
         private static Sprite white;
         private static Sprite outline;
+        private static Sprite topStrip;
 
         // For flat bars the game draws from its own sprites. The game copies a bar's sprite to its image only when the
         // sprite changes, and a new bar image starts with its prefab's sprite, so "no sprite" would leave new bars
@@ -58,6 +62,31 @@ namespace SevenUI
                     outline.name = "SevenUIOutline";
                 }
                 return outline;
+            }
+        }
+
+        // A white strip along the top of a sliced image, the same height however tall the image is, with nothing below
+        // it. Tinted by the image's color.
+        public static Sprite TopStrip
+        {
+            get
+            {
+                if (!topStrip)
+                {
+                    Texture2D texture = new Texture2D(1, TopStripTextureHeight, TextureFormat.RGBA32, false);
+                    texture.name = "SevenUITopStrip";
+                    texture.filterMode = FilterMode.Point;
+                    texture.wrapMode = TextureWrapMode.Clamp;
+                    for (int y = 0; y < TopStripTextureHeight; y++)
+                    {
+                        texture.SetPixel(0, y, y >= TopStripTextureHeight - TopStripHeight ? Color.white : Color.clear);
+                    }
+                    texture.Apply(false, true);
+                    topStrip = Sprite.Create(texture, new Rect(0f, 0f, 1f, TopStripTextureHeight), new Vector2(0.5f, 0.5f),
+                        PixelsPerUnit, 0, SpriteMeshType.FullRect, new Vector4(0f, 0f, 0f, TopStripHeight));
+                    topStrip.name = "SevenUITopStrip";
+                }
+                return topStrip;
             }
         }
     }

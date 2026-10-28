@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using RoR2.UI;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace SevenUI
 {
@@ -30,8 +31,9 @@ namespace SevenUI
             });
         }
 
-        // The plain bars (health, its trailing parts, shield, barrier) are drawn flat in their own colors. Bars whose
-        // pattern means something (curse, the execute threshold, one-shot protection, low health) keep their sprites.
+        // The plain bars (health, its trailing parts, shield) are drawn flat, and the barrier as a strip along the top,
+        // as on the design canvas, so the health and shield under it still show. Bars whose pattern means something
+        // (curse, the execute threshold, one-shot protection, low health) keep their sprites.
         private static HealthBarStyle Of(HealthBarStyle original)
         {
             if (Copies.TryGetValue(original, out HealthBarStyle copy) && copy) return copy;
@@ -42,20 +44,31 @@ namespace SevenUI
             FlattenBar(ref copy.trailingOverHealthBarStyle);
             FlattenBar(ref copy.regainableHealthStyle);
             FlattenBar(ref copy.shieldBarStyle);
-            FlattenBar(ref copy.barrierBarStyle);
+            StripBar(ref copy.barrierBarStyle);
             Copies[original] = copy;
             Flat.Add(copy);
             return copy;
         }
 
-        // Several bars get their color from their sprite, not their base color: the barrier is a white base on a
-        // translucent gold sprite, the trailing damage a grey base on an orange-red one. So the sprite's own average
-        // color and opacity are folded into the base color, and the flat bar keeps the game's color.
+        // Several bars get their color from their sprite, not their base color: the trailing damage is a grey base on
+        // an orange-red sprite, the regainable health a white base on a translucent olive one. So the sprite's own
+        // average color and opacity are folded into the base color, and the flat bar keeps the game's color.
         private static void FlattenBar(ref HealthBarStyle.BarStyle bar)
         {
             if (!bar.sprite) return;
             bar.baseColor *= SpriteColors.Average(bar.sprite);
             bar.sprite = FlatSprite.White;
+        }
+
+        // The game's barrier is a gold frame drawn larger than the bar (a positive size delta), over the health. The
+        // strip stays within the bar.
+        private static void StripBar(ref HealthBarStyle.BarStyle bar)
+        {
+            if (!bar.sprite) return;
+            bar.baseColor = Palette.Barrier;
+            bar.sprite = FlatSprite.TopStrip;
+            bar.imageType = Image.Type.Sliced;
+            bar.sizeDelta = 0f;
         }
     }
 }
