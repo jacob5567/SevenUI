@@ -17,6 +17,7 @@ namespace SevenUI.Tests
             yield return new Scenario(1, Suite, "new_item_icons_use_barlow", Stages.TitanicPlains, NewItemIconsUseBarlow);
             yield return new Scenario(1, Suite, "timer_uses_barlow_condensed", Stages.TitanicPlains, TimerUsesBarlowCondensed);
             yield return new Scenario(1, Suite, "level_uses_barlow_condensed", Stages.TitanicPlains, LevelUsesBarlowCondensed);
+            yield return new Scenario(1, Suite, "sleeping_text_keeps_barlow", Stages.TitanicPlains, SleepingTextKeepsBarlow);
             yield return new Scenario(1, Suite, "turning_off_restores_game_font", Stages.TitanicPlains, TurningOffRestoresGameFont);
             yield return new Scenario(1, Suite, "lookingglass_stats_use_barlow", Stages.TitanicPlains, LookingGlassStatsUseBarlow);
         }
@@ -44,6 +45,11 @@ namespace SevenUI.Tests
         private static IEnumerator LevelUsesBarlowCondensed(Harness h)
         {
             yield return h.ExpectLevelCondensed();
+        }
+
+        private static IEnumerator SleepingTextKeepsBarlow(Harness h)
+        {
+            yield return h.ExpectSleepingTextBarlow();
         }
 
         private static IEnumerator TurningOffRestoresGameFont(Harness h)

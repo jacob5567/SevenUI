@@ -16,6 +16,8 @@ namespace SevenUI
         private readonly Transform root;
         private readonly Dictionary<TMP_Text, (TMP_FontAsset font, Material material)> originals =
             new Dictionary<TMP_Text, (TMP_FontAsset, Material)>();
+        // Texts whose wake-up font setting the mod turned off (see Apply), to turn back on when it restores them.
+        private readonly HashSet<HGTextMeshProUGUI> languageFontTexts = new HashSet<HGTextMeshProUGUI>();
         private readonly List<TMP_Text> scratch = new List<TMP_Text>();
         private bool warnedBakeFailed;
 
@@ -30,17 +32,24 @@ namespace SevenUI
         // when the hierarchy changed.
         public void Apply()
         {
+            TMP_FontAsset languageFont = HGTextMeshProUGUI.defaultLanguageFont;
+            bool languageUsesGameFont = !languageFont || languageFont.name.StartsWith(GameFontPrefix);
             root.GetComponentsInChildren(true, scratch);
             foreach (TMP_Text text in scratch)
             {
                 TMP_FontAsset font = text.font;
-                // A text already swapped can be back in the game's font: an HGTextMeshProUGUI sets the language's
-                // font when it first wakes, which for one swapped while inactive comes after the swap.
                 if (!font || !font.name.StartsWith(GameFontPrefix)) continue;
+
+                // An HGTextMeshProUGUI sets the language's font when it first wakes, which for one still inactive
+                // (a boss bar before any boss) comes after this swap. In a Noto Sans language that font is the right
+                // one, so the text is left for it; otherwise the wake-up setting is turned off below so Barlow stays.
+                HGTextMeshProUGUI languageText = text as HGTextMeshProUGUI;
+                bool setsLanguageFont = languageText && languageText.useLanguageDefaultFont;
+                if (setsLanguageFont && !languageUsesGameFont) continue;
 
                 Material material = text.fontSharedMaterial;
                 Material template = material ? material : font.material;
-                TMP_FontAsset barlow = IsNumber(text) ? FontLibrary.Condensed(template) : FontLibrary.Body(template);
+                TMP_FontAsset barlow = UsesCondensed(text) ? FontLibrary.Condensed(template) : FontLibrary.Body(template);
                 if (!barlow)
                 {
                     if (!warnedBakeFailed)
@@ -55,6 +64,11 @@ namespace SevenUI
                 {
                     originals[text] = (font, material);
                 }
+                if (setsLanguageFont)
+                {
+                    languageText.useLanguageDefaultFont = false;
+                    languageFontTexts.Add(languageText);
+                }
                 FontLibrary.AddFallback(barlow, font);
                 text.font = barlow;
                 // Setting the font resets the material to the font's own, so put the retargeted preset back after.
@@ -64,8 +78,8 @@ namespace SevenUI
         }
 
         // The run timer, the player's level, and the cooldowns and stocks on skills and equipment are numbers only,
-        // which read best in Barlow Condensed, as in the design canvas.
-        private static bool IsNumber(TMP_Text text)
+        // which read best in Barlow Condensed, as in the design canvas, as does the boss's name in capitals.
+        private static bool UsesCondensed(TMP_Text text)
         {
             if (text.GetComponent<TimerText>()) return true;
             LevelText level = text.GetComponentInParent<LevelText>();
@@ -88,6 +102,14 @@ namespace SevenUI
                 }
             }
             originals.Clear();
+            foreach (HGTextMeshProUGUI text in languageFontTexts)
+            {
+                if (text)
+                {
+                    text.useLanguageDefaultFont = true;
+                }
+            }
+            languageFontTexts.Clear();
         }
 
         // For the dump key: how many texts use each font, and what was swapped.

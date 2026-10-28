@@ -383,5 +383,25 @@ namespace SevenUI.Tests
                 },
                 () => $"the game's tilt back on the corner clusters (y angles: {TiltLook(clusters)}) {h.Diagnosis()}");
         }
+
+        private static HUDBossHealthBarController BossBar(Harness h) =>
+            HudRoot(h).GetComponentsInChildren<HUDBossHealthBarController>(true).FirstOrDefault();
+
+        // The boss's name is inactive until a boss appears, and wakes up then; it must already be in Barlow and not
+        // take the language's font when it wakes.
+        public static IEnumerator ExpectSleepingTextBarlow(this Harness h)
+        {
+            TMP_Text name = null;
+            yield return h.Until(
+                () =>
+                {
+                    HUDBossHealthBarController boss = BossBar(h);
+                    name = boss ? boss.bossNameLabel : null;
+                    return name && name.font && name.font.name.StartsWith(Texts.BarlowFontPrefix) &&
+                           name is HGTextMeshProUGUI languageText && !languageText.useLanguageDefaultFont;
+                },
+                () => $"the boss name in Barlow, set to keep it on waking (font {(name && name.font ? name.font.name : "none")}, " +
+                      $"wakes to language font={(name as HGTextMeshProUGUI)?.useLanguageDefaultFont}) {h.Diagnosis()}");
+        }
     }
 }
