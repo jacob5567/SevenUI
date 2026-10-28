@@ -494,5 +494,38 @@ namespace SevenUI.Tests
                 },
                 () => $"the game's item icons back ({ItemsLook(icons)}) {h.Diagnosis()}");
         }
+
+        private static RawImage PromptStrip(Harness h)
+        {
+            ContextManager prompt = HudRoot(h).GetComponentsInChildren<ContextManager>(true).FirstOrDefault();
+            return prompt && prompt.contextDisplay ? prompt.contextDisplay.GetComponent<RawImage>() : null;
+        }
+
+        private static string PromptLook(RawImage strip) =>
+            strip ? $"texture={(strip.texture ? strip.texture.name : "none")} color={strip.color}" : "no prompt";
+
+        public static IEnumerator ExpectPromptFlat(this Harness h)
+        {
+            RawImage strip = null;
+            yield return h.Until(
+                () =>
+                {
+                    strip = PromptStrip(h);
+                    return strip && !strip.texture && Near(strip.color, Palette.Panel);
+                },
+                () => $"the interaction prompt on a flat panel ({PromptLook(strip)}) {h.Diagnosis()}");
+        }
+
+        public static IEnumerator ExpectPromptVanilla(this Harness h)
+        {
+            RawImage strip = null;
+            yield return h.Until(
+                () =>
+                {
+                    strip = PromptStrip(h);
+                    return strip && strip.texture;
+                },
+                () => $"the game's interaction prompt back ({PromptLook(strip)}) {h.Diagnosis()}");
+        }
     }
 }

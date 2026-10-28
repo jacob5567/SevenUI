@@ -21,6 +21,7 @@ namespace SevenUI
         private TopStyler top;
         private ItemIconsStyler itemIcons;
         private AllyCardsStyler allyCards;
+        private PromptsStyler prompts;
         private TiltFlattener tilt;
         private int lastHierarchyCount = -1;
         private bool fontApplied;
@@ -39,6 +40,7 @@ namespace SevenUI
             top = new TopStyler(root);
             itemIcons = new ItemIconsStyler(root);
             allyCards = new AllyCardsStyler(root);
+            prompts = new PromptsStyler(root);
             tilt = new TiltFlattener(root);
             SevenUIPlugin.Settings.BarlowFont.SettingChanged += OnSettingChanged;
             SevenUIPlugin.Settings.FlatPanels.SettingChanged += OnSettingChanged;
@@ -71,6 +73,7 @@ namespace SevenUI
             top.Apply();
             itemIcons.Apply();
             allyCards.Apply();
+            prompts.Apply();
             tilt.Apply();
         }
 
@@ -83,6 +86,7 @@ namespace SevenUI
             top.Restore();
             itemIcons.Restore();
             allyCards.Restore();
+            prompts.Restore();
             tilt.Restore();
         }
 
@@ -117,6 +121,7 @@ namespace SevenUI
             top.Describe(output);
             itemIcons.Describe(output);
             allyCards.Describe(output);
+            prompts.Describe(output);
             output.AppendLine($"  leveled tilts: {tilt.LeveledCount}");
         }
 
