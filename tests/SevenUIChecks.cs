@@ -158,5 +158,73 @@ namespace SevenUI.Tests
                       Title(panel) && !IsHeader(Title(panel)) && Title(panel).characterSpacing == 0f,
                 () => $"{what} flat, without the header style ({Look(panel)}) {h.Diagnosis()}");
         }
+
+        private static DifficultyBarController DifficultyBar(Harness h) =>
+            HudRoot(h).GetComponentsInChildren<DifficultyBarController>(true).FirstOrDefault();
+
+        private static string RunInfoLook(DifficultyBarController bar)
+        {
+            if (!bar) return "no difficulty bar";
+            Transform panel = bar.transform.parent;
+            Transform background = panel.Find(Texts.RunInfoBackgroundName);
+            Image timerBox = panel.Find(GameNames.TimerPanel)?.GetComponent<Image>();
+            CanvasGroup segments = bar.transform.Find(GameNames.DifficultySegments)?.GetComponent<CanvasGroup>();
+            DifficultyReadout readout = bar.GetComponentInChildren<DifficultyReadout>();
+            return $"background={(bool)background}, timer box image={(timerBox ? timerBox.enabled.ToString() : "-")}, " +
+                   $"segments alpha={(segments ? segments.alpha.ToString() : "no group")}, " +
+                   $"readout={(readout ? $"'{readout.ShownName}' {readout.ShownProgress:P0}" : "none")}";
+        }
+
+        // One flat panel behind the run info, the game's segments hidden, and the mod's bar showing one of the game's
+        // difficulty names.
+        public static IEnumerator ExpectRunInfoFlat(this Harness h)
+        {
+            DifficultyBarController bar = null;
+            yield return h.Until(
+                () =>
+                {
+                    bar = DifficultyBar(h);
+                    if (!bar) return false;
+                    Transform panel = bar.transform.parent;
+                    Transform background = panel.Find(Texts.RunInfoBackgroundName);
+                    Image timerBox = panel.Find(GameNames.TimerPanel)?.GetComponent<Image>();
+                    CanvasGroup segments = bar.transform.Find(GameNames.DifficultySegments)?.GetComponent<CanvasGroup>();
+                    DifficultyReadout readout = bar.GetComponentInChildren<DifficultyReadout>();
+                    return background && IsFlat(background.GetComponent<Image>()) && timerBox && !timerBox.enabled &&
+                           segments && segments.alpha == 0f && readout && !string.IsNullOrEmpty(readout.ShownName) &&
+                           bar.labels.Any(label => label && label.text == readout.ShownName);
+                },
+                () => $"a flat run info panel with the mod's difficulty bar ({RunInfoLook(bar)}) {h.Diagnosis()}");
+        }
+
+        public static IEnumerator ExpectRunInfoVanilla(this Harness h)
+        {
+            DifficultyBarController bar = null;
+            yield return h.Until(
+                () =>
+                {
+                    bar = DifficultyBar(h);
+                    if (!bar) return false;
+                    Transform panel = bar.transform.parent;
+                    Image timerBox = panel.Find(GameNames.TimerPanel)?.GetComponent<Image>();
+                    return !panel.Find(Texts.RunInfoBackgroundName) && timerBox && timerBox.enabled &&
+                           !bar.transform.Find(GameNames.DifficultySegments).GetComponent<CanvasGroup>() &&
+                           !bar.GetComponentInChildren<DifficultyReadout>();
+                },
+                () => $"the game's run info back ({RunInfoLook(bar)}) {h.Diagnosis()}");
+        }
+
+        public static IEnumerator ExpectTimerCondensed(this Harness h)
+        {
+            TMP_Text timer = null;
+            yield return h.Until(
+                () =>
+                {
+                    TimerText timerText = HudRoot(h).GetComponentsInChildren<TimerText>(true).FirstOrDefault();
+                    timer = timerText ? timerText.GetComponent<TMP_Text>() : null;
+                    return timer && timer.font && timer.font.name.StartsWith(Texts.CondensedFontPrefix);
+                },
+                () => $"the run timer in Barlow Condensed (font {(timer && timer.font ? timer.font.name : "none")}) {h.Diagnosis()}");
+        }
     }
 }

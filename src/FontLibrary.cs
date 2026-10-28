@@ -5,19 +5,23 @@ using UnityEngine;
 
 namespace SevenUI
 {
-    // The Barlow font assets, baked once on first use from the TTFs embedded in the DLL, and the retargeted copies
-    // of the game's text materials.
+    // The Barlow font assets, baked once each on first use from the TTFs embedded in the DLL, and the retargeted
+    // copies of the game's text materials.
     internal static class FontLibrary
     {
         private const string MediumResource = "SevenUI.fonts.Barlow-Medium.ttf";
         private const string SemiBoldResource = "SevenUI.fonts.Barlow-SemiBold.ttf";
+        private const string CondensedResource = "SevenUI.fonts.BarlowCondensed-SemiBold.ttf";
 
         // TMP's font weight table is indexed by weight / 100, so 7 is bold (700).
         private const int BoldWeightIndex = 7;
 
         private static bool baked;
         private static TMP_FontAsset body;
-        private static readonly Dictionary<Material, Material> RetargetedMaterials = new Dictionary<Material, Material>();
+        private static bool condensedBaked;
+        private static TMP_FontAsset condensed;
+        private static readonly Dictionary<(Material, TMP_FontAsset), Material> RetargetedMaterials =
+            new Dictionary<(Material, TMP_FontAsset), Material>();
 
         // Barlow Medium with Barlow SemiBold as its bold, or null if baking failed. The template material is a game
         // font's, so the baked asset's own material uses the game's text shader.
@@ -36,13 +40,24 @@ namespace SevenUI
             return body;
         }
 
+        // Barlow Condensed SemiBold, for numbers such as the run timer, or null if baking failed.
+        public static TMP_FontAsset Condensed(Material template)
+        {
+            if (!condensedBaked)
+            {
+                condensedBaked = true;
+                condensed = BakeEmbedded(CondensedResource, "Barlow Condensed SemiBold", template);
+            }
+            return condensed;
+        }
+
         // A copy of a game text material (keeping its underlay or outline) that samples the given font's atlas.
         public static Material Retarget(Material source, TMP_FontAsset font)
         {
-            if (!RetargetedMaterials.TryGetValue(source, out Material material) || !material)
+            if (!RetargetedMaterials.TryGetValue((source, font), out Material material) || !material)
             {
                 material = FontBaker.RetargetMaterial(source, font);
-                RetargetedMaterials[source] = material;
+                RetargetedMaterials[(source, font)] = material;
             }
             return material;
         }

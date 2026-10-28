@@ -5,17 +5,24 @@ using UnityEngine;
 
 namespace SevenUI.Tests
 {
-    // The FlatPanels setting: the top-right panels are flat, the objective panel has a header strip, and turning it off
-    // brings back the game's panels. LookingGlass's copy of the objective panel gets a plain panel.
+    // The FlatPanels setting: the top-right panels are flat, the run info shows the mod's difficulty bar, the objective
+    // panel has a header strip, and turning it off brings back the game's panels. LookingGlass's copy of the objective
+    // panel gets a plain panel.
     internal static class PanelScenarios
     {
         private const string Suite = "panels";
 
         public static IEnumerable<Scenario> All()
         {
+            yield return new Scenario(1, Suite, "run_info_is_flat", Stages.TitanicPlains, RunInfoIsFlat);
             yield return new Scenario(1, Suite, "objective_panel_is_flat", Stages.TitanicPlains, ObjectivePanelIsFlat);
             yield return new Scenario(1, Suite, "turning_off_restores_panels", Stages.TitanicPlains, TurningOffRestoresPanels);
             yield return new Scenario(1, Suite, "lookingglass_stats_panel_is_plain", Stages.TitanicPlains, LookingGlassStatsPanelIsPlain);
+        }
+
+        private static IEnumerator RunInfoIsFlat(Harness h)
+        {
+            yield return h.ExpectRunInfoFlat();
         }
 
         private static IEnumerator ObjectivePanelIsFlat(Harness h)
@@ -25,10 +32,13 @@ namespace SevenUI.Tests
 
         private static IEnumerator TurningOffRestoresPanels(Harness h)
         {
+            yield return h.ExpectRunInfoFlat();
             yield return h.ExpectObjectivePanelFlat();
             h.SetConfig(SevenUIPlugin.Settings.FlatPanels, false);
+            yield return h.ExpectRunInfoVanilla();
             yield return h.ExpectObjectivePanelVanilla();
             h.SetConfig(SevenUIPlugin.Settings.FlatPanels, true);
+            yield return h.ExpectRunInfoFlat();
             yield return h.ExpectObjectivePanelFlat();
         }
 

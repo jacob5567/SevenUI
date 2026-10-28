@@ -6,7 +6,7 @@ using UnityEngine.UI;
 namespace SevenUI
 {
     // Remembers the game's values for each HUD object the mod restyles, the first time it touches it, and the objects
-    // it adds, so turning a setting off puts the HUD back as the game drew it.
+    // and components it adds, so turning a setting off puts the HUD back as the game drew it.
     internal sealed class StyleRecorder
     {
         public struct ImageLook
@@ -24,7 +24,6 @@ namespace SevenUI
             public Color Color;
             public TextAlignmentOptions Alignment;
             public Vector4 Margin;
-            public string Text;
         }
 
         public struct LayoutLook
@@ -38,12 +37,15 @@ namespace SevenUI
 
         private readonly Dictionary<Image, ImageLook> images = new Dictionary<Image, ImageLook>();
         private readonly Dictionary<TMP_Text, LabelLook> labels = new Dictionary<TMP_Text, LabelLook>();
+        private readonly Dictionary<TMP_Text, string> texts = new Dictionary<TMP_Text, string>();
+        private readonly Dictionary<Behaviour, bool> enabledStates = new Dictionary<Behaviour, bool>();
         private readonly Dictionary<HorizontalOrVerticalLayoutGroup, LayoutLook> layouts =
             new Dictionary<HorizontalOrVerticalLayoutGroup, LayoutLook>();
         private readonly Dictionary<LayoutElement, Vector2> minAndPreferredHeights = new Dictionary<LayoutElement, Vector2>();
-        private readonly List<GameObject> added = new List<GameObject>();
+        private readonly List<Object> added = new List<Object>();
 
-        public int Count => images.Count + labels.Count + layouts.Count + minAndPreferredHeights.Count + added.Count;
+        public int Count => images.Count + labels.Count + texts.Count + enabledStates.Count + layouts.Count +
+                            minAndPreferredHeights.Count + added.Count;
 
         public static ImageLook Capture(Image image) => new ImageLook
         {
@@ -60,7 +62,6 @@ namespace SevenUI
             Color = label.color,
             Alignment = label.alignment,
             Margin = label.margin,
-            Text = label.text,
         };
 
         public static LayoutLook Capture(HorizontalOrVerticalLayoutGroup group) => new LayoutLook
@@ -100,6 +101,28 @@ namespace SevenUI
 
         public bool TryGet(TMP_Text label, out LabelLook look) => labels.TryGetValue(label, out look);
 
+        // Only for text the game sets once, such as a title. Text the game updates as it changes (the stage count,
+        // the timer) would be put back stale.
+        public void RecordText(TMP_Text label)
+        {
+            if (label && !texts.ContainsKey(label))
+            {
+                texts[label] = label.text;
+            }
+        }
+
+        // For a graphic or other component the mod turns off. Only for ones the game leaves on or off for good, or
+        // turning the setting off would undo the game's own toggling.
+        public void Disable(Behaviour behaviour)
+        {
+            if (!behaviour) return;
+            if (!enabledStates.ContainsKey(behaviour))
+            {
+                enabledStates[behaviour] = behaviour.enabled;
+            }
+            behaviour.enabled = false;
+        }
+
         public void Record(HorizontalOrVerticalLayoutGroup group)
         {
             if (group && !layouts.ContainsKey(group))
@@ -121,7 +144,8 @@ namespace SevenUI
         public bool TryGet(LayoutElement element, out Vector2 minAndPreferredHeight) =>
             minAndPreferredHeights.TryGetValue(element, out minAndPreferredHeight);
 
-        public void Add(GameObject created)
+        // An object or component the mod created, destroyed when the setting is turned off.
+        public void Add(Object created)
         {
             added.Add(created);
         }
@@ -133,8 +157,6 @@ namespace SevenUI
             image.color = look.Color;
         }
 
-        // Puts back the font size, style, spacing, color, alignment and margin, but not the text, which the game or
-        // another mod may have changed since.
         public static void ApplyStyle(TMP_Text label, LabelLook look)
         {
             label.fontSize = look.FontSize;
@@ -162,9 +184,24 @@ namespace SevenUI
             }
             foreach (KeyValuePair<TMP_Text, LabelLook> entry in labels)
             {
-                if (!entry.Key) continue;
-                ApplyStyle(entry.Key, entry.Value);
-                entry.Key.text = entry.Value.Text;
+                if (entry.Key)
+                {
+                    ApplyStyle(entry.Key, entry.Value);
+                }
+            }
+            foreach (KeyValuePair<TMP_Text, string> entry in texts)
+            {
+                if (entry.Key)
+                {
+                    entry.Key.text = entry.Value;
+                }
+            }
+            foreach (KeyValuePair<Behaviour, bool> entry in enabledStates)
+            {
+                if (entry.Key)
+                {
+                    entry.Key.enabled = entry.Value;
+                }
             }
             foreach (KeyValuePair<HorizontalOrVerticalLayoutGroup, LayoutLook> entry in layouts)
             {
@@ -179,7 +216,7 @@ namespace SevenUI
                 entry.Key.minHeight = entry.Value.x;
                 entry.Key.preferredHeight = entry.Value.y;
             }
-            foreach (GameObject created in added)
+            foreach (Object created in added)
             {
                 if (created)
                 {
@@ -188,6 +225,8 @@ namespace SevenUI
             }
             images.Clear();
             labels.Clear();
+            texts.Clear();
+            enabledStates.Clear();
             layouts.Clear();
             minAndPreferredHeights.Clear();
             added.Clear();

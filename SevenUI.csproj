@@ -46,6 +46,7 @@
     <!-- Barlow (SIL Open Font License, fonts/OFL.txt), baked into font assets at runtime by FontLibrary. -->
     <EmbeddedResource Include="fonts/Barlow-Medium.ttf" LogicalName="SevenUI.fonts.Barlow-Medium.ttf" />
     <EmbeddedResource Include="fonts/Barlow-SemiBold.ttf" LogicalName="SevenUI.fonts.Barlow-SemiBold.ttf" />
+    <EmbeddedResource Include="fonts/BarlowCondensed-SemiBold.ttf" LogicalName="SevenUI.fonts.BarlowCondensed-SemiBold.ttf" />
   </ItemGroup>
 
   <!-- Exposes the version to code as PluginVersionInfo.Version, for the BepInPlugin attribute. -->

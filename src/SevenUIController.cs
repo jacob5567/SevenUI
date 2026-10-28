@@ -14,6 +14,7 @@ namespace SevenUI
         private HUD hud;
         private Transform root;
         private HudFontSwapper fontSwapper;
+        private RunInfoStyler runInfo;
         private RightInfoBarStyler rightInfoBar;
         private int lastHierarchyCount = -1;
         private bool fontApplied;
@@ -25,6 +26,7 @@ namespace SevenUI
             // The HUD is a root object, but go through .root in case another mod parents it.
             root = hud.transform.root;
             fontSwapper = new HudFontSwapper(root);
+            runInfo = new RunInfoStyler(root);
             rightInfoBar = new RightInfoBarStyler(root);
             SevenUIPlugin.Settings.BarlowFont.SettingChanged += OnSettingChanged;
             SevenUIPlugin.Settings.FlatPanels.SettingChanged += OnSettingChanged;
@@ -44,8 +46,20 @@ namespace SevenUI
 
         private void Restyle()
         {
-            panelsApplied = Toggle(SevenUIPlugin.Settings.FlatPanels, panelsApplied, rightInfoBar.Apply, rightInfoBar.Restore);
+            panelsApplied = Toggle(SevenUIPlugin.Settings.FlatPanels, panelsApplied, ApplyPanels, RestorePanels);
             fontApplied = Toggle(SevenUIPlugin.Settings.BarlowFont, fontApplied, fontSwapper.Apply, fontSwapper.Restore);
+        }
+
+        private void ApplyPanels()
+        {
+            runInfo.Apply();
+            rightInfoBar.Apply();
+        }
+
+        private void RestorePanels()
+        {
+            runInfo.Restore();
+            rightInfoBar.Restore();
         }
 
         private static bool Toggle(ConfigEntry<bool> setting, bool applied, Action apply, Action restore)
@@ -72,6 +86,7 @@ namespace SevenUI
             output.AppendLine($"HUD {hud.name} (target {(hud.targetBodyObject ? hud.targetBodyObject.name : "none")})");
             output.AppendLine($"  hierarchy objects: {root.hierarchyCount}");
             fontSwapper.Describe(output);
+            runInfo.Describe(output);
             rightInfoBar.Describe(output);
         }
 

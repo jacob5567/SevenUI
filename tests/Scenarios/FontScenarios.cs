@@ -5,8 +5,8 @@ using UnityEngine;
 
 namespace SevenUI.Tests
 {
-    // The BarlowFont setting: HUD text is drawn in Barlow, including text the HUD gains later, and goes back to the
-    // game's font when the setting is turned off.
+    // The BarlowFont setting: HUD text is drawn in Barlow (the run timer in Barlow Condensed), including text the HUD
+    // gains later, and goes back to the game's font when the setting is turned off.
     internal static class FontScenarios
     {
         private const string Suite = "font";
@@ -15,6 +15,7 @@ namespace SevenUI.Tests
         {
             yield return new Scenario(1, Suite, "hud_text_uses_barlow", Stages.TitanicPlains, HudTextUsesBarlow);
             yield return new Scenario(1, Suite, "new_item_icons_use_barlow", Stages.TitanicPlains, NewItemIconsUseBarlow);
+            yield return new Scenario(1, Suite, "timer_uses_barlow_condensed", Stages.TitanicPlains, TimerUsesBarlowCondensed);
             yield return new Scenario(1, Suite, "turning_off_restores_game_font", Stages.TitanicPlains, TurningOffRestoresGameFont);
             yield return new Scenario(1, Suite, "lookingglass_stats_use_barlow", Stages.TitanicPlains, LookingGlassStatsUseBarlow);
         }
@@ -32,6 +33,11 @@ namespace SevenUI.Tests
             h.Cmd($"{Commands.GiveItem} {GameNames.Hoof} 2");
             yield return h.Wait(0.5f);
             yield return h.ExpectHudBarlow();
+        }
+
+        private static IEnumerator TimerUsesBarlowCondensed(Harness h)
+        {
+            yield return h.ExpectTimerCondensed();
         }
 
         private static IEnumerator TurningOffRestoresGameFont(Harness h)

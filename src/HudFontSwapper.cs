@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Text;
+using RoR2.UI;
 using TMPro;
 using UnityEngine;
 
@@ -36,7 +37,11 @@ namespace SevenUI
                 if (!font || !font.name.StartsWith(GameFontPrefix) || originals.ContainsKey(text)) continue;
 
                 Material material = text.fontSharedMaterial;
-                TMP_FontAsset barlow = FontLibrary.Body(material ? material : font.material);
+                Material template = material ? material : font.material;
+                // The run timer is numbers only, which read best in Barlow Condensed, like the design canvas.
+                TMP_FontAsset barlow = text.GetComponent<TimerText>()
+                    ? FontLibrary.Condensed(template)
+                    : FontLibrary.Body(template);
                 if (!barlow)
                 {
                     if (!warnedBakeFailed)
@@ -51,7 +56,7 @@ namespace SevenUI
                 FontLibrary.AddFallback(barlow, font);
                 text.font = barlow;
                 // Setting the font resets the material to the font's own, so put the retargeted preset back after.
-                text.fontSharedMaterial = FontLibrary.Retarget(material ? material : font.material, barlow);
+                text.fontSharedMaterial = FontLibrary.Retarget(template, barlow);
             }
             scratch.Clear();
         }

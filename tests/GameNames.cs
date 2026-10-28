@@ -12,6 +12,10 @@ namespace SevenUI.Tests
         public const string Syringe = "Syringe";
         public const string Hoof = "Hoof";
 
+        // The run info's timer box, and the part of the difficulty bar that holds its scrolling segments.
+        public const string TimerPanel = "TimerPanel";
+        public const string DifficultySegments = "Scroll View/Viewport";
+
         // The objective panel in the run info, and its title.
         public const string ObjectivePanel = "ObjectivePanel";
         public const string ObjectiveTitle = "Label";

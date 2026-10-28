@@ -4,10 +4,11 @@ A client-side Risk of Rain 2 mod that restyles the HUD with the Barlow font and 
 
 ## What it changes
 
-- **Text:** HUD text uses Barlow instead of the game's Bombardier font. This covers new HUD text too: item and buff icons, notifications, ally cards, the scoreboard, and panels added by other mods.
-- **Panels:** the panels under the run timer (artifacts, objectives, and panels other mods add there) are flat and translucent, with a small gap between them. The objective panel's title sits in a header strip in spaced capitals.
+- **Text:** HUD text uses Barlow instead of the game's Bombardier font, and the run timer uses Barlow Condensed. This covers new HUD text too: item and buff icons, notifications, ally cards, the scoreboard, and panels added by other mods.
+- **Run info:** the timer, stage, level and difficulty icon share one flat translucent panel. The scrolling difficulty segments are replaced by a thin bar that fills as the current difficulty progresses, with the difficulty's name beside it in spaced capitals.
+- **Panels:** the panels under the run info (artifacts, objectives, and panels other mods add there) are flat and translucent, with a small gap between them. The objective panel's title sits in a header strip in spaced capitals.
 
-Not yet restyled: the timer and difficulty bar, the other HUD panels and bars, health, boss health and timer digits (the game draws those from sprite digits, not text), tooltips, and menus outside the HUD.
+Not yet restyled: the other HUD panels and bars, health and boss health numbers (the game draws those from sprite digits, not text), tooltips, and menus outside the HUD.
 
 ## LookingGlass
 
@@ -24,7 +25,7 @@ Edit `BepInEx/config/sevenstack.SevenUI.cfg`, or use the in-game settings menu i
 | Setting | Default | Description |
 |---|---|---|
 | `BarlowFont` | true | Draw HUD text in Barlow instead of the game's font. Languages the game draws in Noto Sans keep it. |
-| `FlatPanels` | true | Draw the objective, artifact and LookingGlass stats panels as flat translucent panels, with a header strip on the objective panel. |
+| `FlatPanels` | true | Draw the run info, objective, artifact and LookingGlass stats panels in the top right as flat translucent panels, with a header strip on the objective panel and a thin bar for the difficulty. |
 | `DebugLogging` | false | Log extra detail, and enable the dump key. |
 | `DebugAlwaysShow` | false | Show the mod's visuals even when they wouldn't normally appear, for testing. |
 | `DumpKey` | F8 | With `DebugLogging` on, press to log each HUD's fonts and what the mod restyled. |

@@ -22,10 +22,7 @@ namespace SevenUI
         private const float PanelGap = 6f;
         private const int PanelBottomPadding = 4;
         private const float HeaderHeight = 20f;
-        private const float HeaderFontSize = 10f;
         private const float HeaderInset = 10f;
-        // TMP character spacing is in hundredths of an em: 1.5px at 12px.
-        private const float HeaderTracking = 12.5f;
 
         private readonly Transform root;
         private readonly StyleRecorder recorder = new StyleRecorder();
@@ -120,10 +117,8 @@ namespace SevenUI
             if (label)
             {
                 recorder.Record(label);
-                label.fontSize = HeaderFontSize;
-                label.fontStyle = (label.fontStyle | FontStyles.UpperCase | FontStyles.Bold) & ~FontStyles.Italic;
-                label.characterSpacing = HeaderTracking;
-                label.color = Palette.HeaderText;
+                recorder.RecordText(label);
+                HeaderStyle.Apply(label);
                 label.alignment = TextAlignmentOptions.MidlineLeft;
                 label.margin = new Vector4(HeaderInset, 0f, HeaderInset, 0f);
                 // "Objective:" reads as a label; as a header strip it doesn't need the colon.
