@@ -48,12 +48,14 @@ namespace SevenUI
             return copy;
         }
 
+        // Several bars get their color from their sprite, not their base color: the barrier is a white base on a
+        // translucent gold sprite, the trailing damage a grey base on an orange-red one. So the sprite's own average
+        // color and opacity are folded into the base color, and the flat bar keeps the game's color.
         private static void FlattenBar(ref HealthBarStyle.BarStyle bar)
         {
-            if (bar.sprite)
-            {
-                bar.sprite = FlatSprite.White;
-            }
+            if (!bar.sprite) return;
+            bar.baseColor *= SpriteColors.Average(bar.sprite);
+            bar.sprite = FlatSprite.White;
         }
     }
 }
