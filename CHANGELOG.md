@@ -2,6 +2,7 @@
 
 - First release.
 - HUD text uses the Barlow font.
+- The HUD faces the screen squarely instead of its corners leaning inward.
 - The run timer, the level, and skill and equipment cooldowns use Barlow Condensed.
 - The health and experience bars are flat, and the health numbers are text instead of sprite digits.
 - The skill and equipment slots are flat, with a top-down cooldown cover and small grey key labels.

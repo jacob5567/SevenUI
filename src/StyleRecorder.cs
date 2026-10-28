@@ -40,6 +40,7 @@ namespace SevenUI
         private readonly Dictionary<TMP_Text, string> texts = new Dictionary<TMP_Text, string>();
         private readonly Dictionary<Behaviour, bool> enabledStates = new Dictionary<Behaviour, bool>();
         private readonly Dictionary<GameObject, bool> activeStates = new Dictionary<GameObject, bool>();
+        private readonly Dictionary<Transform, Quaternion> rotations = new Dictionary<Transform, Quaternion>();
         private readonly List<System.Action> undos = new List<System.Action>();
         private readonly Dictionary<HorizontalOrVerticalLayoutGroup, LayoutLook> layouts =
             new Dictionary<HorizontalOrVerticalLayoutGroup, LayoutLook>();
@@ -47,7 +48,7 @@ namespace SevenUI
         private readonly List<Object> added = new List<Object>();
 
         public int Count => images.Count + labels.Count + texts.Count + enabledStates.Count + activeStates.Count +
-                            layouts.Count + minAndPreferredHeights.Count + added.Count + undos.Count;
+                            rotations.Count + layouts.Count + minAndPreferredHeights.Count + added.Count + undos.Count;
 
         public static ImageLook Capture(Image image) => new ImageLook
         {
@@ -139,6 +140,16 @@ namespace SevenUI
                 activeStates[gameObject] = gameObject.activeSelf;
             }
             gameObject.SetActive(active);
+        }
+
+        public void SetLocalRotation(Transform transform, Quaternion rotation)
+        {
+            if (!transform) return;
+            if (!rotations.ContainsKey(transform))
+            {
+                rotations[transform] = transform.localRotation;
+            }
+            transform.localRotation = rotation;
         }
 
         // For a change that isn't a plain value, put back by the given action, which must check its objects still
@@ -248,6 +259,13 @@ namespace SevenUI
                     entry.Key.SetActive(entry.Value);
                 }
             }
+            foreach (KeyValuePair<Transform, Quaternion> entry in rotations)
+            {
+                if (entry.Key)
+                {
+                    entry.Key.localRotation = entry.Value;
+                }
+            }
             foreach (System.Action undo in undos)
             {
                 undo();
@@ -264,6 +282,7 @@ namespace SevenUI
             texts.Clear();
             enabledStates.Clear();
             activeStates.Clear();
+            rotations.Clear();
             undos.Clear();
             layouts.Clear();
             minAndPreferredHeights.Clear();

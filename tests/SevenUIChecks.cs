@@ -349,5 +349,39 @@ namespace SevenUI.Tests
                 },
                 () => $"the game's skill slots back ({SlotsLook(skills)}) {h.Diagnosis()}");
         }
+
+        private static List<Transform> TiltedClusters(Harness h) =>
+            GameNames.TiltedClusters.Select(path => HudRoot(h).Find(path)).Where(cluster => cluster).ToList();
+
+        private static string TiltLook(List<Transform> clusters) =>
+            clusters.Count == 0
+                ? "no clusters"
+                : string.Join(", ", clusters.Select(cluster => $"{cluster.name} {cluster.localEulerAngles.y:0.#}"));
+
+        public static IEnumerator ExpectHudLevel(this Harness h)
+        {
+            List<Transform> clusters = new List<Transform>();
+            yield return h.Until(
+                () =>
+                {
+                    clusters = TiltedClusters(h);
+                    return clusters.Count == GameNames.TiltedClusters.Length &&
+                           clusters.All(cluster => cluster.localRotation == Quaternion.identity);
+                },
+                () => $"the corner clusters facing the screen (y angles: {TiltLook(clusters)}) {h.Diagnosis()}");
+        }
+
+        public static IEnumerator ExpectHudTilted(this Harness h)
+        {
+            List<Transform> clusters = new List<Transform>();
+            yield return h.Until(
+                () =>
+                {
+                    clusters = TiltedClusters(h);
+                    return clusters.Count == GameNames.TiltedClusters.Length &&
+                           clusters.All(cluster => cluster.localRotation != Quaternion.identity);
+                },
+                () => $"the game's tilt back on the corner clusters (y angles: {TiltLook(clusters)}) {h.Diagnosis()}");
+        }
     }
 }

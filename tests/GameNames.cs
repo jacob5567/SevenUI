@@ -14,6 +14,15 @@ namespace SevenUI.Tests
         // Titanic Knurl, for more max health.
         public const string Knurl = "Knurl";
 
+        // The HUD's corner clusters, which the game turns 6 degrees about the vertical axis.
+        public static readonly string[] TiltedClusters =
+        {
+            "MainContainer/MainUIArea/SpringCanvas/UpperLeftCluster",
+            "MainContainer/MainUIArea/SpringCanvas/UpperRightCluster",
+            "MainContainer/MainUIArea/SpringCanvas/BottomLeftCluster",
+            "MainContainer/MainUIArea/SpringCanvas/BottomRightCluster",
+        };
+
         // The run info's timer box, and the part of the difficulty bar that holds its scrolling segments.
         public const string TimerPanel = "TimerPanel";
         public const string DifficultySegments = "Scroll View/Viewport";

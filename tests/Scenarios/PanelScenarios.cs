@@ -14,12 +14,18 @@ namespace SevenUI.Tests
 
         public static IEnumerable<Scenario> All()
         {
+            yield return new Scenario(1, Suite, "hud_faces_screen", Stages.TitanicPlains, HudFacesScreen);
             yield return new Scenario(1, Suite, "run_info_is_flat", Stages.TitanicPlains, RunInfoIsFlat);
             yield return new Scenario(1, Suite, "objective_panel_is_flat", Stages.TitanicPlains, ObjectivePanelIsFlat);
             yield return new Scenario(1, Suite, "player_bars_are_flat", Stages.TitanicPlains, PlayerBarsAreFlat);
             yield return new Scenario(1, Suite, "skill_slots_are_flat", Stages.TitanicPlains, SkillSlotsAreFlat);
             yield return new Scenario(1, Suite, "turning_off_restores_panels", Stages.TitanicPlains, TurningOffRestoresPanels);
             yield return new Scenario(1, Suite, "lookingglass_stats_panel_is_plain", Stages.TitanicPlains, LookingGlassStatsPanelIsPlain);
+        }
+
+        private static IEnumerator HudFacesScreen(Harness h)
+        {
+            yield return h.ExpectHudLevel();
         }
 
         private static IEnumerator RunInfoIsFlat(Harness h)
@@ -52,16 +58,19 @@ namespace SevenUI.Tests
             yield return h.ExpectObjectivePanelFlat();
             yield return h.ExpectPlayerBarsFlat();
             yield return h.ExpectSkillSlotsFlat();
+            yield return h.ExpectHudLevel();
             h.SetConfig(SevenUIPlugin.Settings.FlatPanels, false);
             yield return h.ExpectRunInfoVanilla();
             yield return h.ExpectObjectivePanelVanilla();
             yield return h.ExpectPlayerBarsVanilla();
             yield return h.ExpectSkillSlotsVanilla();
+            yield return h.ExpectHudTilted();
             h.SetConfig(SevenUIPlugin.Settings.FlatPanels, true);
             yield return h.ExpectRunInfoFlat();
             yield return h.ExpectObjectivePanelFlat();
             yield return h.ExpectPlayerBarsFlat();
             yield return h.ExpectSkillSlotsFlat();
+            yield return h.ExpectHudLevel();
         }
 
         // LookingGlass copies the objective panel for its stats, header strip and all if the copy is made after the
