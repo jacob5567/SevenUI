@@ -47,6 +47,8 @@
     <EmbeddedResource Include="fonts/Barlow-Medium.ttf" LogicalName="SevenUI.fonts.Barlow-Medium.ttf" />
     <EmbeddedResource Include="fonts/Barlow-SemiBold.ttf" LogicalName="SevenUI.fonts.Barlow-SemiBold.ttf" />
     <EmbeddedResource Include="fonts/BarlowCondensed-SemiBold.ttf" LogicalName="SevenUI.fonts.BarlowCondensed-SemiBold.ttf" />
+    <!-- Drawn in JetBrains Mono (fonts/OFL-JetBrainsMono.txt) by tools/make_damage_numbers.py. -->
+    <EmbeddedResource Include="textures/DamageNumbers.png" LogicalName="SevenUI.textures.DamageNumbers.png" />
   </ItemGroup>
 
   <!-- Exposes the version to code as PluginVersionInfo.Version, for the BepInPlugin attribute. -->

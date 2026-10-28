@@ -27,6 +27,7 @@ namespace SevenUI
             }
 
             ModSettingsManager.AddOption(new CheckBoxOption(settings.BarlowFont));
+            ModSettingsManager.AddOption(new CheckBoxOption(settings.MonospaceDamageNumbers));
             ModSettingsManager.AddOption(new CheckBoxOption(settings.FlatPanels));
 
             // The options menu groups these under a "Debug" header, named after their config section.

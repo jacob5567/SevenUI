@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using BepInEx.Bootstrap;
 using ModTestRunner;
+using RoR2;
 using RoR2.UI;
 using TMPro;
 using UnityEngine;
@@ -593,6 +594,42 @@ namespace SevenUI.Tests
                     return board && board.sprite && input && input.sprite;
                 },
                 () => $"the game's scoreboard and chat input back ({OverlaysLook(board, input)}) {h.Diagnosis()}");
+        }
+
+        private static Texture DamageNumberSheet()
+        {
+            DamageNumberManager manager = DamageNumberManager.instance;
+            ParticleSystemRenderer renderer = manager ? manager.GetComponent<ParticleSystemRenderer>() : null;
+            return renderer && renderer.sharedMaterial ? renderer.sharedMaterial.mainTexture : null;
+        }
+
+        // The damage number particle's width over its height, in characters: the game's are square.
+        private static float DamageNumberWidth()
+        {
+            DamageNumberManager manager = DamageNumberManager.instance;
+            ParticleSystem particles = manager ? manager.GetComponent<ParticleSystem>() : null;
+            if (!particles) return 0f;
+            ParticleSystem.MainModule main = particles.main;
+            return main.startSizeXMultiplier / main.startSizeYMultiplier;
+        }
+
+        // The mod's sheet, on a particle narrowed for its narrower characters, or the game's sheet on the game's
+        // particle.
+        public static IEnumerator ExpectDamageNumbersMonospace(this Harness h, bool monospace)
+        {
+            Texture sheet = null;
+            float width = 0f;
+            yield return h.Until(
+                () =>
+                {
+                    sheet = DamageNumberSheet();
+                    width = DamageNumberWidth();
+                    bool narrowed = width < GameNames.DamageNumberCharacters - 0.01f;
+                    bool square = Mathf.Abs(width - GameNames.DamageNumberCharacters) < 0.01f;
+                    return sheet && (sheet.name == Texts.DamageNumberSheetName) == monospace && (monospace ? narrowed : square);
+                },
+                () => $"the damage numbers {(monospace ? "in the mod's monospace sheet, on a narrowed particle" : "back on the game's sheet and particle")} " +
+                      $"(sheet {(sheet ? sheet.name : "none")}, particle {width:0.00} characters wide) {h.Diagnosis()}");
         }
     }
 }

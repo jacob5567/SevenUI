@@ -4,6 +4,7 @@ A client-side Risk of Rain 2 mod that restyles the HUD with the Barlow font and 
 
 ## What it changes
 
+- **Damage numbers:** the floating damage numbers use JetBrains Mono, a monospace font, in place of the game's pixel digits, with the game's grey outline and dark edge and its damage colors. They keep the font's narrower shape and are spaced to match.
 - **Flat HUD:** the game turns the HUD's corners slightly inward, so they lean toward the middle of the screen. SevenUI levels them so the whole HUD faces the screen squarely.
 - **Text:** HUD text uses Barlow instead of the game's Bombardier font, and numbers (the run timer, your level, item and buff stacks, and skill and equipment cooldowns) and the boss's name use Barlow Condensed. This covers new HUD text too: item and buff icons, notifications, ally cards, the scoreboard, and panels added by other mods.
 - **Run info:** the timer, stage, level and difficulty icon share one flat translucent panel, with the timer first in its row. The scrolling difficulty segments are replaced by a thin bar that fills as the current difficulty progresses, with the difficulty's name beside it in spaced capitals.
@@ -33,6 +34,7 @@ Edit `BepInEx/config/sevenstack.SevenUI.cfg`, or use the in-game settings menu i
 | Setting | Default | Description |
 |---|---|---|
 | `BarlowFont` | true | Draw HUD text in Barlow instead of the game's font. Languages the game draws in Noto Sans keep it. |
+| `MonospaceDamageNumbers` | true | Draw the floating damage numbers in JetBrains Mono, a monospace font, instead of the game's pixel digits. |
 | `FlatPanels` | true | Draw the HUD flat: facing the screen squarely instead of leaning in, with flat translucent panels, flat bars and slots, and the health numbers as text. Off brings back the game's look. Everything under "What it changes" except the fonts. |
 | `DebugLogging` | false | Log extra detail, and enable the dump key. |
 | `DebugAlwaysShow` | false | Show the mod's visuals even when they wouldn't normally appear, for testing. |
@@ -53,4 +55,4 @@ The version lives in `thunderstore/manifest.json`. To release, bump it, run `./b
 
 ## License
 
-[GPL-3.0](https://github.com/jacob5567/SevenUI/blob/main/LICENSE). The Barlow fonts in `fonts/` are by The Barlow Project Authors, under the [SIL Open Font License 1.1](https://github.com/jacob5567/SevenUI/blob/main/fonts/OFL.txt).
+[GPL-3.0](https://github.com/jacob5567/SevenUI/blob/main/LICENSE). The Barlow fonts in `fonts/` are by The Barlow Project Authors, under the [SIL Open Font License 1.1](https://github.com/jacob5567/SevenUI/blob/main/fonts/OFL.txt). The damage numbers are drawn from JetBrains Mono, by The JetBrains Mono Project Authors, under the [SIL Open Font License 1.1](https://github.com/jacob5567/SevenUI/blob/main/fonts/OFL-JetBrainsMono.txt); `tools/make_damage_numbers.py` renders them.

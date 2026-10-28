@@ -50,6 +50,7 @@ namespace SevenUI
             tooltips = new TooltipStyler(hud, root);
             SevenUIPlugin.Settings.BarlowFont.SettingChanged += OnSettingChanged;
             SevenUIPlugin.Settings.FlatPanels.SettingChanged += OnSettingChanged;
+            SevenUIPlugin.Settings.MonospaceDamageNumbers.SettingChanged += OnSettingChanged;
         }
 
         // LateUpdate, after the game's Updates have added this frame's objects (objective rows are added in
@@ -71,6 +72,15 @@ namespace SevenUI
         {
             panelsApplied = Toggle(SevenUIPlugin.Settings.FlatPanels, panelsApplied, ApplyPanels, RestorePanels);
             fontApplied = Toggle(SevenUIPlugin.Settings.BarlowFont, fontApplied, fontSwapper.Apply, fontSwapper.Restore);
+            // Shared by every HUD, and safe to repeat: it only changes the sheet when it isn't already the setting's.
+            if (SevenUIPlugin.Settings.MonospaceDamageNumbers.Value)
+            {
+                DamageNumberFont.Apply();
+            }
+            else
+            {
+                DamageNumberFont.Restore();
+            }
         }
 
         private void ApplyPanels()
@@ -139,12 +149,14 @@ namespace SevenUI
             chat.Describe(output);
             output.AppendLine($"  leveled tilts: {tilt.LeveledCount}");
             output.AppendLine($"  tooltips restyled: {tooltips.StyledCount}");
+            output.AppendLine($"  monospace damage numbers: {DamageNumberFont.Applied}");
         }
 
         private void OnDestroy()
         {
             SevenUIPlugin.Settings.BarlowFont.SettingChanged -= OnSettingChanged;
             SevenUIPlugin.Settings.FlatPanels.SettingChanged -= OnSettingChanged;
+            SevenUIPlugin.Settings.MonospaceDamageNumbers.SettingChanged -= OnSettingChanged;
         }
     }
 }

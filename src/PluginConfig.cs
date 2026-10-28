@@ -7,6 +7,7 @@ namespace SevenUI
     internal sealed class PluginConfig
     {
         public readonly ConfigEntry<bool> BarlowFont;
+        public readonly ConfigEntry<bool> MonospaceDamageNumbers;
         public readonly ConfigEntry<bool> FlatPanels;
 
         public readonly ConfigEntry<bool> DebugLogging;
@@ -17,6 +18,8 @@ namespace SevenUI
         {
             BarlowFont = config.Bind("Text", "BarlowFont", true,
                 "Draw HUD text in Barlow instead of the game's font. Languages the game draws in Noto Sans keep it.");
+            MonospaceDamageNumbers = config.Bind("Text", "MonospaceDamageNumbers", true,
+                "Draw the floating damage numbers in JetBrains Mono, a monospace font, instead of the game's pixel digits.");
             FlatPanels = config.Bind("Panels", "FlatPanels", true,
                 "Draw the HUD flat: facing the screen squarely instead of leaning in, with flat translucent panels, flat " +
                 "bars and slots, and the health numbers as text. Off brings back the game's look.");

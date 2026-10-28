@@ -2,6 +2,7 @@
 
 - First release.
 - HUD text uses the Barlow font.
+- Damage numbers use JetBrains Mono, a monospace font.
 - The HUD faces the screen squarely instead of its corners leaning inward.
 - The run timer, the level, and skill and equipment cooldowns use Barlow Condensed.
 - The health and experience bars are flat, the barrier is a strip along the top of the health bar, and the health numbers are text instead of sprite digits.

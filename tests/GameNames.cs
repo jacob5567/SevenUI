@@ -14,6 +14,9 @@ namespace SevenUI.Tests
         // Titanic Knurl, for more max health.
         public const string Knurl = "Knurl";
 
+        // The damage number particle's start size is this many characters wide by one tall.
+        public const float DamageNumberCharacters = 4f;
+
         // The HUD's corner clusters, which the game turns 6 degrees about the vertical axis.
         public static readonly string[] TiltedClusters =
         {
