@@ -8,8 +8,8 @@ using UnityEngine.UI;
 namespace SevenUI
 {
     // Restyles the run info in the top right (timer, stage and level, difficulty icon and difficulty bar) as one flat
-    // panel, with the difficulty shown as a thin accent bar and the difficulty's name in place of the game's scrolling
-    // segments. The game's objects keep their places and keep running; only their look changes.
+    // panel, with the timer first in its row, and the difficulty shown as a thin accent bar and the difficulty's name
+    // in place of the game's scrolling segments. The game's objects keep running; only their look and order change.
     internal sealed class RunInfoStyler
     {
         private const string UpperRightClusterPath = "MainContainer/MainUIArea/SpringCanvas/UpperRightCluster";
@@ -84,6 +84,7 @@ namespace SevenUI
             Disable<RawImage>(panel, TimerGearPath);
             Disable<Image>(panel, SetDifficultyPanelPath);
             Disable<Image>(panel, OutlinePath);
+            SwapTopRow(panel);
             Transform background = panel.Find(BackgroundName);
             if (!background)
             {
@@ -133,6 +134,33 @@ namespace SevenUI
             if (!transform.Find(ReadoutName))
             {
                 AddReadout(bar);
+            }
+        }
+
+        // The design canvas reads timer first: the game's top row (stage and level, difficulty icon, timer) is swapped
+        // left to right about its own middle, so it still lines up with the panels below. Each part keeps its size.
+        private void SwapTopRow(Transform panel)
+        {
+            RectTransform first = panel.Find(CoveredPaths[0]) as RectTransform;
+            if (!first || recorder.HasPosition(first)) return;
+
+            float min = float.MaxValue;
+            float max = float.MinValue;
+            foreach (string path in CoveredPaths)
+            {
+                if (!(panel.Find(path) is RectTransform rect)) continue;
+                rect.GetWorldCorners(corners);
+                min = Mathf.Min(min, panel.InverseTransformPoint(corners[0]).x);
+                max = Mathf.Max(max, panel.InverseTransformPoint(corners[2]).x);
+            }
+            foreach (string path in CoveredPaths)
+            {
+                if (!(panel.Find(path) is RectTransform rect)) continue;
+                rect.GetWorldCorners(corners);
+                float center = (panel.InverseTransformPoint(corners[0]).x + panel.InverseTransformPoint(corners[2]).x) / 2f;
+                // Moving a part's center from c to (min + max - c) mirrors it within the row.
+                float shift = min + max - 2f * center;
+                recorder.SetAnchoredPosition(rect, rect.anchoredPosition + new Vector2(shift, 0f));
             }
         }
 

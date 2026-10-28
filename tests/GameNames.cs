@@ -33,6 +33,7 @@ namespace SevenUI.Tests
 
         // The run info's timer box, and the part of the difficulty bar that holds its scrolling segments.
         public const string TimerPanel = "TimerPanel";
+        public const string StageAndLevel = "StageAndLevelRoot";
         public const string DifficultySegments = "Scroll View/Viewport";
 
         // The player's health bar in the bottom left, and its sprite digits.

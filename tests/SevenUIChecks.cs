@@ -162,6 +162,21 @@ namespace SevenUI.Tests
         private static DifficultyBarController DifficultyBar(Harness h) =>
             HudRoot(h).GetComponentsInChildren<DifficultyBarController>(true).FirstOrDefault();
 
+        // Whether the timer sits left of the stage and level, by their centers on screen.
+        private static bool TimerFirst(Transform panel)
+        {
+            Transform timer = panel.Find(GameNames.TimerPanel);
+            Transform stage = panel.Find(GameNames.StageAndLevel);
+            return timer && stage && CenterX(timer) < CenterX(stage);
+        }
+
+        private static float CenterX(Transform transform)
+        {
+            Vector3[] corners = new Vector3[4];
+            ((RectTransform)transform).GetWorldCorners(corners);
+            return (corners[0].x + corners[2].x) / 2f;
+        }
+
         private static string RunInfoLook(DifficultyBarController bar)
         {
             if (!bar) return "no difficulty bar";
@@ -170,12 +185,12 @@ namespace SevenUI.Tests
             Image timerBox = panel.Find(GameNames.TimerPanel)?.GetComponent<Image>();
             CanvasGroup segments = bar.transform.Find(GameNames.DifficultySegments)?.GetComponent<CanvasGroup>();
             DifficultyReadout readout = bar.GetComponentInChildren<DifficultyReadout>();
-            return $"background={(bool)background}, timer box image={(timerBox ? timerBox.enabled.ToString() : "-")}, " +
+            return $"background={(bool)background}, timer first={TimerFirst(panel)}, timer box image={(timerBox ? timerBox.enabled.ToString() : "-")}, " +
                    $"segments alpha={(segments ? segments.alpha.ToString() : "no group")}, " +
                    $"readout={(readout ? $"'{readout.ShownName}' {readout.ShownProgress:P0}" : "none")}";
         }
 
-        // One flat panel behind the run info, the game's segments hidden, and the mod's bar showing one of the game's
+        // One flat panel behind the run info, the timer first in its row, the game's segments hidden, and the mod's bar showing one of the game's
         // difficulty names.
         public static IEnumerator ExpectRunInfoFlat(this Harness h)
         {
@@ -190,7 +205,8 @@ namespace SevenUI.Tests
                     Image timerBox = panel.Find(GameNames.TimerPanel)?.GetComponent<Image>();
                     CanvasGroup segments = bar.transform.Find(GameNames.DifficultySegments)?.GetComponent<CanvasGroup>();
                     DifficultyReadout readout = bar.GetComponentInChildren<DifficultyReadout>();
-                    return background && IsFlat(background.GetComponent<Image>()) && timerBox && !timerBox.enabled &&
+                    return background && IsFlat(background.GetComponent<Image>()) && TimerFirst(panel) && timerBox &&
+                           !timerBox.enabled &&
                            segments && segments.alpha == 0f && readout && !string.IsNullOrEmpty(readout.ShownName) &&
                            bar.labels.Any(label => label && label.text == readout.ShownName);
                 },
@@ -207,7 +223,7 @@ namespace SevenUI.Tests
                     if (!bar) return false;
                     Transform panel = bar.transform.parent;
                     Image timerBox = panel.Find(GameNames.TimerPanel)?.GetComponent<Image>();
-                    return !panel.Find(Texts.RunInfoBackgroundName) && timerBox && timerBox.enabled &&
+                    return !panel.Find(Texts.RunInfoBackgroundName) && !TimerFirst(panel) && timerBox && timerBox.enabled &&
                            !bar.transform.Find(GameNames.DifficultySegments).GetComponent<CanvasGroup>() &&
                            !bar.GetComponentInChildren<DifficultyReadout>();
                 },

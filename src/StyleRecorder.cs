@@ -43,6 +43,7 @@ namespace SevenUI
         private readonly Dictionary<Behaviour, bool> enabledStates = new Dictionary<Behaviour, bool>();
         private readonly Dictionary<GameObject, bool> activeStates = new Dictionary<GameObject, bool>();
         private readonly Dictionary<Transform, Quaternion> rotations = new Dictionary<Transform, Quaternion>();
+        private readonly Dictionary<RectTransform, Vector2> positions = new Dictionary<RectTransform, Vector2>();
         private readonly List<System.Action> undos = new List<System.Action>();
         private readonly Dictionary<HorizontalOrVerticalLayoutGroup, LayoutLook> layouts =
             new Dictionary<HorizontalOrVerticalLayoutGroup, LayoutLook>();
@@ -50,7 +51,7 @@ namespace SevenUI
         private readonly List<Object> added = new List<Object>();
 
         public int Count => images.Count + rawImages.Count + labels.Count + texts.Count + enabledStates.Count + activeStates.Count +
-                            rotations.Count + layouts.Count + minAndPreferredHeights.Count + added.Count + undos.Count;
+                            rotations.Count + positions.Count + layouts.Count + minAndPreferredHeights.Count + added.Count + undos.Count;
 
         public static ImageLook Capture(Image image) => new ImageLook
         {
@@ -161,6 +162,18 @@ namespace SevenUI
             }
             transform.localRotation = rotation;
         }
+
+        public void SetAnchoredPosition(RectTransform rect, Vector2 position)
+        {
+            if (!rect) return;
+            if (!positions.ContainsKey(rect))
+            {
+                positions[rect] = rect.anchoredPosition;
+            }
+            rect.anchoredPosition = position;
+        }
+
+        public bool HasPosition(RectTransform rect) => positions.ContainsKey(rect);
 
         // For a change that isn't a plain value, put back by the given action, which must check its objects still
         // exist. Run in the order recorded, after the values above are put back.
@@ -275,6 +288,13 @@ namespace SevenUI
                     entry.Key.SetActive(entry.Value);
                 }
             }
+            foreach (KeyValuePair<RectTransform, Vector2> entry in positions)
+            {
+                if (entry.Key)
+                {
+                    entry.Key.anchoredPosition = entry.Value;
+                }
+            }
             foreach (KeyValuePair<Transform, Quaternion> entry in rotations)
             {
                 if (entry.Key)
@@ -300,6 +320,7 @@ namespace SevenUI
             enabledStates.Clear();
             activeStates.Clear();
             rotations.Clear();
+            positions.Clear();
             undos.Clear();
             layouts.Clear();
             minAndPreferredHeights.Clear();
