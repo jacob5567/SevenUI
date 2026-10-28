@@ -452,5 +452,47 @@ namespace SevenUI.Tests
                 () => $"the boss name in Barlow, set to keep it on waking (font {(name && name.font ? name.font.name : "none")}, " +
                       $"wakes to language font={(name as HGTextMeshProUGUI)?.useLanguageDefaultFont}) {h.Diagnosis()}");
         }
+
+        private static List<ItemIcon> BarItemIcons(Harness h) =>
+            HudRoot(h).GetComponentsInChildren<ItemInventoryDisplay>(true).Take(1)
+                .SelectMany(display => display.GetComponentsInChildren<ItemIcon>(false)).ToList();
+
+        private static string ItemsLook(List<ItemIcon> icons) =>
+            icons.Count == 0
+                ? "no item icons"
+                : string.Join(", ", icons.Take(6).Select(icon =>
+                {
+                    ItemSlot slot = icon.GetComponentInChildren<ItemSlot>(true);
+                    return $"{icon.itemIndex} x{icon.itemCount}: slot={(bool)slot} " +
+                           $"text='{(icon.stackText && icon.stackText.isActiveAndEnabled ? icon.stackText.text : "-")}'";
+                }));
+
+        // Every item icon on a slot, with its stack count as text: the count for stacks, nothing for single items.
+        public static IEnumerator ExpectItemIconsFlat(this Harness h)
+        {
+            List<ItemIcon> icons = new List<ItemIcon>();
+            yield return h.Until(
+                () =>
+                {
+                    icons = BarItemIcons(h);
+                    return icons.Count > 0 && icons.All(icon =>
+                        icon.GetComponentInChildren<ItemSlot>(true) && icon.stackText && icon.stackText.isActiveAndEnabled &&
+                        icon.stackText.text == (icon.itemCount > 1 ? icon.itemCount.ToString() : ""));
+                },
+                () => $"item icons on slots with text counts ({ItemsLook(icons)}) {h.Diagnosis()}");
+        }
+
+        public static IEnumerator ExpectItemIconsVanilla(this Harness h)
+        {
+            List<ItemIcon> icons = new List<ItemIcon>();
+            yield return h.Until(
+                () =>
+                {
+                    icons = BarItemIcons(h);
+                    return icons.Count > 0 && icons.All(icon =>
+                        !icon.GetComponentInChildren<ItemSlot>(true) && (!icon.stackText || !icon.stackText.gameObject.activeSelf));
+                },
+                () => $"the game's item icons back ({ItemsLook(icons)}) {h.Diagnosis()}");
+        }
     }
 }

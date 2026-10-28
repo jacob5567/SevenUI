@@ -20,6 +20,7 @@ namespace SevenUI.Tests
             yield return new Scenario(1, Suite, "player_bars_are_flat", Stages.TitanicPlains, PlayerBarsAreFlat);
             yield return new Scenario(1, Suite, "skill_slots_are_flat", Stages.TitanicPlains, SkillSlotsAreFlat);
             yield return new Scenario(1, Suite, "top_is_flat", Stages.TitanicPlains, TopIsFlat);
+            yield return new Scenario(1, Suite, "item_icons_are_flat", Stages.TitanicPlains, ItemIconsAreFlat);
             yield return new Scenario(1, Suite, "turning_off_restores_panels", Stages.TitanicPlains, TurningOffRestoresPanels);
             yield return new Scenario(1, Suite, "lookingglass_stats_panel_is_plain", Stages.TitanicPlains, LookingGlassStatsPanelIsPlain);
         }
@@ -53,6 +54,18 @@ namespace SevenUI.Tests
             yield return h.ExpectTopFlat();
         }
 
+        // A stack and a single item, then more of the single item, so a count appears on an icon already restyled.
+        private static IEnumerator ItemIconsAreFlat(Harness h)
+        {
+            h.Cmd($"{Commands.GiveItem} {GameNames.Syringe} 3");
+            h.Cmd($"{Commands.GiveItem} {GameNames.Hoof} 1");
+            yield return h.Wait(0.5f);
+            yield return h.ExpectItemIconsFlat();
+            h.Cmd($"{Commands.GiveItem} {GameNames.Hoof} 1");
+            yield return h.Wait(0.5f);
+            yield return h.ExpectItemIconsFlat();
+        }
+
         private static IEnumerator ObjectivePanelIsFlat(Harness h)
         {
             yield return h.ExpectObjectivePanelFlat();
@@ -60,12 +73,15 @@ namespace SevenUI.Tests
 
         private static IEnumerator TurningOffRestoresPanels(Harness h)
         {
+            h.Cmd($"{Commands.GiveItem} {GameNames.Syringe} 2");
+            yield return h.Wait(0.5f);
             yield return h.ExpectRunInfoFlat();
             yield return h.ExpectObjectivePanelFlat();
             yield return h.ExpectPlayerBarsFlat();
             yield return h.ExpectSkillSlotsFlat();
             yield return h.ExpectHudLevel();
             yield return h.ExpectTopFlat();
+            yield return h.ExpectItemIconsFlat();
             h.SetConfig(SevenUIPlugin.Settings.FlatPanels, false);
             yield return h.ExpectRunInfoVanilla();
             yield return h.ExpectObjectivePanelVanilla();
@@ -73,6 +89,7 @@ namespace SevenUI.Tests
             yield return h.ExpectSkillSlotsVanilla();
             yield return h.ExpectHudTilted();
             yield return h.ExpectTopVanilla();
+            yield return h.ExpectItemIconsVanilla();
             h.SetConfig(SevenUIPlugin.Settings.FlatPanels, true);
             yield return h.ExpectRunInfoFlat();
             yield return h.ExpectObjectivePanelFlat();
@@ -80,6 +97,7 @@ namespace SevenUI.Tests
             yield return h.ExpectSkillSlotsFlat();
             yield return h.ExpectHudLevel();
             yield return h.ExpectTopFlat();
+            yield return h.ExpectItemIconsFlat();
         }
 
         // LookingGlass copies the objective panel for its stats, header strip and all if the copy is made after the

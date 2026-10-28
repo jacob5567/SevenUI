@@ -19,6 +19,7 @@ namespace SevenUI
         private PlayerBarsStyler playerBars;
         private SkillSlotsStyler skillSlots;
         private TopStyler top;
+        private ItemIconsStyler itemIcons;
         private TiltFlattener tilt;
         private int lastHierarchyCount = -1;
         private bool fontApplied;
@@ -35,6 +36,7 @@ namespace SevenUI
             playerBars = new PlayerBarsStyler(root);
             skillSlots = new SkillSlotsStyler(root);
             top = new TopStyler(root);
+            itemIcons = new ItemIconsStyler(root);
             tilt = new TiltFlattener(root);
             SevenUIPlugin.Settings.BarlowFont.SettingChanged += OnSettingChanged;
             SevenUIPlugin.Settings.FlatPanels.SettingChanged += OnSettingChanged;
@@ -65,6 +67,7 @@ namespace SevenUI
             playerBars.Apply();
             skillSlots.Apply();
             top.Apply();
+            itemIcons.Apply();
             tilt.Apply();
         }
 
@@ -75,6 +78,7 @@ namespace SevenUI
             playerBars.Restore();
             skillSlots.Restore();
             top.Restore();
+            itemIcons.Restore();
             tilt.Restore();
         }
 
@@ -107,6 +111,7 @@ namespace SevenUI
             playerBars.Describe(output);
             skillSlots.Describe(output);
             top.Describe(output);
+            itemIcons.Describe(output);
             output.AppendLine($"  leveled tilts: {tilt.LeveledCount}");
         }
 

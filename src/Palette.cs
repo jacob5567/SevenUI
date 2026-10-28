@@ -21,6 +21,8 @@ namespace SevenUI
         // #d9645a and #6a3a3a, the boss bar's health and the health it just lost.
         public static readonly Color BossHealth = new Color(0.851f, 0.392f, 0.353f, 1f);
         public static readonly Color BossHealthLost = new Color(0.416f, 0.227f, 0.227f, 1f);
+        // #2c303a, the slot behind an item icon.
+        public static readonly Color ItemSlot = new Color(0.173f, 0.188f, 0.227f, 1f);
         // #3a3f4c, the empty part of a bar.
         public static readonly Color Trough = new Color(0.227f, 0.247f, 0.298f, 1f);
     }

@@ -77,8 +77,8 @@ namespace SevenUI
             scratch.Clear();
         }
 
-        // The run timer, the player's level, and the cooldowns and stocks on skills and equipment are numbers only,
-        // which read best in Barlow Condensed, as in the design canvas, as does the boss's name in capitals.
+        // Numbers (the run timer, the player's level, item stacks, and the cooldowns and stocks on skills and
+        // equipment) read best in Barlow Condensed, as in the design canvas, as does the boss's name in capitals.
         private static bool UsesCondensed(TMP_Text text)
         {
             if (text.GetComponent<TimerText>()) return true;
@@ -88,6 +88,8 @@ namespace SevenUI
             if (skill && (skill.cooldownText == text || skill.stockText == text)) return true;
             EquipmentIcon equipment = text.GetComponentInParent<EquipmentIcon>();
             if (equipment && (equipment.cooldownText == text || equipment.stockText == text)) return true;
+            ItemIcon item = text.GetComponentInParent<ItemIcon>();
+            if (item && item.stackText == text) return true;
             HUDBossHealthBarController boss = text.GetComponentInParent<HUDBossHealthBarController>();
             return boss && boss.bossNameLabel == text;
         }
