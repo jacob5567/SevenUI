@@ -1,0 +1,70 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <AssemblyName>SevenUI</AssemblyName>
+    <RootNamespace>SevenUI</RootNamespace>
+    <!-- thunderstore/manifest.json holds the version; the assembly and the plugin attribute both take it from there. -->
+    <ManifestJson>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)thunderstore/manifest.json'))</ManifestJson>
+    <Version>$([System.Text.RegularExpressions.Regex]::Replace($(ManifestJson), '(?s).*"version_number"\s*:\s*"([^"]+)".*', '$1'))</Version>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <!-- Lets the publicized RoR2 reference be used at runtime (IgnoresAccessChecksTo). -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <DebugType>portable</DebugType>
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+    <GenerateDependencyFile>false</GenerateDependencyFile>
+    <RestoreAdditionalProjectSources>https://nuget.bepinex.dev/v3/index.json</RestoreAdditionalProjectSources>
+    <!-- The in-game tests in tests/ are built by ModTestRunner, not with the mod. -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);tests/**</DefaultItemExcludes>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BepInEx.Core" Version="5.4.21" PrivateAssets="all" />
+    <PackageReference Include="BepInEx.AssemblyPublicizer.MSBuild" Version="0.4.2" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="RoR2" HintPath="$(RoR2ManagedDir)/RoR2.dll" Publicize="true" Private="false" />
+    <!-- TextMeshPro and FontEngine are publicized for the internals used to bake the font atlas (FontBaker). -->
+    <Reference Include="$(RoR2ManagedDir)/UnityEngine*.dll" Exclude="$(RoR2ManagedDir)/UnityEngine.TextCoreFontEngineModule.dll" Private="false" />
+    <Reference Include="UnityEngine.TextCoreFontEngineModule" HintPath="$(RoR2ManagedDir)/UnityEngine.TextCoreFontEngineModule.dll" Publicize="true" Private="false" />
+    <Reference Include="Unity.TextMeshPro" HintPath="$(RoR2ManagedDir)/Unity.TextMeshPro.dll" Publicize="true" Private="false" />
+    <Reference Include="$(RoR2ManagedDir)/Unity.Addressables.dll" Private="false" />
+    <Reference Include="$(RoR2ManagedDir)/Unity.ResourceManager.dll" Private="false" />
+    <Reference Include="$(RoR2ManagedDir)/com.unity.multiplayer-hlapi.Runtime.dll" Private="false" />
+    <Reference Include="$(RoR2ManagedDir)/HGCSharpUtils.dll" Private="false" />
+    <Reference Include="$(RoR2ManagedDir)/HGUnityUtils.dll" Private="false" />
+    <Reference Include="$(RoR2ManagedDir)/KinematicCharacterController.dll" Private="false" />
+    <Reference Include="$(RoR2ManagedDir)/AsyncManagement.dll" Private="false" />
+    <Reference Include="RiskOfOptions" HintPath="$(RiskOfOptionsDll)" Private="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The mod icon in the Risk Of Options menu. Embedded so it works however the mod was installed. -->
+    <EmbeddedResource Include="thunderstore/icon.png" LogicalName="SevenUI.icon.png" />
+    <!-- Barlow (SIL Open Font License, fonts/OFL.txt), baked into font assets at runtime by FontLibrary. -->
+    <EmbeddedResource Include="fonts/Barlow-Medium.ttf" LogicalName="SevenUI.fonts.Barlow-Medium.ttf" />
+    <EmbeddedResource Include="fonts/Barlow-SemiBold.ttf" LogicalName="SevenUI.fonts.Barlow-SemiBold.ttf" />
+  </ItemGroup>
+
+  <!-- Exposes the version to code as PluginVersionInfo.Version, for the BepInPlugin attribute. -->
+  <Target Name="GeneratePluginVersion" BeforeTargets="CoreCompile">
+    <PropertyGroup>
+      <PluginVersionFile>$(IntermediateOutputPath)PluginVersion.g.cs</PluginVersionFile>
+    </PropertyGroup>
+    <WriteLinesToFile File="$(PluginVersionFile)" Overwrite="true" WriteOnlyWhenDifferent="true"
+                      Lines="namespace SevenUI { internal static class PluginVersionInfo { public const string Version = &quot;$(Version)&quot;%3B } }" />
+    <ItemGroup>
+      <Compile Include="$(PluginVersionFile)" />
+      <FileWrites Include="$(PluginVersionFile)" />
+    </ItemGroup>
+  </Target>
+
+  <!-- Drop the built plugin straight into the r2modman profile for quick testing. -->
+  <Target Name="CopyToProfile" AfterTargets="Build" Condition="'$(CopyToProfile)' == 'true' And Exists('$(ProfileDir)/BepInEx/plugins')">
+    <Copy SourceFiles="$(TargetPath);$(TargetDir)$(TargetName).pdb" DestinationFolder="$(ProfileDir)/BepInEx/plugins/SevenUI" SkipUnchangedFiles="true" />
+    <Message Importance="high" Text="Copied $(TargetFileName) to $(ProfileDir)/BepInEx/plugins/SevenUI" />
+  </Target>
+
+</Project>
