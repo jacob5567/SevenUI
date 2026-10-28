@@ -25,6 +25,7 @@ namespace SevenUI
         private ScoreboardStyler scoreboard;
         private ChatStyler chat;
         private TiltFlattener tilt;
+        private TooltipStyler tooltips;
         private int lastHierarchyCount = -1;
         private bool fontApplied;
         private bool panelsApplied;
@@ -46,6 +47,7 @@ namespace SevenUI
             scoreboard = new ScoreboardStyler(root);
             chat = new ChatStyler(root);
             tilt = new TiltFlattener(root);
+            tooltips = new TooltipStyler(hud, root);
             SevenUIPlugin.Settings.BarlowFont.SettingChanged += OnSettingChanged;
             SevenUIPlugin.Settings.FlatPanels.SettingChanged += OnSettingChanged;
         }
@@ -54,6 +56,9 @@ namespace SevenUI
         // ObjectivePanelController.Update), so they are restyled before they are first drawn.
         private void LateUpdate()
         {
+            // Tooltips live outside the HUD, so they don't change its count; checking for a new one is one read.
+            tooltips.Update(SevenUIPlugin.Settings.BarlowFont.Value, SevenUIPlugin.Settings.FlatPanels.Value);
+
             // Any object added under the HUD changes this count, and reading it is cheap, so it is the signal to
             // restyle new objects without walking the hierarchy every frame.
             int hierarchyCount = root.hierarchyCount;
@@ -133,6 +138,7 @@ namespace SevenUI
             scoreboard.Describe(output);
             chat.Describe(output);
             output.AppendLine($"  leveled tilts: {tilt.LeveledCount}");
+            output.AppendLine($"  tooltips restyled: {tooltips.StyledCount}");
         }
 
         private void OnDestroy()
