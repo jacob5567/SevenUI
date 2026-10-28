@@ -12,6 +12,10 @@ namespace SevenUI.Tests
         public const string Syringe = "Syringe";
         public const string Hoof = "Hoof";
 
+        // The objective panel in the run info, and its title.
+        public const string ObjectivePanel = "ObjectivePanel";
+        public const string ObjectiveTitle = "Label";
+
         public const string LookingGlassGUID = "droppod.lookingglass";
         // LookingGlass's stats panel, a copy of the objective panel it adds next to it.
         public const string LookingGlassPanel = "PlayerStats";

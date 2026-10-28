@@ -1,0 +1,196 @@
+using System.Collections.Generic;
+using TMPro;
+using UnityEngine;
+using UnityEngine.UI;
+
+namespace SevenUI
+{
+    // Remembers the game's values for each HUD object the mod restyles, the first time it touches it, and the objects
+    // it adds, so turning a setting off puts the HUD back as the game drew it.
+    internal sealed class StyleRecorder
+    {
+        public struct ImageLook
+        {
+            public Sprite Sprite;
+            public Image.Type Type;
+            public Color Color;
+        }
+
+        public struct LabelLook
+        {
+            public float FontSize;
+            public FontStyles FontStyle;
+            public float CharacterSpacing;
+            public Color Color;
+            public TextAlignmentOptions Alignment;
+            public Vector4 Margin;
+            public string Text;
+        }
+
+        public struct LayoutLook
+        {
+            public int Left;
+            public int Right;
+            public int Top;
+            public int Bottom;
+            public float Spacing;
+        }
+
+        private readonly Dictionary<Image, ImageLook> images = new Dictionary<Image, ImageLook>();
+        private readonly Dictionary<TMP_Text, LabelLook> labels = new Dictionary<TMP_Text, LabelLook>();
+        private readonly Dictionary<HorizontalOrVerticalLayoutGroup, LayoutLook> layouts =
+            new Dictionary<HorizontalOrVerticalLayoutGroup, LayoutLook>();
+        private readonly Dictionary<LayoutElement, Vector2> minAndPreferredHeights = new Dictionary<LayoutElement, Vector2>();
+        private readonly List<GameObject> added = new List<GameObject>();
+
+        public int Count => images.Count + labels.Count + layouts.Count + minAndPreferredHeights.Count + added.Count;
+
+        public static ImageLook Capture(Image image) => new ImageLook
+        {
+            Sprite = image.sprite,
+            Type = image.type,
+            Color = image.color,
+        };
+
+        public static LabelLook Capture(TMP_Text label) => new LabelLook
+        {
+            FontSize = label.fontSize,
+            FontStyle = label.fontStyle,
+            CharacterSpacing = label.characterSpacing,
+            Color = label.color,
+            Alignment = label.alignment,
+            Margin = label.margin,
+            Text = label.text,
+        };
+
+        public static LayoutLook Capture(HorizontalOrVerticalLayoutGroup group) => new LayoutLook
+        {
+            Left = group.padding.left,
+            Right = group.padding.right,
+            Top = group.padding.top,
+            Bottom = group.padding.bottom,
+            Spacing = group.spacing,
+        };
+
+        public void Record(Image image)
+        {
+            if (image && !images.ContainsKey(image))
+            {
+                images[image] = Capture(image);
+            }
+        }
+
+        // For an object copied from one the mod had already restyled: its own values are the mod's, so it gets the
+        // game's values recorded for the original.
+        public void RecordAs(Image image, Image original)
+        {
+            if (image && !images.ContainsKey(image) && images.TryGetValue(original, out ImageLook look))
+            {
+                images[image] = look;
+            }
+        }
+
+        public void Record(TMP_Text label)
+        {
+            if (label && !labels.ContainsKey(label))
+            {
+                labels[label] = Capture(label);
+            }
+        }
+
+        public bool TryGet(TMP_Text label, out LabelLook look) => labels.TryGetValue(label, out look);
+
+        public void Record(HorizontalOrVerticalLayoutGroup group)
+        {
+            if (group && !layouts.ContainsKey(group))
+            {
+                layouts[group] = Capture(group);
+            }
+        }
+
+        public bool TryGet(HorizontalOrVerticalLayoutGroup group, out LayoutLook look) => layouts.TryGetValue(group, out look);
+
+        public void Record(LayoutElement element)
+        {
+            if (element && !minAndPreferredHeights.ContainsKey(element))
+            {
+                minAndPreferredHeights[element] = new Vector2(element.minHeight, element.preferredHeight);
+            }
+        }
+
+        public bool TryGet(LayoutElement element, out Vector2 minAndPreferredHeight) =>
+            minAndPreferredHeights.TryGetValue(element, out minAndPreferredHeight);
+
+        public void Add(GameObject created)
+        {
+            added.Add(created);
+        }
+
+        public static void Apply(Image image, ImageLook look)
+        {
+            image.sprite = look.Sprite;
+            image.type = look.Type;
+            image.color = look.Color;
+        }
+
+        // Puts back the font size, style, spacing, color, alignment and margin, but not the text, which the game or
+        // another mod may have changed since.
+        public static void ApplyStyle(TMP_Text label, LabelLook look)
+        {
+            label.fontSize = look.FontSize;
+            label.fontStyle = look.FontStyle;
+            label.characterSpacing = look.CharacterSpacing;
+            label.color = look.Color;
+            label.alignment = look.Alignment;
+            label.margin = look.Margin;
+        }
+
+        public static void Apply(HorizontalOrVerticalLayoutGroup group, LayoutLook look)
+        {
+            group.padding = new RectOffset(look.Left, look.Right, look.Top, look.Bottom);
+            group.spacing = look.Spacing;
+        }
+
+        public void Restore()
+        {
+            foreach (KeyValuePair<Image, ImageLook> entry in images)
+            {
+                if (entry.Key)
+                {
+                    Apply(entry.Key, entry.Value);
+                }
+            }
+            foreach (KeyValuePair<TMP_Text, LabelLook> entry in labels)
+            {
+                if (!entry.Key) continue;
+                ApplyStyle(entry.Key, entry.Value);
+                entry.Key.text = entry.Value.Text;
+            }
+            foreach (KeyValuePair<HorizontalOrVerticalLayoutGroup, LayoutLook> entry in layouts)
+            {
+                if (entry.Key)
+                {
+                    Apply(entry.Key, entry.Value);
+                }
+            }
+            foreach (KeyValuePair<LayoutElement, Vector2> entry in minAndPreferredHeights)
+            {
+                if (!entry.Key) continue;
+                entry.Key.minHeight = entry.Value.x;
+                entry.Key.preferredHeight = entry.Value.y;
+            }
+            foreach (GameObject created in added)
+            {
+                if (created)
+                {
+                    Object.Destroy(created);
+                }
+            }
+            images.Clear();
+            labels.Clear();
+            layouts.Clear();
+            minAndPreferredHeights.Clear();
+            added.Clear();
+        }
+    }
+}

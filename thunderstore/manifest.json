@@ -2,7 +2,7 @@
   "name": "SevenUI",
   "version_number": "0.1.0",
   "website_url": "https://github.com/jacob5567/SevenUI",
-  "description": "Restyles the HUD. So far it draws HUD text in the Barlow font. Works alongside LookingGlass. Client-side.",
+  "description": "Restyles the HUD. So far: HUD text in the Barlow font, and flat panels in the top right. Works alongside LookingGlass. Client-side.",
   "dependencies": [
     "bbepis-BepInExPack-5.4.2122",
     "RiskofThunder-RoR2BepInExPack-1.49.0"

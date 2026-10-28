@@ -1,16 +1,17 @@
 # SevenUI
 
-A client-side Risk of Rain 2 mod that restyles the HUD: the Barlow font, and in later versions flat translucent panels with spaced capital headers. It keeps the game's layout and its own HUD logic, so other HUD mods keep working.
+A client-side Risk of Rain 2 mod that restyles the HUD with the Barlow font and flat translucent panels with spaced capital headers. It keeps the game's layout and its own HUD logic, so other HUD mods keep working.
 
 ## What it changes
 
 - **Text:** HUD text uses Barlow instead of the game's Bombardier font. This covers new HUD text too: item and buff icons, notifications, ally cards, the scoreboard, and panels added by other mods.
+- **Panels:** the panels under the run timer (artifacts, objectives, and panels other mods add there) are flat and translucent, with a small gap between them. The objective panel's title sits in a header strip in spaced capitals.
 
-Not yet restyled: panels and bars, health and boss health numbers (the game draws those from sprite digits, not text), tooltips, and menus outside the HUD.
+Not yet restyled: the timer and difficulty bar, the other HUD panels and bars, health, boss health and timer digits (the game draws those from sprite digits, not text), tooltips, and menus outside the HUD.
 
 ## LookingGlass
 
-[LookingGlass](https://thunderstore.io/package/DropPod/LookingGlass/) works alongside SevenUI. Its stats panel, buff timers and item counters are added to the game's own HUD objects, so they pick up the restyle like the rest of the HUD.
+[LookingGlass](https://thunderstore.io/package/DropPod/LookingGlass/) works alongside SevenUI. Its stats panel, buff timers and item counters are added to the game's own HUD objects, so they pick up the restyle like the rest of the HUD. The stats panel is a copy of the objective panel, so it gets the same flat panel, but keeps LookingGlass's own text layout rather than a header strip.
 
 ## Multiplayer
 
@@ -23,6 +24,7 @@ Edit `BepInEx/config/sevenstack.SevenUI.cfg`, or use the in-game settings menu i
 | Setting | Default | Description |
 |---|---|---|
 | `BarlowFont` | true | Draw HUD text in Barlow instead of the game's font. Languages the game draws in Noto Sans keep it. |
+| `FlatPanels` | true | Draw the objective, artifact and LookingGlass stats panels as flat translucent panels, with a header strip on the objective panel. |
 | `DebugLogging` | false | Log extra detail, and enable the dump key. |
 | `DebugAlwaysShow` | false | Show the mod's visuals even when they wouldn't normally appear, for testing. |
 | `DumpKey` | F8 | With `DebugLogging` on, press to log each HUD's fonts and what the mod restyled. |

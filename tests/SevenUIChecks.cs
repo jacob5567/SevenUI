@@ -1,10 +1,13 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using BepInEx.Bootstrap;
 using ModTestRunner;
 using RoR2.UI;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace SevenUI.Tests
 {
@@ -12,6 +15,10 @@ namespace SevenUI.Tests
     // the HUD's texts directly; the mod itself is read only through SevenUIController.Describe.
     internal static class SevenUIChecks
     {
+        // How long LookingGlass may take to add its stats panel; it builds it once the body's stats are known.
+        private const float LookingGlassPanelTimeout = 10f;
+        private const float ColorTolerance = 0.01f;
+
         public static SevenUIController Controller =>
             HUD.readOnlyInstanceList.Where(hud => hud).Select(hud => hud.GetComponent<SevenUIController>())
                 .FirstOrDefault(controller => controller);
@@ -76,6 +83,80 @@ namespace SevenUI.Tests
         public static Transform FindUnderHud(this Harness h, string name)
         {
             return HudRoot(h).GetComponentsInChildren<Transform>(true).FirstOrDefault(t => t.name == name);
+        }
+
+        // Waits for LookingGlass's stats panel, skipping the scenario if LookingGlass is absent or doesn't add it.
+        public static IEnumerator WaitForLookingGlassPanel(this Harness h, Action<Transform> found)
+        {
+            if (!Chainloader.PluginInfos.ContainsKey(GameNames.LookingGlassGUID)) throw h.Skip("LookingGlass isn't installed");
+
+            Transform panel = null;
+            float deadline = Time.time + LookingGlassPanelTimeout;
+            while (!panel && Time.time < deadline)
+            {
+                panel = h.FindUnderHud(GameNames.LookingGlassPanel);
+                yield return null;
+            }
+            if (!panel) throw h.Skip("LookingGlass's stats panel didn't appear (its stats display may be off or detached)");
+            found(panel);
+        }
+
+        private static bool Near(Color a, Color b) =>
+            Mathf.Abs(a.r - b.r) < ColorTolerance && Mathf.Abs(a.g - b.g) < ColorTolerance &&
+            Mathf.Abs(a.b - b.b) < ColorTolerance && Mathf.Abs(a.a - b.a) < ColorTolerance;
+
+        private static bool IsFlat(Image image) => image && image.enabled && !image.sprite && Near(image.color, Palette.Panel);
+
+        private static bool IsHeader(TMP_Text label) => label && (label.fontStyle & FontStyles.UpperCase) != 0;
+
+        private static TMP_Text Title(Transform panel)
+        {
+            Transform title = panel.Find(GameNames.ObjectiveTitle);
+            return title ? title.GetComponent<TMP_Text>() : null;
+        }
+
+        private static string Look(Transform panel)
+        {
+            if (!panel) return "no objective panel";
+            Image image = panel.GetComponent<Image>();
+            TMP_Text title = Title(panel);
+            return $"image sprite={(image && image.sprite ? image.sprite.name : "none")} color={(image ? image.color.ToString() : "-")}, " +
+                   $"header strip={(bool)panel.Find(Texts.HeaderStripName)}, title style={(title ? title.fontStyle.ToString() : "-")}";
+        }
+
+        public static IEnumerator ExpectObjectivePanelFlat(this Harness h)
+        {
+            Transform panel = null;
+            yield return h.Until(
+                () =>
+                {
+                    panel = h.FindUnderHud(GameNames.ObjectivePanel);
+                    return panel && IsFlat(panel.GetComponent<Image>()) && panel.Find(Texts.HeaderStripName) &&
+                           IsHeader(Title(panel));
+                },
+                () => $"a flat objective panel with a header strip ({Look(panel)}) {h.Diagnosis()}");
+        }
+
+        public static IEnumerator ExpectObjectivePanelVanilla(this Harness h)
+        {
+            Transform panel = null;
+            yield return h.Until(
+                () =>
+                {
+                    panel = h.FindUnderHud(GameNames.ObjectivePanel);
+                    Image image = panel ? panel.GetComponent<Image>() : null;
+                    return image && image.sprite && !panel.Find(Texts.HeaderStripName) && !IsHeader(Title(panel));
+                },
+                () => $"the game's objective panel back ({Look(panel)}) {h.Diagnosis()}");
+        }
+
+        // A flat panel with no header strip and a title in its normal case and spacing.
+        public static IEnumerator ExpectPlainPanel(this Harness h, Transform panel, string what)
+        {
+            yield return h.Until(
+                () => panel && IsFlat(panel.GetComponent<Image>()) && !panel.Find(Texts.HeaderStripName) &&
+                      Title(panel) && !IsHeader(Title(panel)) && Title(panel).characterSpacing == 0f,
+                () => $"{what} flat, without the header style ({Look(panel)}) {h.Diagnosis()}");
         }
     }
 }

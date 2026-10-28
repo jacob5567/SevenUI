@@ -1,18 +1,23 @@
+using System;
 using System.Text;
+using BepInEx.Configuration;
 using RoR2.UI;
 using UnityEngine;
 
 namespace SevenUI
 {
     // One per HUD. Restyles the HUD's vanilla objects in place, and redoes it when the HUD gains objects (item
-    // icons, notifications, ally cards, other mods' panels), so the game's own components keep doing the work.
+    // icons, notifications, ally cards, objective rows, other mods' panels), so the game's own components keep doing
+    // the work.
     internal sealed class SevenUIController : MonoBehaviour
     {
         private HUD hud;
         private Transform root;
         private HudFontSwapper fontSwapper;
+        private RightInfoBarStyler rightInfoBar;
         private int lastHierarchyCount = -1;
         private bool fontApplied;
+        private bool panelsApplied;
 
         private void Awake()
         {
@@ -20,10 +25,14 @@ namespace SevenUI
             // The HUD is a root object, but go through .root in case another mod parents it.
             root = hud.transform.root;
             fontSwapper = new HudFontSwapper(root);
-            SevenUIPlugin.Settings.BarlowFont.SettingChanged += OnFontSettingChanged;
+            rightInfoBar = new RightInfoBarStyler(root);
+            SevenUIPlugin.Settings.BarlowFont.SettingChanged += OnSettingChanged;
+            SevenUIPlugin.Settings.FlatPanels.SettingChanged += OnSettingChanged;
         }
 
-        private void Update()
+        // LateUpdate, after the game's Updates have added this frame's objects (objective rows are added in
+        // ObjectivePanelController.Update), so they are restyled before they are first drawn.
+        private void LateUpdate()
         {
             // Any object added under the HUD changes this count, and reading it is cheap, so it is the signal to
             // restyle new objects without walking the hierarchy every frame.
@@ -35,19 +44,25 @@ namespace SevenUI
 
         private void Restyle()
         {
-            if (SevenUIPlugin.Settings.BarlowFont.Value)
-            {
-                fontSwapper.Apply();
-                fontApplied = true;
-            }
-            else if (fontApplied)
-            {
-                fontSwapper.Restore();
-                fontApplied = false;
-            }
+            panelsApplied = Toggle(SevenUIPlugin.Settings.FlatPanels, panelsApplied, rightInfoBar.Apply, rightInfoBar.Restore);
+            fontApplied = Toggle(SevenUIPlugin.Settings.BarlowFont, fontApplied, fontSwapper.Apply, fontSwapper.Restore);
         }
 
-        private void OnFontSettingChanged(object sender, System.EventArgs e)
+        private static bool Toggle(ConfigEntry<bool> setting, bool applied, Action apply, Action restore)
+        {
+            if (setting.Value)
+            {
+                apply();
+                return true;
+            }
+            if (applied)
+            {
+                restore();
+            }
+            return false;
+        }
+
+        private void OnSettingChanged(object sender, EventArgs e)
         {
             Restyle();
         }
@@ -57,11 +72,13 @@ namespace SevenUI
             output.AppendLine($"HUD {hud.name} (target {(hud.targetBodyObject ? hud.targetBodyObject.name : "none")})");
             output.AppendLine($"  hierarchy objects: {root.hierarchyCount}");
             fontSwapper.Describe(output);
+            rightInfoBar.Describe(output);
         }
 
         private void OnDestroy()
         {
-            SevenUIPlugin.Settings.BarlowFont.SettingChanged -= OnFontSettingChanged;
+            SevenUIPlugin.Settings.BarlowFont.SettingChanged -= OnSettingChanged;
+            SevenUIPlugin.Settings.FlatPanels.SettingChanged -= OnSettingChanged;
         }
     }
 }

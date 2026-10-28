@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using ModTestRunner;
 
@@ -12,13 +13,14 @@ namespace SevenUI.Tests
 
         public override IEnumerable<Scenario> Scenarios()
         {
-            return FontScenarios.All();
+            return FontScenarios.All().Concat(PanelScenarios.All());
         }
 
         public override string Precondition(Scenario scenario)
         {
             PluginConfig settings = SevenUIPlugin.Settings;
             if (!settings.BarlowFont.Value) return "BarlowFont is off in the SevenUI config";
+            if (!settings.FlatPanels.Value) return "FlatPanels is off in the SevenUI config";
             if (settings.DebugAlwaysShow.Value) return "DebugAlwaysShow is on in the SevenUI config";
             return null;
         }

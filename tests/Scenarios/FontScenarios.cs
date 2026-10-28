@@ -1,6 +1,5 @@
 using System.Collections;
 using System.Collections.Generic;
-using BepInEx.Bootstrap;
 using ModTestRunner;
 using UnityEngine;
 
@@ -11,8 +10,6 @@ namespace SevenUI.Tests
     internal static class FontScenarios
     {
         private const string Suite = "font";
-        // How long LookingGlass may take to add its stats panel; it builds it once the body's stats are known.
-        private const float LookingGlassPanelTimeout = 10f;
 
         public static IEnumerable<Scenario> All()
         {
@@ -49,17 +46,8 @@ namespace SevenUI.Tests
         // LookingGlass copies the objective panel for its stats, so the copy must end up in Barlow too.
         private static IEnumerator LookingGlassStatsUseBarlow(Harness h)
         {
-            if (!Chainloader.PluginInfos.ContainsKey(GameNames.LookingGlassGUID)) throw h.Skip("LookingGlass isn't installed");
-
             Transform panel = null;
-            float deadline = Time.time + LookingGlassPanelTimeout;
-            while (!panel && Time.time < deadline)
-            {
-                panel = h.FindUnderHud(GameNames.LookingGlassPanel);
-                yield return null;
-            }
-            if (!panel) throw h.Skip("LookingGlass's stats panel didn't appear (its stats display may be off or detached)");
-
+            yield return h.WaitForLookingGlassPanel(found => panel = found);
             yield return h.ExpectAllBarlow(panel, "LookingGlass's stats panel");
         }
     }

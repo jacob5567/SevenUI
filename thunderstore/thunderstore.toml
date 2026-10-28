@@ -6,7 +6,7 @@ schemaVersion = "0.0.1"
 [package]
 namespace = "sevenstack"
 name = "SevenUI"
-description = "Restyles the HUD. So far it draws HUD text in the Barlow font. Works alongside LookingGlass. Client-side."
+description = "Restyles the HUD. So far: HUD text in the Barlow font, and flat panels in the top right. Works alongside LookingGlass. Client-side."
 websiteUrl = "https://github.com/jacob5567/SevenUI"
 containsNsfwContent = false
 

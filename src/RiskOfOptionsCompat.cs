@@ -18,7 +18,7 @@ namespace SevenUI
         [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.NoOptimization)]
         public static void Register(PluginConfig settings)
         {
-            ModSettingsManager.SetModDescription("Restyles the HUD, starting with the Barlow font.");
+            ModSettingsManager.SetModDescription("Restyles the HUD: the Barlow font, and flat translucent panels in the top right.");
             Sprite icon = LoadIcon();
             if (icon)
             {
@@ -26,6 +26,7 @@ namespace SevenUI
             }
 
             ModSettingsManager.AddOption(new CheckBoxOption(settings.BarlowFont));
+            ModSettingsManager.AddOption(new CheckBoxOption(settings.FlatPanels));
 
             // The options menu groups these under a "Debug" header, named after their config section.
             ModSettingsManager.AddOption(new CheckBoxOption(settings.DebugLogging));
