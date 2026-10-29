@@ -4,7 +4,7 @@ A client-side Risk of Rain 2 mod that restyles the HUD with the Barlow font and 
 
 ## What it changes
 
-- **Damage numbers:** the floating damage numbers use JetBrains Mono, a monospace font, in place of the game's pixel digits, with the game's grey outline and dark edge and its damage colors. They keep the font's narrower shape and are spaced to match.
+- **Damage numbers:** the floating damage numbers use JetBrains Mono, a monospace font, in place of the game's pixel digits, with a thinner version of the game's grey outline and dark edge, and its damage colors. They keep the font's narrower shape and are spaced to match.
 - **Flat HUD:** the game turns the HUD's corners slightly inward, so they lean toward the middle of the screen. SevenUI levels them so the whole HUD faces the screen squarely.
 - **Text:** HUD text uses Barlow instead of the game's Bombardier font, and numbers (the run timer, your level, item and buff stacks, and skill and equipment cooldowns) and the boss's name use Barlow Condensed. This covers new HUD text too: item and buff icons, notifications, ally cards, the scoreboard, and panels added by other mods.
 - **Run info:** the timer, stage, level and difficulty icon share one flat translucent panel, with the timer first in its row. The scrolling difficulty segments are replaced by a thin bar that fills as the current difficulty progresses, with the difficulty's name beside it in spaced capitals.

@@ -21,7 +21,7 @@ namespace SevenUI
         private const string SheetResource = "SevenUI.textures.DamageNumbers.png";
         private const string SheetProperty = "_MainTex";
         // A character's width over its height, CELL_WIDTH / CELL in tools/make_damage_numbers.py.
-        private const float CellAspect = 100f / 128f;
+        private const float CellAspect = 94f / 128f;
 
         private static Texture2D sheet;
         private static bool sheetLoaded;

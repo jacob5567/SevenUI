@@ -19,9 +19,9 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 CELL = 128
-# The natural width of a cell: the widest glyph with its outlines (M) is 97px, and this leaves its neighbors' edges
-# a little apart. Must match DamageNumberFont.CellAspect (CELL_WIDTH / CELL).
-CELL_WIDTH = 100
+# The natural width of a cell: the widest glyphs with their outlines (7, 8 and M) are 92px, and this leaves their
+# neighbors' edges a little apart. Must match DamageNumberFont.CellAspect (CELL_WIDTH / CELL).
+CELL_WIDTH = 94
 GRID = 4
 SS = 2  # supersampling factor
 CHARS = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", None, None, "K", "M", "B", "!"]
@@ -33,8 +33,9 @@ NARROW_WIDTH = 50
 FILL = (255, 255, 255, 255)
 OUTLINE = (90, 97, 107, 255)  # the game's grey outline
 EDGE = (0, 0, 0, 201)  # the game's dark edge
-OUTLINE_WIDTH = 8
-EDGE_WIDTH = 6
+# Kept thin: each outline adds to every character's width, and wider ones push the characters far apart.
+OUTLINE_WIDTH = 5
+EDGE_WIDTH = 4
 # Room left around a glyph's outlines inside its cell.
 MARGIN = 2
 
