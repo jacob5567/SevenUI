@@ -34,6 +34,10 @@ namespace SevenUI
         // #e9d27a and #8fd0e8, the money and lunar coin amounts in the top left.
         public static readonly Color Money = new Color(0.914f, 0.824f, 0.478f, 1f);
         public static readonly Color LunarCoin = new Color(0.561f, 0.816f, 0.910f, 1f);
+        // #7fd07f, #e06a5f and #e9d27a, the strip under a buff, a debuff and a cooldown.
+        public static readonly Color Buff = new Color(0.498f, 0.816f, 0.498f, 1f);
+        public static readonly Color Debuff = new Color(0.878f, 0.416f, 0.373f, 1f);
+        public static readonly Color BuffCooldown = new Color(0.914f, 0.824f, 0.478f, 1f);
         // #e9d27a, the barrier, a strip along the top of the health bar.
         public static readonly Color Barrier = new Color(0.914f, 0.824f, 0.478f, 1f);
     }

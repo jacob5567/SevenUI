@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using ModTestRunner;
 using RoR2;
 using UnityEngine;
@@ -17,6 +18,8 @@ namespace SevenUI.Tests
         private const int ChestMoney = 1000;
         // The game counts the shown amount up over about this long.
         private const float CountUpSeconds = 3f;
+        // The health bar fits about a dozen buff slots across.
+        private const int ManyBuffs = 20;
 
         public static IEnumerable<Scenario> All()
         {
@@ -25,6 +28,7 @@ namespace SevenUI.Tests
             yield return new Scenario(1, Suite, "run_info_is_flat", Stages.TitanicPlains, RunInfoIsFlat);
             yield return new Scenario(1, Suite, "objective_panel_is_flat", Stages.TitanicPlains, ObjectivePanelIsFlat);
             yield return new Scenario(1, Suite, "player_bars_are_flat", Stages.TitanicPlains, PlayerBarsAreFlat);
+            yield return new Scenario(1, Suite, "buffs_wrap_in_rows", Stages.TitanicPlains, BuffsWrapInRows);
             yield return new Scenario(1, Suite, "skill_slots_are_flat", Stages.TitanicPlains, SkillSlotsAreFlat);
             yield return new Scenario(1, Suite, "ntormat_pages_follow_key_item", Stages.TitanicPlains, NtormatPagesFollowKeyItem);
             yield return new Scenario(1, Suite, "top_is_flat", Stages.TitanicPlains, TopIsFlat);
@@ -65,6 +69,35 @@ namespace SevenUI.Tests
             h.Cmd($"{Commands.GiveItem} {GameNames.Knurl} 1");
             yield return h.Wait(0.5f);
             yield return h.ExpectPlayerBarsFlat();
+        }
+
+        // More buffs than fit on one row of the health bar's width, then the game's look and back.
+        private static IEnumerator BuffsWrapInRows(Harness h)
+        {
+            GiveBuffs(h, ManyBuffs);
+            yield return h.ExpectBuffsInRows(2);
+            h.SetConfig(SevenUIPlugin.Settings.FlatPanels, false);
+            yield return h.ExpectBuffsInGameRow();
+            h.SetConfig(SevenUIPlugin.Settings.FlatPanels, true);
+            yield return h.ExpectBuffsInRows(2);
+        }
+
+        // Distinct shown buffs that aren't elite auras, each taken off again at cleanup. The runner is the host.
+        private static void GiveBuffs(Harness h, int count)
+        {
+            CharacterBody body = Harness.LocalBody;
+            foreach (BuffIndex buff in BuffCatalog.nonHiddenBuffIndices
+                         .Where(index => BuffCatalog.GetBuffDef(index) is BuffDef def && def.iconSprite && !def.isElite &&
+                                         !body.HasBuff(index))
+                         .Take(count))
+            {
+                body.AddBuff(buff);
+                h.OnCleanup(() =>
+                {
+                    if (!body) return;
+                    body.RemoveBuff(buff);
+                });
+            }
         }
 
         private static IEnumerator SkillSlotsAreFlat(Harness h)

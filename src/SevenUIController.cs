@@ -69,6 +69,7 @@ namespace SevenUI
             if (panelsApplied)
             {
                 prompts.Update();
+                playerBars.Update();
                 top.Update();
                 skillSlots.Update();
                 if (marginsApplied)

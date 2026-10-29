@@ -11,9 +11,9 @@ using UnityEngine.UI;
 namespace SevenUI.Tests
 {
     // Checks that parts of the HUD sit and size as on the design canvas: the corners at its margins (TightMargins),
-    // the top bars at its width, the currencies in a row, the boss bar's title row and trail, and the run info and
-    // objective rows at its proportions. Measured in world space, on screen or in the HUD's own units, so they hold at
-    // any resolution.
+    // the top bars at its width, the currencies in a row, the boss bar's title row and trail, the buffs' rows, and the run
+    // info and objective rows at its proportions. Measured in world space, on screen or in the HUD's own units, so
+    // they hold at any resolution.
     internal static class CanvasLayoutChecks
     {
         // The canvas's margins, in its pixels on a 1080-pixel-high screen (HudMargins), to within a pixel.
@@ -34,6 +34,9 @@ namespace SevenUI.Tests
         private const float BossEdgeTolerance = 4f;
         // A share of the boss bar.
         private const float TrailMinimum = 0.02f;
+        // In the buff display's units.
+        private const float BuffTolerance = 0.5f;
+        private const string BuffDisplayPath = BottomLeftPath + "/BarRoots/LevelDisplayCluster/BuffDisplayRoot";
 
         private const string SpringCanvasPath = "MainContainer/MainUIArea/SpringCanvas";
         private const string UpperLeftPath = SpringCanvasPath + "/UpperLeftCluster";
@@ -414,6 +417,74 @@ namespace SevenUI.Tests
                     : Mathf.Abs(TrailFill(boss) - boss.fillRectImage.fillAmount) < TrailMinimum / 10f,
                 () => $"the boss's lost health {(trailing ? "drawn after the fill" : "drained to the fill")} " +
                       $"(trail {TrailFill(boss):0.###}, fill {boss.fillRectImage.fillAmount:0.###}) {h.Diagnosis()}");
+        }
+
+        // The player's buffs: each on a slot no wider than the health bar's row, in more than one row when there are
+        // enough, rows stacked upward without overlap.
+        private static BuffDisplay PlayerBuffs(Harness h) =>
+            SevenUIChecks.HudRoot(h).Find(BuffDisplayPath)?.GetComponent<BuffDisplay>();
+
+        private static List<RectTransform> ShownBuffIcons(BuffDisplay display) =>
+            display.buffIconDisplayData.Where(data => data.buffIconComponent && data.buffIconComponent.gameObject.activeSelf)
+                .Select(data => data.buffIconComponent.rectTransform).ToList();
+
+        private static string BuffsLook(BuffDisplay display, RectTransform healthBar)
+        {
+            if (!display) return "no buff display";
+            RectTransform space = (RectTransform)display.transform;
+            Bounds bar = healthBar ? In(space, healthBar) : new Bounds();
+            return $"bar x {bar.min.x:0}-{bar.max.x:0}, icons " + string.Join(" ", ShownBuffIcons(display).Select(icon =>
+            {
+                Bounds b = In(space, icon);
+                return $"({b.min.x:0},{b.min.y:0})";
+            }));
+        }
+
+        public static IEnumerator ExpectBuffsInRows(this Harness h, int minRows)
+        {
+            BuffDisplay display = null;
+            RectTransform healthBar = null;
+            yield return h.Until(
+                () =>
+                {
+                    display = PlayerBuffs(h);
+                    healthBar = SevenUIChecks.HudRoot(h).Find(GameNames.PlayerHealthBar) as RectTransform;
+                    if (!display || !healthBar) return false;
+                    RectTransform space = (RectTransform)display.transform;
+                    Bounds bar = In(space, healthBar);
+                    List<Bounds> icons = ShownBuffIcons(display).Select(icon => In(space, icon)).ToList();
+                    List<Bounds> slots = space.Cast<Transform>()
+                        .Where(child => child.name == BuffRows.SlotName && child.gameObject.activeSelf)
+                        .Select(child => In(space, (RectTransform)child)).ToList();
+                    if (icons.Count == 0 || slots.Count != icons.Count) return false;
+                    int rows = icons.Select(icon => Mathf.RoundToInt(icon.min.y)).Distinct().Count();
+                    bool inside = icons.All(icon => icon.min.x >= bar.min.x - BuffTolerance && icon.max.x <= bar.max.x + BuffTolerance);
+                    bool onSlots = icons.All(icon => slots.Any(slot => slot.Contains(new Vector3(icon.center.x, icon.center.y, slot.center.z))));
+                    bool apart = icons.Select((a, i) => icons.Skip(i + 1).All(b => !Overlap(a, b))).All(ok => ok);
+                    return rows >= minRows && inside && onSlots && apart;
+                },
+                () => $"the buffs on slots in at least {minRows} rows within the health bar's width " +
+                      $"({BuffsLook(display, healthBar)}) {h.Diagnosis()}");
+        }
+
+        private static bool Overlap(Bounds a, Bounds b) =>
+            a.min.x < b.max.x - BuffTolerance && b.min.x < a.max.x - BuffTolerance &&
+            a.min.y < b.max.y - BuffTolerance && b.min.y < a.max.y - BuffTolerance;
+
+        // The game's single row, without the mod's slots.
+        public static IEnumerator ExpectBuffsInGameRow(this Harness h)
+        {
+            BuffDisplay display = null;
+            yield return h.Until(
+                () =>
+                {
+                    display = PlayerBuffs(h);
+                    if (!display) return false;
+                    List<RectTransform> icons = ShownBuffIcons(display);
+                    return icons.Count > 0 && icons.All(icon => Mathf.Approximately(icon.anchoredPosition.y, 0f)) &&
+                           !display.transform.Cast<Transform>().Any(child => child.name == BuffRows.SlotName);
+                },
+                () => $"the buffs back in the game's single row ({BuffsLook(display, null)}) {h.Diagnosis()}");
         }
 
     }

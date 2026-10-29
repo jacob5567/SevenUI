@@ -8,8 +8,9 @@ using UnityEngine.UI;
 namespace SevenUI
 {
     // Restyles the player's level, experience, health and buffs in the bottom left: flat bars on a dark trough, the
-    // health numbers as text instead of sprite digits, the level under a small "LV" header, and bold buff counts. The game keeps filling the
-    // bars and writing the numbers.
+    // health numbers as text instead of sprite digits, the level under a small "LV" header, and the buffs on squares
+    // in rows no wider than the health bar, with bold counts (BuffRows). The game keeps filling the bars and writing
+    // the numbers.
     internal sealed class PlayerBarsStyler
     {
         private const string BarRootsPath = "MainContainer/MainUIArea/SpringCanvas/BottomLeftCluster/BarRoots";
@@ -30,6 +31,7 @@ namespace SevenUI
         private readonly Transform root;
         private readonly StyleRecorder recorder = new StyleRecorder();
         private readonly List<BuffIcon> buffIcons = new List<BuffIcon>();
+        private BuffRows buffRows;
 
         public PlayerBarsStyler(Transform root)
         {
@@ -49,6 +51,16 @@ namespace SevenUI
         public void Restore()
         {
             recorder.Restore();
+            buffRows = null;
+        }
+
+        // Every frame while applied, so the buffs keep their rows as the game changes them.
+        public void Update()
+        {
+            if (buffRows != null && buffRows.Alive)
+            {
+                buffRows.Update();
+            }
         }
 
         private void StyleHealthBar(Transform bars)
@@ -164,6 +176,11 @@ namespace SevenUI
         {
             Transform buffs = bars.Find(BuffsPath);
             if (!buffs) return;
+            BuffDisplay display = buffs.GetComponent<BuffDisplay>();
+            if (display && (buffRows == null || !buffRows.Alive))
+            {
+                buffRows = new BuffRows(display, bars.Find(HealthBarPath) as RectTransform, recorder);
+            }
             buffs.GetComponentsInChildren(true, buffIcons);
             foreach (BuffIcon buff in buffIcons)
             {
