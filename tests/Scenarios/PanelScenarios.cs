@@ -22,6 +22,7 @@ namespace SevenUI.Tests
             yield return new Scenario(1, Suite, "objective_panel_is_flat", Stages.TitanicPlains, ObjectivePanelIsFlat);
             yield return new Scenario(1, Suite, "player_bars_are_flat", Stages.TitanicPlains, PlayerBarsAreFlat);
             yield return new Scenario(1, Suite, "skill_slots_are_flat", Stages.TitanicPlains, SkillSlotsAreFlat);
+            yield return new Scenario(1, Suite, "ntormat_pages_follow_key_item", Stages.TitanicPlains, NtormatPagesFollowKeyItem);
             yield return new Scenario(1, Suite, "top_is_flat", Stages.TitanicPlains, TopIsFlat);
             yield return new Scenario(1, Suite, "item_icons_are_flat", Stages.TitanicPlains, ItemIconsAreFlat);
             yield return new Scenario(1, Suite, "prompt_is_flat", Stages.TitanicPlains, PromptIsFlat);
@@ -54,6 +55,13 @@ namespace SevenUI.Tests
         {
             yield return h.ExpectSkillSlotsFlat();
             yield return h.ExpectExtraKeysPlain();
+            yield return h.ExpectSlotsSkillSized();
+        }
+
+        private static IEnumerator NtormatPagesFollowKeyItem(Harness h)
+        {
+            yield return h.GiveNtormat();
+            yield return h.ExpectNtormatPagesFollowSlot();
         }
 
         private static IEnumerator TopIsFlat(Harness h)

@@ -49,6 +49,7 @@ namespace SevenUI.Tests
             yield return Shot("scoreboard", Scoreboard);
             yield return Shot("barrier_and_low_health", BarrierAndLowHealth);
             yield return Shot("cooldowns", Cooldowns);
+            yield return Shot("ntormat_pages", NtormatPages);
             yield return Shot("interaction_prompt", InteractionPrompt);
             yield return Shot("pickup_notification", PickupNotification);
             yield return Shot("ally_cards", AllyCards);
@@ -125,6 +126,13 @@ namespace SevenUI.Tests
             h.OnCleanup(() => HUD.SetScoreboardActive(user, false, EScoreboardDeactivateReturnContext.Game));
             HUD.SetScoreboardActive(user, true, EScoreboardDeactivateReturnContext.Game, shouldForceScoreboardToggle: true);
             yield return h.Until(() => HUD.IsScoreboardActive(user), "the scoreboard open");
+            yield return h.Wait(SettleSeconds);
+            yield return h.CaptureLooks();
+        }
+
+        private static IEnumerator NtormatPages(Harness h)
+        {
+            yield return h.GiveNtormat();
             yield return h.Wait(SettleSeconds);
             yield return h.CaptureLooks();
         }

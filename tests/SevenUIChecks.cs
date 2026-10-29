@@ -5,6 +5,7 @@ using System.Linq;
 using BepInEx.Bootstrap;
 using ModTestRunner;
 using RoR2;
+using RoR2.Items;
 using RoR2.UI;
 using TMPro;
 using UnityEngine;
@@ -19,6 +20,8 @@ namespace SevenUI.Tests
         // How long LookingGlass may take to add its stats panel; it builds it once the body's stats are known.
         private const float LookingGlassPanelTimeout = 10f;
         private const float ColorTolerance = 0.01f;
+        // A share of a skill slot's size, for comparing slots' sizes and edges.
+        private const float SlotTolerance = 0.02f;
 
         public static SevenUIController Controller =>
             HUD.readOnlyInstanceList.Where(hud => hud).Select(hud => hud.GetComponent<SevenUIController>())
@@ -390,6 +393,77 @@ namespace SevenUI.Tests
                       $") {h.Diagnosis()}");
         }
 
+        // A rect's bottom-left and top-right corners in world space.
+        private static (Vector3 min, Vector3 max) WorldBox(RectTransform rect) =>
+            (rect.TransformPoint(rect.rect.min), rect.TransformPoint(rect.rect.max));
+
+        private static string BoxText(RectTransform rect)
+        {
+            (Vector3 min, Vector3 max) = WorldBox(rect);
+            return $"{rect.name} {min.x:F1},{min.y:F1} to {max.x:F1},{max.y:F1}";
+        }
+
+        // Drawn at the skill's size, with the same top and bottom.
+        private static bool MatchesSkill(RectTransform display, RectTransform skill)
+        {
+            (Vector3 min, Vector3 max) = WorldBox(display);
+            (Vector3 skillMin, Vector3 skillMax) = WorldBox(skill);
+            float tolerance = (skillMax.y - skillMin.y) * SlotTolerance;
+            return Mathf.Abs((max.x - min.x) - (skillMax.x - skillMin.x)) < tolerance &&
+                   Mathf.Abs(min.y - skillMin.y) < tolerance && Mathf.Abs(max.y - skillMax.y) < tolerance;
+        }
+
+        // A key label's height on screen and the height of its plate's center, in world units.
+        private static (float size, float center) KeyLook(InputBindingDisplayController key)
+        {
+            TMP_Text label = key.GetComponent<TMP_Text>();
+            RectTransform plate = (RectTransform)key.transform.parent;
+            return (label ? label.fontSize * label.transform.lossyScale.y : 0f, plate.TransformPoint(plate.rect.center).y);
+        }
+
+        private static bool KeyMatchesSkill(GameObject displayRoot, RectTransform skill)
+        {
+            InputBindingDisplayController key = displayRoot.GetComponentInChildren<InputBindingDisplayController>(true);
+            InputBindingDisplayController skillKey = skill.GetComponentInChildren<InputBindingDisplayController>(true);
+            if (!key || !skillKey) return false;
+            (float size, float center) = KeyLook(key);
+            (float skillSize, float skillCenter) = KeyLook(skillKey);
+            (Vector3 skillMin, Vector3 skillMax) = WorldBox(skill);
+            float tolerance = (skillMax.y - skillMin.y) * SlotTolerance;
+            return Mathf.Abs(size - skillSize) < tolerance && Mathf.Abs(center - skillCenter) < tolerance;
+        }
+
+        // The equipment and key item slots drawn at a skill slot's size, level with the skills, with their keys at the
+        // skills' size and height.
+        public static IEnumerator ExpectSlotsSkillSized(this Harness h)
+        {
+            HUD hud = null;
+            List<RectTransform> displays = new List<RectTransform>();
+            yield return h.Until(
+                () =>
+                {
+                    hud = HudRoot(h) ? Controller.GetComponent<HUD>() : null;
+                    if (!hud || hud.skillIcons.Length == 0 || !hud.skillIcons[0]) return false;
+                    displays = hud.equipmentIcons.Where(slot => slot && !slot.displayAlternateEquipment && slot.displayRoot &&
+                                                                slot.displayRoot.transform.Find(GameNames.SlotBackground))
+                        .Select(slot => (RectTransform)slot.displayRoot.transform).ToList();
+                    if (hud.keyItemIcon && hud.keyItemIcon.displayRoot)
+                    {
+                        displays.Add((RectTransform)hud.keyItemIcon.displayRoot.transform);
+                    }
+                    RectTransform skill = (RectTransform)hud.skillIcons[0].transform;
+                    return displays.Count > 0 &&
+                           displays.All(display => MatchesSkill(display, skill) && KeyMatchesSkill(display.gameObject, skill));
+                },
+                () => $"the equipment and key item slots and their keys at a skill's size (" +
+                      (hud && hud.skillIcons.Length > 0 && hud.skillIcons[0]
+                          ? $"skill {BoxText((RectTransform)hud.skillIcons[0].transform)}; " +
+                            string.Join("; ", displays.Where(display => display).Select(display =>
+                                $"{display.parent.name} {BoxText(display)} key matches={KeyMatchesSkill(display.gameObject, (RectTransform)hud.skillIcons[0].transform)}"))
+                          : "no skill slots") +
+                      $") {h.Diagnosis()}");
+        }
+
         public static IEnumerator ExpectSkillSlotsVanilla(this Harness h)
         {
             List<SkillIcon> skills = new List<SkillIcon>();
@@ -734,6 +808,118 @@ namespace SevenUI.Tests
 
         // Two screenshots of the screen as it is: in SevenUI's look, then with all of SevenUI's settings off. The
         // settings come back on afterwards, and at cleanup as the runner puts config back.
+        // Gives the player the N'tormat (Hallowed Concepts' key item) and a few of its pages, which the key item slot
+        // shows as a row of page icons with a selector, and takes them away at cleanup. Server methods; the runner is
+        // the host. Skips without the expansion.
+        public static IEnumerator GiveNtormat(this Harness h)
+        {
+            KeyItemDef book = DLC4Content.KeyItems.CursedBook;
+            if (!book || book.keyItemIndex == KeyItemIndex.None || Run.instance.IsKeyItemExpansionLocked(book.keyItemIndex))
+            {
+                throw h.Skip("the N'tormat needs Hallowed Concepts");
+            }
+            Inventory inventory = Harness.LocalBody.inventory;
+            CursedBookSpellDef[] pages = NtormatPages.Where(page => page && page.itemDef).ToArray();
+            h.OnCleanup(() =>
+            {
+                if (!inventory) return;
+                foreach (CursedBookSpellDef page in pages)
+                {
+                    inventory.RemoveItemPermanent(page.itemDef, inventory.GetItemCountPermanent(page.itemDef));
+                }
+                inventory.RemoveKeyItem(book.keyItemIndex);
+            });
+            inventory.GiveKeyItem(book.keyItemIndex);
+            foreach (CursedBookSpellDef page in pages)
+            {
+                inventory.GiveItemPermanent(page.itemDef);
+            }
+            CursedBookExtraDisplay display = null;
+            yield return h.Until(
+                () =>
+                {
+                    display = NtormatDisplay(h);
+                    return display && NtormatPageIcons(display).Count == pages.Length;
+                },
+                () => $"the N'tormat's {pages.Length} pages beside the key item " +
+                      $"({(display ? NtormatPageIcons(display).Count + " shown" : "no page display")}) {h.Diagnosis()}");
+        }
+
+        private static CursedBookSpellDef[] NtormatPages =>
+            new[] { DLC4Content.CursedBookSpells.Clarity, DLC4Content.CursedBookSpells.Purify, DLC4Content.CursedBookSpells.WarpGate };
+
+        private static CursedBookExtraDisplay NtormatDisplay(Harness h)
+        {
+            HUD hud = HudRoot(h) ? Controller.GetComponent<HUD>() : null;
+            return hud && hud.keyItemIcon && hud.keyItemIcon.extraDisplayHolder
+                ? hud.keyItemIcon.extraDisplayHolder.GetComponentInChildren<CursedBookExtraDisplay>()
+                : null;
+        }
+
+        private static List<CursedBookSpellSlotIcon> NtormatPageIcons(CursedBookExtraDisplay display) =>
+            display.spellSlotHolder
+                ? display.spellSlotHolder.GetComponentsInChildren<CursedBookSpellSlotIcon>().ToList()
+                : new List<CursedBookSpellSlotIcon>();
+
+        // Where each page icon sits against the key item slot as drawn: in the slot's units, from the drawn box's
+        // bottom-left corner, over the box's width.
+        private static List<Vector2> NtormatLayout(Harness h)
+        {
+            CursedBookExtraDisplay display = NtormatDisplay(h);
+            KeyItemIcon slot = display ? Controller.GetComponent<HUD>().keyItemIcon : null;
+            if (!slot || !slot.displayRoot) return new List<Vector2>();
+            Transform space = slot.transform;
+            RectTransform box = (RectTransform)slot.displayRoot.transform;
+            Vector2 min = space.InverseTransformPoint(box.TransformPoint(box.rect.min));
+            Vector2 max = space.InverseTransformPoint(box.TransformPoint(box.rect.max));
+            float width = max.x - min.x;
+            return NtormatPageIcons(display)
+                .Select(icon => ((Vector2)space.InverseTransformPoint(icon.transform.position) - min) / width).ToList();
+        }
+
+        private static string LayoutText(List<Vector2> layout) =>
+            layout.Count == 0 ? "none" : string.Join(" ", layout.Select(point => $"({point.x:F2},{point.y:F2})"));
+
+        // The page icons keep the place and spacing against the slot they have in the game's look, though the slot is
+        // drawn smaller; and the selector moves to the page picked, as scrolling through the pages does.
+        public static IEnumerator ExpectNtormatPagesFollowSlot(this Harness h)
+        {
+            PluginConfig settings = SevenUIPlugin.Settings;
+            h.SetConfig(settings.FlatPanels, false);
+            yield return h.Wait(LookSwitchSeconds);
+            List<Vector2> vanilla = NtormatLayout(h);
+            if (vanilla.Count == 0) throw h.Fail("no N'tormat pages in the game's look");
+            h.SetConfig(settings.FlatPanels, true);
+            List<Vector2> styled = new List<Vector2>();
+            yield return h.Until(
+                () =>
+                {
+                    styled = NtormatLayout(h);
+                    return styled.Count == vanilla.Count &&
+                           styled.Zip(vanilla, (a, b) => (a - b).magnitude).All(distance => distance < SlotTolerance);
+                },
+                () => $"the pages placed against the slot as in the game's look (game {LayoutText(vanilla)}, " +
+                      $"SevenUI {LayoutText(styled)}) {h.Diagnosis()}");
+
+            CursedBookBodyBehavior book = Harness.LocalBody.GetComponent<CursedBookBodyBehavior>();
+            if (!book) throw h.Fail("no N'tormat on the player's body");
+            for (int page = 0; page < book.GetSpellSlotCount(); page++)
+            {
+                book.SelectSpell(page);
+                int picked = page;
+                CursedBookExtraDisplay display = null;
+                yield return h.Until(
+                    () =>
+                    {
+                        display = NtormatDisplay(h);
+                        List<CursedBookSpellSlotIcon> icons = display ? NtormatPageIcons(display) : null;
+                        return icons != null && picked < icons.Count && display.indicatorTransform &&
+                               (display.indicatorTransform.position - icons[picked].transform.position).sqrMagnitude < 1e-4f;
+                    },
+                    () => $"the selector on page {picked + 1} {h.Diagnosis()}");
+            }
+        }
+
         public static IEnumerator CaptureLooks(this Harness h)
         {
             yield return h.Screenshot("sevenui");

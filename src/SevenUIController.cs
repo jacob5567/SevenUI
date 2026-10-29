@@ -39,7 +39,7 @@ namespace SevenUI
             runInfo = new RunInfoStyler(root);
             rightInfoBar = new RightInfoBarStyler(root);
             playerBars = new PlayerBarsStyler(root);
-            skillSlots = new SkillSlotsStyler(root);
+            skillSlots = new SkillSlotsStyler(hud, root);
             top = new TopStyler(root);
             itemIcons = new ItemIconsStyler(root);
             allyCards = new AllyCardsStyler(root);
@@ -63,6 +63,7 @@ namespace SevenUI
             if (panelsApplied)
             {
                 prompts.Update();
+                skillSlots.Update();
             }
 
             // Any object added under the HUD changes this count, and reading it is cheap, so it is the signal to
