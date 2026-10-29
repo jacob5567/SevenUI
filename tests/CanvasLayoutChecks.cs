@@ -10,15 +10,27 @@ using UnityEngine.UI;
 
 namespace SevenUI.Tests
 {
-    // Checks that parts of the HUD sit and size as on the design canvas: the currencies in a row, each on a panel
-    // fitted to its amount. Measured in the HUD's own units, so they hold at any resolution.
+    // Checks that parts of the HUD sit and size as on the design canvas: the top bars at its width, the currencies
+    // in a row, and the run info and objective rows at its proportions. Measured in world space, on screen or in the
+    // HUD's own units, so they hold at any resolution.
     internal static class CanvasLayoutChecks
     {
+        // The run info is 300px wide for a 34px timer (RunInfoStyler), and an objective's box is 14px for 16px text.
+        private const float ColumnPerTimerFont = 300f / 34f;
+        private const float BoxPerObjectiveFont = 14f / 16f;
+        private const float ProportionTolerance = 0.05f;
+        private const float MinLabelShare = 0.75f;
         // In the money cluster's units.
         private const float RowTolerance = 0.5f;
 
         private const string SpringCanvasPath = "MainContainer/MainUIArea/SpringCanvas";
         private const string UpperLeftPath = SpringCanvasPath + "/UpperLeftCluster";
+        private const string TopCenterPath = SpringCanvasPath + "/TopCenterCluster";
+        // 900 of the canvas's 1920 pixels (TopBarsWidth).
+        private const float TopCenterCanvasShare = 900f / 1920f;
+        private const string StripContainer = "StripContainer";
+        private const string StripLabel = "Label";
+        private const string StripCheckbox = "Checkbox";
 
         private static Bounds In(RectTransform space, RectTransform rect)
         {
@@ -33,6 +45,58 @@ namespace SevenUI.Tests
         }
 
         private static HUD Hud(Harness h) => SevenUIChecks.HudRoot(h).GetComponent<HUD>();
+
+        private static Camera HudCamera(Transform root)
+        {
+            Canvas canvas = root.GetComponent<Canvas>();
+            return canvas && canvas.renderMode != RenderMode.ScreenSpaceOverlay ? canvas.worldCamera : null;
+        }
+
+        private static Rect ScreenOf(Camera camera) =>
+            camera ? camera.pixelRect : new Rect(0f, 0f, Screen.width, Screen.height);
+
+        // Through the HUD's camera, which draws the HUD's main area in perspective.
+        private static Rect OnScreen(Camera camera, RectTransform rect)
+        {
+            Vector3[] corners = new Vector3[4];
+            rect.GetWorldCorners(corners);
+            Vector2 min = RectTransformUtility.WorldToScreenPoint(camera, corners[0]);
+            Vector2 max = min;
+            foreach (Vector3 corner in corners)
+            {
+                Vector2 point = RectTransformUtility.WorldToScreenPoint(camera, corner);
+                min = Vector2.Min(min, point);
+                max = Vector2.Max(max, point);
+            }
+            return Rect.MinMaxRect(min.x, min.y, max.x, max.y);
+        }
+
+        private static RectTransform TopCenter(Harness h) => SevenUIChecks.HudRoot(h).Find(TopCenterPath) as RectTransform;
+
+        // The item and boss bars' cluster's share of the screen's width.
+        private static float TopCenterShare(Harness h)
+        {
+            Transform root = SevenUIChecks.HudRoot(h);
+            RectTransform topCenter = TopCenter(h);
+            Camera camera = HudCamera(root);
+            return topCenter ? OnScreen(camera, topCenter).width / ScreenOf(camera).width : 0f;
+        }
+
+        public static IEnumerator ExpectTopBarsAtCanvasWidth(this Harness h)
+        {
+            yield return h.Until(
+                () => Mathf.Abs(TopCenterShare(h) / TopCenterCanvasShare - 1f) < ProportionTolerance,
+                () => $"the item and boss bars {TopCenterCanvasShare:P0} of the screen's width " +
+                      $"(shown {TopCenterShare(h):P1}) {h.Diagnosis()}");
+        }
+
+        public static IEnumerator ExpectTopBarsAtGameWidth(this Harness h)
+        {
+            yield return h.Until(
+                () => TopCenter(h) && Mathf.Approximately(TopCenter(h).sizeDelta.x, GameNames.TopCenterWidthDelta),
+                () => $"the item and boss bars back at the game's width (size delta " +
+                      $"{(TopCenter(h) ? TopCenter(h).sizeDelta.x : 0f)}, game {GameNames.TopCenterWidthDelta}) {h.Diagnosis()}");
+        }
 
         // The shown currencies left to right, in the money cluster's units.
         private static List<(MoneyText money, Bounds panel, Bounds amount)> Currencies(Harness h)
@@ -85,5 +149,88 @@ namespace SevenUI.Tests
                 () => $"the currencies in a row on fitted panels ({CurrencyLook(currencies)}) {h.Diagnosis()}");
         }
 
+        private static DifficultyBarController DifficultyBar(Harness h) =>
+            SevenUIChecks.HudRoot(h).GetComponentsInChildren<DifficultyBarController>(true).FirstOrDefault();
+
+        private static string RunInfoLook(DifficultyBarController bar, RunInfoText text, float ratio) =>
+            $"width per timer font {ratio:0.##} (expected {ColumnPerTimerFont:0.##}), " +
+            $"difficulty '{(text && text.Difficulty ? text.Difficulty.text : "-")}', " +
+            $"stage line '{(text && text.StageAndLevel ? text.StageAndLevel.text : "-")}'";
+
+        // The column at the mod's width for its timer, the run's difficulty by name, and the game's stage and
+        // level on one line.
+        public static IEnumerator ExpectRunInfoAsCanvas(this Harness h)
+        {
+            DifficultyBarController bar = null;
+            RunInfoText text = null;
+            float ratio = 0f;
+            yield return h.Until(
+                () =>
+                {
+                    bar = DifficultyBar(h);
+                    if (!bar || !Run.instance) return false;
+                    Transform panel = bar.transform.parent;
+                    RectTransform background = panel.Find(Texts.RunInfoBackgroundName) as RectTransform;
+                    TimerText timerText = panel.GetComponentInChildren<TimerText>(true);
+                    TMP_Text timer = timerText ? timerText.GetComponent<TMP_Text>() : null;
+                    text = panel.GetComponentInChildren<RunInfoText>(true);
+                    if (!background || !timer || !text) return false;
+                    ratio = background.rect.width * background.lossyScale.x / (timer.fontSize * timer.transform.lossyScale.x);
+                    DifficultyDef difficulty = DifficultyCatalog.GetDifficultyDef(Run.instance.selectedDifficulty);
+                    TMP_Text stage = text.GameStage;
+                    TMP_Text level = text.GameLevel;
+                    return Mathf.Abs(ratio / ColumnPerTimerFont - 1f) < ProportionTolerance &&
+                           difficulty != null && text.Difficulty.text == Language.GetString(difficulty.nameToken) &&
+                           stage && level && !stage.enabled && !level.enabled &&
+                           text.StageAndLevel.text.Contains(stage.text) && text.StageAndLevel.text.Contains(level.text);
+                },
+                () => $"the run info laid out as on the canvas ({RunInfoLook(bar, text, ratio)}) {h.Diagnosis()}");
+        }
+
+        private static List<(TMP_Text label, RectTransform box)> ObjectiveRows(Harness h)
+        {
+            Transform panel = h.FindUnderHud(GameNames.ObjectivePanel);
+            Transform container = panel ? panel.Find(StripContainer) : null;
+            if (!container) return new List<(TMP_Text, RectTransform)>();
+            return container.Cast<Transform>().Where(strip => strip.gameObject.activeInHierarchy)
+                .Select(strip => strip.GetComponent<ChildLocator>()).Where(locator => locator)
+                .Select(locator => (locator.FindChildComponent<TMP_Text>(StripLabel), locator.FindChild(StripCheckbox) as RectTransform))
+                .Where(row => row.Item1).ToList();
+        }
+
+        // The label's width over its row's, which the checkbox and the insets take a little of.
+        private static float LabelShare(TMP_Text label)
+        {
+            RectTransform row = label.transform.parent as RectTransform;
+            return row && row.rect.width > 0f ? ((RectTransform)label.transform).rect.width / row.rect.width : 0f;
+        }
+
+        private static float BoxPerFont((TMP_Text label, RectTransform box) row) =>
+            row.box
+                ? row.box.rect.height * row.box.lossyScale.y / (row.label.fontSize * row.label.transform.lossyScale.y)
+                : 0f;
+
+        private static string RowsLook(List<(TMP_Text label, RectTransform box)> rows) =>
+            rows.Count == 0
+                ? "no rows"
+                : string.Join(", ", rows.Select(row =>
+                    $"'{row.label.text}' {row.label.alignment} box/font {BoxPerFont(row):0.##} width share {LabelShare(row.label):0.##}"));
+
+        // Each shown objective left-aligned after a checkbox at the canvas's size for its text.
+        public static IEnumerator ExpectObjectiveRowsAsCanvas(this Harness h)
+        {
+            List<(TMP_Text label, RectTransform box)> rows = null;
+            yield return h.Until(
+                () =>
+                {
+                    rows = ObjectiveRows(h);
+                    return rows.Count > 0 && rows.All(row =>
+                        row.label.alignment == TextAlignmentOptions.Left &&
+                        Mathf.Abs(BoxPerFont(row) / BoxPerObjectiveFont - 1f) < ProportionTolerance &&
+                        LabelShare(row.label) > MinLabelShare);
+                },
+                () => $"the objectives left-aligned after small checkboxes (canvas box/font {BoxPerObjectiveFont:0.##}; " +
+                      $"{RowsLook(rows)}) {h.Diagnosis()}");
+        }
     }
 }

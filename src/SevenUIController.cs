@@ -26,6 +26,7 @@ namespace SevenUI
         private ChatStyler chat;
         private TiltFlattener tilt;
         private TooltipStyler tooltips;
+        private TopBarsWidth topBars;
         private int lastHierarchyCount = -1;
         private bool fontApplied;
         private bool panelsApplied;
@@ -48,6 +49,7 @@ namespace SevenUI
             chat = new ChatStyler(root);
             tilt = new TiltFlattener(root);
             tooltips = new TooltipStyler(hud, root);
+            topBars = new TopBarsWidth(root);
             SevenUIPlugin.Settings.BarlowFont.SettingChanged += OnSettingChanged;
             SevenUIPlugin.Settings.FlatPanels.SettingChanged += OnSettingChanged;
         }
@@ -65,6 +67,7 @@ namespace SevenUI
                 prompts.Update();
                 top.Update();
                 skillSlots.Update();
+                topBars.Update();
             }
 
             // Any object added under the HUD changes this count, and reading it is cheap, so it is the signal to
@@ -94,6 +97,7 @@ namespace SevenUI
             scoreboard.Apply();
             chat.Apply();
             tilt.Apply();
+            topBars.Apply();
         }
 
         private void RestorePanels()
@@ -109,6 +113,7 @@ namespace SevenUI
             scoreboard.Restore();
             chat.Restore();
             tilt.Restore();
+            topBars.Restore();
         }
 
         private static bool Toggle(ConfigEntry<bool> setting, bool applied, Action apply, Action restore)
@@ -146,6 +151,7 @@ namespace SevenUI
             scoreboard.Describe(output);
             chat.Describe(output);
             output.AppendLine($"  leveled tilts: {tilt.LeveledCount}");
+            topBars.Describe(output);
             output.AppendLine($"  tooltips restyled: {tooltips.StyledCount}");
             output.AppendLine($"  monospace damage numbers: {DamageNumberFont.Applied}");
         }

@@ -54,6 +54,9 @@ namespace SevenUI.Tests
         // The equipment and key item slots' background, under their display roots.
         public const string SlotBackground = "BGPanel";
 
+        // The top cluster spans its parent less this, in the game's HUD prefab.
+        public const float TopCenterWidthDelta = -576f;
+
         // The money cluster in the top left, and the strip behind each currency in it.
         public const string MoneyCluster = "MainContainer/MainUIArea/SpringCanvas/UpperLeftCluster";
         public const string CurrencyBackground = "BackgroundPanel";

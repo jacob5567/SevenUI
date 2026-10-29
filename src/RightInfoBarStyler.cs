@@ -7,7 +7,7 @@ namespace SevenUI
 {
     // Restyles the panels under the run info in the top right (the artifact panel, the objective panel, and panels
     // other mods add there, such as LookingGlass's stats) as flat translucent panels, with a header strip on the
-    // objective panel.
+    // objective panel and its rows laid out as on the design canvas (ObjectiveRow).
     internal sealed class RightInfoBarStyler
     {
         // Vanilla object names. LookingGlass looks up ObjectivePanel and its Label by these, so they are never renamed.
@@ -15,19 +15,23 @@ namespace SevenUI
         private const string RightInfoBarName = "RightInfoBar";
         private const string ObjectivePanelName = "ObjectivePanel";
         private const string TitleName = "Label";
+        private const string StripContainerName = "StripContainer";
         private const string HeaderStripName = "SevenUIHeaderStrip";
 
-        // In HUD canvas units. The canvas draws the objective rows at 12, where the design canvas used 16, so its
-        // sizes are scaled by 3/4.
-        private const float PanelGap = 6f;
-        private const int PanelBottomPadding = 4;
-        private const float HeaderHeight = 20f;
-        private const float HeaderInset = 10f;
+        // The design canvas's sizes, in its pixels, scaled to the run info's units. The rows' own height holds most
+        // of the 10px above and below them.
+        private const float Canvas = RunInfoUnits.PerCanvasPixel;
+        private const float PanelGap = 8f * Canvas;
+        private const int RowsPadding = 4;
+        private const float HeaderHeight = 26f * Canvas;
+        private const float HeaderInset = 14f * Canvas;
+        private const float HeaderFontSize = 12f * Canvas;
 
         private readonly Transform root;
         private readonly StyleRecorder recorder = new StyleRecorder();
         private readonly List<Transform> scratch = new List<Transform>();
         private readonly List<Transform> bars = new List<Transform>();
+        private readonly HashSet<Transform> styledStrips = new HashSet<Transform>();
 
         public RightInfoBarStyler(Transform root)
         {
@@ -61,6 +65,7 @@ namespace SevenUI
         public void Restore()
         {
             recorder.Restore();
+            styledStrips.Clear();
         }
 
         private void StyleBar(Transform bar)
@@ -109,7 +114,7 @@ namespace SevenUI
             if (layout)
             {
                 recorder.Record(layout);
-                layout.padding = new RectOffset(0, 0, 0, PanelBottomPadding);
+                layout.padding = new RectOffset(0, 0, 0, RowsPadding);
             }
 
             Transform title = panel.Find(TitleName);
@@ -119,6 +124,7 @@ namespace SevenUI
                 recorder.Record(label);
                 recorder.RecordText(label);
                 HeaderStyle.Apply(label);
+                label.fontSize = HeaderFontSize;
                 label.alignment = TextAlignmentOptions.MidlineLeft;
                 label.margin = new Vector4(HeaderInset, 0f, HeaderInset, 0f);
                 // "Objective:" reads as a label; as a header strip it doesn't need the colon.
@@ -141,6 +147,27 @@ namespace SevenUI
             if (!panel.Find(HeaderStripName))
             {
                 AddHeaderStrip(panel);
+            }
+            StyleRows(panel);
+        }
+
+        // Every strip, the game's hidden template too: LookingGlass sizes its stats text from the template's label.
+        private void StyleRows(Transform panel)
+        {
+            Transform container = panel.Find(StripContainerName);
+            if (!container) return;
+            VerticalLayoutGroup layout = container.GetComponent<VerticalLayoutGroup>();
+            if (layout)
+            {
+                recorder.Record(layout);
+                layout.padding = new RectOffset(layout.padding.left, layout.padding.right, RowsPadding, layout.padding.bottom);
+            }
+            foreach (Transform strip in container)
+            {
+                if (styledStrips.Add(strip))
+                {
+                    ObjectiveRow.Style(strip, recorder);
+                }
             }
         }
 

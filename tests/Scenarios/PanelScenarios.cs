@@ -7,8 +7,8 @@ using UnityEngine;
 namespace SevenUI.Tests
 {
     // The FlatPanels setting: the top-right panels are flat, the run info shows the mod's difficulty bar, the objective
-    // panel has a header strip, and turning it off brings back the game's panels. LookingGlass's copy of the objective
-    // panel gets a plain panel.
+    // panel has a header strip, the top bars take the design canvas's width, and turning it off brings back the
+    // game's panels and widths. LookingGlass's copy of the objective panel gets a plain panel.
     internal static class PanelScenarios
     {
         private const string Suite = "panels";
@@ -42,6 +42,7 @@ namespace SevenUI.Tests
         private static IEnumerator RunInfoIsFlat(Harness h)
         {
             yield return h.ExpectRunInfoFlat();
+            yield return h.ExpectRunInfoAsCanvas();
         }
 
         // More max health changes both numbers, so the text has to keep up after the switch from sprite digits.
@@ -70,6 +71,7 @@ namespace SevenUI.Tests
         private static IEnumerator TopIsFlat(Harness h)
         {
             yield return h.ExpectTopFlat();
+            yield return h.ExpectTopBarsAtCanvasWidth();
             yield return h.ExpectCurrenciesInRow();
             h.Cmd($"{Commands.GiveMoney} {ChestMoney}");
             yield return h.Wait(CountUpSeconds);
@@ -111,6 +113,7 @@ namespace SevenUI.Tests
         private static IEnumerator ObjectivePanelIsFlat(Harness h)
         {
             yield return h.ExpectObjectivePanelFlat();
+            yield return h.ExpectObjectiveRowsAsCanvas();
         }
 
         private static IEnumerator TurningOffRestoresPanels(Harness h)
@@ -126,6 +129,7 @@ namespace SevenUI.Tests
             yield return h.ExpectItemIconsFlat();
             yield return h.ExpectPromptFlat();
             yield return h.ExpectOverlaysFlat();
+            yield return h.ExpectTopBarsAtCanvasWidth();
             h.SetConfig(SevenUIPlugin.Settings.FlatPanels, false);
             yield return h.ExpectRunInfoVanilla();
             yield return h.ExpectObjectivePanelVanilla();
@@ -136,6 +140,7 @@ namespace SevenUI.Tests
             yield return h.ExpectItemIconsVanilla();
             yield return h.ExpectPromptVanilla();
             yield return h.ExpectOverlaysVanilla();
+            yield return h.ExpectTopBarsAtGameWidth();
             h.SetConfig(SevenUIPlugin.Settings.FlatPanels, true);
             yield return h.ExpectRunInfoFlat();
             yield return h.ExpectObjectivePanelFlat();
@@ -146,6 +151,7 @@ namespace SevenUI.Tests
             yield return h.ExpectItemIconsFlat();
             yield return h.ExpectPromptFlat();
             yield return h.ExpectOverlaysFlat();
+            yield return h.ExpectTopBarsAtCanvasWidth();
         }
 
         // LookingGlass copies the objective panel for its stats, header strip and all if the copy is made after the
