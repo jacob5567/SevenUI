@@ -54,7 +54,7 @@ namespace SevenUI.Tests
             return string.Join("/", names);
         }
 
-        private static Transform HudRoot(Harness h)
+        internal static Transform HudRoot(Harness h)
         {
             SevenUIController controller = Controller;
             if (!controller) throw h.Fail("no SevenUI controller on the HUD");
@@ -105,7 +105,7 @@ namespace SevenUI.Tests
             found(panel);
         }
 
-        private static bool Near(Color a, Color b) =>
+        internal static bool Near(Color a, Color b) =>
             Mathf.Abs(a.r - b.r) < ColorTolerance && Mathf.Abs(a.g - b.g) < ColorTolerance &&
             Mathf.Abs(a.b - b.b) < ColorTolerance && Mathf.Abs(a.a - b.a) < ColorTolerance;
 

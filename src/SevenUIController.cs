@@ -40,7 +40,7 @@ namespace SevenUI
             rightInfoBar = new RightInfoBarStyler(root);
             playerBars = new PlayerBarsStyler(root);
             skillSlots = new SkillSlotsStyler(hud, root);
-            top = new TopStyler(root);
+            top = new TopStyler(hud, root);
             itemIcons = new ItemIconsStyler(root);
             allyCards = new AllyCardsStyler(root);
             prompts = new PromptsStyler(root);
@@ -63,6 +63,7 @@ namespace SevenUI
             if (panelsApplied)
             {
                 prompts.Update();
+                top.Update();
                 skillSlots.Update();
             }
 

@@ -78,7 +78,8 @@ namespace SevenUI
         }
 
         // Numbers (the run timer, the player's level, item and buff stacks, and the cooldowns and stocks on skills and
-        // equipment) read best in Barlow Condensed, as in the design canvas, as does the boss's name in capitals.
+        // equipment) read best in Barlow Condensed, as in the design canvas, as do the boss's name in capitals and the
+        // dollar sign (a currency's other text; the coins' signs are sprites).
         private static bool UsesCondensed(TMP_Text text)
         {
             if (text.GetComponent<TimerText>()) return true;
@@ -92,6 +93,8 @@ namespace SevenUI
             if (item && item.stackText == text) return true;
             BuffIcon buff = text.GetComponentInParent<BuffIcon>();
             if (buff && buff.stackCount == text) return true;
+            MoneyText currency = text.GetComponentInParent<MoneyText>();
+            if (currency && currency.targetText != text) return true;
             HUDBossHealthBarController boss = text.GetComponentInParent<HUDBossHealthBarController>();
             return boss && boss.bossNameLabel == text;
         }

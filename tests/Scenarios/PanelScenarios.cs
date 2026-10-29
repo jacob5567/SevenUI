@@ -14,6 +14,8 @@ namespace SevenUI.Tests
         private const string Suite = "panels";
         // Plenty for a small chest at any difficulty or stage count the tests reach.
         private const int ChestMoney = 1000;
+        // The game counts the shown amount up over about this long.
+        private const float CountUpSeconds = 3f;
 
         public static IEnumerable<Scenario> All()
         {
@@ -64,9 +66,14 @@ namespace SevenUI.Tests
             yield return h.ExpectNtormatPagesFollowSlot();
         }
 
+        // Money changes the amount's width, so its panel has to be refitted.
         private static IEnumerator TopIsFlat(Harness h)
         {
             yield return h.ExpectTopFlat();
+            yield return h.ExpectCurrenciesInRow();
+            h.Cmd($"{Commands.GiveMoney} {ChestMoney}");
+            yield return h.Wait(CountUpSeconds);
+            yield return h.ExpectCurrenciesInRow();
         }
 
         // A stack and a single item, then more of the single item, so a count appears on an icon already restyled.

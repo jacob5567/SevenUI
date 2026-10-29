@@ -26,6 +26,15 @@ namespace SevenUI
             public Vector4 Margin;
         }
 
+        public struct RectLook
+        {
+            public Vector2 AnchorMin;
+            public Vector2 AnchorMax;
+            public Vector2 Pivot;
+            public Vector2 Position;
+            public Vector2 Size;
+        }
+
         public struct LayoutLook
         {
             public int Left;
@@ -44,6 +53,7 @@ namespace SevenUI
         private readonly Dictionary<GameObject, bool> activeStates = new Dictionary<GameObject, bool>();
         private readonly Dictionary<Transform, Quaternion> rotations = new Dictionary<Transform, Quaternion>();
         private readonly Dictionary<RectTransform, Vector2> positions = new Dictionary<RectTransform, Vector2>();
+        private readonly Dictionary<RectTransform, RectLook> rects = new Dictionary<RectTransform, RectLook>();
         private readonly List<System.Action> undos = new List<System.Action>();
         private readonly Dictionary<HorizontalOrVerticalLayoutGroup, LayoutLook> layouts =
             new Dictionary<HorizontalOrVerticalLayoutGroup, LayoutLook>();
@@ -51,7 +61,7 @@ namespace SevenUI
         private readonly List<Object> added = new List<Object>();
 
         public int Count => images.Count + rawImages.Count + labels.Count + texts.Count + enabledStates.Count + activeStates.Count +
-                            rotations.Count + positions.Count + layouts.Count + minAndPreferredHeights.Count + added.Count + undos.Count;
+                            rotations.Count + positions.Count + rects.Count + layouts.Count + minAndPreferredHeights.Count + added.Count + undos.Count;
 
         public static ImageLook Capture(Image image) => new ImageLook
         {
@@ -175,6 +185,24 @@ namespace SevenUI
 
         public bool HasPosition(RectTransform rect) => positions.ContainsKey(rect);
 
+        // For a rect the mod places itself: its anchors, pivot, position and size.
+        public void RecordRect(RectTransform rect)
+        {
+            if (rect && !rects.ContainsKey(rect))
+            {
+                rects[rect] = new RectLook
+                {
+                    AnchorMin = rect.anchorMin,
+                    AnchorMax = rect.anchorMax,
+                    Pivot = rect.pivot,
+                    Position = rect.anchoredPosition,
+                    Size = rect.sizeDelta,
+                };
+            }
+        }
+
+        public bool HasRect(RectTransform rect) => rects.ContainsKey(rect);
+
         // For a change that isn't a plain value, put back by the given action, which must check its objects still
         // exist. Run in the order recorded, after the values above are put back.
         public void OnRestore(System.Action undo)
@@ -295,6 +323,15 @@ namespace SevenUI
                     entry.Key.anchoredPosition = entry.Value;
                 }
             }
+            foreach (KeyValuePair<RectTransform, RectLook> entry in rects)
+            {
+                if (!entry.Key) continue;
+                entry.Key.anchorMin = entry.Value.AnchorMin;
+                entry.Key.anchorMax = entry.Value.AnchorMax;
+                entry.Key.pivot = entry.Value.Pivot;
+                entry.Key.anchoredPosition = entry.Value.Position;
+                entry.Key.sizeDelta = entry.Value.Size;
+            }
             foreach (KeyValuePair<Transform, Quaternion> entry in rotations)
             {
                 if (entry.Key)
@@ -321,6 +358,7 @@ namespace SevenUI
             activeStates.Clear();
             rotations.Clear();
             positions.Clear();
+            rects.Clear();
             undos.Clear();
             layouts.Clear();
             minAndPreferredHeights.Clear();

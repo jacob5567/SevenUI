@@ -7,8 +7,9 @@ using UnityEngine.UI;
 
 namespace SevenUI
 {
-    // Restyles the top of the HUD: each currency on its own flat panel without the cluster's frame, the item bar
-    // without its frame, and the boss bar flat with the boss's name in Barlow Condensed capitals.
+    // Restyles the top of the HUD: the currencies in a row, each on its own flat panel fitted to it, without the
+    // cluster's frame; the item bar without its frame; and the boss bar flat with the boss's name in Barlow Condensed
+    // capitals.
     internal sealed class TopStyler
     {
         private const string UpperLeftPath = "MainContainer/MainUIArea/SpringCanvas/UpperLeftCluster";
@@ -27,12 +28,15 @@ namespace SevenUI
         // 1px at 28px, in hundredths of an em.
         private const float BossNameTracking = 4f;
 
+        private readonly HUD hud;
         private readonly Transform root;
         private readonly StyleRecorder recorder = new StyleRecorder();
         private readonly List<MoneyText> currencies = new List<MoneyText>();
+        private CurrencyRow currencyRow;
 
-        public TopStyler(Transform root)
+        public TopStyler(HUD hud, Transform root)
         {
+            this.hud = hud;
             this.root = root;
         }
 
@@ -60,11 +64,24 @@ namespace SevenUI
         public void Restore()
         {
             recorder.Restore();
+            currencyRow = null;
+        }
+
+        public void Update()
+        {
+            if (currencyRow != null && currencyRow.Alive)
+            {
+                currencyRow.Update();
+            }
         }
 
         // The cluster's frame goes, and the soft strip behind each currency becomes a flat panel.
         private void StyleCurrencies(Transform cluster)
         {
+            if (currencyRow == null || !currencyRow.Alive)
+            {
+                currencyRow = new CurrencyRow(hud, (RectTransform)cluster, recorder);
+            }
             recorder.Disable(cluster.GetComponent<Image>());
             cluster.GetComponentsInChildren(true, currencies);
             foreach (MoneyText currency in currencies)
@@ -76,11 +93,6 @@ namespace SevenUI
                     recorder.Record(strip);
                     strip.texture = null;
                     strip.color = Palette.Panel;
-                }
-                if (currency.targetText)
-                {
-                    recorder.Record(currency.targetText);
-                    currency.targetText.fontStyle |= FontStyles.Bold;
                 }
             }
             currencies.Clear();

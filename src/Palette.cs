@@ -31,6 +31,9 @@ namespace SevenUI
         public static readonly Color ItemSlot = new Color(0.173f, 0.188f, 0.227f, 1f);
         // #3a3f4c, the empty part of a bar.
         public static readonly Color Trough = new Color(0.227f, 0.247f, 0.298f, 1f);
+        // #e9d27a and #8fd0e8, the money and lunar coin amounts in the top left.
+        public static readonly Color Money = new Color(0.914f, 0.824f, 0.478f, 1f);
+        public static readonly Color LunarCoin = new Color(0.561f, 0.816f, 0.910f, 1f);
         // #e9d27a, the barrier, a strip along the top of the health bar.
         public static readonly Color Barrier = new Color(0.914f, 0.824f, 0.478f, 1f);
     }
