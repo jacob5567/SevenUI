@@ -27,9 +27,11 @@ namespace SevenUI
         private TiltFlattener tilt;
         private TooltipStyler tooltips;
         private TopBarsWidth topBars;
+        private HudMargins margins;
         private int lastHierarchyCount = -1;
         private bool fontApplied;
         private bool panelsApplied;
+        private bool marginsApplied;
 
         private void Awake()
         {
@@ -50,8 +52,10 @@ namespace SevenUI
             tilt = new TiltFlattener(root);
             tooltips = new TooltipStyler(hud, root);
             topBars = new TopBarsWidth(root);
+            margins = new HudMargins(hud, root);
             SevenUIPlugin.Settings.BarlowFont.SettingChanged += OnSettingChanged;
             SevenUIPlugin.Settings.FlatPanels.SettingChanged += OnSettingChanged;
+            SevenUIPlugin.Settings.TightMargins.SettingChanged += OnSettingChanged;
         }
 
         // LateUpdate, after the game's Updates have added this frame's objects (objective rows are added in
@@ -67,6 +71,11 @@ namespace SevenUI
                 prompts.Update();
                 top.Update();
                 skillSlots.Update();
+                if (marginsApplied)
+                {
+                    // After the slots, since the skill row's end is the equipment slot as fitted.
+                    margins.Update(skillSlots.EquipmentSlot);
+                }
                 topBars.Update();
             }
 
@@ -81,6 +90,17 @@ namespace SevenUI
         private void Restyle()
         {
             panelsApplied = Toggle(SevenUIPlugin.Settings.FlatPanels, panelsApplied, ApplyPanels, RestorePanels);
+            // After the panels, as it finds panels they add, and measures the clusters once they face the screen.
+            bool margined = panelsApplied && SevenUIPlugin.Settings.TightMargins.Value;
+            if (margined)
+            {
+                margins.Apply();
+            }
+            else if (marginsApplied)
+            {
+                margins.Restore();
+            }
+            marginsApplied = margined;
             fontApplied = Toggle(SevenUIPlugin.Settings.BarlowFont, fontApplied, fontSwapper.Apply, fontSwapper.Restore);
         }
 
@@ -152,6 +172,8 @@ namespace SevenUI
             chat.Describe(output);
             output.AppendLine($"  leveled tilts: {tilt.LeveledCount}");
             topBars.Describe(output);
+            output.AppendLine($"  tight margins: {marginsApplied}");
+            margins.Describe(output);
             output.AppendLine($"  tooltips restyled: {tooltips.StyledCount}");
             output.AppendLine($"  monospace damage numbers: {DamageNumberFont.Applied}");
         }
@@ -160,6 +182,7 @@ namespace SevenUI
         {
             SevenUIPlugin.Settings.BarlowFont.SettingChanged -= OnSettingChanged;
             SevenUIPlugin.Settings.FlatPanels.SettingChanged -= OnSettingChanged;
+            SevenUIPlugin.Settings.TightMargins.SettingChanged -= OnSettingChanged;
         }
     }
 }

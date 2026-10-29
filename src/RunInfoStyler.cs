@@ -33,7 +33,7 @@ namespace SevenUI
         private const string ViewportPath = "Scroll View/Viewport";
         private const string MarkerBackdropPath = "Marker, Backdrop";
         private const string MarkerPath = "Marker, Backdrop/Marker";
-        private const string BackgroundName = "SevenUIRunInfoPanel";
+        public const string BackgroundName = "SevenUIRunInfoPanel";
         private const string ReadoutName = "SevenUIDifficulty";
         private const string RunTextName = "SevenUIRunText";
 

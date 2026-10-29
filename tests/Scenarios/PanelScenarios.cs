@@ -7,8 +7,9 @@ using UnityEngine;
 namespace SevenUI.Tests
 {
     // The FlatPanels setting: the top-right panels are flat, the run info shows the mod's difficulty bar, the objective
-    // panel has a header strip, the top bars take the design canvas's width, and turning it off brings back the
-    // game's panels and widths. LookingGlass's copy of the objective panel gets a plain panel.
+    // panel has a header strip, the top bars take the design canvas's width, TightMargins moves the corners to the
+    // canvas's margins, and turning it off brings back the game's panels, widths and margins. LookingGlass's copy of the
+    // objective panel gets a plain panel.
     internal static class PanelScenarios
     {
         private const string Suite = "panels";
@@ -20,6 +21,7 @@ namespace SevenUI.Tests
         public static IEnumerable<Scenario> All()
         {
             yield return new Scenario(1, Suite, "hud_faces_screen", Stages.TitanicPlains, HudFacesScreen);
+            yield return new Scenario(1, Suite, "tight_margins_switch", Stages.TitanicPlains, TightMarginsSwitch);
             yield return new Scenario(1, Suite, "run_info_is_flat", Stages.TitanicPlains, RunInfoIsFlat);
             yield return new Scenario(1, Suite, "objective_panel_is_flat", Stages.TitanicPlains, ObjectivePanelIsFlat);
             yield return new Scenario(1, Suite, "player_bars_are_flat", Stages.TitanicPlains, PlayerBarsAreFlat);
@@ -37,6 +39,17 @@ namespace SevenUI.Tests
         private static IEnumerator HudFacesScreen(Harness h)
         {
             yield return h.ExpectHudLevel();
+        }
+
+        // Both ways; the top bars keep the canvas's width either way.
+        private static IEnumerator TightMarginsSwitch(Harness h)
+        {
+            h.SetConfig(SevenUIPlugin.Settings.TightMargins, true);
+            yield return h.ExpectHudAtCanvasMargins();
+            yield return h.ExpectTopBarsAtCanvasWidth();
+            h.SetConfig(SevenUIPlugin.Settings.TightMargins, false);
+            yield return h.ExpectHudAtGameMargins();
+            yield return h.ExpectTopBarsAtCanvasWidth();
         }
 
         private static IEnumerator RunInfoIsFlat(Harness h)

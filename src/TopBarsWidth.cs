@@ -44,7 +44,8 @@ namespace SevenUI
         // The HUD camera's part of the screen; a split-screen player's HUD has its own.
         private Rect Screen => camera ? camera.pixelRect : new Rect(0f, 0f, UnityEngine.Screen.width, UnityEngine.Screen.height);
 
-        // Two projected points; refitted when the shown width drifts, as it does when the screen changes.
+        // Two projected points; refitted when the shown width drifts, as it does when the screen changes or
+        // TightMargins stretches the area the cluster spans.
         public void Update()
         {
             if (!topCenter) return;

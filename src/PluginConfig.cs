@@ -9,6 +9,7 @@ namespace SevenUI
         public readonly ConfigEntry<bool> BarlowFont;
         public readonly ConfigEntry<bool> MonospaceDamageNumbers;
         public readonly ConfigEntry<bool> FlatPanels;
+        public readonly ConfigEntry<bool> TightMargins;
 
         public readonly ConfigEntry<bool> DebugLogging;
         public readonly ConfigEntry<bool> DebugAlwaysShow;
@@ -23,6 +24,9 @@ namespace SevenUI
             FlatPanels = config.Bind("Panels", "FlatPanels", true,
                 "Draw the HUD flat: facing the screen squarely instead of leaning in, with flat translucent panels, flat " +
                 "bars and slots, and the health numbers as text. Off brings back the game's look.");
+            TightMargins = config.Bind("Panels", "TightMargins", false,
+                "Move the HUD's corners nearer the screen's edges, as on SevenUI's design: 2.6% of the screen's height " +
+                "in (2.2% at the top) instead of the game's 5% of the screen. Only with FlatPanels on.");
 
             // Risk Of Options uses the section name as the menu header, so keep it exactly "Debug".
             DebugLogging = config.Bind("Debug", "DebugLogging", false,

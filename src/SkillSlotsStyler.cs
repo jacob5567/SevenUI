@@ -82,6 +82,9 @@ namespace SevenUI
             keyItemFit = null;
         }
 
+        // The equipment slot as drawn, the right end of the skill row, once fitted.
+        public RectTransform EquipmentSlot => equipmentFit != null && equipmentFit.Alive ? equipmentFit.Display : null;
+
         // Every frame while applied, so the two slots follow the skills.
         public void Update()
         {

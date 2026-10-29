@@ -10,11 +10,17 @@ using UnityEngine.UI;
 
 namespace SevenUI.Tests
 {
-    // Checks that parts of the HUD sit and size as on the design canvas: the top bars at its width, the currencies
-    // in a row, the boss bar's title row and trail, and the run info and objective rows at its proportions. Measured
-    // in world space, on screen or in the HUD's own units, so they hold at any resolution.
+    // Checks that parts of the HUD sit and size as on the design canvas: the corners at its margins (TightMargins),
+    // the top bars at its width, the currencies in a row, the boss bar's title row and trail, and the run info and
+    // objective rows at its proportions. Measured in world space, on screen or in the HUD's own units, so they hold at
+    // any resolution.
     internal static class CanvasLayoutChecks
     {
+        // The canvas's margins, in its pixels on a 1080-pixel-high screen (HudMargins), to within a pixel.
+        private const float CanvasHeight = 1080f;
+        private const float SideMargin = 28f;
+        private const float TopMargin = 24f;
+        private const float MarginTolerance = 1f;
         // The run info is 300px wide for a 34px timer (RunInfoStyler), and an objective's box is 14px for 16px text.
         private const float ColumnPerTimerFont = 300f / 34f;
         private const float BoxPerObjectiveFont = 14f / 16f;
@@ -31,6 +37,9 @@ namespace SevenUI.Tests
 
         private const string SpringCanvasPath = "MainContainer/MainUIArea/SpringCanvas";
         private const string UpperLeftPath = SpringCanvasPath + "/UpperLeftCluster";
+        private const string UpperRightPath = SpringCanvasPath + "/UpperRightCluster";
+        private const string BottomLeftPath = SpringCanvasPath + "/BottomLeftCluster";
+        private const string HealthBarPath = BottomLeftPath + "/BarRoots/HealthbarRoot";
         private const string TopCenterPath = SpringCanvasPath + "/TopCenterCluster";
         // 900 of the canvas's 1920 pixels (TopBarsWidth).
         private const float TopCenterCanvasShare = 900f / 1920f;
@@ -75,6 +84,86 @@ namespace SevenUI.Tests
                 max = Vector2.Max(max, point);
             }
             return Rect.MinMaxRect(min.x, min.y, max.x, max.y);
+        }
+
+        // Each corner's outermost panel and its gaps to the screen's sides, in canvas pixels: left or right, then top
+        // or bottom.
+        private static List<(string name, Vector2 gaps, bool found)> CornerGaps(Harness h)
+        {
+            Transform root = SevenUIChecks.HudRoot(h);
+            HUD hud = Hud(h);
+            Camera camera = HudCamera(root);
+            Rect screen = ScreenOf(camera);
+            float unit = screen.height / CanvasHeight;
+            List<(string, Vector2, bool)> gaps = new List<(string, Vector2, bool)>();
+
+            RectTransform upperLeft = root.Find(UpperLeftPath) as RectTransform;
+            RectTransform runInfo = root.Find(UpperRightPath)?.GetComponentsInChildren<Transform>(true)
+                .FirstOrDefault(t => t.name == Texts.RunInfoBackgroundName) as RectTransform;
+            RectTransform healthBar = root.Find(HealthBarPath) as RectTransform;
+            InputBindingDisplayController key = hud.skillIcons.Length > 0 && hud.skillIcons[0]
+                ? hud.skillIcons[0].GetComponentInChildren<InputBindingDisplayController>(true)
+                : null;
+            RectTransform keyPlate = key ? key.transform.parent as RectTransform : null;
+            EquipmentIcon equipment = hud.equipmentIcons.FirstOrDefault(icon => icon && !icon.displayAlternateEquipment &&
+                                                                                icon.displayRoot);
+            RectTransform rowEnd = equipment ? equipment.displayRoot.transform as RectTransform : null;
+
+            void Add(string name, RectTransform across, RectTransform upDown, bool right, bool top)
+            {
+                if (!across || !upDown)
+                {
+                    gaps.Add((name, Vector2.zero, false));
+                    return;
+                }
+                Rect x = OnScreen(camera, across);
+                Rect y = OnScreen(camera, upDown);
+                float gapX = right ? screen.xMax - x.xMax : x.xMin - screen.xMin;
+                float gapY = top ? screen.yMax - y.yMax : y.yMin - screen.yMin;
+                gaps.Add((name, new Vector2(gapX / unit, gapY / unit), true));
+            }
+
+            Add("money", upperLeft, upperLeft, false, true);
+            Add("run info", runInfo, runInfo, true, true);
+            Add("health bar", healthBar, healthBar, false, false);
+            Add("skills", rowEnd, keyPlate, true, false);
+            return gaps;
+        }
+
+        private static string GapsLook(List<(string name, Vector2 gaps, bool found)> gaps) =>
+            gaps == null
+                ? "-"
+                : string.Join(", ", gaps.Select(g => g.found ? $"{g.name} {g.gaps.x:0.#}/{g.gaps.y:0.#}" : $"{g.name} missing"));
+
+        // With TightMargins on.
+        public static IEnumerator ExpectHudAtCanvasMargins(this Harness h)
+        {
+            List<(string name, Vector2 gaps, bool found)> gaps = null;
+            yield return h.Until(
+                () =>
+                {
+                    gaps = CornerGaps(h);
+                    return gaps.Count == 4 && gaps.All(g => g.found &&
+                        Mathf.Abs(g.gaps.x - SideMargin) < MarginTolerance &&
+                        Mathf.Abs(g.gaps.y - (g.name == "money" || g.name == "run info" ? TopMargin : SideMargin)) <
+                        MarginTolerance);
+                },
+                () => $"the corners {SideMargin} canvas pixels from the sides and bottom and {TopMargin} from the top " +
+                      $"(gaps: {GapsLook(gaps)}) {h.Diagnosis()}");
+        }
+
+        // With TightMargins off: the area that holds the corners back inside the game's main area.
+        public static IEnumerator ExpectHudAtGameMargins(this Harness h)
+        {
+            RectTransform spring = null;
+            yield return h.Until(
+                () =>
+                {
+                    spring = SevenUIChecks.HudRoot(h).Find(SpringCanvasPath) as RectTransform;
+                    return spring && spring.anchorMin == Vector2.zero && spring.anchorMax == Vector2.one;
+                },
+                () => $"the game's HUD area back (anchors {(spring ? $"{spring.anchorMin}-{spring.anchorMax}" : "none")}, " +
+                      $"corner gaps {GapsLook(CornerGaps(h))}) {h.Diagnosis()}");
         }
 
         private static RectTransform TopCenter(Harness h) => SevenUIChecks.HudRoot(h).Find(TopCenterPath) as RectTransform;
