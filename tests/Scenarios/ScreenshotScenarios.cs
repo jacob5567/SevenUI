@@ -10,7 +10,7 @@ namespace SevenUI.Tests
 {
     // Not checks: sets up each part of the HUD SevenUI restyles and saves a screenshot of it twice, in SevenUI's look and
     // with the mod's settings off, for comparing. Run with mod_test --mod SevenUI --suite screenshots; the runner logs
-    // where the files went. The scoreboard and tooltips need a held key or the pointer, so they aren't shot. The
+    // where the files went. Tooltips need the pointer, so they aren't shot. The
     // survivor shots turn the player into each survivor that adds HUD elements of its own, and skip the ones whose
     // expansion the player doesn't have.
     internal static class ScreenshotScenarios
@@ -46,6 +46,7 @@ namespace SevenUI.Tests
         public static IEnumerable<Scenario> All()
         {
             yield return Shot("hud", Hud);
+            yield return Shot("scoreboard", Scoreboard);
             yield return Shot("barrier_and_low_health", BarrierAndLowHealth);
             yield return Shot("cooldowns", Cooldowns);
             yield return Shot("interaction_prompt", InteractionPrompt);
@@ -106,6 +107,31 @@ namespace SevenUI.Tests
         // A spread of item tiers with stacks, a shield, an equipment and money: most of the HUD at once.
         private static IEnumerator Hud(Harness h)
         {
+            GiveItemSpread(h);
+            h.Cmd($"{Commands.GiveItem} {GameNames.PersonalShield} 2");
+            h.Cmd($"{Commands.GiveEquipment} {GameNames.Fruit}");
+            h.Cmd($"{Commands.GiveMoney} {Money}");
+            yield return h.Wait(SettleSeconds);
+            yield return h.CaptureLooks();
+        }
+
+        // The tab screen, with items in the player's row. The HUD closes the scoreboard every frame unless the info key
+        // is held or it was opened as a toggle, as the pause menu's button opens it; closing it ends the toggle.
+        private static IEnumerator Scoreboard(Harness h)
+        {
+            GiveItemSpread(h);
+            h.Cmd($"{Commands.GiveEquipment} {GameNames.Fruit}");
+            LocalUser user = LocalUserManager.GetFirstLocalUser();
+            h.OnCleanup(() => HUD.SetScoreboardActive(user, false, EScoreboardDeactivateReturnContext.Game));
+            HUD.SetScoreboardActive(user, true, EScoreboardDeactivateReturnContext.Game, shouldForceScoreboardToggle: true);
+            yield return h.Until(() => HUD.IsScoreboardActive(user), "the scoreboard open");
+            yield return h.Wait(SettleSeconds);
+            yield return h.CaptureLooks();
+        }
+
+        // One item of each main tier, and a stack of a common one.
+        private static void GiveItemSpread(Harness h)
+        {
             foreach (ItemTier tier in new[] { ItemTier.Tier1, ItemTier.Tier2, ItemTier.Tier3, ItemTier.Lunar, ItemTier.Boss,
                          ItemTier.VoidTier1 })
             {
@@ -115,11 +141,6 @@ namespace SevenUI.Tests
                     h.Cmd($"{Commands.GiveItem} {item} {(tier == ItemTier.Tier1 ? 4 : 1)}");
                 }
             }
-            h.Cmd($"{Commands.GiveItem} {GameNames.PersonalShield} 2");
-            h.Cmd($"{Commands.GiveEquipment} {GameNames.Fruit}");
-            h.Cmd($"{Commands.GiveMoney} {Money}");
-            yield return h.Wait(SettleSeconds);
-            yield return h.CaptureLooks();
         }
 
         private static IEnumerator BarrierAndLowHealth(Harness h)
