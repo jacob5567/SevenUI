@@ -26,6 +26,7 @@ namespace SevenUI.Tests
             yield return new Scenario(1, Suite, "hud_faces_screen", Stages.TitanicPlains, HudFacesScreen);
             yield return new Scenario(1, Suite, "tight_margins_switch", Stages.TitanicPlains, TightMarginsSwitch);
             yield return new Scenario(1, Suite, "run_info_is_flat", Stages.TitanicPlains, RunInfoIsFlat);
+            yield return new Scenario(1, Suite, "eclipse_and_karma_shown", Stages.TitanicPlains, EclipseAndKarmaShown);
             yield return new Scenario(1, Suite, "objective_panel_is_flat", Stages.TitanicPlains, ObjectivePanelIsFlat);
             yield return new Scenario(1, Suite, "player_bars_are_flat", Stages.TitanicPlains, PlayerBarsAreFlat);
             yield return new Scenario(1, Suite, "buffs_wrap_in_rows", Stages.TitanicPlains, BuffsWrapInRows);
@@ -54,6 +55,22 @@ namespace SevenUI.Tests
             h.SetConfig(SevenUIPlugin.Settings.TightMargins, false);
             yield return h.ExpectHudAtGameMargins();
             yield return h.ExpectTopBarsAtCanvasWidth();
+        }
+
+        // Each Eclipse level by name, the longest with Karma at its highest, and Karma turned off again.
+        private static IEnumerator EclipseAndKarmaShown(Harness h)
+        {
+            for (DifficultyIndex eclipse = DifficultyIndex.Eclipse1; eclipse <= DifficultyIndex.Eclipse8; eclipse++)
+            {
+                RunSetUp.SetDifficulty(h, eclipse);
+                yield return h.ExpectDifficultyAndKarmaShown(RunSetUp.KarmaOff);
+            }
+            RunSetUp.SetKarma(h, KarmaManager.maxKarma);
+            yield return h.ExpectDifficultyAndKarmaShown(KarmaManager.maxKarma);
+            RunSetUp.SetKarma(h, 1);
+            yield return h.ExpectDifficultyAndKarmaShown(1);
+            RunSetUp.SetKarma(h, RunSetUp.KarmaOff);
+            yield return h.ExpectDifficultyAndKarmaShown(RunSetUp.KarmaOff);
         }
 
         private static IEnumerator RunInfoIsFlat(Harness h)

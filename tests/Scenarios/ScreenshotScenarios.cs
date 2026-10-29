@@ -26,6 +26,7 @@ namespace SevenUI.Tests
         private const float PickupTimeout = 5f;
         // The teleporter's boss takes a while to arrive once the event starts.
         private const float BossTimeout = 45f;
+        private const int ShownKarma = 4;
         // Shares of the boss's health, leaving it at the canvas's 62% with 8% just lost.
         private const float FirstBossHit = 0.3f;
         private const float SecondBossHit = 0.08f;
@@ -54,6 +55,7 @@ namespace SevenUI.Tests
             yield return Shot("barrier_and_low_health", BarrierAndLowHealth);
             yield return Shot("cooldowns", Cooldowns);
             yield return Shot("ntormat_pages", NtormatPages);
+            yield return Shot("eclipse_and_karma", EclipseAndKarma);
             yield return Shot("interaction_prompt", InteractionPrompt);
             yield return Shot("pickup_notification", PickupNotification);
             yield return Shot("ally_cards", AllyCards);
@@ -274,6 +276,15 @@ namespace SevenUI.Tests
                     damageColorIndex = DamageColorIndex.Default,
                 });
             }
+        }
+
+        // The longest Eclipse name with Karma on, in the run info.
+        private static IEnumerator EclipseAndKarma(Harness h)
+        {
+            RunSetUp.SetDifficulty(h, DifficultyIndex.Eclipse8);
+            RunSetUp.SetKarma(h, ShownKarma);
+            yield return h.ExpectDifficultyAndKarmaShown(ShownKarma);
+            yield return h.CaptureLooks();
         }
 
         private static IEnumerator BossBar(Harness h)

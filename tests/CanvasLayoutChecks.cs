@@ -11,9 +11,9 @@ using UnityEngine.UI;
 namespace SevenUI.Tests
 {
     // Checks that parts of the HUD sit and size as on the design canvas: the corners at its margins (TightMargins),
-    // the top bars at its width, the currencies in a row, the boss bar's title row and trail, the buffs' rows, and the run
-    // info and objective rows at its proportions. Measured in world space, on screen or in the HUD's own units, so
-    // they hold at any resolution.
+    // the top bars at its width, the currencies in a row, the boss bar's title row and trail, the buffs' rows, the run
+    // info and objective rows at its proportions, and Eclipse and Karma in the run info. Measured in world space, on
+    // screen or in the HUD's own units, so they hold at any resolution.
     internal static class CanvasLayoutChecks
     {
         // The canvas's margins, in its pixels on a 1080-pixel-high screen (HudMargins), to within a pixel.
@@ -487,5 +487,50 @@ namespace SevenUI.Tests
                 () => $"the buffs back in the game's single row ({BuffsLook(display, null)}) {h.Diagnosis()}");
         }
 
+        // The run's difficulty by name and, with Karma on, the Karma icon at the given level: each inside the run
+        // info's panel, none overlapping the timer, the right-hand text or each other.
+        public static IEnumerator ExpectDifficultyAndKarmaShown(this Harness h, int karmaLevel)
+        {
+            string look = null;
+            yield return h.Until(
+                () =>
+                {
+                    DifficultyBarController bar = DifficultyBar(h);
+                    if (!bar || !Run.instance) return false;
+                    Transform panel = bar.transform.parent;
+                    RectTransform background = panel.Find(Texts.RunInfoBackgroundName) as RectTransform;
+                    RunInfoText text = panel.GetComponentInChildren<RunInfoText>(true);
+                    TimerText timerText = panel.GetComponentInChildren<TimerText>(true);
+                    TMP_Text timer = timerText ? timerText.GetComponent<TMP_Text>() : null;
+                    KarmaIcon karma = panel.GetComponentInChildren<KarmaIcon>(true);
+                    if (!background || !text || !timer || !karma) return false;
+                    RectTransform space = (RectTransform)panel;
+                    Bounds box = In(space, background);
+                    Bounds timerBounds = TextIn(space, timer);
+                    Bounds name = TextIn(space, text.Difficulty);
+                    Bounds stage = TextIn(space, text.StageAndLevel);
+                    DifficultyDef difficulty = DifficultyCatalog.GetDifficultyDef(Run.instance.selectedDifficulty);
+                    string expected = difficulty != null ? Language.GetString(difficulty.nameToken) : null;
+                    bool karmaShown = karma.holder && karma.holder.gameObject.activeInHierarchy;
+                    Bounds karmaBounds = karma.image ? In(space, karma.image.rectTransform) : new Bounds();
+                    look = $"name '{text.Difficulty.text}' (expected '{expected}') x {name.min.x:0}-{name.max.x:0}, " +
+                           $"stage x {stage.min.x:0}-{stage.max.x:0}, timer x {timerBounds.min.x:0}-{timerBounds.max.x:0}, " +
+                           $"panel x {box.min.x:0}-{box.max.x:0}, karma shown={karmaShown} " +
+                           $"x {karmaBounds.min.x:0}-{karmaBounds.max.x:0} sprite " +
+                           $"{(karma.image && karma.image.sprite ? karma.image.sprite.name : "-")}";
+                    bool named = expected != null && text.Difficulty.text == expected && Inside(box, name) &&
+                                 Inside(box, stage) && !Overlap(name, timerBounds) && !Overlap(stage, timerBounds);
+                    if (karmaLevel < 0) return named && !karmaShown;
+                    Sprite levelSprite = karma.icons != null && karmaLevel < karma.icons.Length ? karma.icons[karmaLevel] : null;
+                    return named && karmaShown && karma.image.sprite == levelSprite && Inside(box, karmaBounds) &&
+                           !Overlap(karmaBounds, timerBounds) && !Overlap(karmaBounds, name) && !Overlap(karmaBounds, stage);
+                },
+                () => $"the difficulty{(karmaLevel >= 0 ? $" and Karma {karmaLevel}" : "")} shown in the run info ({look}) " +
+                      $"{h.Diagnosis()}");
+        }
+
+        private static bool Inside(Bounds outer, Bounds inner) =>
+            inner.min.x >= outer.min.x - BuffTolerance && inner.max.x <= outer.max.x + BuffTolerance &&
+            inner.min.y >= outer.min.y - BuffTolerance && inner.max.y <= outer.max.y + BuffTolerance;
     }
 }

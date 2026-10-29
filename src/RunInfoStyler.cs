@@ -8,10 +8,10 @@ using UnityEngine.UI;
 namespace SevenUI
 {
     // Restyles the run info in the top right as one flat panel, laid out as on the design canvas: the timer at the left;
-    // the difficulty's name, and the stage and level under it, at the right; and below them a thin
-    // accent bar with the current difficulty segment's name, in place of the game's scrolling segments. The column it
-    // heads, which holds the objective panel, is widened to 300 of the canvas's pixels. The game's objects keep
-    // running; only their look and places change.
+    // the difficulty's name, and the stage and level under it, at the right, with the Karma icon beside them; and below
+    // them a thin accent bar with the current difficulty segment's name, in place of the game's scrolling segments. The
+    // column it heads, which holds the objective panel, is widened to 300 of the canvas's pixels. The game's objects
+    // keep running; only their look and places change.
     internal sealed class RunInfoStyler
     {
         private const string UpperRightClusterPath = "MainContainer/MainUIArea/SpringCanvas/UpperRightCluster";
@@ -184,6 +184,12 @@ namespace SevenUI
             text.StageAndLevel.fontSize = StageFontSize;
             text.StageAndLevel.fontStyle = FontStyles.Normal;
             text.StageAndLevel.color = Palette.HeaderText;
+            KarmaIcon karma = panel.GetComponentInChildren<KarmaIcon>(true);
+            if (karma)
+            {
+                text.Karma = (RectTransform)karma.transform;
+                recorder.RecordRect(text.Karma);
+            }
             recorder.Add(holder);
         }
 
