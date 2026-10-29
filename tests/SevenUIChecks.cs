@@ -360,6 +360,36 @@ namespace SevenUI.Tests
                 () => $"flat skill slots with cooldown covers ({SlotsLook(skills)}) {h.Diagnosis()}");
         }
 
+        private static bool IsKeyPlain(TMP_Text label)
+        {
+            Image plate = label.transform.parent ? label.transform.parent.GetComponent<Image>() : null;
+            return (label.fontStyle & FontStyles.UpperCase) != 0 && Near(label.color, Palette.HeaderText) &&
+                   !(plate && plate.enabled);
+        }
+
+        // The inventory and sprint buttons' and the key item's key labels, in the skills' style: grey capitals with
+        // no plate.
+        public static IEnumerator ExpectExtraKeysPlain(this Harness h)
+        {
+            List<TMP_Text> labels = new List<TMP_Text>();
+            yield return h.Until(
+                () =>
+                {
+                    Transform buttons = HudRoot(h).Find(GameNames.ExtraButtons);
+                    labels = buttons
+                        ? buttons.GetComponentsInChildren<InputBindingDisplayController>()
+                            .Select(key => key.GetComponent<TMP_Text>()).Where(label => label).ToList()
+                        : new List<TMP_Text>();
+                    return labels.Count > 0 && labels.All(IsKeyPlain);
+                },
+                () => $"plain key labels by the inventory and sprint buttons (" +
+                      (labels.Count == 0
+                          ? "none found"
+                          : string.Join(", ", labels.Select(label =>
+                              $"'{label.text}': style={label.fontStyle} color={label.color} plain={IsKeyPlain(label)}"))) +
+                      $") {h.Diagnosis()}");
+        }
+
         public static IEnumerator ExpectSkillSlotsVanilla(this Harness h)
         {
             List<SkillIcon> skills = new List<SkillIcon>();

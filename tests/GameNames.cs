@@ -48,6 +48,9 @@ namespace SevenUI.Tests
             "MainContainer/MainUIArea/SpringCanvas/BottomRightCluster",
         };
 
+        // The inventory and sprint buttons and the key item slot, left of the skills, with their key labels.
+        public const string ExtraButtons = "MainContainer/MainUIArea/SpringCanvas/BottomRightCluster/Scaler/ExtraButtonPanels";
+
         // The money cluster in the top left, and the strip behind each currency in it.
         public const string MoneyCluster = "MainContainer/MainUIArea/SpringCanvas/UpperLeftCluster";
         public const string CurrencyBackground = "BackgroundPanel";

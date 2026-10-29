@@ -53,6 +53,7 @@ namespace SevenUI.Tests
         private static IEnumerator SkillSlotsAreFlat(Harness h)
         {
             yield return h.ExpectSkillSlotsFlat();
+            yield return h.ExpectExtraKeysPlain();
         }
 
         private static IEnumerator TopIsFlat(Harness h)

@@ -9,11 +9,14 @@ using UnityEngine.UI;
 namespace SevenUI
 {
     // Restyles the skill and equipment slots in the bottom right: flat dark slots, a top-down cooldown cover in place
-    // of the radial overlay, cooldowns and stocks in Barlow Condensed, and the key labels as small grey capitals
-    // without their dark plates. The game keeps running the slots.
+    // of the radial overlay, cooldowns and stocks in Barlow Condensed, and the key labels (the slots' and the
+    // inventory, sprint and key item buttons') as small grey capitals without their dark plates. The game keeps
+    // running the slots.
     internal sealed class SkillSlotsStyler
     {
         private const string ClusterPath = "MainContainer/MainUIArea/SpringCanvas/BottomRightCluster";
+        // The inventory and sprint buttons and the key item slot, left of the skills.
+        private const string ExtraButtonsPath = "Scaler/ExtraButtonPanels";
         // The equipment slot's background, under its display root.
         private const string EquipmentBackgroundName = "BGPanel";
         private const string CoverName = "SevenUICooldownCover";
@@ -51,6 +54,11 @@ namespace SevenUI
                 StyleEquipment(slot);
             }
             equipment.Clear();
+            Transform extraButtons = cluster.Find(ExtraButtonsPath);
+            if (extraButtons)
+            {
+                StyleKeys(extraButtons);
+            }
         }
 
         public void Restore()
@@ -154,7 +162,7 @@ namespace SevenUI
         }
 
         // The key labels (and the equipment's swap keys) sit on small dark plates; the plates go and the labels become
-        // grey spaced capitals.
+        // grey spaced capitals. A plate is the label's parent, unless the label sits right under the slot.
         private void StyleKeys(Transform slot)
         {
             slot.GetComponentsInChildren(true, keys);
