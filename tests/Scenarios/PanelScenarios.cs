@@ -12,6 +12,8 @@ namespace SevenUI.Tests
     internal static class PanelScenarios
     {
         private const string Suite = "panels";
+        // Plenty for a small chest at any difficulty or stage count the tests reach.
+        private const int ChestMoney = 1000;
 
         public static IEnumerable<Scenario> All()
         {
@@ -75,8 +77,10 @@ namespace SevenUI.Tests
             yield return h.ExpectPromptFlat();
         }
 
+        // The game shows no action for a chest the player can't afford, only Inspect.
         private static IEnumerator PromptPanelFitsText(Harness h)
         {
+            h.Cmd($"{Commands.GiveMoney} {ChestMoney}");
             PurchaseInteraction chest = null;
             yield return h.Spawned<PurchaseInteraction>($"{Commands.SpawnInteractable} {GameNames.SmallChest}", found => chest = found);
             yield return h.StandBefore(chest.gameObject);

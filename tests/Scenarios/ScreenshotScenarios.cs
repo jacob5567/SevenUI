@@ -25,7 +25,8 @@ namespace SevenUI.Tests
         private const float PickupTimeout = 5f;
         // The teleporter's boss takes a while to arrive once the event starts.
         private const float BossTimeout = 45f;
-        private const int MoneyForDrones = 2000;
+        // Enough for the drones and the chest, at any difficulty or stage count the tests reach.
+        private const int Money = 2000;
         private const float BarrierFraction = 0.4f;
         private const float LowHealthFraction = 0.25f;
         private static readonly float[] DamageHits = { 24f, 180f, 1350f, 26000f };
@@ -35,6 +36,7 @@ namespace SevenUI.Tests
         // Far enough back that the Beetle Queen doesn't fill the view, and the numbers are spread across it.
         private const float DamageNumberStandDistance = 14f;
         private const float DamageNumberSpread = 2.5f;
+        private const float TeleportSettleSeconds = 0.2f;
         // Long enough for the new body's HUD overlays to be made and restyled.
         private const float NewBodySeconds = 2f;
         private const float NewBodyTimeout = 10f;
@@ -115,7 +117,7 @@ namespace SevenUI.Tests
             }
             h.Cmd($"{Commands.GiveItem} {GameNames.PersonalShield} 2");
             h.Cmd($"{Commands.GiveEquipment} {GameNames.Fruit}");
-            h.Cmd($"{Commands.GiveMoney} {MoneyForDrones}");
+            h.Cmd($"{Commands.GiveMoney} {Money}");
             yield return h.Wait(SettleSeconds);
             yield return h.CaptureLooks();
         }
@@ -150,6 +152,8 @@ namespace SevenUI.Tests
 
         private static IEnumerator InteractionPrompt(Harness h)
         {
+            // The game shows no action for a chest the player can't afford.
+            h.Cmd($"{Commands.GiveMoney} {Money}");
             PurchaseInteraction chest = null;
             yield return h.Spawned<PurchaseInteraction>($"{Commands.SpawnInteractable} {GameNames.SmallChest}", found => chest = found);
             yield return h.StandBefore(chest.gameObject);
@@ -174,7 +178,7 @@ namespace SevenUI.Tests
 
         private static IEnumerator AllyCards(Harness h)
         {
-            h.Cmd($"{Commands.GiveMoney} {MoneyForDrones}");
+            h.Cmd($"{Commands.GiveMoney} {Money}");
             for (int i = 0; i < 2; i++)
             {
                 PurchaseInteraction drone = null;
@@ -192,16 +196,27 @@ namespace SevenUI.Tests
         {
             CharacterBody monster = null;
             yield return h.Spawned<CharacterBody>($"{Commands.SpawnAi} {GameNames.ToughMonster} 1", found => monster = found);
-            // A server method; the runner is the host.
+            // A new body gets its inventory from its master a moment after it appears.
+            yield return h.Until(() => monster && monster.inventory, "the Beetle Queen's inventory");
+            // Server methods; the runner is the host.
             monster.inventory.GiveItemPermanent(RoR2Content.Items.BoostHp, BoostHpStacks);
+            Vector3 spot = Harness.LocalBody.footPosition;
+            yield return HitAndShoot(h, monster, spot, "sevenui");
+            h.SetConfig(SevenUIPlugin.Settings.MonospaceDamageNumbers, false);
+            yield return HitAndShoot(h, monster, spot, "vanilla");
+        }
+
+        // The monster appears wherever the game finds room, which can leave no clear view of it, and wanders between
+        // the shots. So it is put where the player stood, which is open ground, before each shot, and the player
+        // stands before it from there.
+        private static IEnumerator HitAndShoot(Harness h, CharacterBody monster, Vector3 spot, string look)
+        {
+            TeleportHelper.TeleportBody(monster, spot, forceOutOfVehicle: false);
+            yield return h.Wait(TeleportSettleSeconds);
             yield return h.StandBefore(monster, DamageNumberStandDistance);
             Hit(monster);
             yield return h.Wait(SettleSeconds);
-            yield return h.Screenshot("sevenui");
-            h.SetConfig(SevenUIPlugin.Settings.MonospaceDamageNumbers, false);
-            Hit(monster);
-            yield return h.Wait(SettleSeconds);
-            yield return h.Screenshot("vanilla");
+            yield return h.Screenshot(look);
         }
 
         // Server methods, as the runner is the host, which sends each hit's number to every player. A number appears
