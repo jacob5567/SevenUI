@@ -383,7 +383,8 @@ namespace SevenUI.Tests
                     RectTransform bar = boss.fillRectImage.transform.parent as RectTransform;
                     TMP_Text health = bar.Find(BossTitleRow.HealthName)?.GetComponent<TMP_Text>();
                     RectTransform container = boss.container.transform as RectTransform;
-                    if (!health || !container) return false;
+                    // The mod writes the health once it reads the boss's, a frame or so after the bar appears.
+                    if (!health || !container || string.IsNullOrEmpty(health.text)) return false;
                     Bounds barBounds = In(container, bar);
                     Bounds healthBounds = TextIn(container, health);
                     Bounds nameBounds = TextIn(container, boss.bossNameLabel);

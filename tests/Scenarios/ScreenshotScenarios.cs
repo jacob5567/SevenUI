@@ -42,6 +42,17 @@ namespace SevenUI.Tests
         private const float DamageNumberStandDistance = 14f;
         private const float DamageNumberSpread = 2.5f;
         private const float TeleportSettleSeconds = 0.2f;
+        // A monster's own state machine, and long enough for the Beetle Queen's 4-second spawn.
+        private const string BodyStateMachine = "Body";
+        private const float SpawnTimeout = 10f;
+        // For finding open ground for the Beetle Queen: a few directions with a clear view from about her stand
+        // distance, measured from her middle (about 4 m up, and as wide).
+        private const int ViewDirections = 16;
+        private const int MinClearViews = 4;
+        private const float MonsterMiddleHeight = 4f;
+        private const float MonsterRadius = 4f;
+        private const float EyeHeight = 1.8f;
+        private const float GroundSearchHeight = 15f;
         // Long enough for the new body's HUD overlays to be made and restyled.
         private const float NewBodySeconds = 2f;
         private const float NewBodyTimeout = 10f;
@@ -233,17 +244,21 @@ namespace SevenUI.Tests
             yield return h.Spawned<CharacterBody>($"{Commands.SpawnAi} {GameNames.ToughMonster} 1", found => monster = found);
             // A new body gets its inventory from its master a moment after it appears.
             yield return h.Until(() => monster && monster.inventory, "the Beetle Queen's inventory");
+            // She digs up out of the ground for her first seconds, with her middle below it, so no spot can see her.
+            EntityStateMachine body = EntityStateMachine.FindByCustomName(monster.gameObject, BodyStateMachine);
+            yield return h.Until(() => !monster || !body || body.IsInMainState(), "the Beetle Queen out of the ground",
+                SpawnTimeout);
             // Server methods; the runner is the host.
             monster.inventory.GiveItemPermanent(RoR2Content.Items.BoostHp, BoostHpStacks);
-            Vector3 spot = Harness.LocalBody.footPosition;
+            Vector3 spot = OpenSpot(Harness.LocalBody.footPosition);
             yield return HitAndShoot(h, monster, spot, "sevenui");
             h.SetConfig(SevenUIPlugin.Settings.MonospaceDamageNumbers, false);
             yield return HitAndShoot(h, monster, spot, "vanilla");
         }
 
         // The monster appears wherever the game finds room, which can leave no clear view of it, and wanders between
-        // the shots. So it is put where the player stood, which is open ground, before each shot, and the player
-        // stands before it from there.
+        // the shots. So it is put on open ground before each shot (OpenSpot), and the player stands before it from
+        // there.
         private static IEnumerator HitAndShoot(Harness h, CharacterBody monster, Vector3 spot, string look)
         {
             TeleportHelper.TeleportBody(monster, spot, forceOutOfVehicle: false);
@@ -252,6 +267,42 @@ namespace SevenUI.Tests
             Hit(monster);
             yield return h.Wait(SettleSeconds);
             yield return h.Screenshot(look);
+        }
+
+        // Somewhere the player can see the monster from its stand distance: the first of the stage's player spawn
+        // points, then where the player stands, with ground and a clear line to the monster from enough of the spots
+        // around it. Earlier scenarios can leave the player in a dip, where every spot around is behind terrain.
+        private static Vector3 OpenSpot(Vector3 fallback)
+        {
+            List<Vector3> candidates = SpawnPoint.readOnlyInstancesList.Where(point => point)
+                .Select(point => point.transform.position).ToList();
+            candidates.Add(fallback);
+            foreach (Vector3 candidate in candidates)
+            {
+                if (ClearViews(candidate) >= MinClearViews) return candidate;
+            }
+            return fallback;
+        }
+
+        // Of the directions around the spot, how many have ground at the stand distance and a clear line from eye
+        // height there to the monster's middle.
+        private static int ClearViews(Vector3 spot)
+        {
+            Vector3 middle = spot + Vector3.up * MonsterMiddleHeight;
+            float distance = DamageNumberStandDistance + MonsterRadius;
+            int clear = 0;
+            for (int i = 0; i < ViewDirections; i++)
+            {
+                Vector3 around = spot + Quaternion.Euler(0f, i * 360f / ViewDirections, 0f) * Vector3.forward * distance;
+                if (!Physics.Raycast(around + Vector3.up * GroundSearchHeight, Vector3.down, out RaycastHit ground,
+                        GroundSearchHeight * 2f, LayerIndex.world.mask)) continue;
+                Vector3 eye = ground.point + Vector3.up * EyeHeight;
+                if (!Physics.Linecast(eye, middle, LayerIndex.world.mask))
+                {
+                    clear++;
+                }
+            }
+            return clear;
         }
 
         // Server methods, as the runner is the host, which sends each hit's number to every player. A number appears
