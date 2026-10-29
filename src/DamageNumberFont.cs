@@ -6,13 +6,16 @@ namespace SevenUI
 {
     // Draws the floating damage numbers in JetBrains Mono instead of the game's pixel digits. They are particles
     // whose shader picks each character from a sheet of digits (texDamageNumbers), so swapping the sheet for one in
-    // the same layout (tools/make_damage_numbers.py) changes the font. The damage number manager is one for the whole
-    // game, not part of a HUD, and the sheet is set on its shared material.
+    // the same layout (tools/make_damage_numbers.py) changes the font. The damage number manager is not part of a HUD;
+    // the sheet is set on its shared material.
     //
     // Each particle is four characters wide (start size 4 by 1) and the shader gives each character a square. The
     // game's pixel digits are square; these are narrower, so the sheet stretches them to fill their squares and the
-    // particle is narrowed to match. The renderer holds the particle's width at a fixed share of the screen (its
-    // min and max particle size are equal), so that share is narrowed too, or the digits would grow taller instead.
+    // particle is narrowed to match. The renderer holds the particle at a fixed share of the screen (its min and max
+    // particle size are equal), so that share is narrowed by as much.
+    //
+    // The manager is part of the stage's scene and is made anew each stage, but its material is an asset every
+    // manager shares, so the material keeps the sheet while each new manager's particle has to be narrowed again.
     internal static class DamageNumberFont
     {
         private const string SheetResource = "SevenUI.textures.DamageNumbers.png";
@@ -22,58 +25,81 @@ namespace SevenUI
 
         private static Texture2D sheet;
         private static bool sheetLoaded;
-        private static ParticleSystemRenderer renderer;
+        // The manager whose particle is narrowed.
+        private static DamageNumberManager manager;
         private static Material material;
         private static Texture original;
         private static float originalSizeX;
         private static float originalMinSize;
         private static float originalMaxSize;
 
-        public static bool Applied => material && sheet && material.GetTexture(SheetProperty) == sheet;
+        public static bool Applied => manager && manager == DamageNumberManager.instance && material && sheet &&
+                                      material.GetTexture(SheetProperty) == sheet;
 
-        public static void Apply()
+        // Called every frame, since a stage's new manager changes nothing in the HUD. One read when nothing changed.
+        public static void Update(bool monospace)
         {
-            DamageNumberManager manager = DamageNumberManager.instance;
-            ParticleSystemRenderer current = manager ? manager.GetComponent<ParticleSystemRenderer>() : null;
-            ParticleSystem particles = manager ? manager.GetComponent<ParticleSystem>() : null;
-            if (!current || !current.sharedMaterial || !particles) return;
+            if (monospace)
+            {
+                if (DamageNumberManager.instance != manager)
+                {
+                    Apply();
+                }
+            }
+            else if (material)
+            {
+                Restore();
+            }
+        }
+
+        private static void Apply()
+        {
+            DamageNumberManager current = DamageNumberManager.instance;
+            ParticleSystemRenderer renderer = current ? current.GetComponent<ParticleSystemRenderer>() : null;
+            ParticleSystem particles = current ? current.GetComponent<ParticleSystem>() : null;
+            if (!renderer || !renderer.sharedMaterial || !particles) return;
             Texture2D mono = Sheet();
             if (!mono) return;
-            if (current.sharedMaterial.GetTexture(SheetProperty) == mono) return;
 
-            renderer = current;
-            material = current.sharedMaterial;
-            original = material.GetTexture(SheetProperty);
+            Material shared = renderer.sharedMaterial;
+            if (shared.GetTexture(SheetProperty) != mono)
+            {
+                original = shared.GetTexture(SheetProperty);
+                shared.SetTexture(SheetProperty, mono);
+            }
+            material = shared;
+
+            // A new manager is a fresh copy of the game's prefab, so these are the game's sizes.
             ParticleSystem.MainModule main = particles.main;
             originalSizeX = main.startSizeXMultiplier;
-            originalMinSize = current.minParticleSize;
-            originalMaxSize = current.maxParticleSize;
-
-            material.SetTexture(SheetProperty, mono);
+            originalMinSize = renderer.minParticleSize;
+            originalMaxSize = renderer.maxParticleSize;
             main.startSizeXMultiplier = originalSizeX * CellAspect;
-            current.minParticleSize = originalMinSize * CellAspect;
-            current.maxParticleSize = originalMaxSize * CellAspect;
+            renderer.minParticleSize = originalMinSize * CellAspect;
+            renderer.maxParticleSize = originalMaxSize * CellAspect;
+            manager = current;
         }
 
         // Numbers already showing keep the width they started with; they fade within a second or two.
-        public static void Restore()
+        private static void Restore()
         {
             if (material && original && material.GetTexture(SheetProperty) == sheet)
             {
                 material.SetTexture(SheetProperty, original);
-                if (renderer)
+            }
+            if (manager)
+            {
+                ParticleSystemRenderer renderer = manager.GetComponent<ParticleSystemRenderer>();
+                ParticleSystem particles = manager.GetComponent<ParticleSystem>();
+                if (renderer && particles)
                 {
+                    ParticleSystem.MainModule main = particles.main;
+                    main.startSizeXMultiplier = originalSizeX;
                     renderer.minParticleSize = originalMinSize;
                     renderer.maxParticleSize = originalMaxSize;
-                    ParticleSystem particles = renderer.GetComponent<ParticleSystem>();
-                    if (particles)
-                    {
-                        ParticleSystem.MainModule main = particles.main;
-                        main.startSizeXMultiplier = originalSizeX;
-                    }
                 }
             }
-            renderer = null;
+            manager = null;
             material = null;
             original = null;
         }
