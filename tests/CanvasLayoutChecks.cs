@@ -11,8 +11,8 @@ using UnityEngine.UI;
 namespace SevenUI.Tests
 {
     // Checks that parts of the HUD sit and size as on the design canvas: the top bars at its width, the currencies
-    // in a row, and the run info and objective rows at its proportions. Measured in world space, on screen or in the
-    // HUD's own units, so they hold at any resolution.
+    // in a row, the boss bar's title row and trail, and the run info and objective rows at its proportions. Measured
+    // in world space, on screen or in the HUD's own units, so they hold at any resolution.
     internal static class CanvasLayoutChecks
     {
         // The run info is 300px wide for a 34px timer (RunInfoStyler), and an objective's box is 14px for 16px text.
@@ -22,6 +22,12 @@ namespace SevenUI.Tests
         private const float MinLabelShare = 0.75f;
         // In the money cluster's units.
         private const float RowTolerance = 0.5f;
+        // The boss bar is 800 of the top cluster's units wide, which match the canvas's pixels; its title row's ends
+        // meet the bar's within this, as glyphs sit a little inside their boxes.
+        private const float BossBarWidth = 800f;
+        private const float BossEdgeTolerance = 4f;
+        // A share of the boss bar.
+        private const float TrailMinimum = 0.02f;
 
         private const string SpringCanvasPath = "MainContainer/MainUIArea/SpringCanvas";
         private const string UpperLeftPath = SpringCanvasPath + "/UpperLeftCluster";
@@ -232,5 +238,94 @@ namespace SevenUI.Tests
                 () => $"the objectives left-aligned after small checkboxes (canvas box/font {BoxPerObjectiveFont:0.##}; " +
                       $"{RowsLook(rows)}) {h.Diagnosis()}");
         }
+        // The boss bar's title row and trail in place, with or without a boss: the bar the canvas's width, the name
+        // and subtitle out of the container's layout to sit above it, the mod's health text and trail, and the game's
+        // trailing bar off.
+        public static IEnumerator ExpectBossBarAsCanvas(this Harness h)
+        {
+            HUDBossHealthBarController boss = null;
+            yield return h.Until(
+                () =>
+                {
+                    boss = SevenUIChecks.HudRoot(h).GetComponentsInChildren<HUDBossHealthBarController>(true).FirstOrDefault();
+                    return boss && BossLook(boss) == null;
+                },
+                () => $"the boss bar laid out as on the canvas ({(boss ? BossLook(boss) : "no boss bar")}) {h.Diagnosis()}");
+        }
+
+        private static bool IgnoresLayout(Component component) =>
+            component && component.GetComponents<ILayoutIgnorer>().Any(ignorer => ignorer.ignoreLayout);
+
+        // Null when the boss bar is laid out as on the canvas, or what isn't.
+        private static string BossLook(HUDBossHealthBarController boss)
+        {
+            RectTransform bar = boss.fillRectImage ? boss.fillRectImage.transform.parent as RectTransform : null;
+            LayoutElement cell = bar && bar.parent ? bar.parent.GetComponent<LayoutElement>() : null;
+            if (!bar || !cell) return "no bar";
+            if (!Mathf.Approximately(cell.preferredWidth, BossBarWidth)) return $"bar width {cell.preferredWidth}";
+            if (!IgnoresLayout(boss.bossNameLabel) || !IgnoresLayout(boss.bossSubtitleLabel))
+            {
+                return "the name or subtitle still in the container's layout";
+            }
+            if (!bar.Find(BossTitleRow.HealthName)) return "no health text above the bar";
+            if (!bar.Find(BossDamageTrail.TrailName)) return "no trail";
+            if (boss.delayRectImage.enabled) return "the game's trailing bar on";
+            return null;
+        }
+
+        private static float TrailFill(HUDBossHealthBarController boss)
+        {
+            Transform trail = boss.fillRectImage.transform.parent.Find(BossDamageTrail.TrailName);
+            Image image = trail ? trail.GetComponent<Image>() : null;
+            return image ? image.fillAmount : -1f;
+        }
+
+        // With a boss showing: its health written as the canvas's "28,410 / 45,800", the title row above the bar with
+        // the subtitle after the name and the health at the bar's right end.
+        public static IEnumerator ExpectBossRowFilled(this Harness h, HUDBossHealthBarController boss)
+        {
+            string look = null;
+            yield return h.Until(
+                () =>
+                {
+                    RectTransform bar = boss.fillRectImage.transform.parent as RectTransform;
+                    TMP_Text health = bar.Find(BossTitleRow.HealthName)?.GetComponent<TMP_Text>();
+                    RectTransform container = boss.container.transform as RectTransform;
+                    if (!health || !container) return false;
+                    Bounds barBounds = In(container, bar);
+                    Bounds healthBounds = TextIn(container, health);
+                    Bounds nameBounds = TextIn(container, boss.bossNameLabel);
+                    Bounds subtitleBounds = TextIn(container, boss.bossSubtitleLabel);
+                    look = $"health '{health.text}', bar x {barBounds.min.x:0}-{barBounds.max.x:0} top {barBounds.max.y:0}, " +
+                           $"name x {nameBounds.min.x:0}-{nameBounds.max.x:0} bottom {nameBounds.min.y:0}, " +
+                           $"subtitle x {subtitleBounds.min.x:0}, health x {healthBounds.max.x:0} bottom {healthBounds.min.y:0}";
+                    return health.text.Contains(" / ") && nameBounds.min.y > barBounds.max.y &&
+                           healthBounds.min.y > barBounds.max.y && subtitleBounds.min.x > nameBounds.max.x &&
+                           Mathf.Abs(nameBounds.min.x - barBounds.min.x) < BossEdgeTolerance &&
+                           Mathf.Abs(healthBounds.max.x - barBounds.max.x) < BossEdgeTolerance;
+                },
+                () => $"the boss's title row above its bar ({look}) {h.Diagnosis()}");
+        }
+
+        // The drawn characters, not the text's box.
+        private static Bounds TextIn(RectTransform space, TMP_Text text)
+        {
+            Bounds local = text.textBounds;
+            Bounds bounds = new Bounds(space.InverseTransformPoint(text.transform.TransformPoint(local.min)), Vector3.zero);
+            bounds.Encapsulate(space.InverseTransformPoint(text.transform.TransformPoint(local.max)));
+            return bounds;
+        }
+
+        // Right after a hit the lost health stays drawn beyond the fill; once it has drained it meets the fill.
+        public static IEnumerator ExpectBossTrail(this Harness h, HUDBossHealthBarController boss, bool trailing)
+        {
+            yield return h.Until(
+                () => trailing
+                    ? TrailFill(boss) > boss.fillRectImage.fillAmount + TrailMinimum
+                    : Mathf.Abs(TrailFill(boss) - boss.fillRectImage.fillAmount) < TrailMinimum / 10f,
+                () => $"the boss's lost health {(trailing ? "drawn after the fill" : "drained to the fill")} " +
+                      $"(trail {TrailFill(boss):0.###}, fill {boss.fillRectImage.fillAmount:0.###}) {h.Diagnosis()}");
+        }
+
     }
 }

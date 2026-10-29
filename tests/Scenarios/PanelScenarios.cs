@@ -72,6 +72,7 @@ namespace SevenUI.Tests
         {
             yield return h.ExpectTopFlat();
             yield return h.ExpectTopBarsAtCanvasWidth();
+            yield return h.ExpectBossBarAsCanvas();
             yield return h.ExpectCurrenciesInRow();
             h.Cmd($"{Commands.GiveMoney} {ChestMoney}");
             yield return h.Wait(CountUpSeconds);

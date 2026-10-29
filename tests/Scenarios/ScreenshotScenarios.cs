@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using ModTestRunner;
 using RoR2;
 using RoR2.ExpansionManagement;
@@ -25,6 +26,9 @@ namespace SevenUI.Tests
         private const float PickupTimeout = 5f;
         // The teleporter's boss takes a while to arrive once the event starts.
         private const float BossTimeout = 45f;
+        // Shares of the boss's health, leaving it at the canvas's 62% with 8% just lost.
+        private const float FirstBossHit = 0.3f;
+        private const float SecondBossHit = 0.08f;
         // Enough for the drones and the chest, at any difficulty or stage count the tests reach.
         private const int Money = 2000;
         private const float BarrierFraction = 0.4f;
@@ -285,8 +289,35 @@ namespace SevenUI.Tests
                     return boss && boss.container && boss.container.activeInHierarchy;
                 },
                 "the teleporter's boss and its health bar", BossTimeout);
+            yield return h.ExpectBossRowFilled(boss);
             yield return h.AimAway();
+            // As on the canvas: most of the health left, and a hit just taken drawn after it.
+            HitBoss(boss, FirstBossHit);
+            yield return h.ExpectBossTrail(boss, true);
+            yield return h.ExpectBossTrail(boss, false);
+            HitBoss(boss, SecondBossHit);
+            yield return h.ExpectBossTrail(boss, true);
             yield return h.CaptureLooks();
+        }
+
+        // Takes a share of the boss group's health off its first living member, past its armor.
+        private static void HitBoss(HUDBossHealthBarController boss, float share)
+        {
+            BossGroup group = boss.currentBossGroup;
+            CharacterMaster master = group && group.combatSquad
+                ? group.combatSquad.readOnlyMembersList.FirstOrDefault(member => member && member.GetBody())
+                : null;
+            CharacterBody body = master ? master.GetBody() : null;
+            if (!body) return;
+            body.healthComponent.TakeDamage(new DamageInfo
+            {
+                attacker = Harness.LocalBody.gameObject,
+                damage = group.totalMaxObservedMaxHealth * share,
+                damageType = DamageType.BypassArmor,
+                position = body.corePosition,
+                procCoefficient = 0f,
+                damageColorIndex = DamageColorIndex.Default,
+            });
         }
     }
 }
