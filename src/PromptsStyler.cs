@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Text;
+using RoR2;
 using RoR2.UI;
 using TMPro;
 using UnityEngine;
@@ -262,6 +263,21 @@ namespace SevenUI
             rect.anchoredPosition = Vector2.zero;
             rect.sizeDelta = new Vector2(size, size);
             recorder.SetLocalScale(rect, Vector3.one);
+            // The trial's frame and icon pop in on a scale curve, which sets their scale from a base scale, theirs in
+            // the prefab, every frame; the curve keeps playing, from the base of one.
+            ObjectScaleCurve curve = rect.GetComponent<ObjectScaleCurve>();
+            if (curve && curve.baseScale != Vector3.one)
+            {
+                Vector3 baseScale = curve.baseScale;
+                recorder.OnRestore(() =>
+                {
+                    if (curve)
+                    {
+                        curve.baseScale = baseScale;
+                    }
+                });
+                curve.baseScale = Vector3.one;
+            }
         }
 
         // Centered across the screen, its middle the canvas's distance down. The notification is a child of the game's
