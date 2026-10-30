@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using ModTestRunner;
 using RoR2;
 using RoR2.UI;
@@ -34,6 +35,8 @@ namespace SevenUI.Tests
         // A 500px notification, its middle 758px down.
         private const float NotificationWidth = 500f;
         private const float NotificationMiddleDown = 758f;
+        // The timer's tags hold dots of their own, "<mspace=0.46em>".
+        private static readonly Regex Tags = new Regex("<[^>]*>");
 
         // Canvas pixels per screen pixel, and a rect's box on screen in canvas pixels.
         private static (Camera camera, float unit) Screen(Harness h)
@@ -176,7 +179,7 @@ namespace SevenUI.Tests
                     string text = timer.targetLabel.text;
                     look = $"panel {BoxText(panel)}, column {BoxText(below)}, timer '{text}'";
                     return Near(panel.height, RunInfoHeight) && Near(panel.yMin - below.yMax, ColumnGap) &&
-                           !text.Contains("<voffset") && !text.Contains(".");
+                           !text.Contains("<voffset") && !Tags.Replace(text, "").Contains(".");
                 },
                 () => $"the run info {RunInfoHeight}px tall with the column {ColumnGap}px under it, and the timer without " +
                       $"hundredths ({look}) {h.Diagnosis()}");
