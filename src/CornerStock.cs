@@ -5,8 +5,10 @@ namespace SevenUI
 {
     // A slot's charge count inside the slot's bottom-right corner, as the design canvas draws a slot's stock: its last
     // digit's advance 4px from the slot's right, and its baseline where the canvas's 18px line box, 3px up, puts it.
-    // The game hangs the count off the slot at offsets of its own, and TMP lines text up by the font's own metrics, so
-    // the drawn digit is measured while the count shows and the text moved onto the spot when they disagree.
+    // The game hangs the count off the slot at offsets of its own, the equipment's in front of the slot's plane, which
+    // the HUD's perspective camera draws nearer the screen's middle, and TMP lines text up by the font's own metrics.
+    // So the drawn digit is measured in the slot while the count shows, and the text moved onto the spot, in the
+    // slot's plane, when they disagree.
     internal sealed class CornerStock
     {
         private const float RightInset = 4f;
@@ -29,6 +31,17 @@ namespace SevenUI
             this.row = row;
             recorder.Record(stock);
             recorder.RecordRect(stock.rectTransform);
+            // The rect's record puts back its place in the plane, not its depth.
+            Transform text = stock.transform;
+            float depth = text.localPosition.z;
+            recorder.OnRestore(() =>
+            {
+                if (text)
+                {
+                    Vector3 position = text.localPosition;
+                    text.localPosition = new Vector3(position.x, position.y, depth);
+                }
+            });
             // Grows left and up from the corner as the count gains digits.
             stock.alignment = TextAlignmentOptions.BottomRight;
             stock.rectTransform.pivot = new Vector2(1f, 0f);
@@ -50,12 +63,11 @@ namespace SevenUI
             Rect box = slot.rect;
             Vector2 spot = new Vector2(box.xMax - RightInset / perUnit, box.yMin + Baseline / perUnit);
             Transform text = stock.transform;
-            Vector2 drawn = slot.InverseTransformPoint(text.TransformPoint(new Vector3(last.xAdvance, last.baseLine, 0f)));
-            Vector2 shift = spot - drawn;
+            Vector3 drawn = slot.InverseTransformPoint(text.TransformPoint(new Vector3(last.xAdvance, last.baseLine, 0f)));
+            Vector3 shift = new Vector3(spot.x - drawn.x, spot.y - drawn.y, -drawn.z);
             if (shift.magnitude * perUnit < Tolerance) return;
             Vector3 at = slot.InverseTransformPoint(text.position);
-            Vector3 local = text.parent.InverseTransformPoint(slot.TransformPoint(at + (Vector3)shift));
-            text.localPosition = new Vector3(local.x, local.y, text.localPosition.z);
+            text.localPosition = text.parent.InverseTransformPoint(slot.TransformPoint(at + shift));
         }
     }
 }
