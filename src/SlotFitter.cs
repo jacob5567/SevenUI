@@ -63,16 +63,16 @@ namespace SevenUI
 
         public RectTransform Display => display;
 
-        // A few transforms of points; writes only when the skills have moved.
-        public void Update()
+        // A few transforms of points; writes only when the skills have moved, and then says so.
+        public bool Update()
         {
-            if (!Alive) return;
+            if (!Alive) return false;
             Rect endBox = InParent(end);
             Rect innerBox = InParent(inner);
             float gap = (leftOfRow ? innerBox.xMin - endBox.xMax : endBox.xMin - innerBox.xMax) + extraGapShare * endBox.width;
             float x = leftOfRow ? endBox.xMin - gap - endBox.width : endBox.xMax + gap;
             Rect box = new Rect(x, endBox.yMin, endBox.width, endBox.height);
-            if (box == lastBox) return;
+            if (box == lastBox) return false;
             lastBox = box;
             // Anchored at the parent's bottom-left corner, so the box is set in the parent's own units.
             display.anchorMin = display.anchorMax = display.pivot = Vector2.zero;
@@ -90,6 +90,7 @@ namespace SevenUI
                 follower.anchoredPosition = onBox - onSlot + followerPosition * ratio;
                 follower.localScale = followerScale * ratio;
             }
+            return true;
         }
 
         private Rect InParent(RectTransform rect)

@@ -14,8 +14,8 @@ namespace SevenUI.Tests
     // Checks that parts of the HUD draw at the design canvas's sizes on screen, in its pixels on a 1080-pixel-high
     // screen: the run info's height and the gap under it, the level's block beside the bars, the health and experience
     // bars' heights, the skill slots and the gaps between them, the dividers before the equipment and after the key
-    // item, the slot above the skills keeping its place over them, and the buffs' counts in their squares' top-right
-    // corners. Also the run timer's and the objective rows' texts.
+    // item, the equipment's stock in its slot's corner, the slot above the skills keeping its place over them, and the
+    // buffs' counts in their squares' top-right corners. Also the run timer's and the objective rows' texts.
     internal static class CanvasSizeChecks
     {
         private const float CanvasHeight = 1080f;
@@ -36,6 +36,11 @@ namespace SevenUI.Tests
         // A 500px notification, its middle 758px down.
         private const float NotificationWidth = 500f;
         private const float NotificationMiddleDown = 758f;
+        // The equipment's stock 4px from its slot's right and 3px from its bottom, with the digits on a baseline a
+        // descender above that: up to about a third of the 18px text.
+        private const float StockRightInset = 4f;
+        private const float StockBottomInset = 3f;
+        private const float StockBaselineMax = StockBottomInset + 18f / 3f;
         // In shares of a slot; the game's look is drawn turned, so its shares come out a little off.
         private const float UtilityAreaTolerance = 0.06f;
         // The timer's tags hold dots of their own, "<mspace=0.46em>".
@@ -228,6 +233,39 @@ namespace SevenUI.Tests
                            row.Label.text.Length > 0 && row.GameLabel.alpha == 0f;
                 },
                 () => $"the teleporter's charge as a row with its percentage at the right ({look}) {h.Diagnosis()}");
+        }
+
+        // The equipment's stock inside its slot's bottom-right corner, as the canvas draws a slot's stock: the last
+        // digit's advance at the right inset, which right alignment puts it on, and the digits' baseline just above the
+        // bottom inset.
+        public static IEnumerator ExpectEquipmentStockAsCanvas(this Harness h)
+        {
+            string look = null;
+            yield return h.Until(
+                () =>
+                {
+                    HUD hud = SevenUIChecks.HudRoot(h).GetComponent<HUD>();
+                    EquipmentIcon equipment = hud && hud.equipmentIcons != null
+                        ? hud.equipmentIcons.FirstOrDefault(icon => icon && !icon.displayAlternateEquipment && icon.displayRoot)
+                        : null;
+                    TMP_Text stock = equipment ? equipment.stockText : null;
+                    if (!stock || !stock.gameObject.activeInHierarchy || stock.textInfo.characterCount == 0) return false;
+                    Rect slot = Box(h, (RectTransform)equipment.displayRoot.transform);
+                    TMP_CharacterInfo last = stock.textInfo.characterInfo[stock.textInfo.characterCount - 1];
+                    Vector2 end = OnCanvas(h, stock.transform.TransformPoint(new Vector3(last.xAdvance, last.baseLine, 0f)));
+                    float right = slot.xMax - end.x;
+                    float baseline = end.y - slot.yMin;
+                    look = $"stock '{stock.text}', slot {BoxText(slot)}, {right:0.#}px from the right, baseline {baseline:0.#}px up";
+                    return Near(right, StockRightInset) && baseline >= StockBottomInset && baseline <= StockBaselineMax;
+                },
+                () => $"the equipment's stock {StockRightInset}px from its slot's right, just over {StockBottomInset}px " +
+                      $"from its bottom ({look}) {h.Diagnosis()}");
+        }
+
+        private static Vector2 OnCanvas(Harness h, Vector3 world)
+        {
+            (Camera camera, float unit) = Screen(h);
+            return RectTransformUtility.WorldToScreenPoint(camera, world) / unit;
         }
 
         // The slot some survivors' meters hang from keeps its place over the skill row from the game's look, in shares

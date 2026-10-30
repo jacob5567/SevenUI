@@ -32,6 +32,9 @@ namespace SevenUI
         private const float StockFontSize = 18f;
         public const float KeyFontSize = 12f;
         private const float RechargeHeight = 3f;
+        // The equipment's stock inside its slot's bottom-right corner.
+        private const float StockRightInset = 4f;
+        private const float StockBottomInset = 3f;
         // 1px at 12px, in hundredths of an em.
         private const float KeyTracking = 8f;
 
@@ -44,6 +47,7 @@ namespace SevenUI
         private readonly List<InputBindingDisplayController> keys = new List<InputBindingDisplayController>();
         private SkillRow row;
         private SlotFitter equipmentFit;
+        private EquipmentIcon equipmentSlot;
         private SlotFitter keyItemFit;
         private RectTransform extraButtons;
         private Vector2 extraButtonsPosition;
@@ -102,6 +106,7 @@ namespace SevenUI
             recorder.Restore();
             row = null;
             equipmentFit = null;
+            equipmentSlot = null;
             keyItemFit = null;
             extraButtons = null;
             keyItemSlot = null;
@@ -114,7 +119,10 @@ namespace SevenUI
         // Every frame while applied, so the two slots follow the skills.
         public void Update()
         {
-            equipmentFit?.Update();
+            if (equipmentFit != null && equipmentFit.Update())
+            {
+                PlaceEquipmentStock();
+            }
             // Before the key item's display is placed again, against the skills, after its slot moves.
             FollowKeyItem();
             keyItemFit?.Update();
@@ -161,6 +169,7 @@ namespace SevenUI
                 (equipmentFit == null || !equipmentFit.Alive))
             {
                 equipmentFit = Fit(slot.displayRoot, false);
+                equipmentSlot = slot;
             }
             if (!slot.displayAlternateEquipment)
             {
@@ -196,6 +205,26 @@ namespace SevenUI
                 }
             }
             keys.Clear();
+        }
+
+        // The game hangs the stock off the display root through a plain transform, at a fixed offset from the root's
+        // pivot that the fit moves to its corner, which leaves the stock at the slot's top left. It goes inside the
+        // bottom-right corner instead, as the design canvas draws a slot's stock.
+        private void PlaceEquipmentStock()
+        {
+            TMP_Text stock = equipmentSlot ? equipmentSlot.stockText : null;
+            RectTransform display = equipmentFit.Display;
+            float perUnit = row.PixelsPer(display);
+            if (!stock || !(stock.transform.parent is RectTransform holder) || perUnit <= 0f) return;
+            RectTransform rect = stock.rectTransform;
+            recorder.RecordRect(rect);
+            stock.alignment = TextAlignmentOptions.BottomRight;
+            rect.pivot = new Vector2(1f, 0f);
+            Rect slot = display.rect;
+            Vector3 corner = display.TransformPoint(new Vector3(slot.xMax - StockRightInset / perUnit,
+                slot.yMin + StockBottomInset / perUnit, 0f));
+            Vector3 local = holder.InverseTransformPoint(corner);
+            rect.localPosition = new Vector3(local.x, local.y, rect.localPosition.z);
         }
 
         // Thin, in the game's key item color (the blue the N'tormat's icon is outlined in), as the equipment's is in
