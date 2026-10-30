@@ -107,6 +107,8 @@ namespace SevenUI
 
         private void ApplyPanels()
         {
+            // First, so the parts measured on screen (the skill row) are measured facing it, as they are drawn.
+            tilt.Apply();
             runInfo.Apply();
             rightInfoBar.Apply();
             playerBars.Apply();
@@ -117,7 +119,6 @@ namespace SevenUI
             prompts.Apply();
             scoreboard.Apply();
             chat.Apply();
-            tilt.Apply();
             topBars.Apply();
         }
 
