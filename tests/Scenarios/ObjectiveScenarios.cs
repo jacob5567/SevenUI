@@ -5,9 +5,10 @@ using ModTestRunner;
 
 namespace SevenUI.Tests
 {
-    // Every objective text the game has, shown on the objective panel a batch at a time on the strip the game draws
-    // it on, and the Winnowing trials whose strips have a progress bar, each checked against the design canvas's rows
-    // (ObjectiveChecks). The objectives are the tests' own, given the game's texts, since most come from a stage's
+    // Every objective text the game has, shown on the objective panel on the strip the game draws it on, alone and a
+    // batch at a time, and the Winnowing trials whose strips have a progress bar, each checked against the design
+    // canvas's rows (ObjectiveChecks). Alone, a row is checked as the panel's only extra row; in a batch, next to
+    // others. The objectives are the tests' own, given the game's texts, since most come from a stage's
     // mission, a trial or a compulsion that can't be set up on demand.
     internal static class ObjectiveScenarios
     {
@@ -18,8 +19,21 @@ namespace SevenUI.Tests
 
         public static IEnumerable<Scenario> All()
         {
+            yield return new Scenario(1, Suite, "each_objective_alone_as_canvas", Stages.TitanicPlains, EachObjectiveAlone);
             yield return new Scenario(1, Suite, "every_objective_as_canvas", Stages.TitanicPlains, EveryObjective);
             yield return new Scenario(1, Suite, "trial_progress_as_canvas", Stages.TitanicPlains, TrialProgress);
+        }
+
+        private static IEnumerator EachObjectiveAlone(Harness h)
+        {
+            var objectives = TestObjectives.Tokens.Select(token => (TestObjectives.Text(token), typeof(TestObjectiveTracker), 0f))
+                .Concat(TrialObjectives());
+            foreach (var objective in objectives)
+            {
+                (List<TestObjectiveSource> sources, System.Action hide) = TestObjectives.Show(h, new[] { objective });
+                yield return h.ExpectObjectivesAsCanvas(sources);
+                hide();
+            }
         }
 
         private static IEnumerator EveryObjective(Harness h)
