@@ -11,7 +11,8 @@ namespace SevenUI
     // large one. Each strip lays out its text with its own layout group, padded on the left for the checkbox; the group
     // is set to give the text the row's whole width, so a long objective wraps and the row grows to fit it. The
     // teleporter's charge has no checkbox: its percentage sits at the right and a thin bar under the text (ChargeRow).
-    // The texts are drawn without the game's inline icons (ObjectiveIcons).
+    // The two Winnowing trials with strips of their own draw their progress the same way (ProgressRow). The texts are
+    // drawn without the game's inline icons (ObjectiveIcons).
     internal static class ObjectiveRow
     {
         // Names in the objective strip's ChildLocator (ObjectivePanelController.ObjectiveTracker).
@@ -19,6 +20,10 @@ namespace SevenUI
         private const string CheckboxName = "Checkbox";
         public const string BoxName = "SevenUICheckbox";
         public const string ChargeName = "SevenUICharge";
+        public const string ProgressName = "SevenUIProgress";
+        private const string ChargeBarName = "SevenUIChargeBar";
+        // The game's bar on the trials' own strips (TrialQuestSadismMoney's, TrialQuestSurvivorProcCity's).
+        private const string GameProgressBarName = "ProgressBar";
 
         // The design canvas's sizes, in its pixels, scaled to the run info's units: 16px text after a 14px box with a
         // 2px edge, and rows 8px apart. The charge's bar is 4px, 6px under the text, and its percentage takes up to
@@ -83,6 +88,34 @@ namespace SevenUI
                 if (!label.transform.Find(ChargeName))
                 {
                     AddCharge(strip, label, zone, recorder);
+                }
+                return true;
+            }
+
+            // A trial's own strip, which the game fills a bar on, and hides the checkbox for a badge with the trial's
+            // sign drawn left of the text, out past the row's inset. The bar's and the badge's art go, and the mod's
+            // bar sits under the text as the charge's does.
+            Image gameBar = locator.FindChildComponent<Image>(GameProgressBarName);
+            if (gameBar && gameBar.transform.parent == label.transform)
+            {
+                int under = Mathf.RoundToInt(RowGap / 2f + ChargeBarGap + ChargeBarHeight);
+                layout.padding = new RectOffset(Mathf.RoundToInt(RowInset), Mathf.RoundToInt(RowInset), gap, under);
+                element.minHeight += ChargeBarGap + ChargeBarHeight;
+                foreach (Transform part in label.transform)
+                {
+                    if (part == box) continue;
+                    if (part == gameBar.transform)
+                    {
+                        recorder.Disable(gameBar);
+                    }
+                    else
+                    {
+                        recorder.SetActive(part.gameObject, false);
+                    }
+                }
+                if (!strip.Find(ProgressName))
+                {
+                    AddProgress(strip, gameBar, recorder);
                 }
                 return true;
             }
@@ -162,8 +195,33 @@ namespace SevenUI
             percent.color = Palette.Accent;
             percent.enableWordWrapping = false;
 
-            // Under the text, across the row inside its insets: the strip's own child, outside its layout.
-            GameObject bar = NewUIObject("SevenUIChargeBar", strip);
+            (GameObject bar, RectTransform fillRect) = AddBar(strip, ChargeBarName);
+
+            ChargeRow row = holder.AddComponent<ChargeRow>();
+            row.Zone = zone;
+            row.GameLabel = label;
+            row.Label = copy;
+            row.Percent = percent;
+            row.Fill = fillRect;
+            recorder.Add(holder);
+            recorder.Add(bar);
+        }
+
+        // The trial's bar under its text, filled as the game fills its own.
+        private static void AddProgress(Transform strip, Image gameBar, StyleRecorder recorder)
+        {
+            (GameObject bar, RectTransform fill) = AddBar(strip, ProgressName);
+            ProgressRow row = bar.AddComponent<ProgressRow>();
+            row.GameBar = gameBar;
+            row.Fill = fill;
+            recorder.Add(bar);
+        }
+
+        // Under the text, across the row inside its insets: the strip's own child, outside its layout, with its fill
+        // as its first child, empty.
+        private static (GameObject bar, RectTransform fill) AddBar(Transform strip, string name)
+        {
+            GameObject bar = NewUIObject(name, strip);
             bar.AddComponent<LayoutIgnorer>();
             Stretch((RectTransform)bar.transform, Vector2.zero, new Vector2(1f, 0f), new Vector2(RowInset, RowGap / 2f),
                 new Vector2(-RowInset, RowGap / 2f + ChargeBarHeight));
@@ -176,15 +234,7 @@ namespace SevenUI
             Image fillImage = fill.AddComponent<Image>();
             fillImage.color = Palette.Accent;
             fillImage.raycastTarget = false;
-
-            ChargeRow row = holder.AddComponent<ChargeRow>();
-            row.Zone = zone;
-            row.GameLabel = label;
-            row.Label = copy;
-            row.Percent = percent;
-            row.Fill = fillRect;
-            recorder.Add(holder);
-            recorder.Add(bar);
+            return (bar, fillRect);
         }
 
         private static TMP_Text AddText(Transform parent, TMP_Text like)
