@@ -9,9 +9,9 @@ using UnityEngine;
 
 namespace SevenUI.Tests
 {
-    // Checks that the bottom left draws at the design canvas's sizes on screen, in its pixels on a 1080-pixel-high
-    // screen: the level's block beside the bars, the health and experience bars' heights, and the buffs' counts in
-    // their squares' top-right corners.
+    // Checks that the bottom corners draw at the design canvas's sizes on screen, in its pixels on a 1080-pixel-high
+    // screen: the level's block beside the bars, the health and experience bars' heights, the skill slots and the
+    // gaps between them, the divider before the equipment, and the buffs' counts in their squares' top-right corners.
     internal static class CanvasSizeChecks
     {
         private const float CanvasHeight = 1080f;
@@ -21,6 +21,10 @@ namespace SevenUI.Tests
         private const float ExpHeight = 4f;
         // The level's 52px block and the 12px gap after it.
         private const float BarsInset = 64f;
+        private const float SkillSize = 68f;
+        private const float SkillGap = 8f;
+        // The equipment sits past the divider: 8 + 4 + 2 + 4 + 8.
+        private const float EquipmentGap = 26f;
 
         // Canvas pixels per screen pixel, and a rect's box on screen in canvas pixels.
         private static (Camera camera, float unit) Screen(Harness h)
@@ -62,6 +66,29 @@ namespace SevenUI.Tests
                 },
                 () => $"the level beside a {HealthHeight}px health bar over a {ExpHeight}px experience bar, " +
                       $"{BarsInset}px in ({look}) {h.Diagnosis()}");
+        }
+
+        public static IEnumerator ExpectSkillRowAsCanvas(this Harness h)
+        {
+            string look = null;
+            yield return h.Until(
+                () =>
+                {
+                    HUD hud = SevenUIChecks.HudRoot(h).GetComponent<HUD>();
+                    if (!hud || hud.skillIcons == null || hud.skillIcons.Length < 2 || hud.skillIcons.Any(skill => !skill)) return false;
+                    List<Rect> boxes = hud.skillIcons.Select(skill => Box(h, (RectTransform)skill.transform)).ToList();
+                    EquipmentIcon equipment = hud.equipmentIcons.FirstOrDefault(icon => icon && !icon.displayAlternateEquipment &&
+                                                                                        icon.displayRoot);
+                    Rect equipmentBox = equipment ? Box(h, (RectTransform)equipment.displayRoot.transform) : new Rect();
+                    Transform divider = hud.skillIcons.Last().transform.Find(SkillRow.DividerName);
+                    look = string.Join(", ", boxes.Select(BoxText)) + $"; equipment {BoxText(equipmentBox)}; divider {(bool)divider}";
+                    bool sized = boxes.All(box => Near(box.width, SkillSize) && Near(box.height, SkillSize));
+                    bool spaced = boxes.Zip(boxes.Skip(1), (a, b) => Near(b.xMin - a.xMax, SkillGap)).All(ok => ok);
+                    return sized && spaced && equipment && Near(equipmentBox.width, SkillSize) &&
+                           Near(equipmentBox.xMin - boxes.Last().xMax, EquipmentGap) && divider && divider.gameObject.activeInHierarchy;
+                },
+                () => $"{SkillSize}px skill slots {SkillGap}px apart, the equipment {EquipmentGap}px past the last with a " +
+                      $"divider between ({look}) {h.Diagnosis()}");
         }
 
         // Each stacking buff with more than one stack shows its count in its square's top-right quarter, and the game's

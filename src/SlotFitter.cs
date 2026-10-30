@@ -2,7 +2,8 @@ using UnityEngine;
 
 namespace SevenUI
 {
-    // Draws the equipment or key item slot at a skill slot's size, a skill's spacing from the end of the skill row.
+    // Draws the equipment or key item slot at a skill slot's size, a skill's spacing from the end of the skill row, and
+    // optionally a further share of a slot past that.
     // The game draws both larger than the skills, and places the slots themselves (the key item's through a layout
     // group), so the slot's display root, which holds everything drawn in it, is moved instead. Refitted whenever the
     // skills move. A follower placed against the slot (the N'tormat's page selector, beside the key item) is moved and
@@ -15,14 +16,16 @@ namespace SevenUI
         private readonly RectTransform end;
         private readonly RectTransform inner;
         private readonly bool leftOfRow;
+        private readonly float extraGapShare;
         private readonly RectTransform follower;
         private readonly Vector2 followerPosition;
         private readonly Vector3 followerScale;
         private Rect lastBox;
 
-        public SlotFitter(RectTransform display, RectTransform end, RectTransform inner, bool leftOfRow, StyleRecorder recorder,
-            RectTransform follower = null)
+        public SlotFitter(RectTransform display, RectTransform end, RectTransform inner, bool leftOfRow, float extraGapShare,
+            StyleRecorder recorder, RectTransform follower = null)
         {
+            this.extraGapShare = extraGapShare;
             this.display = display;
             parent = (RectTransform)display.parent;
             this.end = end;
@@ -66,7 +69,7 @@ namespace SevenUI
             if (!Alive) return;
             Rect endBox = InParent(end);
             Rect innerBox = InParent(inner);
-            float gap = leftOfRow ? innerBox.xMin - endBox.xMax : endBox.xMin - innerBox.xMax;
+            float gap = (leftOfRow ? innerBox.xMin - endBox.xMax : endBox.xMin - innerBox.xMax) + extraGapShare * endBox.width;
             float x = leftOfRow ? endBox.xMin - gap - endBox.width : endBox.xMax + gap;
             Rect box = new Rect(x, endBox.yMin, endBox.width, endBox.height);
             if (box == lastBox) return;

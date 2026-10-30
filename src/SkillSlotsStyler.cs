@@ -8,10 +8,11 @@ using UnityEngine.UI;
 
 namespace SevenUI
 {
-    // Restyles the skill, equipment and key item slots in the bottom right: flat dark slots, the equipment and key item
-    // at the skills' size, a top-down cooldown cover in place of the radial overlay, cooldowns and stocks in Barlow
-    // Condensed, and the key labels (the slots' and the inventory and sprint buttons') as small grey capitals without
-    // their dark plates. The game keeps running the slots.
+    // Restyles the skill, equipment and key item slots in the bottom right: flat dark slots at the design canvas's size
+    // and spacing (SkillRow), the equipment and key item at the skills' size, the equipment past a thin divider, a
+    // top-down cooldown cover in place of the radial overlay, a thin recharge bar along the bottom of a skill with
+    // charges (RechargeBar), cooldowns and stocks in Barlow Condensed, and the key labels (the slots' and the inventory
+    // and sprint buttons') as small grey capitals without their dark plates. The game keeps running the slots.
     internal sealed class SkillSlotsStyler
     {
         private const string ClusterPath = "MainContainer/MainUIArea/SpringCanvas/BottomRightCluster";
@@ -20,10 +21,14 @@ namespace SevenUI
         // The equipment and key item slots' background, under their display roots.
         private const string SlotBackgroundName = "BGPanel";
         private const string CoverName = "SevenUICooldownCover";
+        private const string RechargeName = "SevenUIRechargeBar";
 
-        // In HUD canvas units. The game draws cooldowns at the slot's full height; the canvas draws them smaller.
-        private const float CooldownFontSize = 24f;
-        private const float KeyFontSize = 13f;
+        // In the design canvas's pixels. The game draws cooldowns at the slot's full height; the canvas draws them
+        // smaller.
+        private const float CooldownFontSize = 30f;
+        private const float StockFontSize = 18f;
+        public const float KeyFontSize = 12f;
+        private const float RechargeHeight = 3f;
         // 1px at 12px, in hundredths of an em.
         private const float KeyTracking = 8f;
 
@@ -34,6 +39,7 @@ namespace SevenUI
         private readonly List<EquipmentIcon> equipment = new List<EquipmentIcon>();
         private readonly List<KeyItemIcon> keyItems = new List<KeyItemIcon>();
         private readonly List<InputBindingDisplayController> keys = new List<InputBindingDisplayController>();
+        private SkillRow row;
         private SlotFitter equipmentFit;
         private SlotFitter keyItemFit;
 
@@ -47,6 +53,13 @@ namespace SevenUI
         {
             Transform cluster = root.Find(ClusterPath);
             if (!cluster) return;
+            // The row is sized first, as the other slots and the texts take their sizes from it.
+            if (row == null)
+            {
+                row = SkillRow.Measure(hud, root);
+                if (row == null) return;
+                row.Apply(hud, cluster.Find(ExtraButtonsPath), recorder);
+            }
             cluster.GetComponentsInChildren(true, skills);
             foreach (SkillIcon skill in skills)
             {
@@ -78,6 +91,7 @@ namespace SevenUI
         public void Restore()
         {
             recorder.Restore();
+            row = null;
             equipmentFit = null;
             keyItemFit = null;
         }
@@ -104,6 +118,10 @@ namespace SevenUI
             if (skill.cooldownRemapPanel && skill.iconImage && !skill.transform.Find(CoverName))
             {
                 AddCover(skill);
+            }
+            if (!skill.transform.Find(RechargeName))
+            {
+                AddRechargeBar(skill);
             }
             StyleNumbers(skill.cooldownText, skill.stockText);
             StyleKeys(skill.transform);
@@ -149,10 +167,10 @@ namespace SevenUI
             for (int i = 0; i < keys.Count; i++)
             {
                 TMP_Text label = keys[i].GetComponent<TMP_Text>();
-                if (label && label.transform.lossyScale.y > 0f)
+                if (label)
                 {
                     recorder.Record(label);
-                    label.fontSize = KeyFontSize * skillKey.transform.lossyScale.y / label.transform.lossyScale.y;
+                    label.fontSize = row.FontSize(label.transform, KeyFontSize);
                 }
                 // The first is the slot's own key; the rest are the equipment's swap keys, placed by the game.
                 RectTransform plate = keys[i].transform.parent as RectTransform;
@@ -190,15 +208,16 @@ namespace SevenUI
             });
         }
 
-        // Beside the first skill (M1) or the last (R).
+        // Beside the first skill (M1), or past the divider after the last (R).
         private SlotFitter Fit(GameObject displayRoot, bool leftOfRow, RectTransform follower = null)
         {
             SkillIcon[] row = hud.skillIcons;
             if (row == null || row.Length < 2 || !row[0] || !row[1] || !row[row.Length - 1] || !row[row.Length - 2]) return null;
             Transform end = leftOfRow ? row[0].transform : row[row.Length - 1].transform;
             Transform inner = leftOfRow ? row[1].transform : row[row.Length - 2].transform;
-            return new SlotFitter((RectTransform)displayRoot.transform, (RectTransform)end, (RectTransform)inner, leftOfRow, recorder,
-                follower);
+            float extraGap = leftOfRow ? 0f : SkillRow.EquipmentExtraGapShare;
+            return new SlotFitter((RectTransform)displayRoot.transform, (RectTransform)end, (RectTransform)inner, leftOfRow, extraGap,
+                recorder, follower);
         }
 
         private void FlattenBackground(GameObject displayRoot)
@@ -265,17 +284,59 @@ namespace SevenUI
             recorder.Add(cover);
         }
 
+        // Along the slot's bottom, over everything else in it.
+        private void AddRechargeBar(SkillIcon skill)
+        {
+            float perUnit = row.PixelsPer(skill.transform);
+            if (perUnit <= 0f) return;
+            GameObject bar = NewUIObject(RechargeName, skill.transform);
+            RectTransform barRect = (RectTransform)bar.transform;
+            barRect.anchorMin = Vector2.zero;
+            barRect.anchorMax = new Vector2(1f, 0f);
+            barRect.offsetMin = Vector2.zero;
+            barRect.offsetMax = new Vector2(0f, RechargeHeight / perUnit);
+            Image trough = bar.AddComponent<Image>();
+            trough.color = Palette.RechargeTrough;
+            trough.raycastTarget = false;
+            trough.enabled = false;
+
+            GameObject fill = NewUIObject("Fill", bar.transform);
+            RectTransform fillRect = (RectTransform)fill.transform;
+            fillRect.anchorMin = Vector2.zero;
+            fillRect.anchorMax = Vector2.one;
+            fillRect.offsetMin = fillRect.offsetMax = Vector2.zero;
+            Image fillImage = fill.AddComponent<Image>();
+            fillImage.color = Palette.Accent;
+            fillImage.raycastTarget = false;
+            fillImage.enabled = false;
+
+            RechargeBar recharge = bar.AddComponent<RechargeBar>();
+            recharge.Skill = skill;
+            recharge.Trough = trough;
+            recharge.Fill = fillImage;
+            recorder.Add(bar);
+        }
+
+        private static GameObject NewUIObject(string name, Transform parent)
+        {
+            GameObject created = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer));
+            created.layer = parent.gameObject.layer;
+            created.transform.SetParent(parent, false);
+            return created;
+        }
+
         private void StyleNumbers(TMP_Text cooldown, TMP_Text stock)
         {
             if (cooldown)
             {
                 recorder.Record(cooldown);
-                cooldown.fontSize = CooldownFontSize;
+                cooldown.fontSize = row.FontSize(cooldown.transform, CooldownFontSize);
                 cooldown.color = Palette.Text;
             }
             if (stock)
             {
                 recorder.Record(stock);
+                stock.fontSize = row.FontSize(stock.transform, StockFontSize);
                 stock.fontStyle |= FontStyles.Bold;
                 stock.color = Palette.Text;
             }
@@ -292,7 +353,7 @@ namespace SevenUI
                 if (label)
                 {
                     recorder.Record(label);
-                    label.fontSize = KeyFontSize;
+                    label.fontSize = row.FontSize(label.transform, KeyFontSize);
                     label.fontStyle = (label.fontStyle | FontStyles.UpperCase | FontStyles.Bold) & ~FontStyles.Italic;
                     label.characterSpacing = KeyTracking;
                     label.color = Palette.HeaderText;
