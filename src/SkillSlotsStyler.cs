@@ -12,8 +12,9 @@ namespace SevenUI
     // and spacing (SkillRow), the equipment and key item at the skills' size, each past a thin divider and with a thin
     // ready outline in its own color, a
     // top-down cooldown cover in place of the radial overlay, a thin recharge bar along the bottom of a skill with
-    // charges (RechargeBar), cooldowns and stocks in Barlow Condensed, and the key labels (the slots' and the inventory
-    // and sprint buttons') as small grey capitals without their dark plates. The game keeps running the slots.
+    // charges (RechargeBar), cooldowns and stocks in Barlow Condensed with the stocks in their slots' bottom-right
+    // corners (CornerStock), and the key labels (the slots' and the inventory and sprint buttons') as small grey
+    // capitals without their dark plates. The game keeps running the slots.
     internal sealed class SkillSlotsStyler
     {
         private const string ClusterPath = "MainContainer/MainUIArea/SpringCanvas/BottomRightCluster";
@@ -29,16 +30,9 @@ namespace SevenUI
         // In the design canvas's pixels. The game draws cooldowns at the slot's full height; the canvas draws them
         // smaller.
         private const float CooldownFontSize = 30f;
-        private const float StockFontSize = 18f;
+        public const float StockFontSize = 18f;
         public const float KeyFontSize = 12f;
         private const float RechargeHeight = 3f;
-        // The equipment's stock inside its slot's bottom-right corner. The canvas draws its line box one font size
-        // tall, 3px up, with Barlow's ascent and descent (1 and 0.2 of the size) centered in it, which puts the
-        // baseline a tenth of the size above the box's bottom.
-        private const float StockRightInset = 4f;
-        private const float StockBottomInset = 3f;
-        private const float StockBaselineShare = 0.1f;
-        private const float StockBaseline = StockBottomInset + StockFontSize * StockBaselineShare;
         // 1px at 12px, in hundredths of an em.
         private const float KeyTracking = 8f;
 
@@ -51,16 +45,14 @@ namespace SevenUI
         private readonly List<InputBindingDisplayController> keys = new List<InputBindingDisplayController>();
         private SkillRow row;
         private SlotFitter equipmentFit;
-        private EquipmentIcon equipmentSlot;
         private SlotFitter keyItemFit;
         private RectTransform extraButtons;
         private Vector2 extraButtonsPosition;
         private bool buttonsMoved;
         private KeyItemIcon keyItemSlot;
         private GameObject keyItemOutline;
-        // The font the stock was placed in, which its drawn digits' place depends on.
-        private TMP_FontAsset stockFont;
-        private float stockFontSize;
+        // The skills' and the equipment's charge counts, kept in their slots' corners.
+        private readonly List<CornerStock> stocks = new List<CornerStock>();
 
         public SkillSlotsStyler(HUD hud, Transform root)
         {
@@ -113,12 +105,11 @@ namespace SevenUI
             recorder.Restore();
             row = null;
             equipmentFit = null;
-            equipmentSlot = null;
             keyItemFit = null;
             extraButtons = null;
             keyItemSlot = null;
             keyItemOutline = null;
-            stockFont = null;
+            stocks.Clear();
         }
 
         // The equipment slot as drawn, the right end of the skill row, once fitted.
@@ -127,10 +118,11 @@ namespace SevenUI
         // Every frame while applied, so the two slots follow the skills.
         public void Update()
         {
-            bool refit = equipmentFit != null && equipmentFit.Update();
-            if (refit || StockFontChanged())
+            equipmentFit?.Update();
+            stocks.RemoveAll(stock => !stock.Alive);
+            foreach (CornerStock stock in stocks)
             {
-                PlaceEquipmentStock();
+                stock.Update();
             }
             // Before the key item's display is placed again, against the skills, after its slot moves.
             FollowKeyItem();
@@ -156,6 +148,7 @@ namespace SevenUI
                 AddRechargeBar(skill);
             }
             StyleNumbers(skill.cooldownText, skill.stockText);
+            KeepInCorner(skill.stockText, (RectTransform)skill.transform);
             StyleKeys(skill.transform);
         }
 
@@ -178,7 +171,7 @@ namespace SevenUI
                 (equipmentFit == null || !equipmentFit.Alive))
             {
                 equipmentFit = Fit(slot.displayRoot, false);
-                equipmentSlot = slot;
+                KeepInCorner(slot.stockText, equipmentFit.Display);
             }
             if (!slot.displayAlternateEquipment)
             {
@@ -216,41 +209,10 @@ namespace SevenUI
             keys.Clear();
         }
 
-        private bool StockFontChanged()
+        private void KeepInCorner(TMP_Text stock, RectTransform slot)
         {
-            if (equipmentFit == null) return false;
-            TMP_Text stock = equipmentSlot ? equipmentSlot.stockText : null;
-            return stock && (stock.font != stockFont || !Mathf.Approximately(stock.fontSize, stockFontSize));
-        }
-
-        // The game hangs the stock off the display root through a plain transform, at a fixed offset from the root's
-        // pivot that the fit moves to its corner, which leaves the stock at the slot's top left. It goes inside the
-        // bottom-right corner instead, as the design canvas draws a slot's stock: its last digit's advance and its
-        // baseline on the canvas's spots. TMP lines text up by the font's own line metrics, which leave the digits
-        // short of the box's corner, so the drawn digit is measured and moved onto the spot.
-        private void PlaceEquipmentStock()
-        {
-            TMP_Text stock = equipmentSlot ? equipmentSlot.stockText : null;
-            RectTransform display = equipmentFit.Display;
-            float perUnit = row.PixelsPer(display);
-            if (!stock || !(stock.transform.parent is RectTransform holder) || perUnit <= 0f) return;
-            RectTransform rect = stock.rectTransform;
-            recorder.RecordRect(rect);
-            stock.alignment = TextAlignmentOptions.BottomRight;
-            rect.pivot = new Vector2(1f, 0f);
-            stockFont = stock.font;
-            stockFontSize = stock.fontSize;
-            Rect slot = display.rect;
-            Vector3 spot = holder.InverseTransformPoint(display.TransformPoint(new Vector3(
-                slot.xMax - StockRightInset / perUnit, slot.yMin + StockBaseline / perUnit, 0f)));
-            rect.localPosition = new Vector3(spot.x, spot.y, rect.localPosition.z);
-            // Right-aligned, the last digit ends at the same place whatever the count, so one measure holds.
-            stock.ForceMeshUpdate(true);
-            TMP_TextInfo info = stock.textInfo;
-            if (info == null || info.characterCount == 0) return;
-            TMP_CharacterInfo last = info.characterInfo[info.characterCount - 1];
-            Vector3 end = holder.InverseTransformPoint(stock.transform.TransformPoint(new Vector3(last.xAdvance, last.baseLine, 0f)));
-            rect.localPosition += new Vector3(spot.x - end.x, spot.y - end.y, 0f);
+            if (!stock || !slot || stocks.Exists(kept => kept.Stock == stock)) return;
+            stocks.Add(new CornerStock(stock, slot, row, recorder));
         }
 
         // Thin, in the game's key item color (the blue the N'tormat's icon is outlined in), as the equipment's is in

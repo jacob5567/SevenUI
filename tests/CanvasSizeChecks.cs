@@ -14,7 +14,7 @@ namespace SevenUI.Tests
     // Checks that parts of the HUD draw at the design canvas's sizes on screen, in its pixels on a 1080-pixel-high
     // screen: the run info's height and the gap under it, the level's block beside the bars, the health and experience
     // bars' heights, the skill slots and the gaps between them, the dividers before the equipment and after the key
-    // item, the equipment's stock in its slot's corner, the slot above the skills keeping its place over them, and the
+    // item, the skills' and the equipment's stocks in their slots' corners, the slot above the skills keeping its place over them, and the
     // buffs' counts in their squares' top-right corners. Also the run timer's and the objective rows' texts.
     internal static class CanvasSizeChecks
     {
@@ -39,11 +39,10 @@ namespace SevenUI.Tests
         // Its icon 44px in the middle of a 56px slot.
         private const float NotificationSlotSize = 56f;
         private const float NotificationIconSize = 44f;
-        // The equipment's stock 4px from its slot's right and 3px from its bottom, with the digits on a baseline a
-        // descender above that: up to about a third of the 18px text.
+        // A slot's stock 4px from its right, and 3px from its bottom in an 18px line box, which puts Barlow's baseline
+        // a tenth of the size above the box's bottom.
         private const float StockRightInset = 4f;
-        private const float StockBottomInset = 3f;
-        private const float StockBaselineMax = StockBottomInset + 18f / 3f;
+        private const float StockBaseline = 3f + 18f * 0.1f;
         // In shares of a slot; the game's look is drawn turned, so its shares come out a little off.
         private const float UtilityAreaTolerance = 0.06f;
         // The timer's tags hold dots of their own, "<mspace=0.46em>".
@@ -241,28 +240,48 @@ namespace SevenUI.Tests
         // The equipment's stock inside its slot's bottom-right corner, as the canvas draws a slot's stock: the last
         // digit's advance at the right inset, which right alignment puts it on, and the digits' baseline just above the
         // bottom inset.
-        public static IEnumerator ExpectEquipmentStockAsCanvas(this Harness h)
+        // The equipment's stock and every skill's that shows, with at least one skill's showing.
+        public static IEnumerator ExpectStocksAsCanvas(this Harness h)
         {
-            string look = null;
+            List<string> looks = new List<string>();
             yield return h.Until(
                 () =>
                 {
+                    looks.Clear();
                     HUD hud = SevenUIChecks.HudRoot(h).GetComponent<HUD>();
                     EquipmentIcon equipment = hud && hud.equipmentIcons != null
                         ? hud.equipmentIcons.FirstOrDefault(icon => icon && !icon.displayAlternateEquipment && icon.displayRoot)
                         : null;
-                    TMP_Text stock = equipment ? equipment.stockText : null;
-                    if (!stock || !stock.gameObject.activeInHierarchy || stock.textInfo.characterCount == 0) return false;
-                    Rect slot = Box(h, (RectTransform)equipment.displayRoot.transform);
-                    TMP_CharacterInfo last = stock.textInfo.characterInfo[stock.textInfo.characterCount - 1];
-                    Vector2 end = OnCanvas(h, stock.transform.TransformPoint(new Vector3(last.xAdvance, last.baseLine, 0f)));
-                    float right = slot.xMax - end.x;
-                    float baseline = end.y - slot.yMin;
-                    look = $"stock '{stock.text}', slot {BoxText(slot)}, {right:0.#}px from the right, baseline {baseline:0.#}px up";
-                    return Near(right, StockRightInset) && baseline >= StockBottomInset && baseline <= StockBaselineMax;
+                    if (!equipment || hud.skillIcons == null) return false;
+                    bool placed = StockInCorner(h, "equipment", equipment.stockText, (RectTransform)equipment.displayRoot.transform, looks);
+                    int skills = 0;
+                    foreach (SkillIcon skill in hud.skillIcons)
+                    {
+                        if (!skill || !skill.stockText || !skill.stockText.gameObject.activeInHierarchy) continue;
+                        skills++;
+                        placed &= StockInCorner(h, skill.name, skill.stockText, (RectTransform)skill.transform, looks);
+                    }
+                    if (skills == 0) looks.Add("no skill's stock showing");
+                    return placed && skills > 0;
                 },
-                () => $"the equipment's stock {StockRightInset}px from its slot's right, just over {StockBottomInset}px " +
-                      $"from its bottom ({look}) {h.Diagnosis()}");
+                () => $"the stocks {StockRightInset}px from their slots' right, baselines {StockBaseline:0.#}px up " +
+                      $"({string.Join("; ", looks)}) {h.Diagnosis()}");
+        }
+
+        private static bool StockInCorner(Harness h, string name, TMP_Text stock, RectTransform slotRect, List<string> looks)
+        {
+            if (!stock || !stock.gameObject.activeInHierarchy || stock.textInfo.characterCount == 0)
+            {
+                looks.Add($"{name}'s stock not showing");
+                return false;
+            }
+            Rect slot = Box(h, slotRect);
+            TMP_CharacterInfo last = stock.textInfo.characterInfo[stock.textInfo.characterCount - 1];
+            Vector2 end = OnCanvas(h, stock.transform.TransformPoint(new Vector3(last.xAdvance, last.baseLine, 0f)));
+            float right = slot.xMax - end.x;
+            float baseline = end.y - slot.yMin;
+            looks.Add($"{name} '{stock.text}', slot {BoxText(slot)}, {right:0.#}px from the right, baseline {baseline:0.#}px up");
+            return Near(right, StockRightInset) && Near(baseline, StockBaseline);
         }
 
         private static Vector2 OnCanvas(Harness h, Vector3 world)

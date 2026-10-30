@@ -37,7 +37,7 @@ namespace SevenUI.Tests
             yield return new Scenario(1, Suite, "buffs_wrap_in_rows", Stages.TitanicPlains, BuffsWrapInRows);
             yield return new Scenario(1, Suite, "skill_slots_are_flat", Stages.TitanicPlains, SkillSlotsAreFlat);
             yield return new Scenario(1, Suite, "notification_icons_in_slot", Stages.TitanicPlains, NotificationIconsInSlot);
-            yield return new Scenario(1, Suite, "equipment_stock_in_slot", Stages.TitanicPlains, EquipmentStockInSlot);
+            yield return new Scenario(1, Suite, "stocks_in_slot_corners", Stages.TitanicPlains, StocksInSlotCorners);
             yield return new Scenario(1, Suite, "ntormat_pages_follow_key_item", Stages.TitanicPlains, NtormatPagesFollowKeyItem);
             yield return new Scenario(1, Suite, "top_is_flat", Stages.TitanicPlains, TopIsFlat);
             yield return new Scenario(1, Suite, "item_icons_are_flat", Stages.TitanicPlains, ItemIconsAreFlat);
@@ -176,9 +176,9 @@ namespace SevenUI.Tests
             yield return h.ExpectNotificationAsCanvas(DroneCatalog.GetDroneDef(drone).nameToken);
         }
 
-        // Foreign Fruit with a Fuel Cell, so the slot shows its stock, taken away at cleanup. Server methods; the runner
-        // is the host.
-        private static IEnumerator EquipmentStockInSlot(Harness h)
+        // Foreign Fruit with a Fuel Cell, so the slot shows its stock, and a Backup Magazine, so the secondary skill
+        // shows its own, taken away at cleanup. Server methods; the runner is the host.
+        private static IEnumerator StocksInSlotCorners(Harness h)
         {
             Inventory inventory = Harness.LocalBody.inventory;
             EquipmentLocation slot = inventory.activeEquipmentLocation;
@@ -187,11 +187,13 @@ namespace SevenUI.Tests
             {
                 if (!inventory) return;
                 inventory.RemoveItemPermanent(RoR2Content.Items.EquipmentMagazine);
+                inventory.RemoveItemPermanent(RoR2Content.Items.SecondarySkillMagazine);
                 inventory.SetEquipmentIndex(before, in slot);
             });
             inventory.SetEquipmentIndex(RoR2Content.Equipment.Fruit.equipmentIndex, in slot);
             inventory.GiveItemPermanent(RoR2Content.Items.EquipmentMagazine);
-            yield return h.ExpectEquipmentStockAsCanvas();
+            inventory.GiveItemPermanent(RoR2Content.Items.SecondarySkillMagazine);
+            yield return h.ExpectStocksAsCanvas();
         }
 
         private static IEnumerator NtormatPagesFollowKeyItem(Harness h)
