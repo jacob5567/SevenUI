@@ -696,21 +696,34 @@ namespace SevenUI.Tests
                 () => $"the interaction prompt's strips hidden for a flat panel ({PromptLook(prompt)}) {h.Diagnosis()}");
         }
 
-        // With a prompt showing, the panel covers its text and is far narrower than the game's strips.
-        public static IEnumerator ExpectPromptPanelFitsText(this Harness h)
+        // With a chest's prompt showing: the game's text hidden, and the panel, far narrower than the game's strips,
+        // holding the action and its cost without brackets, its right edge at the run info's.
+        public static IEnumerator ExpectPromptAsCanvas(this Harness h)
         {
             ContextManager prompt = null;
+            string look = null;
             yield return h.Until(
                 () =>
                 {
                     prompt = Prompt(h);
                     RectTransform panel = PromptPanel(prompt);
                     if (!panel || !panel.gameObject.activeSelf || !prompt.descriptionTMP) return false;
-                    if (string.IsNullOrEmpty(prompt.descriptionTMP.text)) return false;
+                    TMP_Text action = panel.Find("Action")?.GetComponent<TMP_Text>();
+                    TMP_Text cost = panel.Find("Cost")?.GetComponent<TMP_Text>();
+                    RectTransform runInfo = HudRoot(h).GetComponentsInChildren<RectTransform>(true)
+                        .FirstOrDefault(rect => rect.name == Texts.RunInfoBackgroundName);
+                    if (!action || !cost || !runInfo) return false;
                     float promptWidth = ((RectTransform)prompt.transform).rect.width;
-                    return panel.rect.width < promptWidth * 0.8f && Covers(panel, prompt.descriptionTMP);
+                    Vector3[] corners = new Vector3[4];
+                    panel.GetWorldCorners(corners);
+                    float panelRight = runInfo.InverseTransformPoint(corners[2]).x;
+                    look = $"action '{action.text}', cost '{cost.text}', game alpha {prompt.descriptionTMP.alpha}, " +
+                           $"right edge {panelRight - runInfo.rect.xMax:0.##} from the run info's";
+                    return prompt.descriptionTMP.alpha == 0f && action.text.Length > 0 && cost.text.Length > 0 &&
+                           !cost.text.Contains("(") && !action.text.Contains("(") && panel.rect.width < promptWidth * 0.8f &&
+                           Covers(panel, action) && Covers(panel, cost) && Mathf.Abs(panelRight - runInfo.rect.xMax) < 1f;
                 },
-                () => $"the prompt's panel fitted to its text ({PromptLook(prompt)}) {h.Diagnosis()}");
+                () => $"the prompt laid out as on the canvas ({look}; {PromptLook(prompt)}) {h.Diagnosis()}");
         }
 
         // Whether the panel's rectangle holds the text's drawn characters.

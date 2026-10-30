@@ -8,10 +8,12 @@ using UnityEngine.UI;
 namespace SevenUI
 {
     // Restyles the interaction prompt ("Open Chest") and the pickup notifications: flat translucent panels in place of
-    // the soft gradients, the prompt's fitted to its text (PromptPanel), with the notification's description in grey.
+    // the soft gradients, the prompt's laid out as on the design canvas (PromptPanel), with the notification's
+    // description in grey.
     // Found by their components, wherever they sit in the HUD: LookingGlass moves the prompt.
     internal sealed class PromptsStyler
     {
+        private const string UpperRightClusterPath = "MainContainer/MainUIArea/SpringCanvas/UpperRightCluster";
         // Under a notification's canvas group.
         private const string NotificationBackdropName = "Backdrop";
         private const string NotificationTextAreaName = "TextArea";
@@ -37,7 +39,7 @@ namespace SevenUI
                 HideStrip(prompt.inspectDisplay);
                 if (!panels.Exists(panel => panel.Prompt == prompt))
                 {
-                    panels.Add(new PromptPanel(prompt, recorder));
+                    panels.Add(new PromptPanel(prompt, RunInfoPanel(), recorder));
                 }
             }
             prompts.Clear();
@@ -62,6 +64,18 @@ namespace SevenUI
             {
                 panel.Update();
             }
+        }
+
+        // The run info's panel, whose right edge the prompt's panel lines up with.
+        private RectTransform RunInfoPanel()
+        {
+            Transform cluster = root.Find(UpperRightClusterPath);
+            if (!cluster) return null;
+            foreach (RectTransform rect in cluster.GetComponentsInChildren<RectTransform>(true))
+            {
+                if (rect.name == RunInfoStyler.BackgroundName) return rect;
+            }
+            return null;
         }
 
         // Each prompt row's soft strip gives way to the one fitted panel. The game shows and hides the rows by their
