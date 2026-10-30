@@ -11,8 +11,9 @@ namespace SevenUI.Tests
 {
     // Checks that parts of the HUD draw at the design canvas's sizes on screen, in its pixels on a 1080-pixel-high
     // screen: the run info's height and the gap under it, the level's block beside the bars, the health and experience
-    // bars' heights, the skill slots and the gaps between them, the divider before the equipment, and the buffs'
-    // counts in their squares' top-right corners. Also the run timer's and the objective rows' texts.
+    // bars' heights, the skill slots and the gaps between them, the dividers before the equipment and after the key
+    // item, and the buffs' counts in their squares' top-right corners. Also the run timer's and the objective rows'
+    // texts.
     internal static class CanvasSizeChecks
     {
         private const float CanvasHeight = 1080f;
@@ -24,8 +25,8 @@ namespace SevenUI.Tests
         private const float BarsInset = 64f;
         private const float SkillSize = 68f;
         private const float SkillGap = 8f;
-        // The equipment sits past the divider: 8 + 4 + 2 + 4 + 8.
-        private const float EquipmentGap = 26f;
+        // The equipment and key item sit past their dividers: 8 + 4 + 2 + 4 + 8.
+        private const float DividedGap = 26f;
         // 8 + 34 + 8 + 14.4 + 10, and the column 8 under it.
         private const float RunInfoHeight = 74.4f;
         private const float ColumnGap = 8f;
@@ -93,10 +94,31 @@ namespace SevenUI.Tests
                     bool sized = boxes.All(box => Near(box.width, SkillSize) && Near(box.height, SkillSize));
                     bool spaced = boxes.Zip(boxes.Skip(1), (a, b) => Near(b.xMin - a.xMax, SkillGap)).All(ok => ok);
                     return sized && spaced && equipment && Near(equipmentBox.width, SkillSize) &&
-                           Near(equipmentBox.xMin - boxes.Last().xMax, EquipmentGap) && divider && divider.gameObject.activeInHierarchy;
+                           Near(equipmentBox.xMin - boxes.Last().xMax, DividedGap) && divider && divider.gameObject.activeInHierarchy;
                 },
-                () => $"{SkillSize}px skill slots {SkillGap}px apart, the equipment {EquipmentGap}px past the last with a " +
+                () => $"{SkillSize}px skill slots {SkillGap}px apart, the equipment {DividedGap}px past the last with a " +
                       $"divider between ({look}) {h.Diagnosis()}");
+        }
+
+        // The key item a divided gap left of the first skill, at its height, with the divider between them.
+        public static IEnumerator ExpectKeyItemDividedAsCanvas(this Harness h)
+        {
+            string look = null;
+            yield return h.Until(
+                () =>
+                {
+                    HUD hud = SevenUIChecks.HudRoot(h).GetComponent<HUD>();
+                    if (!hud || hud.skillIcons == null || hud.skillIcons.Length == 0 || !hud.skillIcons[0] || !hud.keyItemIcon ||
+                        !hud.keyItemIcon.displayRoot) return false;
+                    Rect skillBox = Box(h, (RectTransform)hud.skillIcons[0].transform);
+                    Transform display = hud.keyItemIcon.displayRoot.transform;
+                    Rect keyItemBox = Box(h, (RectTransform)display);
+                    Transform divider = display.Find(SkillRow.DividerName);
+                    look = $"key item {BoxText(keyItemBox)}, first skill {BoxText(skillBox)}, divider {(bool)divider}";
+                    return Near(keyItemBox.width, SkillSize) && Near(skillBox.xMin - keyItemBox.xMax, DividedGap) &&
+                           Near(keyItemBox.yMin, skillBox.yMin) && divider && divider.gameObject.activeInHierarchy;
+                },
+                () => $"the key item {DividedGap}px left of the first skill with a divider between ({look}) {h.Diagnosis()}");
         }
 
         // Each stacking buff with more than one stack shows its count in its square's top-right quarter, and the game's

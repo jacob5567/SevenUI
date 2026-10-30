@@ -154,6 +154,7 @@ namespace SevenUI.Tests
         private static IEnumerator NtormatPagesFollowKeyItem(Harness h)
         {
             yield return h.GiveNtormat();
+            yield return h.ExpectKeyItemDividedAsCanvas();
             yield return h.ExpectNtormatPagesFollowSlot();
         }
 

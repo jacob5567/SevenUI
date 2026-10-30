@@ -9,7 +9,7 @@ using UnityEngine.UI;
 namespace SevenUI
 {
     // Restyles the skill, equipment and key item slots in the bottom right: flat dark slots at the design canvas's size
-    // and spacing (SkillRow), the equipment and key item at the skills' size, the equipment past a thin divider, a
+    // and spacing (SkillRow), the equipment and key item at the skills' size, each past a thin divider, a
     // top-down cooldown cover in place of the radial overlay, a thin recharge bar along the bottom of a skill with
     // charges (RechargeBar), cooldowns and stocks in Barlow Condensed, and the key labels (the slots' and the inventory
     // and sprint buttons') as small grey capitals without their dark plates. The game keeps running the slots.
@@ -188,8 +188,13 @@ namespace SevenUI
             if (!slot.displayRoot || keyItemFit != null && keyItemFit.Alive) return;
             keyItemFit = Fit(slot.displayRoot, true, slot.extraDisplayHolder as RectTransform);
             if (keyItemFit == null) return;
-            // The slot's layout room shrinks by as much as its display does, so the inventory and sprint buttons
-            // keep their distance from it.
+            // On the display, which the game hides while there is no key item.
+            if (!keyItemFit.Display.Find(SkillRow.DividerName))
+            {
+                row.AddDivider(keyItemFit.Display, recorder);
+            }
+            // The slot's layout room shrinks by as much as its display does and grows by the divided gap, so the
+            // inventory and sprint buttons keep their distance from it.
             LayoutElement element = slot.GetComponent<LayoutElement>();
             RectTransform slotRect = (RectTransform)slot.transform;
             RectTransform group = slotRect.parent as RectTransform;
@@ -198,7 +203,8 @@ namespace SevenUI
             float drawnWidth = slotRect.rect.width * slotRect.lossyScale.x / group.lossyScale.x;
             float skillWidth = skill.rect.width * skill.lossyScale.x / group.lossyScale.x;
             float preferred = element.preferredWidth;
-            element.preferredWidth = Mathf.Max(preferred - (drawnWidth - skillWidth), 0f);
+            float dividedGap = SkillRow.DividedExtraGapShare * skillWidth;
+            element.preferredWidth = Mathf.Max(preferred - (drawnWidth - skillWidth) + dividedGap, 0f);
             recorder.OnRestore(() =>
             {
                 if (element)
@@ -208,16 +214,15 @@ namespace SevenUI
             });
         }
 
-        // Beside the first skill (M1), or past the divider after the last (R).
+        // Past a divider before the first skill (M1) or after the last (R).
         private SlotFitter Fit(GameObject displayRoot, bool leftOfRow, RectTransform follower = null)
         {
             SkillIcon[] row = hud.skillIcons;
             if (row == null || row.Length < 2 || !row[0] || !row[1] || !row[row.Length - 1] || !row[row.Length - 2]) return null;
             Transform end = leftOfRow ? row[0].transform : row[row.Length - 1].transform;
             Transform inner = leftOfRow ? row[1].transform : row[row.Length - 2].transform;
-            float extraGap = leftOfRow ? 0f : SkillRow.EquipmentExtraGapShare;
-            return new SlotFitter((RectTransform)displayRoot.transform, (RectTransform)end, (RectTransform)inner, leftOfRow, extraGap,
-                recorder, follower);
+            return new SlotFitter((RectTransform)displayRoot.transform, (RectTransform)end, (RectTransform)inner, leftOfRow,
+                SkillRow.DividedExtraGapShare, recorder, follower);
         }
 
         private void FlattenBackground(GameObject displayRoot)
