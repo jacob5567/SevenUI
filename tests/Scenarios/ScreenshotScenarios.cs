@@ -218,6 +218,7 @@ namespace SevenUI.Tests
             yield return h.Wait(PickupWaitSeconds);
             h.Teleport(pickup.transform.position);
             yield return h.Until(() => inventory.GetItemCountPermanent(index) > before, $"the player picking up {item}", PickupTimeout);
+            yield return h.ExpectNotificationAsCanvas();
             yield return h.Wait(SettleSeconds);
             yield return h.CaptureLooks();
         }

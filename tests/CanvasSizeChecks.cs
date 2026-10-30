@@ -30,6 +30,9 @@ namespace SevenUI.Tests
         private const float RunInfoHeight = 74.4f;
         private const float ColumnGap = 8f;
         private const string UpperRightPath = "MainContainer/MainUIArea/SpringCanvas/UpperRightCluster";
+        // A 500px notification, its middle 758px down.
+        private const float NotificationWidth = 500f;
+        private const float NotificationMiddleDown = 758f;
 
         // Canvas pixels per screen pixel, and a rect's box on screen in canvas pixels.
         private static (Camera camera, float unit) Screen(Harness h)
@@ -189,6 +192,30 @@ namespace SevenUI.Tests
                            row.Label.text.Length > 0 && row.GameLabel.alpha == 0f;
                 },
                 () => $"the teleporter's charge as a row with its percentage at the right ({look}) {h.Diagnosis()}");
+        }
+        public static IEnumerator ExpectNotificationAsCanvas(this Harness h)
+        {
+            string look = null;
+            yield return h.Until(
+                () =>
+                {
+                    GenericNotification notification = SevenUIChecks.HudRoot(h).GetComponentInChildren<GenericNotification>();
+                    if (!notification || !notification.canvasGroup || !notification.titleTMP) return false;
+                    Transform backdrop = notification.canvasGroup.transform.Find("Backdrop");
+                    if (!backdrop) return false;
+                    Rect box = Box(h, (RectTransform)backdrop);
+                    (Camera camera, float unit) = Screen(h);
+                    Rect screen = CanvasLayoutChecks.ScreenOf(camera);
+                    float middleDown = screen.height / unit - box.center.y;
+                    float offCenter = box.center.x - screen.center.x / unit;
+                    look = $"panel {BoxText(box)}, middle {middleDown:0.#} down, {offCenter:0.#} off center, " +
+                           $"strip {(bool)backdrop.Find(PromptsStyler.NotificationStripName)}, title color {notification.titleTMP.color}";
+                    return Near(box.width, NotificationWidth) && Near(middleDown, NotificationMiddleDown) &&
+                           Mathf.Abs(offCenter) < SizeTolerance && backdrop.Find(PromptsStyler.NotificationStripName) &&
+                           SevenUIChecks.Near(notification.titleTMP.color, Palette.Text);
+                },
+                () => $"the pickup notification {NotificationWidth}px wide, {NotificationMiddleDown}px down, with a strip " +
+                      $"and a white title ({look}) {h.Diagnosis()}");
         }
     }
 }
