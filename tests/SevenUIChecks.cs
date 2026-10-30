@@ -155,12 +155,26 @@ namespace SevenUI.Tests
         }
 
         // A flat panel with no header strip and a title in its normal case and spacing.
-        public static IEnumerator ExpectPlainPanel(this Harness h, Transform panel, string what)
+        // LookingGlass's stats under a header strip, read into two columns, with LookingGlass's own text hidden and the
+        // panel as tall as the columns.
+        public static IEnumerator ExpectStatsInColumns(this Harness h, Transform panel)
         {
+            string look = null;
             yield return h.Until(
-                () => panel && IsFlat(panel.GetComponent<Image>()) && !panel.Find(Texts.HeaderStripName) &&
-                      Title(panel) && !IsHeader(Title(panel)) && Title(panel).characterSpacing == 0f,
-                () => $"{what} flat, without the header style ({Look(panel)}) {h.Diagnosis()}");
+                () =>
+                {
+                    StatsGrid grid = panel ? panel.GetComponentInChildren<StatsGrid>() : null;
+                    TMP_Text source = Title(panel);
+                    if (!grid || !source) return false;
+                    RectTransform title = source.rectTransform;
+                    look = $"entries {grid.ShownEntries}, title '{grid.Title.text}', names '{grid.Names[0].text.Length}/" +
+                           $"{grid.Names[1].text.Length}' chars, source alpha {source.alpha}, height {title.rect.height:0.#} " +
+                           $"(columns {grid.Height.preferredHeight:0.#})";
+                    return IsFlat(panel.GetComponent<Image>()) && panel.Find(Texts.HeaderStripName) && grid.ShownEntries >= 2 &&
+                           grid.Title.text.Length > 0 && grid.Names[0].text.Length > 0 && grid.Names[1].text.Length > 0 &&
+                           source.alpha == 0f && Mathf.Abs(title.rect.height - grid.Height.preferredHeight) < 1f;
+                },
+                () => $"LookingGlass's stats in two columns under a header strip ({look}) {h.Diagnosis()}");
         }
 
         private static DifficultyBarController DifficultyBar(Harness h) =>

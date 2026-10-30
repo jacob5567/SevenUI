@@ -8,7 +8,8 @@ namespace SevenUI
 {
     // Restyles the panels under the run info in the top right (the artifact panel, the objective panel, and panels
     // other mods add there, such as LookingGlass's stats) as flat translucent panels, with a header strip on the
-    // objective panel and its rows laid out as on the design canvas (ObjectiveRow).
+    // objective panel and its rows laid out as on the design canvas (ObjectiveRow), and LookingGlass's stats in two
+    // columns under a header strip of their own (StatsGrid).
     internal sealed class RightInfoBarStyler
     {
         // Vanilla object names. LookingGlass looks up ObjectivePanel and its Label by these, so they are never renamed.
@@ -18,6 +19,11 @@ namespace SevenUI
         private const string TitleName = "Label";
         private const string StripContainerName = "StripContainer";
         private const string HeaderStripName = "SevenUIHeaderStrip";
+        private const string StatsTitleName = "SevenUIStatsTitle";
+        public const string StatsGridName = "SevenUIStatsGrid";
+        private const string StatsSource = "LookingGlass";
+        // Above a LayoutElement's default of 1.
+        private const int StatsLayoutPriority = 2;
 
         // The design canvas's sizes, in its pixels, scaled to the run info's units. The rows' own height holds most
         // of the 10px above and below them.
@@ -27,6 +33,13 @@ namespace SevenUI
         private const float HeaderHeight = 26f * Canvas;
         private const float HeaderInset = 14f * Canvas;
         private const float HeaderFontSize = 12f * Canvas;
+        // The stats' 14px rows 4px apart, 8px under the strip and 10px above the panel's bottom, in columns 16px apart.
+        private const float StatsFontSize = 14f * Canvas;
+        private const float StatsRowGap = 4f * Canvas;
+        private const float StatsRowPitch = 14f * 1.2f * Canvas + StatsRowGap;
+        private const float StatsTop = 8f * Canvas;
+        private const float StatsBottom = 10f * Canvas;
+        private const float StatsColumnGap = 16f * Canvas;
 
         private readonly Transform root;
         private readonly StyleRecorder recorder = new StyleRecorder();
@@ -87,8 +100,7 @@ namespace SevenUI
                 }
                 else if (panel.Find(HeaderStripName) && objectivePanel)
                 {
-                    // A copy of the objective panel made after it was restyled: LookingGlass's stats panel. It shows
-                    // its own text in the copied title, so it gets a plain panel and the title's body look back.
+                    // A copy of the objective panel made after it was restyled: LookingGlass's stats panel.
                     StyleCopiedPanel(panel, objectivePanel);
                 }
                 else
@@ -173,10 +185,18 @@ namespace SevenUI
             }
         }
 
+        // LookingGlass's stats panel, a copy of the objective panel made after it was restyled, so it already has the
+        // flat panel, the header strip and the title's header look, and writes its stats into the copied title. The
+        // strip gets the panel's title and "LOOKINGGLASS", and the stats are laid out in two columns under it
+        // (StatsGrid), in place of the hidden title.
         private void StyleCopiedPanel(Transform panel, Transform objectivePanel)
         {
-            // Immediately, so the copy isn't taken for one again before the end of the frame.
-            Object.DestroyImmediate(panel.Find(HeaderStripName).gameObject);
+            Transform strip = panel.Find(HeaderStripName);
+            Transform title = panel.Find(TitleName);
+            TMP_Text label = title ? title.GetComponent<TMP_Text>() : null;
+            if (!label || strip.Find(StatsTitleName)) return;
+            // The copied strip is the mod's, and goes when the look is restored.
+            recorder.Add(strip.gameObject);
 
             Image image = panel.GetComponent<Image>();
             if (image)
@@ -184,32 +204,133 @@ namespace SevenUI
                 recorder.RecordAs(image, objectivePanel.GetComponent<Image>());
                 Flatten(image);
             }
-
             VerticalLayoutGroup layout = panel.GetComponent<VerticalLayoutGroup>();
             VerticalLayoutGroup originalLayout = objectivePanel.GetComponent<VerticalLayoutGroup>();
             if (layout && originalLayout && recorder.TryGet(originalLayout, out StyleRecorder.LayoutLook layoutLook))
             {
-                StyleRecorder.Apply(layout, layoutLook);
+                recorder.OnRestore(() =>
+                {
+                    if (layout)
+                    {
+                        StyleRecorder.Apply(layout, layoutLook);
+                    }
+                });
             }
 
-            // LookingGlass sets its text's size, color and alignment itself; the header's case, weight, tracking
-            // and inset are put back.
-            Transform title = panel.Find(TitleName);
+            // LookingGlass sets its text's size, color and alignment itself; once the look is restored, the header's
+            // case, weight, tracking and inset go, and the text shows again.
             Transform originalTitle = objectivePanel.Find(TitleName);
-            TMP_Text label = title ? title.GetComponent<TMP_Text>() : null;
             TMP_Text originalLabel = originalTitle ? originalTitle.GetComponent<TMP_Text>() : null;
-            if (label && originalLabel && recorder.TryGet(originalLabel, out StyleRecorder.LabelLook labelLook))
+            if (originalLabel && recorder.TryGet(originalLabel, out StyleRecorder.LabelLook labelLook))
             {
-                label.fontStyle = labelLook.FontStyle;
-                label.characterSpacing = labelLook.CharacterSpacing;
-                label.margin = labelLook.Margin;
+                recorder.OnRestore(() =>
+                {
+                    if (!label) return;
+                    label.fontStyle = labelLook.FontStyle;
+                    label.characterSpacing = labelLook.CharacterSpacing;
+                    label.margin = labelLook.Margin;
+                    label.alpha = 1f;
+                });
             }
-            LayoutElement element = title ? title.GetComponent<LayoutElement>() : null;
+            label.alpha = 0f;
+            LayoutElement element = title.GetComponent<LayoutElement>();
             LayoutElement originalElement = originalTitle ? originalTitle.GetComponent<LayoutElement>() : null;
             if (element && originalElement && recorder.TryGet(originalElement, out Vector2 heights))
             {
-                element.minHeight = heights.x;
+                recorder.OnRestore(() =>
+                {
+                    if (element)
+                    {
+                        element.minHeight = heights.x;
+                    }
+                });
             }
+            AddStatsGrid(title, label, (RectTransform)strip);
+        }
+
+        private void AddStatsGrid(Transform title, TMP_Text source, RectTransform strip)
+        {
+            TMP_Text name = AddText(StatsTitleName, strip, TextAlignmentOptions.MidlineLeft);
+            HeaderStyle.Apply(name);
+            name.fontSize = HeaderFontSize;
+            name.margin = new Vector4(HeaderInset, 0f, HeaderInset, 0f);
+            TMP_Text by = AddText("SevenUIStatsSource", strip, TextAlignmentOptions.MidlineRight);
+            HeaderStyle.Apply(by);
+            by.fontSize = HeaderFontSize;
+            by.margin = name.margin;
+            by.color = Palette.HeaderSubtle;
+            by.text = StatsSource;
+
+            GameObject holder = NewUIObject(StatsGridName, title);
+            RectTransform holderRect = (RectTransform)holder.transform;
+            holderRect.anchorMin = Vector2.zero;
+            holderRect.anchorMax = Vector2.one;
+            holderRect.offsetMin = new Vector2(HeaderInset, StatsBottom);
+            holderRect.offsetMax = new Vector2(-HeaderInset, -(HeaderHeight + StatsTop));
+            StatsGrid grid = holder.AddComponent<StatsGrid>();
+            grid.Source = source;
+            grid.Title = name;
+            grid.Names = new TMP_Text[2];
+            grid.Values = new TMP_Text[2];
+            for (int column = 0; column < 2; column++)
+            {
+                Vector2 min = new Vector2(column * 0.5f, 0f);
+                Vector2 max = new Vector2(column * 0.5f + 0.5f, 1f);
+                Vector2 inset = new Vector2(column == 0 ? 0f : StatsColumnGap / 2f, 0f);
+                Vector2 outset = new Vector2(column == 0 ? -StatsColumnGap / 2f : 0f, 0f);
+                grid.Names[column] = AddText("Names", holder.transform, TextAlignmentOptions.TopLeft);
+                grid.Values[column] = AddText("Values", holder.transform, TextAlignmentOptions.TopRight);
+                foreach (TMP_Text text in new[] { grid.Names[column], grid.Values[column] })
+                {
+                    RectTransform rect = text.rectTransform;
+                    rect.anchorMin = min;
+                    rect.anchorMax = max;
+                    rect.offsetMin = inset;
+                    rect.offsetMax = outset;
+                    text.fontSize = StatsFontSize;
+                }
+                grid.Names[column].color = Palette.HeaderText;
+                grid.Values[column].color = Palette.Text;
+                grid.Values[column].fontStyle = FontStyles.Bold;
+            }
+            // Over LookingGlass's own element on the title, which it sizes to its single column.
+            LayoutElement height = title.gameObject.AddComponent<LayoutElement>();
+            height.layoutPriority = StatsLayoutPriority;
+            grid.Height = height;
+            grid.RowPitch = StatsRowPitch;
+            grid.Around = HeaderHeight + StatsTop + StatsBottom - StatsRowGap;
+            recorder.Add(holder);
+            recorder.Add(height);
+        }
+
+        // In the game's language font, so the font swap gives it Barlow like the rest of the HUD.
+        private static TMP_Text AddText(string name, Transform parent, TextAlignmentOptions alignment)
+        {
+            GameObject line = NewUIObject(name, parent);
+            RectTransform rect = (RectTransform)line.transform;
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = rect.offsetMax = Vector2.zero;
+            TextMeshProUGUI text = line.AddComponent<TextMeshProUGUI>();
+            TMP_FontAsset font = HGTextMeshProUGUI.defaultLanguageFont;
+            if (font)
+            {
+                text.font = font;
+                text.fontSharedMaterial = font.material;
+            }
+            text.alignment = alignment;
+            text.enableWordWrapping = false;
+            text.overflowMode = TextOverflowModes.Overflow;
+            text.raycastTarget = false;
+            return text;
+        }
+
+        private static GameObject NewUIObject(string name, Transform parent)
+        {
+            GameObject created = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer));
+            created.layer = parent.gameObject.layer;
+            created.transform.SetParent(parent, false);
+            return created;
         }
 
         private void AddHeaderStrip(Transform panel)

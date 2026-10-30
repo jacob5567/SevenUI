@@ -10,6 +10,8 @@ namespace SevenUI
         public static readonly Color HeaderStrip = new Color(1f, 1f, 1f, 0.06f);
         // #a9aebb, for header strip text and secondary labels.
         public static readonly Color HeaderText = new Color(0.663f, 0.682f, 0.733f, 1f);
+        // #8b90a0, for fainter header text, such as the stats panel's source.
+        public static readonly Color HeaderSubtle = new Color(0.545f, 0.565f, 0.627f, 1f);
         // #e7e9f0, for primary text such as the timer.
         public static readonly Color Text = new Color(0.906f, 0.914f, 0.941f, 1f);
         // #b8c4ff, the accent, for bar fills.

@@ -21,7 +21,7 @@ Not yet restyled: the buff icons themselves, and menus outside the HUD.
 
 ## LookingGlass
 
-[LookingGlass](https://thunderstore.io/package/DropPod/LookingGlass/) works alongside SevenUI. Its stats panel, buff timers and item counters are added to the game's own HUD objects, so they pick up the restyle like the rest of the HUD. The stats panel is a copy of the objective panel, so it gets the same flat panel, but keeps LookingGlass's own text layout rather than a header strip.
+[LookingGlass](https://thunderstore.io/package/DropPod/LookingGlass/) works alongside SevenUI. Its stats panel, buff timers and item counters are added to the game's own HUD objects, so they pick up the restyle like the rest of the HUD. The stats panel is a copy of the objective panel, so it gets the same flat panel and a header strip of its own ("STATS" and "LOOKINGGLASS"), with the stats in two columns under it, each name in grey with its value in bold white at its right. LookingGlass's colors for the values aren't kept, and a line of a customized stats string that isn't "Name: value" shows as a name alone.
 
 ## Multiplayer
 

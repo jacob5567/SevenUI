@@ -10,7 +10,7 @@ namespace SevenUI.Tests
     // The FlatPanels setting: the top-right panels are flat, the run info shows the mod's difficulty bar, the objective
     // panel has a header strip, the top bars take the design canvas's width, TightMargins moves the corners to the
     // canvas's margins, and turning it off brings back the game's panels, widths and margins. LookingGlass's copy of the
-    // objective panel gets a plain panel.
+    // objective panel shows its stats in two columns.
     internal static class PanelScenarios
     {
         private const string Suite = "panels";
@@ -39,7 +39,7 @@ namespace SevenUI.Tests
             yield return new Scenario(1, Suite, "prompt_panel_fits_text", Stages.TitanicPlains, PromptPanelFitsText);
             yield return new Scenario(1, Suite, "scoreboard_and_chat_are_flat", Stages.TitanicPlains, ScoreboardAndChatAreFlat);
             yield return new Scenario(1, Suite, "turning_off_restores_panels", Stages.TitanicPlains, TurningOffRestoresPanels);
-            yield return new Scenario(1, Suite, "lookingglass_stats_panel_is_plain", Stages.TitanicPlains, LookingGlassStatsPanelIsPlain);
+            yield return new Scenario(1, Suite, "lookingglass_stats_in_columns", Stages.TitanicPlains, LookingGlassStatsInColumns);
         }
 
         private static IEnumerator HudFacesScreen(Harness h)
@@ -248,11 +248,11 @@ namespace SevenUI.Tests
 
         // LookingGlass copies the objective panel for its stats, header strip and all if the copy is made after the
         // restyle, so the copy must lose the strip and the header's spaced capitals.
-        private static IEnumerator LookingGlassStatsPanelIsPlain(Harness h)
+        private static IEnumerator LookingGlassStatsInColumns(Harness h)
         {
             Transform panel = null;
             yield return h.WaitForLookingGlassPanel(found => panel = found);
-            yield return h.ExpectPlainPanel(panel, "LookingGlass's stats panel");
+            yield return h.ExpectStatsInColumns(panel);
         }
     }
 }
