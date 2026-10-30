@@ -149,6 +149,7 @@ namespace SevenUI.Tests
             yield return h.ExpectExtraKeysPlain();
             yield return h.ExpectSlotsSkillSized();
             yield return h.ExpectSkillRowAsCanvas();
+            yield return h.ExpectUtilityAreaFollowsRow();
         }
 
         private static IEnumerator NtormatPagesFollowKeyItem(Harness h)

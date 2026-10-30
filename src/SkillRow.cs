@@ -10,10 +10,14 @@ namespace SevenUI
     // side, is added with it). The game draws the skills a little smaller, further apart, inside a cluster drawn
     // behind the canvas's plane, so the canvas's pixels are measured on screen once, through the HUD's camera; the
     // skills are then scaled and moved in the cluster's scaler, and the inventory and sprint buttons left of them move
-    // by as much as the row grows. Other parts take their text sizes in the canvas's pixels from PixelsPer.
+    // by as much as the row grows. The slot some survivors' meters hang from, above the row, keeps its place over it.
+    // Other parts take their text sizes in the canvas's pixels from PixelsPer.
     internal sealed class SkillRow
     {
         public const string DividerName = "SevenUISkillDivider";
+        // An empty slot above the skills that the game parents Drone Tech's drones and Seeker's lotus to, placed for
+        // the game's row (HUD child locator entry RightUtilityArea).
+        private const string UtilityAreaName = "UtilityArea";
         private const float CanvasHeight = 1080f;
         public const float SlotSize = 68f;
         public const float Gap = 8f;
@@ -81,6 +85,7 @@ namespace SevenUI
             RectTransform last = (RectTransform)row[row.Length - 1].transform;
             Rect lastBox = InScaler(last);
             float rowLeft = InScaler((RectTransform)row[0].transform).xMin;
+            Rect before = Rect.MinMaxRect(rowLeft, lastBox.yMin, lastBox.xMax, lastBox.yMax);
             float slot = SlotSize / unit;
             float pitch = (SlotSize + Gap) / unit;
             for (int i = 0; i < row.Length; i++)
@@ -112,6 +117,30 @@ namespace SevenUI
             {
                 AddDivider(last, recorder);
             }
+            Rect after = Rect.MinMaxRect(InScaler((RectTransform)row[0].transform).xMin, lastBox.yMin, lastBox.xMax,
+                InScaler(last).yMax);
+            FollowRow(scaler.Find(UtilityAreaName) as RectTransform, before, after, recorder);
+        }
+
+        // Scaled with the slots about the row's top middle, so whatever hangs from it sits over the row as the game
+        // draws it over its own.
+        private static void FollowRow(RectTransform area, Rect before, Rect after, StyleRecorder recorder)
+        {
+            if (!area || before.height <= 0f) return;
+            float growth = after.height / before.height;
+            Vector3 scale = area.localScale;
+            Vector2 position = area.anchoredPosition;
+            recorder.OnRestore(() =>
+            {
+                if (!area) return;
+                area.localScale = scale;
+                area.anchoredPosition = position;
+            });
+            area.localScale = new Vector3(scale.x * growth, scale.y * growth, scale.z);
+            Vector2 from = new Vector2(before.center.x, before.yMax);
+            Vector2 to = new Vector2(after.center.x, after.yMax);
+            Vector2 at = area.localPosition;
+            area.anchoredPosition += to + (at - from) * growth - at;
         }
 
         // The key's plate, which fits its label, centered a gap under the slot.

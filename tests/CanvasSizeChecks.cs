@@ -14,8 +14,8 @@ namespace SevenUI.Tests
     // Checks that parts of the HUD draw at the design canvas's sizes on screen, in its pixels on a 1080-pixel-high
     // screen: the run info's height and the gap under it, the level's block beside the bars, the health and experience
     // bars' heights, the skill slots and the gaps between them, the dividers before the equipment and after the key
-    // item, and the buffs' counts in their squares' top-right corners. Also the run timer's and the objective rows'
-    // texts.
+    // item, the slot above the skills keeping its place over them, and the buffs' counts in their squares' top-right
+    // corners. Also the run timer's and the objective rows' texts.
     internal static class CanvasSizeChecks
     {
         private const float CanvasHeight = 1080f;
@@ -36,6 +36,8 @@ namespace SevenUI.Tests
         // A 500px notification, its middle 758px down.
         private const float NotificationWidth = 500f;
         private const float NotificationMiddleDown = 758f;
+        // In shares of a slot; the game's look is drawn turned, so its shares come out a little off.
+        private const float UtilityAreaTolerance = 0.06f;
         // The timer's tags hold dots of their own, "<mspace=0.46em>".
         private static readonly Regex Tags = new Regex("<[^>]*>");
 
@@ -227,6 +229,48 @@ namespace SevenUI.Tests
                 },
                 () => $"the teleporter's charge as a row with its percentage at the right ({look}) {h.Diagnosis()}");
         }
+
+        // The slot some survivors' meters hang from keeps its place over the skill row from the game's look, in shares
+        // of a slot: the gap under it, its middle's distance right of the row's, and its height.
+        public static IEnumerator ExpectUtilityAreaFollowsRow(this Harness h)
+        {
+            PluginConfig settings = SevenUIPlugin.Settings;
+            h.SetConfig(settings.FlatPanels, false);
+            yield return h.Wait(SevenUIChecks.LookSwitchSeconds);
+            Vector3? vanilla = UtilityAreaPlace(h);
+            if (vanilla == null) throw h.Fail($"no utility area over the skills in the game's look {h.Diagnosis()}");
+            h.SetConfig(settings.FlatPanels, true);
+            Vector3? styled = null;
+            yield return h.Until(
+                () =>
+                {
+                    styled = UtilityAreaPlace(h);
+                    Vector3 difference = styled.GetValueOrDefault() - vanilla.Value;
+                    return styled != null && Mathf.Abs(difference.x) < UtilityAreaTolerance &&
+                           Mathf.Abs(difference.y) < UtilityAreaTolerance && Mathf.Abs(difference.z) < UtilityAreaTolerance;
+                },
+                () => $"the utility area over the skill row as in the game's look (gap, offset, height in slots: game " +
+                      $"{PlaceText(vanilla)}, SevenUI {PlaceText(styled)}) {h.Diagnosis()}");
+        }
+
+        private static Vector3? UtilityAreaPlace(Harness h)
+        {
+            Transform root = SevenUIChecks.HudRoot(h);
+            HUD hud = root.GetComponent<HUD>();
+            RectTransform area = root.Find(GameNames.UtilityArea) as RectTransform;
+            if (!hud || !area || hud.skillIcons == null || hud.skillIcons.Length == 0 || hud.skillIcons.Any(skill => !skill)) return null;
+            List<Rect> boxes = hud.skillIcons.Select(skill => Box(h, (RectTransform)skill.transform)).ToList();
+            Rect row = Rect.MinMaxRect(boxes.Min(box => box.xMin), boxes.Min(box => box.yMin), boxes.Max(box => box.xMax),
+                boxes.Max(box => box.yMax));
+            float slot = boxes.Average(box => box.height);
+            Rect place = Box(h, area);
+            if (slot <= 0f) return null;
+            return new Vector3((place.yMin - row.yMax) / slot, (place.center.x - row.center.x) / slot, place.height / slot);
+        }
+
+        private static string PlaceText(Vector3? place) =>
+            place is Vector3 value ? $"{value.x:F2}, {value.y:F2}, {value.z:F2}" : "none";
+
         public static IEnumerator ExpectNotificationAsCanvas(this Harness h)
         {
             string look = null;

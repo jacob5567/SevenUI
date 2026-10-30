@@ -834,7 +834,7 @@ namespace SevenUI.Tests
         }
 
         // How long to let the HUD switch between looks before the next screenshot.
-        private const float LookSwitchSeconds = 0.5f;
+        internal const float LookSwitchSeconds = 0.5f;
 
         // Two screenshots of the screen as it is: in SevenUI's look, then with all of SevenUI's settings off. The
         // settings come back on afterwards, and at cleanup as the runner puts config back.
