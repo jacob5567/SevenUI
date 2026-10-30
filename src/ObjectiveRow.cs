@@ -11,6 +11,7 @@ namespace SevenUI
     // large one. Each strip lays out its text with its own layout group, padded on the left for the checkbox; the group
     // is set to give the text the row's whole width, so a long objective wraps and the row grows to fit it. The
     // teleporter's charge has no checkbox: its percentage sits at the right and a thin bar under the text (ChargeRow).
+    // The texts are drawn without the game's inline icons (ObjectiveIcons).
     internal static class ObjectiveRow
     {
         // Names in the objective strip's ChildLocator (ObjectivePanelController.ObjectiveTracker).
@@ -51,6 +52,8 @@ namespace SevenUI
             recorder.Record(element);
             label.fontSize = FontSize;
             label.alignment = TextAlignmentOptions.Left;
+            // Also on the charge's hidden label, whose lines set the row's height.
+            ObjectiveIcons.Apply(label, recorder);
 
             bool controlWidth = layout.childControlWidth;
             bool expandWidth = layout.childForceExpandWidth;
@@ -146,6 +149,7 @@ namespace SevenUI
             Stretch(copy.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             copy.alignment = TextAlignmentOptions.Left;
             copy.enableWordWrapping = label.enableWordWrapping;
+            ObjectiveIcons.ApplyToCopy(copy);
 
             TMP_Text percent = AddText(holder.transform, label);
             RectTransform percentRect = percent.rectTransform;

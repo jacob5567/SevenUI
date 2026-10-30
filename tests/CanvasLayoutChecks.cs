@@ -12,7 +12,7 @@ namespace SevenUI.Tests
 {
     // Checks that parts of the HUD sit and size as on the design canvas: the corners at its margins (TightMargins),
     // the top bars at its width, the currencies in a row, the boss bar's title row and trail, the buffs' rows, the run
-    // info and objective rows at its proportions, and Eclipse and Karma in the run info. Measured in world space, on
+    // info and objective rows at its proportions (the objectives without icons), and Eclipse and Karma in the run info. Measured in world space, on
     // screen or in the HUD's own units, so they hold at any resolution.
     internal static class CanvasLayoutChecks
     {
@@ -26,6 +26,8 @@ namespace SevenUI.Tests
         private const float BoxPerObjectiveFont = 14f / 16f;
         private const float ProportionTolerance = 0.05f;
         private const float MinLabelShare = 0.75f;
+        private const string FindTeleporterToken = "OBJECTIVE_FIND_TELEPORTER";
+        private const string EnglishLanguage = "en";
         // In the money cluster's units.
         private const float RowTolerance = 0.5f;
         // The boss bar is 800 of the top cluster's units wide, which match the canvas's pixels; its title row's ends
@@ -331,6 +333,39 @@ namespace SevenUI.Tests
                 () => $"the objectives left-aligned after small checkboxes (canvas box/font {BoxPerObjectiveFont:0.##}; " +
                       $"{RowsLook(rows)}) {h.Diagnosis()}");
         }
+
+        // The objectives drawn without the game's inline icons, so that in English the teleporter's, the most common,
+        // fits on one line while the stage's teleporter waits.
+        public static IEnumerator ExpectObjectiveIconsDropped(this Harness h)
+        {
+            List<(TMP_Text label, RectTransform box)> rows = null;
+            string findTeleporter = Language.GetString(FindTeleporterToken);
+            bool english = Language.currentLanguageName == EnglishLanguage;
+            bool waiting = TeleporterInteraction.instance && TeleporterInteraction.instance.isIdle;
+            yield return h.Until(
+                () =>
+                {
+                    rows = ObjectiveRows(h);
+                    List<TMP_Text> teleporter = rows.Select(row => row.label).Where(label => label.text == findTeleporter).ToList();
+                    return rows.Count > 0 && rows.All(row => !DrawsSprite(row.label)) && (!waiting || teleporter.Count == 1) &&
+                           (!english || teleporter.All(label => label.textInfo.lineCount == 1));
+                },
+                () => $"the objectives without icons, the teleporter's on one line " +
+                      $"({string.Join("; ", (rows ?? new List<(TMP_Text, RectTransform)>()).Select(row => $"'{row.label.text}' {row.label.textInfo.lineCount} lines, sprite {DrawsSprite(row.label)}"))}) " +
+                      $"{h.Diagnosis()}");
+        }
+
+        private static bool DrawsSprite(TMP_Text label)
+        {
+            TMP_TextInfo info = label.textInfo;
+            if (info == null) return false;
+            for (int i = 0; i < info.characterCount; i++)
+            {
+                if (info.characterInfo[i].elementType == TMP_TextElementType.Sprite) return true;
+            }
+            return false;
+        }
+
         // The boss bar's title row and trail in place, with or without a boss: the bar the canvas's width, the name
         // and subtitle out of the container's layout to sit above it, the mod's health text and trail, and the game's
         // trailing bar off.
