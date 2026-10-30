@@ -12,7 +12,7 @@ namespace SevenUI.Tests
     // Checks that parts of the HUD draw at the design canvas's sizes on screen, in its pixels on a 1080-pixel-high
     // screen: the run info's height and the gap under it, the level's block beside the bars, the health and experience
     // bars' heights, the skill slots and the gaps between them, the divider before the equipment, and the buffs'
-    // counts in their squares' top-right corners. Also the run timer's text.
+    // counts in their squares' top-right corners. Also the run timer's and the objective rows' texts.
     internal static class CanvasSizeChecks
     {
         private const float CanvasHeight = 1080f;
@@ -155,6 +155,40 @@ namespace SevenUI.Tests
                 },
                 () => $"the run info {RunInfoHeight}px tall with the column {ColumnGap}px under it, and the timer without " +
                       $"hundredths ({look}) {h.Diagnosis()}");
+        }
+
+        // Each open objective's box drawn as the mod's outline, and a done one's as the game's check.
+        public static IEnumerator ExpectObjectiveBoxesFlat(this Harness h)
+        {
+            string look = null;
+            yield return h.Until(
+                () =>
+                {
+                    List<ObjectiveCheckbox> boxes = SevenUIChecks.HudRoot(h).GetComponentsInChildren<ObjectiveCheckbox>()
+                        .Where(box => box.Checkbox && box.Checkbox.gameObject.activeInHierarchy).ToList();
+                    look = string.Join(", ", boxes.Select(box =>
+                        $"open={box.Checkbox.sprite == box.OpenSprite} outline={box.Box.enabled} game={box.Checkbox.enabled}"));
+                    return boxes.Count > 0 && boxes.All(box =>
+                        (box.Checkbox.sprite == box.OpenSprite) == (box.Box.enabled && !box.Checkbox.enabled));
+                },
+                () => $"the open objectives' boxes as flat outlines ({look}) {h.Diagnosis()}");
+        }
+
+        // The charge's percentage at the right, the game's, and out of the text.
+        public static IEnumerator ExpectChargeRow(this Harness h)
+        {
+            string look = null;
+            yield return h.Until(
+                () =>
+                {
+                    ChargeRow row = SevenUIChecks.HudRoot(h).GetComponentInChildren<ChargeRow>();
+                    if (!row || !row.Zone) return false;
+                    int percent = row.Zone.displayChargePercent;
+                    look = $"text '{row.Label.text}', percent '{row.Percent.text}', zone {percent}%, game '{row.GameLabel.text}'";
+                    return row.Percent.text == percent + "%" && !row.Label.text.Contains(percent + "%") &&
+                           row.Label.text.Length > 0 && row.GameLabel.alpha == 0f;
+                },
+                () => $"the teleporter's charge as a row with its percentage at the right ({look}) {h.Diagnosis()}");
         }
     }
 }

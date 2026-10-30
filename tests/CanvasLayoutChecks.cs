@@ -293,7 +293,8 @@ namespace SevenUI.Tests
             return container.Cast<Transform>().Where(strip => strip.gameObject.activeInHierarchy)
                 .Select(strip => strip.GetComponent<ChildLocator>()).Where(locator => locator)
                 .Select(locator => (locator.FindChildComponent<TMP_Text>(StripLabel), locator.FindChild(StripCheckbox) as RectTransform))
-                .Where(row => row.Item1).ToList();
+                // The teleporter's charge has no checkbox (ExpectChargeRow).
+                .Where(row => row.Item1 && (!row.Item2 || row.Item2.gameObject.activeSelf)).ToList();
         }
 
         // The label's width over its row's, which the checkbox and the insets take a little of.

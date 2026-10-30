@@ -352,6 +352,7 @@ namespace SevenUI.Tests
                 },
                 "the teleporter's boss and its health bar", BossTimeout);
             yield return h.ExpectBossRowFilled(boss);
+            yield return h.ExpectChargeRow();
             yield return h.AimAway();
             // As on the canvas: most of the health left, and a hit just taken drawn after it.
             HitBoss(boss, FirstBossHit);

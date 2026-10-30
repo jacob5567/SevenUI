@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using RoR2.UI;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -162,11 +163,12 @@ namespace SevenUI
                 recorder.Record(layout);
                 layout.padding = new RectOffset(layout.padding.left, layout.padding.right, RowsPadding, layout.padding.bottom);
             }
+            ObjectivePanelController controller = panel.GetComponent<ObjectivePanelController>();
             foreach (Transform strip in container)
             {
                 if (styledStrips.Add(strip))
                 {
-                    ObjectiveRow.Style(strip, recorder);
+                    ObjectiveRow.Style(strip, controller, recorder);
                 }
             }
         }

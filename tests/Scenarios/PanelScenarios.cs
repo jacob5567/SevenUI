@@ -205,6 +205,7 @@ namespace SevenUI.Tests
         {
             yield return h.ExpectObjectivePanelFlat();
             yield return h.ExpectObjectiveRowsAsCanvas();
+            yield return h.ExpectObjectiveBoxesFlat();
         }
 
         private static IEnumerator TurningOffRestoresPanels(Harness h)
