@@ -23,10 +23,11 @@ namespace SevenUI
         // #d9645a and #6a3a3a, the boss bar's health and the health it just lost.
         public static readonly Color BossHealth = new Color(0.851f, 0.392f, 0.353f, 1f);
         public static readonly Color BossHealthLost = new Color(0.416f, 0.227f, 0.227f, 1f);
-        // The scoreboard and the chat's input sit on a darker panel, since they cover the game; the scoreboard's rows
-        // are a faint lighter band on it.
+        // The scoreboard and the chat's input sit on a darker panel, since they cover the game.
         public static readonly Color ScoreboardPanel = new Color(0f, 0f, 0f, 0.62f);
-        public static readonly Color ScoreboardRow = new Color(1f, 1f, 1f, 0.04f);
+        // rgba(184,196,255,0.06) and #262a34, the viewer's own row on the scoreboard and the lines between rows.
+        public static readonly Color ScoreboardOwnRow = new Color(0.722f, 0.769f, 1f, 0.06f);
+        public static readonly Color RowDivider = new Color(0.149f, 0.165f, 0.204f, 1f);
         // Pickup notifications sit on a slightly darker panel, since they appear over the middle of the screen.
         public static readonly Color NotificationPanel = new Color(0f, 0f, 0f, 0.55f);
         // #2c303a, the slot behind an item icon.

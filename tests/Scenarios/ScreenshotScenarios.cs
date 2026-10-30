@@ -143,6 +143,7 @@ namespace SevenUI.Tests
             h.OnCleanup(() => HUD.SetScoreboardActive(user, false, EScoreboardDeactivateReturnContext.Game));
             HUD.SetScoreboardActive(user, true, EScoreboardDeactivateReturnContext.Game, shouldForceScoreboardToggle: true);
             yield return h.Until(() => HUD.IsScoreboardActive(user), "the scoreboard open");
+            yield return h.ExpectScoreboardAsCanvas();
             yield return h.Wait(SettleSeconds);
             yield return h.CaptureLooks();
         }

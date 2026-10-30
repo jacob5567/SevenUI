@@ -217,5 +217,43 @@ namespace SevenUI.Tests
                 () => $"the pickup notification {NotificationWidth}px wide, {NotificationMiddleDown}px down, with a strip " +
                       $"and a white title ({look}) {h.Diagnosis()}");
         }
+        // The open scoreboard's header strip with each header at its column, and the viewer's row: tinted, its money
+        // last, the survivor and level under the name, and the equipment outlined.
+        public static IEnumerator ExpectScoreboardAsCanvas(this Harness h)
+        {
+            string look = null;
+            yield return h.Until(
+                () =>
+                {
+                    ScoreboardController board = SevenUIChecks.HudRoot(h).GetComponentInChildren<ScoreboardController>();
+                    ScoreboardHeaders headers = board ? board.GetComponentInChildren<ScoreboardHeaders>() : null;
+                    ScoreboardRow row = board ? board.GetComponentsInChildren<ScoreboardRow>()
+                        .FirstOrDefault(r => r.Strip && r.Strip.master == Harness.LocalBody.master) : null;
+                    if (!headers || !row) return false;
+                    Transform background = row.Strip.transform.Find(ScoreboardStyler.RowBackgroundName);
+                    List<string> misplaced = new List<string>();
+                    for (int i = 0; i < headers.Headers.Length; i++)
+                    {
+                        RectTransform column = background.Find(headers.Columns[i]) as RectTransform;
+                        if (!column || !column.gameObject.activeSelf) continue;
+                        Rect columnBox = Box(h, column);
+                        Rect headerBox = Box(h, headers.Headers[i].rectTransform);
+                        float gap = headers.RightAligned[i] ? headerBox.xMax - columnBox.xMax : headerBox.xMin - columnBox.xMin;
+                        if (!Near(gap, 0f))
+                        {
+                            misplaced.Add($"{headers.Columns[i]} {gap:0.#}");
+                        }
+                    }
+                    Transform money = background.Find("TotalTextContainer");
+                    Transform equipment = background.Find("EquipmentBackground");
+                    bool moneyLast = money && equipment && money.GetSiblingIndex() > equipment.GetSiblingIndex();
+                    look = $"misplaced headers [{string.Join(", ", misplaced)}], row color {row.Background.color}, " +
+                           $"survivor '{row.Survivor.text}', money after the equipment {moneyLast}";
+                    return headers.transform.Find(ScoreboardStyler.HeaderStripName) && misplaced.Count == 0 &&
+                           SevenUIChecks.Near(row.Background.color, Palette.ScoreboardOwnRow) && row.Survivor.text.Contains(" · ") &&
+                           moneyLast && equipment.Find("SevenUIEquipmentOutline");
+                },
+                () => $"the scoreboard laid out as on the canvas ({look}) {h.Diagnosis()}");
+        }
     }
 }
