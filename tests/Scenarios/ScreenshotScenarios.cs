@@ -21,6 +21,9 @@ namespace SevenUI.Tests
         // pickup notification or damage numbers are still showing.
         private const float SettleSeconds = 0.5f;
         private const float AllyCardSeconds = 1.5f;
+        // Long enough for the objective strips' entry animation.
+        private const float TrialObjectivesSeconds = 1.5f;
+        private const string TrialTokenPrefix = "QUEST_TRIAL_";
         // The game ignores a new pickup for its first half second (GenericPickupController.waitDuration).
         private const float PickupWaitSeconds = 0.6f;
         private const float PickupTimeout = 5f;
@@ -69,6 +72,7 @@ namespace SevenUI.Tests
             yield return Shot("eclipse_and_karma", EclipseAndKarma);
             yield return Shot("interaction_prompt", InteractionPrompt);
             yield return Shot("pickup_notification", PickupNotification);
+            yield return Shot("trial_objectives", TrialObjectives);
             yield return Shot("ally_cards", AllyCards);
             yield return Shot("damage_numbers", DamageNumbers);
             yield return Survivor("railgunner", GameNames.Railgunner);
@@ -221,6 +225,17 @@ namespace SevenUI.Tests
             yield return h.Until(() => inventory.GetItemCountPermanent(index) > before, $"the player picking up {item}", PickupTimeout);
             yield return h.ExpectNotificationAsCanvas();
             yield return h.Wait(SettleSeconds);
+            yield return h.CaptureLooks();
+        }
+
+        // The Winnowing's trial objectives on the panel, those on the standard strip and those with a progress bar.
+        private static IEnumerator TrialObjectives(Harness h)
+        {
+            var objectives = TestObjectives.Tokens.Where(token => token.StartsWith(TrialTokenPrefix))
+                .Select(token => (TestObjectives.Text(token), typeof(TestObjectiveTracker), 0f))
+                .Concat(ObjectiveScenarios.TrialObjectives());
+            TestObjectives.Show(h, objectives);
+            yield return h.Wait(TrialObjectivesSeconds);
             yield return h.CaptureLooks();
         }
 

@@ -355,7 +355,7 @@ namespace SevenUI.Tests
                       $"{h.Diagnosis()}");
         }
 
-        private static bool DrawsSprite(TMP_Text label)
+        internal static bool DrawsSprite(TMP_Text label)
         {
             TMP_TextInfo info = label.textInfo;
             if (info == null) return false;
