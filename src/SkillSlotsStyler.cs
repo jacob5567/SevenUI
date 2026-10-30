@@ -9,7 +9,8 @@ using UnityEngine.UI;
 namespace SevenUI
 {
     // Restyles the skill, equipment and key item slots in the bottom right: flat dark slots at the design canvas's size
-    // and spacing (SkillRow), the equipment and key item at the skills' size, each past a thin divider, a
+    // and spacing (SkillRow), the equipment and key item at the skills' size, each past a thin divider and with a thin
+    // ready outline in its own color, a
     // top-down cooldown cover in place of the radial overlay, a thin recharge bar along the bottom of a skill with
     // charges (RechargeBar), cooldowns and stocks in Barlow Condensed, and the key labels (the slots' and the inventory
     // and sprint buttons') as small grey capitals without their dark plates. The game keeps running the slots.
@@ -20,6 +21,8 @@ namespace SevenUI
         private const string ExtraButtonsPath = "Scaler/ExtraButtonPanels";
         // The equipment and key item slots' background, under their display roots.
         private const string SlotBackgroundName = "BGPanel";
+        // The key item slot's ready outline, like the equipment's, which the game ships turned off and never shows.
+        private const string KeyItemOutlineName = "IsReadyPanel";
         private const string CoverName = "SevenUICooldownCover";
         private const string RechargeName = "SevenUIRechargeBar";
 
@@ -45,6 +48,8 @@ namespace SevenUI
         private RectTransform extraButtons;
         private Vector2 extraButtonsPosition;
         private bool buttonsMoved;
+        private KeyItemIcon keyItemSlot;
+        private GameObject keyItemOutline;
 
         public SkillSlotsStyler(HUD hud, Transform root)
         {
@@ -85,6 +90,7 @@ namespace SevenUI
             foreach (KeyItemIcon slot in keyItems)
             {
                 FlattenBackground(slot.displayRoot);
+                StyleKeyItemOutline(slot);
                 FitKeyItem(slot);
                 MatchSkillKeys(slot.displayRoot);
             }
@@ -98,6 +104,8 @@ namespace SevenUI
             equipmentFit = null;
             keyItemFit = null;
             extraButtons = null;
+            keyItemSlot = null;
+            keyItemOutline = null;
         }
 
         // The equipment slot as drawn, the right end of the skill row, once fitted.
@@ -110,6 +118,7 @@ namespace SevenUI
             // Before the key item's display is placed again, against the skills, after its slot moves.
             FollowKeyItem();
             keyItemFit?.Update();
+            ShowKeyItemOutline();
         }
 
         private void StyleSkill(SkillIcon skill)
@@ -187,6 +196,35 @@ namespace SevenUI
                 }
             }
             keys.Clear();
+        }
+
+        // Thin, in the game's key item color (the blue the N'tormat's icon is outlined in), as the equipment's is in
+        // the equipment's orange.
+        private void StyleKeyItemOutline(KeyItemIcon slot)
+        {
+            if (slot == keyItemSlot && keyItemOutline) return;
+            Transform outline = slot.displayRoot ? slot.displayRoot.transform.Find(KeyItemOutlineName) : null;
+            Image image = outline ? outline.GetComponent<Image>() : null;
+            if (!image) return;
+            recorder.Record(image);
+            image.sprite = FlatSprite.Outline;
+            image.type = Image.Type.Sliced;
+            image.color = ColorCatalog.GetColor(ColorCatalog.ColorIndex.KeyItem);
+            recorder.SetActive(outline.gameObject, false);
+            keyItemSlot = slot;
+            keyItemOutline = outline.gameObject;
+        }
+
+        // While the slot holds a key item that is ready, as the game shows the equipment's.
+        private void ShowKeyItemOutline()
+        {
+            if (!keyItemSlot || !keyItemOutline) return;
+            KeyItemIcon.DisplayData shown = keyItemSlot.currentDisplayData;
+            bool ready = shown.keyItemDef && shown.isReady;
+            if (keyItemOutline.activeSelf != ready)
+            {
+                keyItemOutline.SetActive(ready);
+            }
         }
 
         private void FitKeyItem(KeyItemIcon slot)

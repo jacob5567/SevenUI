@@ -7,6 +7,7 @@ using RoR2;
 using RoR2.UI;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace SevenUI.Tests
 {
@@ -103,7 +104,8 @@ namespace SevenUI.Tests
                       $"divider between ({look}) {h.Diagnosis()}");
         }
 
-        // The key item a divided gap left of the first skill, at its height, with the divider between them.
+        // The key item a divided gap left of the first skill, at its height, with the divider between them, and its
+        // outline in the game's key item color shown while it holds a key item that is ready.
         public static IEnumerator ExpectKeyItemDividedAsCanvas(this Harness h)
         {
             string look = null;
@@ -117,11 +119,18 @@ namespace SevenUI.Tests
                     Transform display = hud.keyItemIcon.displayRoot.transform;
                     Rect keyItemBox = Box(h, (RectTransform)display);
                     Transform divider = display.Find(SkillRow.DividerName);
-                    look = $"key item {BoxText(keyItemBox)}, first skill {BoxText(skillBox)}, divider {(bool)divider}";
+                    Image outline = display.Find(GameNames.KeyItemOutline)?.GetComponent<Image>();
+                    KeyItemIcon.DisplayData shown = hud.keyItemIcon.currentDisplayData;
+                    bool ready = shown.keyItemDef && shown.isReady;
+                    look = $"key item {BoxText(keyItemBox)}, first skill {BoxText(skillBox)}, divider {(bool)divider}, " +
+                           $"ready {ready}, outline {(outline ? $"shown={outline.gameObject.activeSelf} color={outline.color}" : "none")}";
                     return Near(keyItemBox.width, SkillSize) && Near(skillBox.xMin - keyItemBox.xMax, DividedGap) &&
-                           Near(keyItemBox.yMin, skillBox.yMin) && divider && divider.gameObject.activeInHierarchy;
+                           Near(keyItemBox.yMin, skillBox.yMin) && divider && divider.gameObject.activeInHierarchy &&
+                           outline && outline.gameObject.activeSelf == ready &&
+                           SevenUIChecks.Near(outline.color, ColorCatalog.GetColor(ColorCatalog.ColorIndex.KeyItem));
                 },
-                () => $"the key item {DividedGap}px left of the first skill with a divider between ({look}) {h.Diagnosis()}");
+                () => $"the key item {DividedGap}px left of the first skill with a divider between, outlined in the key " +
+                      $"item color while ready ({look}) {h.Diagnosis()}");
         }
 
         // Each stacking buff with more than one stack shows its count in its square's top-right quarter, and the game's

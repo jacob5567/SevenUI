@@ -54,6 +54,9 @@ namespace SevenUI.Tests
         // The equipment and key item slots' background, under their display roots.
         public const string SlotBackground = "BGPanel";
 
+        // The key item slot's ready outline, under its display root.
+        public const string KeyItemOutline = "IsReadyPanel";
+
         // The top cluster spans its parent less this, in the game's HUD prefab.
         public const float TopCenterWidthDelta = -576f;
 
