@@ -272,7 +272,9 @@ namespace SevenUI.Tests
         }
 
         // The slot some survivors' meters hang from keeps its place over the skill row from the game's look, in shares
-        // of a slot: the gap under it, its middle's distance right of the row's, and its height.
+        // of a slot: the gap under it, its middle's distance right of the row's, and its height. Measured in the
+        // cluster's plane, which the game's look turns slightly away from the screen, so on screen its row's left
+        // slots sit higher than its right ones; SevenUI's look draws the same plane facing the screen.
         public static IEnumerator ExpectUtilityAreaFollowsRow(this Harness h)
         {
             PluginConfig settings = SevenUIPlugin.Settings;
@@ -300,13 +302,23 @@ namespace SevenUI.Tests
             HUD hud = root.GetComponent<HUD>();
             RectTransform area = root.Find(GameNames.UtilityArea) as RectTransform;
             if (!hud || !area || hud.skillIcons == null || hud.skillIcons.Length == 0 || hud.skillIcons.Any(skill => !skill)) return null;
-            List<Rect> boxes = hud.skillIcons.Select(skill => Box(h, (RectTransform)skill.transform)).ToList();
+            Transform plane = area.parent;
+            List<Rect> boxes = hud.skillIcons.Select(skill => InPlane(plane, (RectTransform)skill.transform)).ToList();
             Rect row = Rect.MinMaxRect(boxes.Min(box => box.xMin), boxes.Min(box => box.yMin), boxes.Max(box => box.xMax),
                 boxes.Max(box => box.yMax));
             float slot = boxes.Average(box => box.height);
-            Rect place = Box(h, area);
+            Rect place = InPlane(plane, area);
             if (slot <= 0f) return null;
             return new Vector3((place.yMin - row.yMax) / slot, (place.center.x - row.center.x) / slot, place.height / slot);
+        }
+
+        // A rect's box in a transform it's drawn in.
+        private static Rect InPlane(Transform plane, RectTransform rect)
+        {
+            Rect local = rect.rect;
+            Vector2 min = plane.InverseTransformPoint(rect.TransformPoint(local.min));
+            Vector2 max = plane.InverseTransformPoint(rect.TransformPoint(local.max));
+            return Rect.MinMaxRect(Mathf.Min(min.x, max.x), Mathf.Min(min.y, max.y), Mathf.Max(min.x, max.x), Mathf.Max(min.y, max.y));
         }
 
         private static string PlaceText(Vector3? place) =>
