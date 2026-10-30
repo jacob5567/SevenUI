@@ -23,6 +23,7 @@ namespace SevenUI.Tests
 
         public static IEnumerator ExpectObjectivesAsCanvas(this Harness h, List<TestObjectiveSource> sources)
         {
+            yield return TestObjectives.SkipStripAnimations(h, sources);
             List<string> problems = new List<string>();
             yield return h.Until(
                 () =>
@@ -62,6 +63,13 @@ namespace SevenUI.Tests
             ChildLocator locator = strip ? strip.GetComponent<ChildLocator>() : null;
             TMP_Text label = locator ? locator.FindChildComponent<TMP_Text>(LabelName) : null;
             if (!label) return "no label";
+            CanvasGroup group = strip.GetComponent<CanvasGroup>();
+            if (group && group.alpha < 1f) return $"faded to {group.alpha:0.##}";
+            // A strip's text is measured once it's drawn; until then its bounds are empty and nothing is checked.
+            if (label.text != source.Text || label.textInfo == null || label.textInfo.characterCount == 0)
+            {
+                return $"text not drawn ('{label.text}')";
+            }
             if (label.alignment != TextAlignmentOptions.Left || !Mathf.Approximately(label.fontSize, ObjectiveRow.FontSize))
             {
                 return $"label not styled ({label.alignment}, {label.fontSize:0.##})";

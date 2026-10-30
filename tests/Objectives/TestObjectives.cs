@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using ModTestRunner;
@@ -72,6 +73,30 @@ namespace SevenUI.Tests
             {
                 return text;
             }
+        }
+
+        // The panel fades a new strip in over its first 3.5 seconds, and keeps a removed one at full height for 5 more
+        // before shrinking it away. Ending those animations once the sources' strips exist shows the strips as they
+        // settle, without waiting, and drops the removed ones, so the strips checked are the ones shown last.
+        public static IEnumerator SkipStripAnimations(Harness h, List<TestObjectiveSource> sources)
+        {
+            ObjectivePanelController controller = null;
+            yield return h.Until(
+                () =>
+                {
+                    Transform panel = h.FindUnderHud(GameNames.ObjectivePanel);
+                    controller = panel ? panel.GetComponent<ObjectivePanelController>() : null;
+                    return controller && sources.All(source =>
+                        controller.objectiveTrackers.Any(shown => shown.sourceDescriptor.source == source));
+                },
+                $"{sources.Count} test objectives on the objective panel");
+            foreach (var animation in controller.objectiveStripAnimations)
+            {
+                animation.SetPercentComplete(1f);
+            }
+            // The panel destroys the removed strips in its next update, and the layout follows by the frame after.
+            yield return null;
+            yield return null;
         }
 
         // Shows the objectives until the returned action, or the scenario's cleanup, takes them off.

@@ -21,8 +21,8 @@ namespace SevenUI.Tests
         // pickup notification or damage numbers are still showing.
         private const float SettleSeconds = 0.5f;
         private const float AllyCardSeconds = 1.5f;
-        // Long enough for the objective strips' entry animation.
-        private const float TrialObjectivesSeconds = 1.5f;
+        // With the strips' animations skipped, a moment for the panel to settle before the shot.
+        private const float TrialObjectivesSeconds = 0.5f;
         private const string TrialTokenPrefix = "QUEST_TRIAL_";
         // The game ignores a new pickup for its first half second (GenericPickupController.waitDuration).
         private const float PickupWaitSeconds = 0.6f;
@@ -234,7 +234,8 @@ namespace SevenUI.Tests
             var objectives = TestObjectives.Tokens.Where(token => token.StartsWith(TrialTokenPrefix))
                 .Select(token => (TestObjectives.Text(token), typeof(TestObjectiveTracker), 0f))
                 .Concat(ObjectiveScenarios.TrialObjectives());
-            TestObjectives.Show(h, objectives);
+            (List<TestObjectiveSource> sources, System.Action _) = TestObjectives.Show(h, objectives.ToList());
+            yield return TestObjectives.SkipStripAnimations(h, sources);
             yield return h.Wait(TrialObjectivesSeconds);
             yield return h.CaptureLooks();
         }
