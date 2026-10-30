@@ -42,6 +42,9 @@ namespace SevenUI
         private SkillRow row;
         private SlotFitter equipmentFit;
         private SlotFitter keyItemFit;
+        private RectTransform extraButtons;
+        private Vector2 extraButtonsPosition;
+        private bool buttonsMoved;
 
         public SkillSlotsStyler(HUD hud, Transform root)
         {
@@ -94,6 +97,7 @@ namespace SevenUI
             row = null;
             equipmentFit = null;
             keyItemFit = null;
+            extraButtons = null;
         }
 
         // The equipment slot as drawn, the right end of the skill row, once fitted.
@@ -103,6 +107,8 @@ namespace SevenUI
         public void Update()
         {
             equipmentFit?.Update();
+            // Before the key item's display is placed again, against the skills, after its slot moves.
+            FollowKeyItem();
             keyItemFit?.Update();
         }
 
@@ -188,30 +194,31 @@ namespace SevenUI
             if (!slot.displayRoot || keyItemFit != null && keyItemFit.Alive) return;
             keyItemFit = Fit(slot.displayRoot, true, slot.extraDisplayHolder as RectTransform);
             if (keyItemFit == null) return;
-            // On the display, which the game hides while there is no key item.
+            // On the display, so it hides when the game hides the slot.
             if (!keyItemFit.Display.Find(SkillRow.DividerName))
             {
                 row.AddDivider(keyItemFit.Display, recorder);
             }
-            // The slot's layout room shrinks by as much as its display does and grows by the divided gap, so the
-            // inventory and sprint buttons keep their distance from it.
-            LayoutElement element = slot.GetComponent<LayoutElement>();
-            RectTransform slotRect = (RectTransform)slot.transform;
-            RectTransform group = slotRect.parent as RectTransform;
-            RectTransform skill = (RectTransform)hud.skillIcons[0].transform;
-            if (!element || !group || element.preferredWidth <= 0f) return;
-            float drawnWidth = slotRect.rect.width * slotRect.lossyScale.x / group.lossyScale.x;
-            float skillWidth = skill.rect.width * skill.lossyScale.x / group.lossyScale.x;
-            float preferred = element.preferredWidth;
-            float dividedGap = SkillRow.DividedExtraGapShare * skillWidth;
-            element.preferredWidth = Mathf.Max(preferred - (drawnWidth - skillWidth) + dividedGap, 0f);
-            recorder.OnRestore(() =>
-            {
-                if (element)
-                {
-                    element.preferredWidth = preferred;
-                }
-            });
+            // Where the skill row left the buttons, kept across refits so they are never moved twice.
+            RectTransform group = slot.transform.parent as RectTransform;
+            if (!group || group == extraButtons) return;
+            extraButtons = group;
+            recorder.SetAnchoredPosition(group, group.anchoredPosition);
+            extraButtonsPosition = group.anchoredPosition;
+            buttonsMoved = false;
+        }
+
+        // The inventory and sprint buttons sit a fixed distance left of the key item slot in the game's layout, which
+        // places them by the slot's own width; while the slot shows, past its divider, they all move left by the
+        // divider's extra gap. The slot's display is placed against the skills, so it stays where it is.
+        private void FollowKeyItem()
+        {
+            if (!extraButtons || keyItemFit == null || !keyItemFit.Alive) return;
+            bool shown = keyItemFit.Display.gameObject.activeSelf;
+            if (shown == buttonsMoved) return;
+            buttonsMoved = shown;
+            float shift = shown ? row.ScalerLength(SkillRow.DividedExtraGap) : 0f;
+            extraButtons.anchoredPosition = extraButtonsPosition - new Vector2(shift, 0f);
         }
 
         // Past a divider before the first skill (M1) or after the last (R).

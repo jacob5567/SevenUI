@@ -22,8 +22,9 @@ namespace SevenUI
         private const float DividerWidth = 2f;
         private const float DividerMargin = 4f;
         // The equipment and key item sit a gap past their dividers, so this much further from the row's end than the
-        // skills are from each other, as a share of a slot.
-        public const float DividedExtraGapShare = (DividerMargin * 2f + DividerWidth + Gap) / SlotSize;
+        // skills are from each other, and as a share of a slot.
+        public const float DividedExtraGap = DividerMargin * 2f + DividerWidth + Gap;
+        public const float DividedExtraGapShare = DividedExtraGap / SlotSize;
 
         private readonly RectTransform scaler;
         // Canvas pixels per unit of the scaler.
@@ -56,6 +57,9 @@ namespace SevenUI
             float unit = (top - bottom).magnitude / (screen.height / CanvasHeight);
             return unit > 0f ? new SkillRow(scaler, unit) : null;
         }
+
+        // A length in canvas pixels in the scaler's units.
+        public float ScalerLength(float canvasPixels) => canvasPixels / unit;
 
         // Canvas pixels per unit of a transform drawn in the scaler.
         public float PixelsPer(Transform transform)
