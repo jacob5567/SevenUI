@@ -266,6 +266,7 @@ namespace SevenUI.Tests
                    $"size delta={(bar._style ? bar._style.barrierBarStyle.sizeDelta.ToString() : "-")}, sprite digits field={(bool)bar.spriteAsNumberManager}, " +
                    $"digits active={(digits ? digits.gameObject.activeSelf.ToString() : "-")}, " +
                    $"text={(bar.currentHealthText ? bar.currentHealthText.text : "-")}/{(bar.fullHealthText ? bar.fullHealthText.text : "-")}, " +
+                   $"readout={(bar.GetComponentInChildren<PlayerHealthReadout>() is PlayerHealthReadout readout ? $"'{readout.Health.text}' '{readout.Regen.text}'" : "none")}, " +
                    $"health={(bar.source ? $"{Mathf.Ceil(bar.source.combinedHealth)}/{Mathf.Ceil(bar.source.fullHealth)}" : "-")}";
         }
 
@@ -279,12 +280,14 @@ namespace SevenUI.Tests
                     bar = PlayerHealthBar(h);
                     if (!bar || !bar.source || !bar.currentHealthText) return false;
                     Transform digits = bar.transform.Find(GameNames.HealthSpriteDigits);
+                    PlayerHealthReadout readout = bar.GetComponentInChildren<PlayerHealthReadout>();
+                    string current = Mathf.Ceil(bar.source.combinedHealth).ToString("N0");
+                    string full = Mathf.Ceil(bar.source.fullHealth).ToString("N0");
                     return UsesFlatStyle(bar) && !bar.spriteAsNumberManager && digits && !digits.gameObject.activeSelf &&
-                           bar.currentHealthText.isActiveAndEnabled &&
-                           bar.currentHealthText.text == Mathf.Ceil(bar.source.combinedHealth).ToString() &&
-                           bar.fullHealthText && bar.fullHealthText.text == Mathf.Ceil(bar.source.fullHealth).ToString();
+                           readout && readout.Health.isActiveAndEnabled && readout.Health.text.Contains($">{current}<") &&
+                           readout.Health.text.EndsWith($"/ {full}</color>") && readout.Regen.text.EndsWith("/s");
                 },
-                () => $"flat player bars with the health as text ({HealthLook(bar)}) {h.Diagnosis()}");
+                () => $"flat player bars with the health as text above them ({HealthLook(bar)}) {h.Diagnosis()}");
         }
 
         public static IEnumerator ExpectPlayerBarsVanilla(this Harness h)

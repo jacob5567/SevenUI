@@ -38,6 +38,19 @@ namespace SevenUI
         public static readonly Color Buff = new Color(0.498f, 0.816f, 0.498f, 1f);
         public static readonly Color Debuff = new Color(0.878f, 0.416f, 0.373f, 1f);
         public static readonly Color BuffCooldown = new Color(0.914f, 0.824f, 0.478f, 1f);
+        // #6fbf73, #5fa3e0 and #e0605a, the health bar's health, its shield, and its health once it is low (under 25%),
+        // when the health numbers turn #f0a29c.
+        public static readonly Color Health = new Color(0.435f, 0.749f, 0.451f, 1f);
+        public static readonly Color Shield = new Color(0.373f, 0.639f, 0.878f, 1f);
+        public static readonly Color LowHealth = new Color(0.878f, 0.376f, 0.353f, 1f);
+        public static readonly Color LowHealthText = new Color(0.941f, 0.635f, 0.612f, 1f);
+        // #2a2d36 and #1c1e25, the stripes over maximum health a curse has taken away.
+        public static readonly Color CurseStripe = new Color(0.165f, 0.176f, 0.212f, 1f);
+        public static readonly Color CurseGap = new Color(0.110f, 0.118f, 0.145f, 1f);
+        // #8fd18f, the health regeneration beside the health numbers.
+        public static readonly Color Regen = new Color(0.561f, 0.820f, 0.561f, 1f);
+        // #c3c7d3, LookingGlass's buff timers under the buffs.
+        public static readonly Color BuffTimer = new Color(0.765f, 0.780f, 0.827f, 1f);
         // #e9d27a, the barrier, a strip along the top of the health bar.
         public static readonly Color Barrier = new Color(0.914f, 0.824f, 0.478f, 1f);
     }

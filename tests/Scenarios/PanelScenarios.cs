@@ -20,6 +20,7 @@ namespace SevenUI.Tests
         private const float CountUpSeconds = 3f;
         // The health bar fits about a dozen buff slots across.
         private const int ManyBuffs = 20;
+        private const int StackedBuffCount = 3;
 
         public static IEnumerable<Scenario> All()
         {
@@ -83,6 +84,7 @@ namespace SevenUI.Tests
         private static IEnumerator PlayerBarsAreFlat(Harness h)
         {
             yield return h.ExpectPlayerBarsFlat();
+            yield return h.ExpectPlayerBarsAsCanvas();
             h.Cmd($"{Commands.GiveItem} {GameNames.Knurl} 1");
             yield return h.Wait(0.5f);
             yield return h.ExpectPlayerBarsFlat();
@@ -92,7 +94,9 @@ namespace SevenUI.Tests
         private static IEnumerator BuffsWrapInRows(Harness h)
         {
             GiveBuffs(h, ManyBuffs);
+            GiveStacks(h, StackedBuffCount);
             yield return h.ExpectBuffsInRows(2);
+            yield return h.ExpectBuffCountsInCorner();
             h.SetConfig(SevenUIPlugin.Settings.FlatPanels, false);
             yield return h.ExpectBuffsInGameRow();
             h.SetConfig(SevenUIPlugin.Settings.FlatPanels, true);
@@ -115,6 +119,27 @@ namespace SevenUI.Tests
                     body.RemoveBuff(buff);
                 });
             }
+        }
+
+        // Stacks of one stacking buff the player doesn't have, counted as stacks, taken off again at cleanup.
+        private static void GiveStacks(Harness h, int stacks)
+        {
+            CharacterBody body = Harness.LocalBody;
+            BuffIndex buff = BuffCatalog.nonHiddenBuffIndices.Where(index =>
+                    BuffCatalog.GetBuffDef(index) is BuffDef def && def.iconSprite && !def.isElite && def.canStack &&
+                    def.stackingDisplayMethod != BuffDef.StackingDisplayMethod.Percentage && def.displayOffset == 0 &&
+                    !body.HasBuff(index))
+                .DefaultIfEmpty(BuffIndex.None).First();
+            if (buff == BuffIndex.None) throw h.Skip("no stacking buff to give");
+            for (int i = 0; i < stacks; i++)
+            {
+                body.AddBuff(buff);
+            }
+            h.OnCleanup(() =>
+            {
+                if (!body) return;
+                body.SetBuffCount(buff, 0);
+            });
         }
 
         private static IEnumerator SkillSlotsAreFlat(Harness h)

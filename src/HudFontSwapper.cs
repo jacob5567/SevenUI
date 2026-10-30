@@ -82,7 +82,7 @@ namespace SevenUI
         // dollar sign (a currency's other text; the coins' signs are sprites).
         private static bool UsesCondensed(TMP_Text text)
         {
-            if (text.GetComponent<TimerText>()) return true;
+            if (text.GetComponent<TimerText>() || text.GetComponent<CondensedText>()) return true;
             LevelText level = text.GetComponentInParent<LevelText>();
             if (level && level.targetText == text) return true;
             SkillIcon skill = text.GetComponentInParent<SkillIcon>();

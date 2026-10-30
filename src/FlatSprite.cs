@@ -2,7 +2,8 @@ using UnityEngine;
 
 namespace SevenUI
 {
-    // Plain sprites drawn in code: a white one for flat bars, a sliced square outline, and a sliced strip along the top.
+    // Plain sprites drawn in code: a white one for flat bars, a sliced square outline, a sliced strip along the top, and
+    // diagonal stripes to tile.
     internal static class FlatSprite
     {
         // The outline texture's size and border, in pixels. At 100 pixels per unit the border is this many HUD canvas
@@ -14,7 +15,12 @@ namespace SevenUI
         private const int TopStripTextureHeight = 8;
         private const int TopStripHeight = 6;
 
+        // The stripes' tile, in pixels, half of it each color: at 100 pixels per unit, stripes about 3.5 canvas units
+        // wide across.
+        private const int HatchTextureSize = 10;
+
         private static Sprite white;
+        private static Sprite hatch;
         private static Sprite outline;
         private static Sprite topStrip;
 
@@ -87,6 +93,34 @@ namespace SevenUI
                     topStrip.name = "SevenUITopStrip";
                 }
                 return topStrip;
+            }
+        }
+    
+        // Dark stripes running up to the right, in the curse's colors, for a tiled image.
+        public static Sprite Hatch
+        {
+            get
+            {
+                if (!hatch)
+                {
+                    Texture2D texture = new Texture2D(HatchTextureSize, HatchTextureSize, TextureFormat.RGBA32, false);
+                    texture.name = "SevenUIHatch";
+                    texture.filterMode = FilterMode.Bilinear;
+                    texture.wrapMode = TextureWrapMode.Repeat;
+                    for (int y = 0; y < HatchTextureSize; y++)
+                    {
+                        for (int x = 0; x < HatchTextureSize; x++)
+                        {
+                            bool stripe = (x - y + HatchTextureSize) % HatchTextureSize < HatchTextureSize / 2;
+                            texture.SetPixel(x, y, stripe ? Palette.CurseStripe : Palette.CurseGap);
+                        }
+                    }
+                    texture.Apply(false, true);
+                    hatch = Sprite.Create(texture, new Rect(0f, 0f, HatchTextureSize, HatchTextureSize),
+                        new Vector2(0.5f, 0.5f), PixelsPerUnit, 0, SpriteMeshType.FullRect);
+                    hatch.name = "SevenUIHatch";
+                }
+                return hatch;
             }
         }
     }

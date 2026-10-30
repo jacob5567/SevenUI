@@ -70,8 +70,11 @@ namespace SevenUI.Tests
         public const string StageAndLevel = "StageAndLevelRoot";
         public const string DifficultySegments = "Scroll View/Viewport";
 
-        // The player's health bar in the bottom left, and its sprite digits.
-        public const string PlayerHealthBar = "MainContainer/MainUIArea/SpringCanvas/BottomLeftCluster/BarRoots/HealthbarRoot";
+        // The player's level and bars in the bottom left, its health bar, and the health bar's sprite digits.
+        public const string PlayerBars = "MainContainer/MainUIArea/SpringCanvas/BottomLeftCluster/BarRoots";
+        public const string PlayerHealthBar = PlayerBars + "/HealthbarRoot";
+        public const string ExpBar = "LevelDisplayCluster/ExpBarRoot";
+        public const string LevelRoot = "LevelDisplayCluster/LevelDisplayRoot";
         public const string HealthSpriteDigits = "Managed_Sprite_HP";
 
         // The objective panel in the run info, and its title.

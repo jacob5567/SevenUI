@@ -22,7 +22,7 @@ namespace SevenUI
         private const string UpperRightName = "UpperRightCluster";
         private const string BottomLeftName = "BottomLeftCluster";
         private const string BottomRightName = "BottomRightCluster";
-        private const string HealthBarPath = "BarRoots/HealthbarRoot";
+        private const string BarsPath = "BarRoots";
 
         // The design canvas's margins, in its pixels on a 1080-pixel-high screen.
         private const float CanvasHeight = 1080f;
@@ -44,7 +44,7 @@ namespace SevenUI
         private RectTransform bottomRight;
         // The outermost panel of each cluster that isn't the cluster's own box.
         private RectTransform runInfo;
-        private RectTransform healthBar;
+        private RectTransform bars;
         private RectTransform skillKey;
         private Rect filledScreen;
 
@@ -70,7 +70,8 @@ namespace SevenUI
             bottomRight = spring.Find(BottomRightName) as RectTransform;
             Transform background = upperRight ? FindDeep(upperRight, RunInfoStyler.BackgroundName) : null;
             runInfo = background as RectTransform;
-            healthBar = bottomLeft ? bottomLeft.Find(HealthBarPath) as RectTransform : null;
+            // The level and the bars, which the restyle lays out to fill it.
+            bars = bottomLeft ? bottomLeft.Find(BarsPath) as RectTransform : null;
             InputBindingDisplayController key = hud.skillIcons != null && hud.skillIcons.Length > 0 && hud.skillIcons[0]
                 ? hud.skillIcons[0].GetComponentInChildren<InputBindingDisplayController>(true)
                 : null;
@@ -98,7 +99,7 @@ namespace SevenUI
             }
             Fit(screen, upperLeft, upperLeft, upperLeft, false, true);
             Fit(screen, upperRight, runInfo, runInfo, true, true);
-            Fit(screen, bottomLeft, healthBar, healthBar, false, false);
+            Fit(screen, bottomLeft, bars, bars, false, false);
             RectTransform rowEnd = equipmentSlot ? equipmentSlot : LastSkill();
             Fit(screen, bottomRight, rowEnd, skillKey, true, false);
         }
@@ -178,7 +179,7 @@ namespace SevenUI
         public void Describe(StringBuilder output)
         {
             output.AppendLine($"  margins: spring canvas {(spring ? $"{spring.anchorMin}-{spring.anchorMax}" : "none")}, " +
-                              $"camera={(camera ? camera.name : "none")}, run info={(bool)runInfo}, health bar={(bool)healthBar}, " +
+                              $"camera={(camera ? camera.name : "none")}, run info={(bool)runInfo}, bars={(bool)bars}, " +
                               $"skill key={(bool)skillKey}");
         }
     }

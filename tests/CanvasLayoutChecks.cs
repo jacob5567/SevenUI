@@ -42,7 +42,7 @@ namespace SevenUI.Tests
         private const string UpperLeftPath = SpringCanvasPath + "/UpperLeftCluster";
         private const string UpperRightPath = SpringCanvasPath + "/UpperRightCluster";
         private const string BottomLeftPath = SpringCanvasPath + "/BottomLeftCluster";
-        private const string HealthBarPath = BottomLeftPath + "/BarRoots/HealthbarRoot";
+        private const string BarsPath = BottomLeftPath + "/BarRoots";
         private const string TopCenterPath = SpringCanvasPath + "/TopCenterCluster";
         // 900 of the canvas's 1920 pixels (TopBarsWidth).
         private const float TopCenterCanvasShare = 900f / 1920f;
@@ -64,17 +64,17 @@ namespace SevenUI.Tests
 
         private static HUD Hud(Harness h) => SevenUIChecks.HudRoot(h).GetComponent<HUD>();
 
-        private static Camera HudCamera(Transform root)
+        internal static Camera HudCamera(Transform root)
         {
             Canvas canvas = root.GetComponent<Canvas>();
             return canvas && canvas.renderMode != RenderMode.ScreenSpaceOverlay ? canvas.worldCamera : null;
         }
 
-        private static Rect ScreenOf(Camera camera) =>
+        internal static Rect ScreenOf(Camera camera) =>
             camera ? camera.pixelRect : new Rect(0f, 0f, Screen.width, Screen.height);
 
         // Through the HUD's camera, which draws the HUD's main area in perspective.
-        private static Rect OnScreen(Camera camera, RectTransform rect)
+        internal static Rect OnScreen(Camera camera, RectTransform rect)
         {
             Vector3[] corners = new Vector3[4];
             rect.GetWorldCorners(corners);
@@ -103,7 +103,7 @@ namespace SevenUI.Tests
             RectTransform upperLeft = root.Find(UpperLeftPath) as RectTransform;
             RectTransform runInfo = root.Find(UpperRightPath)?.GetComponentsInChildren<Transform>(true)
                 .FirstOrDefault(t => t.name == Texts.RunInfoBackgroundName) as RectTransform;
-            RectTransform healthBar = root.Find(HealthBarPath) as RectTransform;
+            RectTransform bars = root.Find(BarsPath) as RectTransform;
             InputBindingDisplayController key = hud.skillIcons.Length > 0 && hud.skillIcons[0]
                 ? hud.skillIcons[0].GetComponentInChildren<InputBindingDisplayController>(true)
                 : null;
@@ -128,7 +128,7 @@ namespace SevenUI.Tests
 
             Add("money", upperLeft, upperLeft, false, true);
             Add("run info", runInfo, runInfo, true, true);
-            Add("health bar", healthBar, healthBar, false, false);
+            Add("level and bars", bars, bars, false, false);
             Add("skills", rowEnd, keyPlate, true, false);
             return gaps;
         }
@@ -420,12 +420,12 @@ namespace SevenUI.Tests
                       $"(trail {TrailFill(boss):0.###}, fill {boss.fillRectImage.fillAmount:0.###}) {h.Diagnosis()}");
         }
 
-        // The player's buffs: each on a slot no wider than the health bar's row, in more than one row when there are
+        // The player's buffs: each on a slot no wider than the bars' row, in more than one row when there are
         // enough, rows stacked upward without overlap.
-        private static BuffDisplay PlayerBuffs(Harness h) =>
+        internal static BuffDisplay PlayerBuffs(Harness h) =>
             SevenUIChecks.HudRoot(h).Find(BuffDisplayPath)?.GetComponent<BuffDisplay>();
 
-        private static List<RectTransform> ShownBuffIcons(BuffDisplay display) =>
+        internal static List<RectTransform> ShownBuffIcons(BuffDisplay display) =>
             display.buffIconDisplayData.Where(data => data.buffIconComponent && data.buffIconComponent.gameObject.activeSelf)
                 .Select(data => data.buffIconComponent.rectTransform).ToList();
 
@@ -449,7 +449,7 @@ namespace SevenUI.Tests
                 () =>
                 {
                     display = PlayerBuffs(h);
-                    healthBar = SevenUIChecks.HudRoot(h).Find(GameNames.PlayerHealthBar) as RectTransform;
+                    healthBar = SevenUIChecks.HudRoot(h).Find(GameNames.PlayerBars) as RectTransform;
                     if (!display || !healthBar) return false;
                     RectTransform space = (RectTransform)display.transform;
                     Bounds bar = In(space, healthBar);
@@ -464,7 +464,7 @@ namespace SevenUI.Tests
                     bool apart = icons.Select((a, i) => icons.Skip(i + 1).All(b => !Overlap(a, b))).All(ok => ok);
                     return rows >= minRows && inside && onSlots && apart;
                 },
-                () => $"the buffs on slots in at least {minRows} rows within the health bar's width " +
+                () => $"the buffs on slots in at least {minRows} rows within the bars' width " +
                       $"({BuffsLook(display, healthBar)}) {h.Diagnosis()}");
         }
 
