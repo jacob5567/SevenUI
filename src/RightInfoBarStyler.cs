@@ -22,6 +22,8 @@ namespace SevenUI
         private const string StatsTitleName = "SevenUIStatsTitle";
         public const string StatsGridName = "SevenUIStatsGrid";
         private const string StatsSource = "LookingGlass";
+        // LookingGlass's name for its copy of the objective panel.
+        private const string StatsPanelName = "PlayerStats";
         // Above a LayoutElement's default of 1.
         private const int StatsLayoutPriority = 2;
 
@@ -98,9 +100,8 @@ namespace SevenUI
                 {
                     StyleObjectivePanel(panel);
                 }
-                else if (panel.Find(HeaderStripName) && objectivePanel)
+                else if (panel.name == StatsPanelName && objectivePanel)
                 {
-                    // A copy of the objective panel made after it was restyled: LookingGlass's stats panel.
                     StyleCopiedPanel(panel, objectivePanel);
                 }
                 else
@@ -185,28 +186,51 @@ namespace SevenUI
             }
         }
 
-        // LookingGlass's stats panel, a copy of the objective panel made after it was restyled, so it already has the
-        // flat panel, the header strip and the title's header look, and writes its stats into the copied title. The
-        // strip gets the panel's title and "LOOKINGGLASS", and the stats are laid out in two columns under it
-        // (StatsGrid), in place of the hidden title.
+        // LookingGlass's stats panel, a copy of the objective panel, which writes its stats into the copied title.
+        // LookingGlass makes it when it first shows stats, before or after the objective panel is restyled, and keeps
+        // it after the look is turned off and on. A copy made after already has the flat panel, the header strip and
+        // the title's header look, and gets the objective panel's original look back when the look is restored; a
+        // copy made before is restyled like the objective panel. The strip gets the panel's title and
+        // "LOOKINGGLASS", and the stats are laid out in two columns under it (StatsGrid), in place of the hidden title.
         private void StyleCopiedPanel(Transform panel, Transform objectivePanel)
         {
-            Transform strip = panel.Find(HeaderStripName);
             Transform title = panel.Find(TitleName);
             TMP_Text label = title ? title.GetComponent<TMP_Text>() : null;
-            if (!label || strip.Find(StatsTitleName)) return;
-            // The copied strip is the mod's, and goes when the look is restored.
-            recorder.Add(strip.gameObject);
+            Transform strip = panel.Find(HeaderStripName);
+            if (!label || strip && strip.Find(StatsTitleName)) return;
+            bool copiedStyled = strip;
+            if (copiedStyled)
+            {
+                // The copied strip is the mod's, and goes when the look is restored.
+                recorder.Add(strip.gameObject);
+            }
+            else
+            {
+                AddHeaderStrip(panel);
+                strip = panel.Find(HeaderStripName);
+            }
 
             Image image = panel.GetComponent<Image>();
             if (image)
             {
-                recorder.RecordAs(image, objectivePanel.GetComponent<Image>());
+                if (copiedStyled)
+                {
+                    recorder.RecordAs(image, objectivePanel.GetComponent<Image>());
+                }
+                else
+                {
+                    recorder.Record(image);
+                }
                 Flatten(image);
             }
             VerticalLayoutGroup layout = panel.GetComponent<VerticalLayoutGroup>();
             VerticalLayoutGroup originalLayout = objectivePanel.GetComponent<VerticalLayoutGroup>();
-            if (layout && originalLayout && recorder.TryGet(originalLayout, out StyleRecorder.LayoutLook layoutLook))
+            if (layout && !copiedStyled)
+            {
+                recorder.Record(layout);
+                layout.padding = new RectOffset(0, 0, 0, RowsPadding);
+            }
+            else if (layout && originalLayout && recorder.TryGet(originalLayout, out StyleRecorder.LayoutLook layoutLook))
             {
                 recorder.OnRestore(() =>
                 {
@@ -217,11 +241,16 @@ namespace SevenUI
                 });
             }
 
-            // LookingGlass sets its text's size, color and alignment itself; once the look is restored, the header's
-            // case, weight, tracking and inset go, and the text shows again.
+            // A copy made before keeps its own look to put back. For one made after: LookingGlass sets its text's size,
+            // color and alignment itself; once the look is restored, the header's case, weight, tracking and inset go,
+            // and the text shows again.
             Transform originalTitle = objectivePanel.Find(TitleName);
             TMP_Text originalLabel = originalTitle ? originalTitle.GetComponent<TMP_Text>() : null;
-            if (originalLabel && recorder.TryGet(originalLabel, out StyleRecorder.LabelLook labelLook))
+            if (!copiedStyled)
+            {
+                recorder.Record(label);
+            }
+            else if (originalLabel && recorder.TryGet(originalLabel, out StyleRecorder.LabelLook labelLook))
             {
                 recorder.OnRestore(() =>
                 {
@@ -235,7 +264,7 @@ namespace SevenUI
             label.alpha = 0f;
             LayoutElement element = title.GetComponent<LayoutElement>();
             LayoutElement originalElement = originalTitle ? originalTitle.GetComponent<LayoutElement>() : null;
-            if (element && originalElement && recorder.TryGet(originalElement, out Vector2 heights))
+            if (copiedStyled && element && originalElement && recorder.TryGet(originalElement, out Vector2 heights))
             {
                 recorder.OnRestore(() =>
                 {
