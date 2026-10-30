@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Text;
+using RoR2;
 using RoR2.UI;
 using TMPro;
 using UnityEngine;
@@ -10,8 +11,9 @@ namespace SevenUI
     // Restyles the run info in the top right as one flat panel, laid out as on the design canvas: the timer at the left;
     // the difficulty's name, and the stage and level under it, at the right, with the Karma icon beside them; and below
     // them a thin accent bar with the current difficulty segment's name, in place of the game's scrolling segments. The
-    // column it heads, which holds the objective panel, is widened to 300 of the canvas's pixels. The game's objects
-    // keep running; only their look and places change.
+    // panel is the canvas's height, and the timer reads "24:51" without the hundredths (TightTimerFormat). The column
+    // it heads, which holds the objective panel, is widened to 300 of the canvas's pixels and starts a gap under it.
+    // The game's objects keep running; only their look and places change.
     internal sealed class RunInfoStyler
     {
         private const string UpperRightClusterPath = "MainContainer/MainUIArea/SpringCanvas/UpperRightCluster";
@@ -46,13 +48,20 @@ namespace SevenUI
         private const float StageFontSize = 13f * Canvas;
         // How far the rows' parts stay inside the panel's sides.
         private const float RowInset = 14f * Canvas;
+        // From the top: 8px of padding, the 34px row of the timer, 8px, the bar's row as tall as its 12px name, and
+        // 10px of padding; then the gap to the panels below. The right-hand text's two lines are centered about 9.3px
+        // above and below the timer's middle.
+        private const float TopPadding = 8f * Canvas;
+        private const float TimerRowHeight = 34f * Canvas;
+        private const float RowGap = 8f * Canvas;
+        private const float BarRowHeight = 14.4f * Canvas;
+        private const float BottomPadding = 10f * Canvas;
+        private const float StageHeight = 37.2f * Canvas;
+        private const float ColumnGap = 8f * Canvas;
         private const float BarHeight = 6f * Canvas;
         private const float BarNameGap = 10f * Canvas;
         private const float BarNameFontSize = 12f * Canvas;
-        // The game's timer format sets every character, the colon too, 0.5em apart (<mspace>), which leaves Barlow
-        // Condensed's narrow digits loose; this pulls them a little closer, in hundredths of an em.
-        private const float TimerTracking = -4f;
-        // Above and below the rows, in the run info's units.
+        // Above and below the rows, in the run info's units, for a panel without a timer.
         private const float PanelPadding = 6f;
         // The most of the bar's row the segment's name may take before it shrinks.
         private const float MaxNameShare = 0.6f;
@@ -111,9 +120,10 @@ namespace SevenUI
             {
                 recorder.Record(timer);
                 timer.fontSize = TimerFontSize;
-                timer.characterSpacing = TimerTracking;
+                timer.characterSpacing = 0f;
                 timer.color = Palette.Text;
                 timer.alignment = TextAlignmentOptions.Left;
+                TightenTimer(timer.GetComponent<TimerText>());
             }
             StyleRunText(panel);
             StyleDifficultyBar(bar);
@@ -140,6 +150,81 @@ namespace SevenUI
             SetXRange(panel, timer, timerLeft, timerLeft + (timerRange.y - timerRange.x));
             SetXRange(panel, stage, (left + right) / 2f, right - RowInset * stage.localScale.x);
             SetXRange(panel, difficultyBar, left, right);
+            PlaceRowsDown(panel, column, timer, stage, difficultyBar);
+        }
+
+        private void TightenTimer(TimerText timer)
+        {
+            if (!timer || !timer.format || TightTimerFormat.IsTight(timer.format)) return;
+            TimerStringFormatter format = timer.format;
+            recorder.OnRestore(() =>
+            {
+                if (!timer) return;
+                timer.format = format;
+            });
+            // The setter writes the text again in the new format.
+            timer.format = TightTimerFormat.Of(format);
+        }
+
+        // The rows from the top: the timer's row keeps its middle, the right-hand text is centered on it, and the
+        // difficulty bar's row and the column follow under it at the canvas's spacing.
+        private void PlaceRowsDown(Transform panel, RectTransform column, RectTransform timer, RectTransform stage,
+            RectTransform difficultyBar)
+        {
+            float scale = timer.localScale.y;
+            float middle = Middle(panel, timer);
+            float barMiddle = middle - (TimerRowHeight / 2f + RowGap + BarRowHeight / 2f) * scale;
+            float bottom = barMiddle - (BarRowHeight / 2f + BottomPadding) * scale;
+            SetYRange(panel, stage, middle - StageHeight / 2f * stage.localScale.y, middle + StageHeight / 2f * stage.localScale.y);
+            Vector2 bar = YRange(panel, difficultyBar);
+            float barHalf = (bar.y - bar.x) / 2f;
+            SetYRange(panel, difficultyBar, barMiddle - barHalf, barMiddle + barHalf);
+            // The column grows downward as its panels change, so it hangs from its top.
+            recorder.RecordRect(column);
+            float height = column.rect.height;
+            column.anchoredPosition += new Vector2(0f, (1f - column.pivot.y) * height);
+            column.pivot = new Vector2(column.pivot.x, 1f);
+            float top = bottom - ColumnGap * column.localScale.y;
+            SetYRange(panel, column, top - height * column.localScale.y, top);
+        }
+
+        // The panel's top and bottom around the rows placed by PlaceRowsDown, or null without a timer.
+        private Vector2? PanelYRange(Transform panel)
+        {
+            RectTransform timer = panel.Find(TimerPanelPath) as RectTransform;
+            if (!timer || !timer.gameObject.activeSelf) return null;
+            float scale = timer.localScale.y;
+            float middle = Middle(panel, timer);
+            float barMiddle = middle - (TimerRowHeight / 2f + RowGap + BarRowHeight / 2f) * scale;
+            return new Vector2(barMiddle - (BarRowHeight / 2f + BottomPadding) * scale,
+                middle + (TimerRowHeight / 2f + TopPadding) * scale);
+        }
+
+        private float Middle(Transform panel, RectTransform rect)
+        {
+            Vector2 range = YRange(panel, rect);
+            return (range.x + range.y) / 2f;
+        }
+
+        // The rect's bottom and top in the panel's units.
+        private Vector2 YRange(Transform panel, RectTransform rect)
+        {
+            rect.GetWorldCorners(corners);
+            return new Vector2(panel.InverseTransformPoint(corners[0]).y, panel.InverseTransformPoint(corners[1]).y);
+        }
+
+        // As SetXRange, up and down. The column's size is set by its own layout, so it is only moved.
+        private void SetYRange(Transform panel, RectTransform rect, float bottom, float top)
+        {
+            if (rect.localScale.y <= 0f) return;
+            recorder.RecordRect(rect);
+            Vector2 range = YRange(panel, rect);
+            if (!rect.GetComponent<ContentSizeFitter>())
+            {
+                rect.sizeDelta += new Vector2(0f, (top - bottom - (range.y - range.x)) / rect.localScale.y);
+                range = YRange(panel, rect);
+            }
+            rect.anchoredPosition += new Vector2(0f, top - range.y);
         }
 
         // The rect's left and right sides in the panel's units.
@@ -272,8 +357,17 @@ namespace SevenUI
                 min.x -= PanelPadding;
                 max.x += PanelPadding;
             }
-            min.y -= PanelPadding;
-            max.y += PanelPadding;
+            Vector2? rows = PanelYRange(panel);
+            if (rows.HasValue)
+            {
+                min.y = rows.Value.x;
+                max.y = rows.Value.y;
+            }
+            else
+            {
+                min.y -= PanelPadding;
+                max.y += PanelPadding;
+            }
 
             background.anchorMin = background.anchorMax = background.pivot = new Vector2(0.5f, 0.5f);
             background.localPosition = (min + max) / 2f;

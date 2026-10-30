@@ -9,9 +9,10 @@ using UnityEngine;
 
 namespace SevenUI.Tests
 {
-    // Checks that the bottom corners draw at the design canvas's sizes on screen, in its pixels on a 1080-pixel-high
-    // screen: the level's block beside the bars, the health and experience bars' heights, the skill slots and the
-    // gaps between them, the divider before the equipment, and the buffs' counts in their squares' top-right corners.
+    // Checks that parts of the HUD draw at the design canvas's sizes on screen, in its pixels on a 1080-pixel-high
+    // screen: the run info's height and the gap under it, the level's block beside the bars, the health and experience
+    // bars' heights, the skill slots and the gaps between them, the divider before the equipment, and the buffs'
+    // counts in their squares' top-right corners. Also the run timer's text.
     internal static class CanvasSizeChecks
     {
         private const float CanvasHeight = 1080f;
@@ -25,6 +26,10 @@ namespace SevenUI.Tests
         private const float SkillGap = 8f;
         // The equipment sits past the divider: 8 + 4 + 2 + 4 + 8.
         private const float EquipmentGap = 26f;
+        // 8 + 34 + 8 + 14.4 + 10, and the column 8 under it.
+        private const float RunInfoHeight = 74.4f;
+        private const float ColumnGap = 8f;
+        private const string UpperRightPath = "MainContainer/MainUIArea/SpringCanvas/UpperRightCluster";
 
         // Canvas pixels per screen pixel, and a rect's box on screen in canvas pixels.
         private static (Camera camera, float unit) Screen(Harness h)
@@ -128,6 +133,28 @@ namespace SevenUI.Tests
                     });
                 },
                 () => $"the stack counts in the buffs' top-right corners ({look}) {h.Diagnosis()}");
+        }
+        public static IEnumerator ExpectRunInfoCanvasHeight(this Harness h)
+        {
+            string look = null;
+            yield return h.Until(
+                () =>
+                {
+                    Transform cluster = SevenUIChecks.HudRoot(h).Find(UpperRightPath);
+                    RectTransform background = cluster ? cluster.GetComponentsInChildren<RectTransform>(true)
+                        .FirstOrDefault(rect => rect.name == Texts.RunInfoBackgroundName) : null;
+                    RectTransform column = background ? background.parent.Find("RightInfoBar") as RectTransform : null;
+                    TimerText timer = background ? background.parent.GetComponentInChildren<TimerText>(true) : null;
+                    if (!column || !timer || !timer.targetLabel) return false;
+                    Rect panel = Box(h, background);
+                    Rect below = Box(h, column);
+                    string text = timer.targetLabel.text;
+                    look = $"panel {BoxText(panel)}, column {BoxText(below)}, timer '{text}'";
+                    return Near(panel.height, RunInfoHeight) && Near(panel.yMin - below.yMax, ColumnGap) &&
+                           !text.Contains("<voffset") && !text.Contains(".");
+                },
+                () => $"the run info {RunInfoHeight}px tall with the column {ColumnGap}px under it, and the timer without " +
+                      $"hundredths ({look}) {h.Diagnosis()}");
         }
     }
 }

@@ -78,6 +78,7 @@ namespace SevenUI.Tests
         {
             yield return h.ExpectRunInfoFlat();
             yield return h.ExpectRunInfoAsCanvas();
+            yield return h.ExpectRunInfoCanvasHeight();
         }
 
         // More max health changes both numbers, so the text has to keep up after the switch from sprite digits.
