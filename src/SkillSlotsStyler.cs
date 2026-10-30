@@ -10,11 +10,10 @@ namespace SevenUI
 {
     // Restyles the skill, equipment and key item slots in the bottom right: flat dark slots at the design canvas's size
     // and spacing (SkillRow), the equipment and key item at the skills' size, each past a thin divider and with a thin
-    // ready outline in its own color, a
-    // top-down cooldown cover in place of the radial overlay, a thin recharge bar along the bottom of a skill with
-    // charges (RechargeBar), cooldowns and stocks in Barlow Condensed with the stocks in their slots' bottom-right
-    // corners (CornerStock), and the key labels (the slots' and the inventory and sprint buttons') as small grey
-    // capitals without their dark plates. The game keeps running the slots.
+    // ready outline in its own color, a top-down cooldown cover in place of the radial overlay, cooldowns and stocks in
+    // Barlow Condensed with the stocks in their slots' bottom-right corners (CornerStock), and the key labels (the
+    // slots' and the inventory and sprint buttons') as small grey capitals without their dark plates. The game keeps
+    // running the slots.
     internal sealed class SkillSlotsStyler
     {
         private const string ClusterPath = "MainContainer/MainUIArea/SpringCanvas/BottomRightCluster";
@@ -25,14 +24,12 @@ namespace SevenUI
         // The key item slot's ready outline, like the equipment's, which the game ships turned off and never shows.
         private const string KeyItemOutlineName = "IsReadyPanel";
         private const string CoverName = "SevenUICooldownCover";
-        private const string RechargeName = "SevenUIRechargeBar";
 
         // In the design canvas's pixels. The game draws cooldowns at the slot's full height; the canvas draws them
         // smaller.
         private const float CooldownFontSize = 30f;
         public const float StockFontSize = 18f;
         public const float KeyFontSize = 12f;
-        private const float RechargeHeight = 3f;
         // 1px at 12px, in hundredths of an em.
         private const float KeyTracking = 8f;
 
@@ -142,10 +139,6 @@ namespace SevenUI
             if (skill.cooldownRemapPanel && skill.iconImage && !skill.transform.Find(CoverName))
             {
                 AddCover(skill);
-            }
-            if (!skill.transform.Find(RechargeName))
-            {
-                AddRechargeBar(skill);
             }
             StyleNumbers(skill.cooldownText, skill.stockText);
             KeepInCorner(skill.stockText, (RectTransform)skill.transform);
@@ -349,47 +342,6 @@ namespace SevenUI
             follower.Overlay = skill.cooldownRemapPanel;
             follower.Cover = image;
             recorder.Add(cover);
-        }
-
-        // Along the slot's bottom, over everything else in it.
-        private void AddRechargeBar(SkillIcon skill)
-        {
-            float perUnit = row.PixelsPer(skill.transform);
-            if (perUnit <= 0f) return;
-            GameObject bar = NewUIObject(RechargeName, skill.transform);
-            RectTransform barRect = (RectTransform)bar.transform;
-            barRect.anchorMin = Vector2.zero;
-            barRect.anchorMax = new Vector2(1f, 0f);
-            barRect.offsetMin = Vector2.zero;
-            barRect.offsetMax = new Vector2(0f, RechargeHeight / perUnit);
-            Image trough = bar.AddComponent<Image>();
-            trough.color = Palette.RechargeTrough;
-            trough.raycastTarget = false;
-            trough.enabled = false;
-
-            GameObject fill = NewUIObject("Fill", bar.transform);
-            RectTransform fillRect = (RectTransform)fill.transform;
-            fillRect.anchorMin = Vector2.zero;
-            fillRect.anchorMax = Vector2.one;
-            fillRect.offsetMin = fillRect.offsetMax = Vector2.zero;
-            Image fillImage = fill.AddComponent<Image>();
-            fillImage.color = Palette.Accent;
-            fillImage.raycastTarget = false;
-            fillImage.enabled = false;
-
-            RechargeBar recharge = bar.AddComponent<RechargeBar>();
-            recharge.Skill = skill;
-            recharge.Trough = trough;
-            recharge.Fill = fillImage;
-            recorder.Add(bar);
-        }
-
-        private static GameObject NewUIObject(string name, Transform parent)
-        {
-            GameObject created = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer));
-            created.layer = parent.gameObject.layer;
-            created.transform.SetParent(parent, false);
-            return created;
         }
 
         private void StyleNumbers(TMP_Text cooldown, TMP_Text stock)

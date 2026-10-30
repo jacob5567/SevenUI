@@ -56,8 +56,6 @@ namespace SevenUI
         public static readonly Color BuffTimer = new Color(0.765f, 0.780f, 0.827f, 1f);
         // #343846, thin dividers, such as the one between the skills and the equipment.
         public static readonly Color Divider = new Color(0.204f, 0.220f, 0.275f, 1f);
-        // #22252d, the empty part of the recharge bar under a skill with charges.
-        public static readonly Color RechargeTrough = new Color(0.133f, 0.145f, 0.176f, 1f);
         // #e9d27a, the barrier, a strip along the top of the health bar.
         public static readonly Color Barrier = new Color(0.914f, 0.824f, 0.478f, 1f);
     }
