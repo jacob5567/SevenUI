@@ -36,6 +36,9 @@ namespace SevenUI.Tests
         // A 500px notification, its middle 758px down.
         private const float NotificationWidth = 500f;
         private const float NotificationMiddleDown = 758f;
+        // Its icon 44px in the middle of a 56px slot.
+        private const float NotificationSlotSize = 56f;
+        private const float NotificationIconSize = 44f;
         // The equipment's stock 4px from its slot's right and 3px from its bottom, with the digits on a baseline a
         // descender above that: up to about a third of the 18px text.
         private const float StockRightInset = 4f;
@@ -309,30 +312,42 @@ namespace SevenUI.Tests
         private static string PlaceText(Vector3? place) =>
             place is Vector3 value ? $"{value.x:F2}, {value.y:F2}, {value.z:F2}" : "none";
 
-        public static IEnumerator ExpectNotificationAsCanvas(this Harness h)
+        // The notification showing, or the one whose title is the token's; with its icon in the middle of its slot,
+        // whichever of the game's notifications it is (the drone's and the trial's hold their icon in a frame).
+        public static IEnumerator ExpectNotificationAsCanvas(this Harness h, string titleToken = null)
         {
             string look = null;
             yield return h.Until(
                 () =>
                 {
-                    GenericNotification notification = SevenUIChecks.HudRoot(h).GetComponentInChildren<GenericNotification>();
-                    if (!notification || !notification.canvasGroup || !notification.titleTMP) return false;
+                    GenericNotification notification = SevenUIChecks.HudRoot(h).GetComponentsInChildren<GenericNotification>()
+                        .FirstOrDefault(shown => titleToken == null || shown.titleText && shown.titleText.token == titleToken);
+                    if (!notification || !notification.canvasGroup || !notification.titleTMP || !notification.iconImage) return false;
                     Transform backdrop = notification.canvasGroup.transform.Find("Backdrop");
-                    if (!backdrop) return false;
+                    RectTransform iconArea = notification.canvasGroup.transform.Find("IconArea") as RectTransform;
+                    if (!backdrop || !iconArea) return false;
+                    Rect slot = Box(h, iconArea);
+                    Rect icon = Box(h, notification.iconImage.rectTransform);
+                    bool iconCentered = Near(slot.width, NotificationSlotSize) && Near(slot.height, NotificationSlotSize) &&
+                                        Near(icon.width, NotificationIconSize) && Near(icon.height, NotificationIconSize) &&
+                                        (icon.center - slot.center).magnitude < SizeTolerance;
                     Rect box = Box(h, (RectTransform)backdrop);
                     (Camera camera, float unit) = Screen(h);
                     Rect screen = CanvasLayoutChecks.ScreenOf(camera);
                     float middleDown = screen.height / unit - box.center.y;
                     float offCenter = box.center.x - screen.center.x / unit;
                     look = $"panel {BoxText(box)}, middle {middleDown:0.#} down, {offCenter:0.#} off center, " +
-                           $"strip {(bool)backdrop.Find(PromptsStyler.NotificationStripName)}, title color {notification.titleTMP.color}";
-                    return Near(box.width, NotificationWidth) && Near(middleDown, NotificationMiddleDown) &&
+                           $"strip {(bool)backdrop.Find(PromptsStyler.NotificationStripName)}, title color {notification.titleTMP.color}, " +
+                           $"slot {BoxText(slot)}, icon {BoxText(icon)}";
+                    return iconCentered && Near(box.width, NotificationWidth) && Near(middleDown, NotificationMiddleDown) &&
                            Mathf.Abs(offCenter) < SizeTolerance && backdrop.Find(PromptsStyler.NotificationStripName) &&
                            SevenUIChecks.Near(notification.titleTMP.color, Palette.Text);
                 },
-                () => $"the pickup notification {NotificationWidth}px wide, {NotificationMiddleDown}px down, with a strip " +
-                      $"and a white title ({look}) {h.Diagnosis()}");
+                () => $"the {titleToken ?? "pickup"} notification {NotificationWidth}px wide, {NotificationMiddleDown}px down, " +
+                      $"with a strip, a white title and its icon {NotificationIconSize}px in the middle of its " +
+                      $"{NotificationSlotSize}px slot ({look}) {h.Diagnosis()}");
         }
+
         // The open scoreboard's header strip with each header at its column, and the viewer's row: tinted, its money
         // last, the survivor and level under the name, and the equipment outlined.
         public static IEnumerator ExpectScoreboardAsCanvas(this Harness h)

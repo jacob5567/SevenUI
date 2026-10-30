@@ -52,6 +52,7 @@ namespace SevenUI
         private readonly Dictionary<Behaviour, bool> enabledStates = new Dictionary<Behaviour, bool>();
         private readonly Dictionary<GameObject, bool> activeStates = new Dictionary<GameObject, bool>();
         private readonly Dictionary<Transform, Quaternion> rotations = new Dictionary<Transform, Quaternion>();
+        private readonly Dictionary<Transform, Vector3> scales = new Dictionary<Transform, Vector3>();
         private readonly Dictionary<RectTransform, Vector2> positions = new Dictionary<RectTransform, Vector2>();
         private readonly Dictionary<RectTransform, RectLook> rects = new Dictionary<RectTransform, RectLook>();
         private readonly List<System.Action> undos = new List<System.Action>();
@@ -61,7 +62,7 @@ namespace SevenUI
         private readonly List<Object> added = new List<Object>();
 
         public int Count => images.Count + rawImages.Count + labels.Count + texts.Count + enabledStates.Count + activeStates.Count +
-                            rotations.Count + positions.Count + rects.Count + layouts.Count + minAndPreferredHeights.Count + added.Count + undos.Count;
+                            rotations.Count + scales.Count + positions.Count + rects.Count + layouts.Count + minAndPreferredHeights.Count + added.Count + undos.Count;
 
         public static ImageLook Capture(Image image) => new ImageLook
         {
@@ -171,6 +172,16 @@ namespace SevenUI
                 rotations[transform] = transform.localRotation;
             }
             transform.localRotation = rotation;
+        }
+
+        public void SetLocalScale(Transform transform, Vector3 scale)
+        {
+            if (!transform) return;
+            if (!scales.ContainsKey(transform))
+            {
+                scales[transform] = transform.localScale;
+            }
+            transform.localScale = scale;
         }
 
         public void SetAnchoredPosition(RectTransform rect, Vector2 position)
@@ -339,6 +350,13 @@ namespace SevenUI
                     entry.Key.localRotation = entry.Value;
                 }
             }
+            foreach (KeyValuePair<Transform, Vector3> entry in scales)
+            {
+                if (entry.Key)
+                {
+                    entry.Key.localScale = entry.Value;
+                }
+            }
             foreach (System.Action undo in undos)
             {
                 undo();
@@ -357,6 +375,7 @@ namespace SevenUI
             enabledStates.Clear();
             activeStates.Clear();
             rotations.Clear();
+            scales.Clear();
             positions.Clear();
             rects.Clear();
             undos.Clear();

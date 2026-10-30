@@ -18,6 +18,10 @@ namespace SevenUI.Tests
         private const int ChestMoney = 1000;
         // The game counts the shown amount up over about this long.
         private const float CountUpSeconds = 3f;
+        // The Trial of Infernal Greed's texts.
+        private const string TrialNameToken = "QUEST_TRIAL_SADISMMONEY_NAME";
+        private const string TrialDescriptionToken = "QUEST_TRIAL_SADISMMONEY_DESC";
+        private const float TrialNotificationSeconds = 2f;
         // The health bar fits about a dozen buff slots across.
         private const int ManyBuffs = 20;
         private const int StackedBuffCount = 3;
@@ -32,6 +36,7 @@ namespace SevenUI.Tests
             yield return new Scenario(1, Suite, "player_bars_are_flat", Stages.TitanicPlains, PlayerBarsAreFlat);
             yield return new Scenario(1, Suite, "buffs_wrap_in_rows", Stages.TitanicPlains, BuffsWrapInRows);
             yield return new Scenario(1, Suite, "skill_slots_are_flat", Stages.TitanicPlains, SkillSlotsAreFlat);
+            yield return new Scenario(1, Suite, "notification_icons_in_slot", Stages.TitanicPlains, NotificationIconsInSlot);
             yield return new Scenario(1, Suite, "equipment_stock_in_slot", Stages.TitanicPlains, EquipmentStockInSlot);
             yield return new Scenario(1, Suite, "ntormat_pages_follow_key_item", Stages.TitanicPlains, NtormatPagesFollowKeyItem);
             yield return new Scenario(1, Suite, "top_is_flat", Stages.TitanicPlains, TopIsFlat);
@@ -151,6 +156,24 @@ namespace SevenUI.Tests
             yield return h.ExpectSlotsSkillSized();
             yield return h.ExpectSkillRowAsCanvas();
             yield return h.ExpectUtilityAreaFollowsRow();
+        }
+
+        // A Winnowing trial's notification and a repaired drone's, which the game draws from prefabs of their own with
+        // the icon in a frame. Pushed straight to the local player's queue, which shows them in turn; the trial's for
+        // a short while, so the drone's follows soon.
+        private static IEnumerator NotificationIconsInSlot(Harness h)
+        {
+            CharacterMaster master = Harness.LocalBody.master;
+            CharacterMasterNotificationQueue.PushTrialNotification(master, new TrialVariantEventRelay.TrialVariantNotificationInfo
+            {
+                nameToken = TrialNameToken,
+                descriptionToken = TrialDescriptionToken,
+            }, TrialNotificationSeconds);
+            yield return h.ExpectNotificationAsCanvas(TrialNameToken);
+            DroneIndex drone = DroneCatalog.GetDroneIndexFromBodyIndex(BodyCatalog.FindBodyIndex(GameNames.GunnerDroneBody));
+            if (drone == DroneIndex.None) throw h.Skip("no drone for the Gunner Drone's body");
+            CharacterMasterNotificationQueue.PushDroneNotification(master, drone);
+            yield return h.ExpectNotificationAsCanvas(DroneCatalog.GetDroneDef(drone).nameToken);
         }
 
         // Foreign Fruit with a Fuel Cell, so the slot shows its stock, taken away at cleanup. Server methods; the runner

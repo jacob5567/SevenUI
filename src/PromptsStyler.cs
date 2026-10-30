@@ -201,7 +201,9 @@ namespace SevenUI
         }
 
         // The slot behind the icon, which keeps a margin inside it; the game's temporary and rental marks cover the
-        // slot as they covered the icon.
+        // slot as they covered the icon. The drone and trial notifications hold their icon in a frame of their own,
+        // drawn larger than the slot (the trial's at 1.6 times, its icon at 0.45 inside it); the frame goes, as the
+        // generic notification's slot background does, and the icon is centered at the generic one's size.
         private void StyleIconArea(Transform iconArea, RawImage icon)
         {
             LayoutElement element = iconArea.GetComponent<LayoutElement>();
@@ -236,17 +238,30 @@ namespace SevenUI
             {
                 RectTransform rect = (RectTransform)child;
                 if (recorder.HasRect(rect)) continue;
-                recorder.RecordRect(rect);
                 if (icon && child == icon.transform)
                 {
-                    rect.sizeDelta = new Vector2(NotificationIconSize, NotificationIconSize);
+                    CenterInSlot(rect, NotificationIconSize);
+                }
+                else if (icon && icon.transform.parent == child)
+                {
+                    CenterInSlot(rect, NotificationSlotSize);
+                    recorder.Disable(child.GetComponent<Graphic>());
+                    CenterInSlot(icon.rectTransform, NotificationIconSize);
                 }
                 else
                 {
-                    rect.anchoredPosition = new Vector2(NotificationSlotSize / 2f, -NotificationSlotSize / 2f);
-                    rect.sizeDelta = new Vector2(NotificationSlotSize, NotificationSlotSize);
+                    CenterInSlot(rect, NotificationSlotSize);
                 }
             }
+        }
+
+        private void CenterInSlot(RectTransform rect, float size)
+        {
+            recorder.RecordRect(rect);
+            rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = Vector2.zero;
+            rect.sizeDelta = new Vector2(size, size);
+            recorder.SetLocalScale(rect, Vector3.one);
         }
 
         // Centered across the screen, its middle the canvas's distance down. The notification is a child of the game's
