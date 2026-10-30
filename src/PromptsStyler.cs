@@ -14,25 +14,26 @@ namespace SevenUI
     internal sealed class PromptsStyler
     {
         private const string UpperRightClusterPath = "MainContainer/MainUIArea/SpringCanvas/UpperRightCluster";
-        private const string MainContainerPath = "MainContainer";
         // Under a notification's canvas group.
         private const string NotificationBackdropName = "Backdrop";
         private const string NotificationTextAreaName = "TextArea";
         private const string NotificationIconAreaName = "IconArea";
         public const string NotificationStripName = "SevenUINotificationStrip";
-        // The design canvas's sizes, in its pixels, which the notifications' units match once they aren't scaled up:
-        // a 500px panel with 14px by 10px of padding and a 3px strip, a 56px slot with the icon inside it, 14px from
-        // the 402px of text, a 22px title 2px over a 16px description. Its middle is 758px down a 1080px screen.
-        private const int NotificationPaddingX = 14;
-        private const int NotificationPaddingY = 10;
-        private const float NotificationGap = 14f;
-        private const float NotificationStripHeight = 3f;
-        private const float NotificationSlotSize = 56f;
-        private const float NotificationIconSize = 44f;
-        private const float NotificationTextWidth = 402f;
-        private const float NotificationTitleSize = 22f;
-        private const float NotificationDescriptionSize = 16f;
-        private const float NotificationTextGap = 2f;
+        // The design canvas's sizes, in its pixels, scaled to the HUD's units, which the notifications' are once they
+        // aren't scaled up: a 500px panel with 14px by 10px of padding and a 3px strip, a 56px slot with the
+        // icon inside it, 14px from the 402px of text, a 22px title 2px over a 16px description. Its middle is 758px
+        // down a 1080px screen.
+        private const float Canvas = HudUnits.PerCanvasPixel;
+        private const float NotificationPaddingX = 14f * Canvas;
+        private const float NotificationPaddingY = 10f * Canvas;
+        private const float NotificationGap = 14f * Canvas;
+        private const float NotificationStripHeight = 3f * Canvas;
+        private const float NotificationSlotSize = 56f * Canvas;
+        private const float NotificationIconSize = 44f * Canvas;
+        private const float NotificationTextWidth = 402f * Canvas;
+        private const float NotificationTitleSize = 22f * Canvas;
+        private const float NotificationDescriptionSize = 16f * Canvas;
+        private const float NotificationTextGap = 2f * Canvas;
         private const float NotificationMiddleDown = 758f / 1080f;
 
         private readonly Transform root;
@@ -174,7 +175,9 @@ namespace SevenUI
                 Place((RectTransform)notification.transform);
             }
             recorder.Record(row);
-            row.padding = new RectOffset(NotificationPaddingX, NotificationPaddingX, NotificationPaddingY, NotificationPaddingY);
+            int paddingX = Mathf.RoundToInt(NotificationPaddingX);
+            int paddingY = Mathf.RoundToInt(NotificationPaddingY);
+            row.padding = new RectOffset(paddingX, paddingX, paddingY, paddingY);
             row.spacing = NotificationGap;
             recorder.Record(texts);
             texts.padding = new RectOffset(0, 0, 0, 0);
@@ -246,15 +249,18 @@ namespace SevenUI
             }
         }
 
-        // Centered across the HUD, its middle the canvas's distance down. The notification is a child of the game's
-        // notification area, whose content is centered on it.
+        // Centered across the screen, its middle the canvas's distance down. The notification is a child of the game's
+        // notification area, whose content is centered on it. The HUD's camera draws in perspective, so the spot is
+        // found on screen, through the camera, rather than in the HUD's units.
         private void Place(RectTransform panel)
         {
-            RectTransform container = root.Find(MainContainerPath) as RectTransform;
             RectTransform parent = panel.parent as RectTransform;
-            if (!container || !parent) return;
-            Rect area = container.rect;
-            Vector3 target = container.TransformPoint(new Vector3(area.center.x, area.yMax - area.height * NotificationMiddleDown, 0f));
+            Canvas canvas = root.GetComponent<Canvas>();
+            if (!parent || !canvas) return;
+            Camera camera = canvas.renderMode != RenderMode.ScreenSpaceOverlay ? canvas.worldCamera : null;
+            Rect screen = camera ? camera.pixelRect : new Rect(0f, 0f, Screen.width, Screen.height);
+            Vector2 spot = new Vector2(screen.center.x, screen.yMax - screen.height * NotificationMiddleDown);
+            if (!RectTransformUtility.ScreenPointToWorldPointInRectangle(parent, spot, camera, out Vector3 target)) return;
             Vector3 middle = panel.TransformPoint(panel.rect.center);
             Vector2 shift = parent.InverseTransformPoint(target) - parent.InverseTransformPoint(middle);
             recorder.SetAnchoredPosition(panel, panel.anchoredPosition + shift);
