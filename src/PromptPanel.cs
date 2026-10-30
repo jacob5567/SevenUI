@@ -215,21 +215,30 @@ namespace SevenUI
         // info's and its top over the prompt's first row.
         private void Fit()
         {
-            float y = -PaddingY;
-            float width = 0f;
             bool any = false;
             foreach (Row row in rows)
             {
-                bool shown = row.ShownActive && row.Action.text.Length > 0;
+                bool shown = Shown(row);
                 row.Box.gameObject.SetActive(shown);
                 row.Action.gameObject.SetActive(shown);
                 row.Price.gameObject.SetActive(shown && row.Price.text.Length > 0);
-                if (!shown) continue;
-                if (any)
+                any |= shown;
+            }
+            // Before measuring: a text is set up for the canvas when it first becomes active, and measures far too
+            // narrow before that.
+            panel.gameObject.SetActive(any);
+            if (!any) return;
+            float y = -PaddingY;
+            float width = 0f;
+            bool first = true;
+            foreach (Row row in rows)
+            {
+                if (!Shown(row)) continue;
+                if (!first)
                 {
                     y -= RowGap;
                 }
-                any = true;
+                first = false;
                 float keyWidth = Mathf.Max(BoxSize, row.Key.GetPreferredValues(row.Key.text).x + 2f * KeyInset);
                 float x = PaddingX;
                 row.Box.anchoredPosition = new Vector2(x, y);
@@ -243,14 +252,14 @@ namespace SevenUI
                 width = Mathf.Max(width, x);
                 y -= BoxSize;
             }
-            panel.gameObject.SetActive(any);
-            if (!any) return;
             Vector2 size = new Vector2(width + PaddingX, -y + PaddingY);
             panel.sizeDelta = size;
             // The panel is anchored at the prompt's left middle; its first row centered on the prompt's.
             float top = BoxSize / 2f + PaddingY;
             panel.anchoredPosition = new Vector2(shownRight - parent.rect.xMin, top);
         }
+
+        private static bool Shown(Row row) => row.ShownActive && row.Action.text.Length > 0;
 
         private static float Place(TMP_Text text, float x, float y)
         {
