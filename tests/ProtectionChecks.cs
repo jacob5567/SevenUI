@@ -35,7 +35,7 @@ namespace SevenUI.Tests
                     return shown.All(bar => Problem(bar, wanted, unwanted) == null);
                 },
                 () => $"one-shot protection on {whose} health bars in {wanted} ({look}) {h.Diagnosis()}");
-            Debug.Log($"[SevenUI.Tests] one-shot protection on {whose} health bars, {(modded ? "SevenUI's" : "the game's")} look: {look}");
+            h.Log($"One-shot protection on {whose} health bars, {(modded ? "SevenUI's" : "the game's")} look: {look}");
         }
 
         private static string Look(HealthBar bar, string wanted, string unwanted)
