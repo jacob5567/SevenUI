@@ -27,6 +27,9 @@ namespace SevenUI
             HealthBarStyle allyStyle = bar._allyStyle;
             bar._style = Of(style);
             bar._allyStyle = allyStyle ? Of(allyStyle) : null;
+            ProtectionStripes stripes = bar.gameObject.AddComponent<ProtectionStripes>();
+            stripes.Bar = bar;
+            recorder.Add(stripes);
             recorder.OnRestore(() =>
             {
                 if (!bar) return;
@@ -70,7 +73,7 @@ namespace SevenUI
             copy.trailingOverHealthBarStyle.baseColor = Palette.Health;
             copy.shieldBarStyle.baseColor = Palette.Shield;
             HatchBar(ref copy.curseBarStyle, FlatSprite.Hatch);
-            HatchBar(ref copy.ospStyle, FlatSprite.ProtectionHatch);
+            MarkBar(ref copy.ospStyle);
             Copies[original] = copy;
             Flat.Add(copy);
             return copy;
@@ -93,6 +96,17 @@ namespace SevenUI
             bar.baseColor = Color.white;
             bar.sprite = stripes;
             bar.imageType = Image.Type.Tiled;
+            bar.sizeDelta = 0f;
+        }
+
+        // One-shot protection's bar stays where the game puts it, but clear: its stripes are drawn lower, under the
+        // barrier and the effects over the health (ProtectionStripes), which finds the bar by its sprite.
+        private static void MarkBar(ref HealthBarStyle.BarStyle bar)
+        {
+            if (!bar.sprite) return;
+            bar.baseColor = Color.clear;
+            bar.sprite = FlatSprite.ProtectionHatch;
+            bar.imageType = Image.Type.Simple;
             bar.sizeDelta = 0f;
         }
 

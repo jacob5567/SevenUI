@@ -46,8 +46,10 @@ namespace SevenUI.Tests
 
         private static string Problem(HealthBar bar, string wanted, string unwanted)
         {
+            // What shows: the mod keeps the game's bar clear and draws its stripes on an image of its own.
             List<Image> images = bar.GetComponentsInChildren<Image>()
-                .Where(image => image.enabled && image.sprite && image.gameObject.activeInHierarchy).ToList();
+                .Where(image => image.enabled && image.sprite && image.color.a > 0f && image.gameObject.activeInHierarchy)
+                .ToList();
             if (images.Any(image => image.sprite.name == unwanted)) return $"drawn in {unwanted}";
             Image stripes = images.FirstOrDefault(image => image.sprite.name == wanted);
             bool drawn = bar.style && bar.style.ospStyle.enabled;
@@ -57,7 +59,15 @@ namespace SevenUI.Tests
             if (expected <= 0f) return null;
             if (!stripes) return $"no stripes over {expected:P0}";
             float share = stripes.rectTransform.anchorMax.x - stripes.rectTransform.anchorMin.x;
-            return Mathf.Abs(share - expected) < ShareTolerance ? null : $"stripes over {share:P0}, not {expected:P0}";
+            if (Mathf.Abs(share - expected) >= ShareTolerance) return $"stripes over {share:P0}, not {expected:P0}";
+            // The mod's stripes go under the barrier's strip.
+            Image barrier = images.FirstOrDefault(image => image.sprite == FlatSprite.TopStrip);
+            if (wanted == FlatSprite.ProtectionHatchName && barrier &&
+                stripes.transform.GetSiblingIndex() > barrier.transform.GetSiblingIndex())
+            {
+                return "stripes over the barrier";
+            }
+            return null;
         }
     }
 }

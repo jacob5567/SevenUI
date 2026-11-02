@@ -26,6 +26,8 @@ namespace SevenUI.Tests
         private const int ManyBuffs = 20;
         private const int StackedBuffCount = 3;
         private const int AllyCount = 2;
+        // Barrier decays, so plenty for both looks' checks.
+        private const float ProtectionBarrierShare = 0.8f;
 
         public static IEnumerable<Scenario> All()
         {
@@ -245,11 +247,14 @@ namespace SevenUI.Tests
             yield return h.ExpectPromptAsCanvas();
         }
 
-        // At full health one-shot protection covers a tenth of the player's bar: in green stripes, and in the game's
-        // own with the mod's look off, as the game draws it.
+        // At full health one-shot protection covers a tenth of the player's bar: in green stripes under the barrier, and
+        // in the game's own with the mod's look off, as the game draws it.
         private static IEnumerator ProtectionStripedOnPlayer(Harness h)
         {
             HUD hud = SevenUIChecks.HudRoot(h).GetComponent<HUD>();
+            // A barrier, drawn over the stripes. A server method; the runner is the host.
+            HealthComponent health = Harness.LocalBody.healthComponent;
+            health.AddBarrier(health.fullCombinedHealth * ProtectionBarrierShare);
             yield return ProtectionBothLooks(h, () => new[] { hud.healthBar }, "the player's");
         }
 
