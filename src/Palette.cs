@@ -57,6 +57,10 @@ namespace SevenUI
         // #2a2d36 and #1c1e25, the stripes over maximum health a curse has taken away.
         public static readonly Color CurseStripe = new Color(0.165f, 0.176f, 0.212f, 1f);
         public static readonly Color CurseGap = new Color(0.110f, 0.118f, 0.145f, 1f);
+        // #6fbf73 and #57a05b, the stripes over the health one-shot protection covers: the health's green and one a little
+        // darker, so the band shows without standing out.
+        public static readonly Color ProtectionStripe = new Color(0.435f, 0.749f, 0.451f, 1f);
+        public static readonly Color ProtectionGap = new Color(0.341f, 0.627f, 0.357f, 1f);
         // #8fd18f, the health regeneration beside the health numbers.
         public static readonly Color Regen = new Color(0.561f, 0.820f, 0.561f, 1f);
         // #c3c7d3, LookingGlass's buff timers under the buffs.

@@ -3,7 +3,7 @@ using UnityEngine;
 namespace SevenUI
 {
     // Plain sprites drawn in code: a white one for flat bars, a sliced square outline, a sliced strip along the top, and
-    // diagonal stripes to tile.
+    // diagonal stripes to tile, dark for a curse and green for one-shot protection.
     internal static class FlatSprite
     {
         // The outline texture's size and border, in pixels. At 100 pixels per unit the border is this many HUD canvas
@@ -21,6 +21,8 @@ namespace SevenUI
 
         private static Sprite white;
         private static Sprite hatch;
+        private static Sprite protectionHatch;
+        public const string ProtectionHatchName = "SevenUIProtectionHatch";
         private static Sprite outline;
         private static Sprite topStrip;
 
@@ -97,31 +99,32 @@ namespace SevenUI
         }
     
         // Dark stripes running up to the right, in the curse's colors, for a tiled image.
-        public static Sprite Hatch
+        public static Sprite Hatch => hatch ? hatch : hatch = MakeHatch("SevenUIHatch", Palette.CurseStripe, Palette.CurseGap);
+
+        // The same stripes in greens, for the health one-shot protection covers.
+        public static Sprite ProtectionHatch => protectionHatch
+            ? protectionHatch
+            : protectionHatch = MakeHatch(ProtectionHatchName, Palette.ProtectionStripe, Palette.ProtectionGap);
+
+        private static Sprite MakeHatch(string name, Color stripeColor, Color gapColor)
         {
-            get
+            Texture2D texture = new Texture2D(HatchTextureSize, HatchTextureSize, TextureFormat.RGBA32, false);
+            texture.name = name;
+            texture.filterMode = FilterMode.Bilinear;
+            texture.wrapMode = TextureWrapMode.Repeat;
+            for (int y = 0; y < HatchTextureSize; y++)
             {
-                if (!hatch)
+                for (int x = 0; x < HatchTextureSize; x++)
                 {
-                    Texture2D texture = new Texture2D(HatchTextureSize, HatchTextureSize, TextureFormat.RGBA32, false);
-                    texture.name = "SevenUIHatch";
-                    texture.filterMode = FilterMode.Bilinear;
-                    texture.wrapMode = TextureWrapMode.Repeat;
-                    for (int y = 0; y < HatchTextureSize; y++)
-                    {
-                        for (int x = 0; x < HatchTextureSize; x++)
-                        {
-                            bool stripe = (x - y + HatchTextureSize) % HatchTextureSize < HatchTextureSize / 2;
-                            texture.SetPixel(x, y, stripe ? Palette.CurseStripe : Palette.CurseGap);
-                        }
-                    }
-                    texture.Apply(false, true);
-                    hatch = Sprite.Create(texture, new Rect(0f, 0f, HatchTextureSize, HatchTextureSize),
-                        new Vector2(0.5f, 0.5f), PixelsPerUnit, 0, SpriteMeshType.FullRect);
-                    hatch.name = "SevenUIHatch";
+                    bool stripe = (x - y + HatchTextureSize) % HatchTextureSize < HatchTextureSize / 2;
+                    texture.SetPixel(x, y, stripe ? stripeColor : gapColor);
                 }
-                return hatch;
             }
+            texture.Apply(false, true);
+            Sprite sprite = Sprite.Create(texture, new Rect(0f, 0f, HatchTextureSize, HatchTextureSize),
+                new Vector2(0.5f, 0.5f), PixelsPerUnit, 0, SpriteMeshType.FullRect);
+            sprite.name = name;
+            return sprite;
         }
     }
 }

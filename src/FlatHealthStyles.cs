@@ -52,9 +52,9 @@ namespace SevenUI
         }
 
         // The plain bars (health, its trailing parts, shield) are drawn flat in the design canvas's colors, the barrier
-        // as a strip along the top, so the health and shield under it still show, and the maximum health a curse has
-        // taken away as dark stripes. Bars whose pattern means something else (the execute threshold, one-shot
-        // protection, low health) keep their sprites. Health keeps the game's color for a void or infused body, which
+        // as a strip along the top, so the health and shield under it still show, the maximum health a curse has taken
+        // away as dark stripes, and the health one-shot protection covers as green ones, the full bar's height. Bars
+        // whose pattern means something else (the execute threshold, low health) keep their sprites. Health keeps the game's color for a void or infused body, which
         // the game sets over the style's.
         private static HealthBarStyle Of(HealthBarStyle original)
         {
@@ -69,7 +69,8 @@ namespace SevenUI
             StripBar(ref copy.barrierBarStyle);
             copy.trailingOverHealthBarStyle.baseColor = Palette.Health;
             copy.shieldBarStyle.baseColor = Palette.Shield;
-            HatchBar(ref copy.curseBarStyle);
+            HatchBar(ref copy.curseBarStyle, FlatSprite.Hatch);
+            HatchBar(ref copy.ospStyle, FlatSprite.ProtectionHatch);
             Copies[original] = copy;
             Flat.Add(copy);
             return copy;
@@ -85,11 +86,12 @@ namespace SevenUI
             bar.sprite = FlatSprite.White;
         }
 
-        private static void HatchBar(ref HealthBarStyle.BarStyle bar)
+        // A bar the style doesn't draw (no sprite) stays undrawn: the combat bars' styles leave one-shot protection off.
+        private static void HatchBar(ref HealthBarStyle.BarStyle bar, Sprite stripes)
         {
             if (!bar.sprite) return;
             bar.baseColor = Color.white;
-            bar.sprite = FlatSprite.Hatch;
+            bar.sprite = stripes;
             bar.imageType = Image.Type.Tiled;
             bar.sizeDelta = 0f;
         }

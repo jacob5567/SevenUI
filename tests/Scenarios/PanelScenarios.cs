@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using ModTestRunner;
 using RoR2;
+using RoR2.UI;
 using UnityEngine;
 
 namespace SevenUI.Tests
@@ -24,6 +25,7 @@ namespace SevenUI.Tests
         // The health bar fits about a dozen buff slots across.
         private const int ManyBuffs = 20;
         private const int StackedBuffCount = 3;
+        private const int AllyCount = 2;
 
         public static IEnumerable<Scenario> All()
         {
@@ -43,6 +45,8 @@ namespace SevenUI.Tests
             yield return new Scenario(1, "prompt_is_flat", Stages.TitanicPlains, PromptIsFlat);
             yield return new Scenario(1, "prompt_as_canvas", Stages.TitanicPlains, PromptAsCanvas);
             yield return new Scenario(1, "scoreboard_and_chat_are_flat", Stages.TitanicPlains, ScoreboardAndChatAreFlat);
+            yield return new Scenario(1, "protection_striped_on_player", Stages.TitanicPlains, ProtectionStripedOnPlayer);
+            yield return new Scenario(1, "protection_striped_on_allies", Stages.TitanicPlains, ProtectionStripedOnAllies);
             yield return new Scenario(1, "turning_off_restores_panels", Stages.TitanicPlains, TurningOffRestoresPanels);
             yield return new Scenario(1, "lookingglass_stats_in_columns", Stages.TitanicPlains, LookingGlassStatsInColumns);
         }
@@ -239,6 +243,29 @@ namespace SevenUI.Tests
             yield return h.Spawned<PurchaseInteraction>($"{Commands.SpawnInteractable} {GameNames.SmallChest}", found => chest = found);
             yield return h.StandBefore(chest.gameObject);
             yield return h.ExpectPromptAsCanvas();
+        }
+
+        // At full health one-shot protection covers a tenth of the player's bar: in green stripes, and in the game's
+        // own with the mod's look off, as the game draws it.
+        private static IEnumerator ProtectionStripedOnPlayer(Harness h)
+        {
+            HUD hud = SevenUIChecks.HudRoot(h).GetComponent<HUD>();
+            yield return ProtectionBothLooks(h, () => new[] { hud.healthBar }, "the player's");
+        }
+
+        private static IEnumerator ProtectionStripedOnAllies(Harness h)
+        {
+            yield return Allies.BuyDrones(h, AllyCount);
+            yield return ProtectionBothLooks(h,
+                () => SevenUIChecks.HudRoot(h).GetComponentsInChildren<AllyCardController>().Select(card => card.healthBar),
+                "the ally cards'");
+        }
+
+        private static IEnumerator ProtectionBothLooks(Harness h, System.Func<IEnumerable<HealthBar>> bars, string whose)
+        {
+            yield return h.ExpectProtectionStriped(bars, whose, true);
+            h.SetConfig(SevenUIPlugin.Settings.FlatPanels, false);
+            yield return h.ExpectProtectionStriped(bars, whose, false);
         }
 
         private static IEnumerator ScoreboardAndChatAreFlat(Harness h)
