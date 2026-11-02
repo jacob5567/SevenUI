@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Renders the damage number sheet (512x512) in JetBrains Mono ExtraBold, in the game's layout and colors.
+"""Renders the damage number sheet (512x512) in JetBrains Mono Bold, in the game's layout and colors.
 
 The game's damage number shader (HGDamageNumber) picks characters from a 4x4 grid of 128px cells: 0-9, two empty
 cells, then K, M, B and !. Each glyph is white (tinted by the damage color) with a grey outline and a dark edge.
@@ -19,12 +19,14 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 CELL = 128
-# The natural width of a cell: the widest glyphs with their outlines (7, 8 and M) are 92px, and this leaves their
-# neighbors' edges a little apart. Must match DamageNumberFont.CellAspect (CELL_WIDTH / CELL).
-CELL_WIDTH = 94
+# The natural width of a cell: the widest glyphs with their outlines (6 to 9, and the fitted K and M) are 89px, and
+# this leaves their neighbors' edges a little apart. Must match DamageNumberFont.CellAspect (CELL_WIDTH / CELL).
+CELL_WIDTH = 91
 GRID = 4
 SS = 2  # supersampling factor
 CHARS = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", None, None, "K", "M", "B", "!"]
+# K, M and B are narrowed to the digits' widest ink, so the widest letter (M) doesn't set every character's cell.
+FITTED = {"K", "M", "B"}
 # The game's sheet puts "!" at the left of its cell, about 50px wide; the shader may give it a narrower advance, so
 # it keeps that footprint on the sheet rather than being stretched.
 NARROW = {"!"}
@@ -41,7 +43,7 @@ MARGIN = 2
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_OUT = os.path.join(HERE, "..", "textures", "DamageNumbers.png")
-FONT = os.path.join(HERE, "..", "fonts", "JetBrainsMono-ExtraBold.ttf")
+FONT = os.path.join(HERE, "..", "fonts", "JetBrainsMono-Bold.ttf")
 
 
 def dilate(mask, radius):
@@ -83,6 +85,24 @@ def glyph_mask(char, font):
     return centered
 
 
+def ink_width(mask):
+    columns = np.nonzero(np.asarray(mask).any(0))[0]
+    return columns[-1] + 1 - columns[0] if len(columns) else 0
+
+
+def fit_to(mask, width):
+    """Squeezes the glyph's ink to width pixels around its middle, if it is wider. The outlines are drawn after, so
+    they keep their thickness."""
+    columns = np.nonzero(np.asarray(mask).any(0))[0]
+    left, right = columns[0], columns[-1] + 1
+    if right - left <= width:
+        return mask
+    ink = mask.crop((left, 0, right, mask.size[1])).resize((width, mask.size[1]), Image.LANCZOS)
+    fitted = Image.new("L", mask.size, 0)
+    fitted.paste(ink, (int(round((left + right - width) / 2)), 0))
+    return fitted
+
+
 def check_fits(char, layer):
     """Fails if the glyph's outlines reach the side of its cell, where they would be cut off."""
     columns = np.nonzero(np.asarray(layer).any(0))[0]
@@ -90,8 +110,10 @@ def check_fits(char, layer):
         sys.exit(f"{char!r} doesn't fit in a {cell_width(char)}px cell; raise CELL_WIDTH")
 
 
-def render_cell(char, font):
+def render_cell(char, font, digit_width):
     mask = glyph_mask(char, font)
+    if char in FITTED:
+        mask = fit_to(mask, digit_width)
     outline = dilate(mask, OUTLINE_WIDTH * SS)
     edge = dilate(outline, EDGE_WIDTH * SS)
     check_fits(char, edge)
@@ -111,11 +133,12 @@ def main(argv):
     probe = ImageFont.truetype(FONT, 100 * SS)
     _, top, _, bottom = ImageDraw.Draw(Image.new("L", (1, 1))).textbbox((0, 0), "0", font=probe)
     font = ImageFont.truetype(FONT, int(100 * SS * cap_height * SS / (bottom - top)))
+    digit_width = max(ink_width(glyph_mask(char, font)) for char in "0123456789")
     sheet = Image.new("RGBA", (CELL * GRID, CELL * GRID), (0, 0, 0, 0))
     for index, char in enumerate(CHARS):
         if char is None:
             continue
-        sheet.alpha_composite(render_cell(char, font), ((index % GRID) * CELL, (index // GRID) * CELL))
+        sheet.alpha_composite(render_cell(char, font, digit_width), ((index % GRID) * CELL, (index // GRID) * CELL))
     sheet.save(out)
     print(f"Wrote {out}")
 

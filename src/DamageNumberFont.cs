@@ -26,7 +26,7 @@ namespace SevenUI
         private const string SheetProperty = "_MainTex";
         private const string CharacterLimitProperty = "_CharacterLimit";
         // A character's width over its height, CELL_WIDTH / CELL in tools/make_damage_numbers.py.
-        public const float CellAspect = 94f / 128f;
+        public const float CellAspect = 91f / 128f;
         // For comparing a particle's width over its height with the game's and the mod's.
         private const float AspectTolerance = 0.01f;
 
