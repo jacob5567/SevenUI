@@ -30,7 +30,7 @@ namespace SevenUI.Tests
         // The teleporter's boss takes a while to arrive once the event starts.
         private const float BossTimeout = 45f;
         private const int ShownKarma = 4;
-        // Shares of the boss's health, leaving it at the canvas's 62% with 8% just lost.
+        // Shares of the boss's health, leaving it at the canvas's 62%.
         private const float FirstBossHit = 0.3f;
         private const float SecondBossHit = 0.08f;
         // Enough for the drones and the chest, at any difficulty or stage count the tests reach.
@@ -420,12 +420,11 @@ namespace SevenUI.Tests
             yield return h.ExpectBossRowFilled(boss);
             yield return h.ExpectChargeRow();
             yield return h.AimAway();
-            // As on the canvas: most of the health left, and a hit just taken drawn after it.
+            // Most of the health left, as on the canvas. The game's trail follows each hit within a moment.
             HitBoss(boss, FirstBossHit);
             yield return h.ExpectBossTrail(boss, true);
             yield return h.ExpectBossTrail(boss, false);
             HitBoss(boss, SecondBossHit);
-            yield return h.ExpectBossTrail(boss, true);
             yield return h.CaptureLooks();
         }
 

@@ -9,7 +9,7 @@ namespace SevenUI
 {
     // Restyles the top of the HUD: the currencies in a row, each on its own flat panel fitted to it, without the
     // cluster's frame; the item bar without its frame; and the boss bar flat, with the boss's name in Barlow Condensed
-    // capitals in a title row above it (BossTitleRow) and the health just lost trailing its fill (BossDamageTrail).
+    // capitals in a title row above it (BossTitleRow), and the game's trail of health just lost under its fill.
     internal sealed class TopStyler
     {
         private const string UpperLeftPath = "MainContainer/MainUIArea/SpringCanvas/UpperLeftCluster";
@@ -34,7 +34,6 @@ namespace SevenUI
         private readonly List<MoneyText> currencies = new List<MoneyText>();
         private CurrencyRow currencyRow;
         private BossTitleRow bossRow;
-        private BossDamageTrail bossTrail;
 
         public TopStyler(HUD hud, Transform root)
         {
@@ -68,7 +67,6 @@ namespace SevenUI
             recorder.Restore();
             currencyRow = null;
             bossRow = null;
-            bossTrail = null;
         }
 
         public void Update()
@@ -80,10 +78,6 @@ namespace SevenUI
             if (bossRow != null && bossRow.Alive)
             {
                 bossRow.Update();
-            }
-            if (bossTrail != null && bossTrail.Alive)
-            {
-                bossTrail.Update();
             }
         }
 
@@ -149,10 +143,6 @@ namespace SevenUI
             if ((bossRow == null || !bossRow.Alive) && boss.container)
             {
                 bossRow = BossTitleRow.Style(boss, recorder);
-            }
-            if ((bossTrail == null || !bossTrail.Alive) && boss.fillRectImage && boss.delayRectImage)
-            {
-                bossTrail = new BossDamageTrail(boss, recorder);
             }
         }
 

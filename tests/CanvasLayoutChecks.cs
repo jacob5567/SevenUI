@@ -396,17 +396,12 @@ namespace SevenUI.Tests
                 return "the name or subtitle still in the container's layout";
             }
             if (!bar.Find(BossTitleRow.HealthName)) return "no health text above the bar";
-            if (!bar.Find(BossDamageTrail.TrailName)) return "no trail";
-            if (boss.delayRectImage.enabled) return "the game's trailing bar on";
+            if (!boss.delayRectImage || !boss.delayRectImage.enabled) return "the game's trailing bar off";
             return null;
         }
 
-        private static float TrailFill(HUDBossHealthBarController boss)
-        {
-            Transform trail = boss.fillRectImage.transform.parent.Find(BossDamageTrail.TrailName);
-            Image image = trail ? trail.GetComponent<Image>() : null;
-            return image ? image.fillAmount : -1f;
-        }
+        private static float TrailFill(HUDBossHealthBarController boss) =>
+            boss.delayRectImage && boss.delayRectImage.enabled ? boss.delayRectImage.fillAmount : -1f;
 
         // With a boss showing: its health written as the canvas's "28,410 / 45,800", the title row above the bar with
         // the subtitle after the name and the health at the bar's right end.
@@ -445,7 +440,7 @@ namespace SevenUI.Tests
             return bounds;
         }
 
-        // Right after a hit the lost health stays drawn beyond the fill; once it has drained it meets the fill.
+        // Right after a hit the game's trail of lost health is still beyond the fill; a moment later it meets it.
         public static IEnumerator ExpectBossTrail(this Harness h, HUDBossHealthBarController boss, bool trailing)
         {
             yield return h.Until(
