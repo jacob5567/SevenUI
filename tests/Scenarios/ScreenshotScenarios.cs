@@ -164,15 +164,18 @@ namespace SevenUI.Tests
             yield return h.CaptureLooks();
         }
 
-        // One item of each main tier, and a stack of a common one.
+        // One item of each main tier, and a stack of a common one, none that changes the player or the others.
         private static void GiveItemSpread(Harness h)
         {
+            List<ItemDef> given = new List<ItemDef>();
+            System.Func<ItemDef, bool> held = TestItems.HeldBy(Harness.LocalBody.inventory, given);
             foreach (ItemTier tier in new[] { ItemTier.Tier1, ItemTier.Tier2, ItemTier.Tier3, ItemTier.Lunar, ItemTier.Boss,
                          ItemTier.VoidTier1 })
             {
-                string item = Harness.ItemOfTier(tier);
+                string item = Harness.ItemOfTier(tier, candidate => TestItems.ChangesOthers(candidate, held));
                 if (item != null)
                 {
+                    given.Add(ItemCatalog.GetItemDef(ItemCatalog.FindItemIndex(item)));
                     h.Cmd($"{Commands.GiveItem} {item} {(tier == ItemTier.Tier1 ? 4 : 1)}");
                 }
             }
