@@ -31,6 +31,7 @@ namespace SevenUI
         private readonly TMP_Text subtitle;
         private readonly TMP_Text health;
         private string shownName;
+        private string shownSubtitle;
         private Rect shownCell;
         private TMP_FontAsset shownNameFont;
         private TMP_FontAsset shownSmallFont;
@@ -161,10 +162,12 @@ namespace SevenUI
 
             Rect bar = cell.rect;
             bar.position += (Vector2)cell.localPosition;
-            if (string.Equals(name.text, shownName, System.StringComparison.Ordinal) && bar == shownCell &&
+            if (string.Equals(name.text, shownName, System.StringComparison.Ordinal) &&
+                string.Equals(subtitle.text, shownSubtitle, System.StringComparison.Ordinal) && bar == shownCell &&
                 name.font == shownNameFont && health.font == shownSmallFont) return;
             if (!Place(bar)) return;
             shownName = name.text;
+            shownSubtitle = subtitle.text;
             shownCell = bar;
             shownNameFont = name.font;
             shownSmallFont = health.font;
@@ -197,7 +200,12 @@ namespace SevenUI
             subtitleRect.anchorMin = subtitleRect.anchorMax = new Vector2(0.5f, 0.5f);
             subtitleRect.pivot = Vector2.zero;
             subtitleRect.sizeDelta = new Vector2(BarWidth, rowHeight);
-            subtitleRect.localPosition = new Vector3(bar.xMin + name.preferredWidth + SubtitleGap,
+            // The gap is between what the two draw: the name's last letter, and the subtitle's first quad, the
+            // game's cloud sprite, which draws left of where its text starts.
+            name.ForceMeshUpdate();
+            subtitle.ForceMeshUpdate();
+            float nameRight = name.textInfo.characterCount > 0 ? name.textBounds.max.x : 0f;
+            subtitleRect.localPosition = new Vector3(bar.xMin + nameRight + SubtitleGap - DrawnLeft(subtitle),
                 rowBottom + nameDescent - Descent(subtitle), 0f);
 
             RectTransform healthRect = (RectTransform)health.transform;
@@ -207,6 +215,21 @@ namespace SevenUI
             healthRect.sizeDelta = new Vector2(0f, rowHeight);
             healthRect.anchoredPosition = new Vector2(0f, RowGap + nameDescent - Descent(health));
             return true;
+        }
+
+        // Where a text's leftmost quad starts, sprites included, in its own space; TMP's bounds leave out how far an
+        // inline sprite reaches past its advance.
+        public static float DrawnLeft(TMP_Text text)
+        {
+            TMP_TextInfo info = text.textInfo;
+            float left = float.MaxValue;
+            for (int i = 0; info != null && i < info.characterCount; i++)
+            {
+                TMP_CharacterInfo character = info.characterInfo[i];
+                if (!character.isVisible) continue;
+                left = Mathf.Min(left, Mathf.Min(character.vertex_BL.position.x, character.vertex_TL.position.x));
+            }
+            return left == float.MaxValue ? 0f : left;
         }
 
         // How far below its baseline a text's font reaches at the text's size.

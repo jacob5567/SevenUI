@@ -36,6 +36,8 @@ namespace SevenUI.Tests
         private const float BossEdgeTolerance = 4f;
         // A share of the boss bar.
         private const float TrailMinimum = 0.02f;
+        // Between the name's last letter and the subtitle's cloud: half the canvas's 12.
+        private const float MinSubtitleGap = 6f;
         // In the buff display's units.
         private const float BuffTolerance = 0.5f;
         private const string BuffDisplayPath = BottomLeftPath + "/BarRoots/LevelDisplayCluster/BuffDisplayRoot";
@@ -419,12 +421,15 @@ namespace SevenUI.Tests
                     Bounds barBounds = In(container, bar);
                     Bounds healthBounds = TextIn(container, health);
                     Bounds nameBounds = TextIn(container, boss.bossNameLabel);
-                    Bounds subtitleBounds = TextIn(container, boss.bossSubtitleLabel);
+                    // The subtitle's cloud sprite draws left of its bounds.
+                    TMP_Text subtitle = boss.bossSubtitleLabel;
+                    float subtitleLeft = container.InverseTransformPoint(subtitle.transform.TransformPoint(
+                        new Vector3(BossTitleRow.DrawnLeft(subtitle), 0f, 0f))).x;
                     look = $"health '{health.text}', bar x {barBounds.min.x:0}-{barBounds.max.x:0} top {barBounds.max.y:0}, " +
                            $"name x {nameBounds.min.x:0}-{nameBounds.max.x:0} bottom {nameBounds.min.y:0}, " +
-                           $"subtitle x {subtitleBounds.min.x:0}, health x {healthBounds.max.x:0} bottom {healthBounds.min.y:0}";
+                           $"subtitle drawn from x {subtitleLeft:0}, health x {healthBounds.max.x:0} bottom {healthBounds.min.y:0}";
                     return health.text.Contains(" / ") && nameBounds.min.y > barBounds.max.y &&
-                           healthBounds.min.y > barBounds.max.y && subtitleBounds.min.x > nameBounds.max.x &&
+                           healthBounds.min.y > barBounds.max.y && subtitleLeft > nameBounds.max.x + MinSubtitleGap &&
                            Mathf.Abs(nameBounds.min.x - barBounds.min.x) < BossEdgeTolerance &&
                            Mathf.Abs(healthBounds.max.x - barBounds.max.x) < BossEdgeTolerance;
                 },
