@@ -44,6 +44,15 @@ namespace SevenUI.Tests
         // Far enough back that the Beetle Queen doesn't fill the view, and the numbers are spread across it.
         private const float DamageNumberStandDistance = 14f;
         private const float DamageNumberSpread = 2.5f;
+        // A hit takes at most this share of the monster's health, so it shows its number without killing outright.
+        private const float HitHealthShare = 0.9f;
+        // Lost Seer's Lenses instakill on a roll of half a percent a stack, times the hit's proc coefficient: 200
+        // stacks make every hit instakill.
+        private const int SureInstakillLenses = 200;
+        private const float InstakillProcCoefficient = 1f;
+        // Meters between the Lemurians, and from a Lemurian's middle toward the player to where it is hit.
+        private const float InstakillSpacing = 3f;
+        private const float HitInFront = 0.5f;
         private const float TeleportSettleSeconds = 0.2f;
         // A monster's own state machine, and long enough for the Beetle Queen's 4-second spawn.
         private const string BodyStateMachine = "Body";
@@ -75,6 +84,7 @@ namespace SevenUI.Tests
             yield return Shot("trial_objectives", TrialObjectives);
             yield return Shot("ally_cards", AllyCards);
             yield return Shot("damage_numbers", DamageNumbers);
+            yield return Shot("instakills", Instakills);
             yield return Survivor("railgunner", GameNames.Railgunner);
             yield return Survivor("void_fiend", GameNames.VoidFiend, AddCorruption);
             yield return Survivor("seeker", GameNames.Seeker);
@@ -268,7 +278,7 @@ namespace SevenUI.Tests
                 SpawnTimeout);
             // Server methods; the runner is the host.
             monster.inventory.GiveItemPermanent(RoR2Content.Items.BoostHp, BoostHpStacks);
-            Vector3 spot = OpenSpot(Harness.LocalBody.footPosition);
+            Vector3 spot = OpenSpot(Harness.LocalBody.footPosition, MonsterMiddleHeight, MonsterRadius);
             yield return HitAndShoot(h, monster, spot, "sevenui");
             h.SetConfig(SevenUIPlugin.Settings.MonospaceDamageNumbers, false);
             yield return HitAndShoot(h, monster, spot, "vanilla");
@@ -289,25 +299,26 @@ namespace SevenUI.Tests
 
         // Somewhere the player can see the monster from its stand distance: the first of the stage's player spawn
         // points, then where the player stands, with ground and a clear line to the monster from enough of the spots
-        // around it. Earlier scenarios can leave the player in a dip, where every spot around is behind terrain.
-        private static Vector3 OpenSpot(Vector3 fallback)
+        // around it. Earlier scenarios can leave the player in a dip, where every spot around is behind terrain. A
+        // monster's middle and radius are from its feet; a low one is hidden by rocks a tall one shows over.
+        private static Vector3 OpenSpot(Vector3 fallback, float middleHeight, float radius)
         {
             List<Vector3> candidates = SpawnPoint.readOnlyInstancesList.Where(point => point)
                 .Select(point => point.transform.position).ToList();
             candidates.Add(fallback);
             foreach (Vector3 candidate in candidates)
             {
-                if (ClearViews(candidate) >= MinClearViews) return candidate;
+                if (ClearViews(candidate, middleHeight, radius) >= MinClearViews) return candidate;
             }
             return fallback;
         }
 
         // Of the directions around the spot, how many have ground at the stand distance and a clear line from eye
         // height there to the monster's middle.
-        private static int ClearViews(Vector3 spot)
+        private static int ClearViews(Vector3 spot, float middleHeight, float radius)
         {
-            Vector3 middle = spot + Vector3.up * MonsterMiddleHeight;
-            float distance = DamageNumberStandDistance + MonsterRadius;
+            Vector3 middle = spot + Vector3.up * middleHeight;
+            float distance = DamageNumberStandDistance + radius;
             int clear = 0;
             for (int i = 0; i < ViewDirections; i++)
             {
@@ -338,13 +349,98 @@ namespace SevenUI.Tests
                 monster.healthComponent.TakeDamage(new DamageInfo
                 {
                     attacker = Harness.LocalBody.gameObject,
-                    damage = Mathf.Min(DamageHits[i], monster.healthComponent.combinedHealth * 0.9f),
+                    damage = Mathf.Min(DamageHits[i], monster.healthComponent.combinedHealth * HitHealthShare),
                     crit = i % 2 == 1,
                     position = front + across * ((i - (DamageHits.Length - 1) / 2f) * DamageNumberSpread),
                     procCoefficient = 0f,
                     damageColorIndex = DamageColorIndex.Default,
                 });
             }
+        }
+
+        // Lost Seer's Lenses' instakills, on a row of Lemurians with one hit each, normal hits and crits in turn. The
+        // lenses go at cleanup. Server methods; the runner is the host.
+        private static IEnumerator Instakills(Harness h)
+        {
+            Inventory inventory = Harness.LocalBody.inventory;
+            ItemDef lenses = DLC1Content.Items.CritGlassesVoid;
+            h.OnCleanup(() =>
+            {
+                if (inventory)
+                {
+                    inventory.RemoveItemPermanent(lenses, SureInstakillLenses);
+                }
+            });
+            inventory.GiveItemPermanent(lenses, SureInstakillLenses);
+            if (inventory.GetItemCountEffective(lenses) < SureInstakillLenses)
+            {
+                throw h.Skip("Lost Seer's Lenses have no effect without Survivors of the Void");
+            }
+            yield return InstakillAndShoot(h, "sevenui");
+            h.SetConfig(SevenUIPlugin.Settings.MonospaceDamageNumbers, false);
+            yield return InstakillAndShoot(h, "vanilla");
+        }
+
+        // Each instakill kills its Lemurian, so each look gets a new row. The player stands before the row's middle
+        // and the row runs across the view.
+        private static IEnumerator InstakillAndShoot(Harness h, string look)
+        {
+            List<CharacterBody> monsters = new List<CharacterBody>();
+            for (int i = 0; i < DamageHits.Length; i++)
+            {
+                yield return h.Spawned<CharacterBody>($"{Commands.SpawnAi} {GameNames.ExecutableMonster} 1", monsters.Add);
+            }
+            // The director's own spawns are new bodies too, and could be taken for one.
+            CharacterBody other = monsters.FirstOrDefault(monster =>
+                monster && BodyCatalog.GetBodyName(monster.bodyIndex) != GameNames.ExecutableMonsterBody);
+            if (other) throw h.Fail($"spawned {other.name}, not a {GameNames.ExecutableMonsterBody}");
+            // A new body gets its inventory from its master a moment after it appears.
+            yield return h.Until(() => monsters.All(monster => !monster || monster.inventory), "the Lemurians' inventories");
+            CharacterBody middle = monsters[0];
+            if (!middle) throw h.Fail("the first Lemurian died before it was hit");
+            if ((middle.bodyFlags & CharacterBody.BodyFlags.ImmuneToExecutes) != 0)
+            {
+                throw h.Skip($"{middle.name} can't be instakilled");
+            }
+            Vector3 spot = OpenSpot(Harness.LocalBody.footPosition, middle.corePosition.y - middle.footPosition.y,
+                middle.radius);
+            TeleportHelper.TeleportBody(middle, spot, forceOutOfVehicle: false);
+            yield return h.Wait(TeleportSettleSeconds);
+            yield return h.StandBefore(middle, DamageNumberStandDistance);
+            Vector3 toward = Vector3.ProjectOnPlane(Harness.LocalBody.inputBank.aimOrigin - spot, Vector3.up).normalized;
+            Vector3 across = Vector3.Cross(Vector3.up, toward);
+            for (int i = 0; i < monsters.Count; i++)
+            {
+                if (!monsters[i]) continue;
+                // Health for the bigger hits' numbers, as on the Beetle Queen.
+                monsters[i].inventory.GiveItemPermanent(RoR2Content.Items.BoostHp, BoostHpStacks);
+                Vector3 place = spot + across * ((i - (monsters.Count - 1) / 2f) * InstakillSpacing);
+                TeleportHelper.TeleportBody(monsters[i], place, forceOutOfVehicle: false);
+            }
+            yield return h.Wait(TeleportSettleSeconds);
+            for (int i = 0; i < monsters.Count; i++)
+            {
+                Instakill(monsters[i], DamageHits[i], i % 2 == 1);
+            }
+            yield return h.Wait(SettleSeconds);
+            yield return h.Screenshot(look);
+        }
+
+        // A hit that procs, so the lenses roll, on the monster's side toward the player.
+        private static void Instakill(CharacterBody monster, float damage, bool crit)
+        {
+            if (!monster || !monster.healthComponent) return;
+            Vector3 eye = Harness.LocalBody.inputBank.aimOrigin;
+            Vector3 toward = Vector3.ProjectOnPlane(eye - monster.corePosition, Vector3.up).normalized;
+            monster.healthComponent.TakeDamage(new DamageInfo
+            {
+                attacker = Harness.LocalBody.gameObject,
+                damage = Mathf.Min(damage, monster.healthComponent.combinedHealth * HitHealthShare),
+                crit = crit,
+                position = monster.corePosition + toward * (monster.radius + HitInFront),
+                procCoefficient = InstakillProcCoefficient,
+                damageColorIndex = DamageColorIndex.Default,
+            });
         }
 
         // The longest Eclipse name with Karma on, in the run info.

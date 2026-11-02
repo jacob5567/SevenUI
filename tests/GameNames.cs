@@ -23,6 +23,10 @@ namespace SevenUI.Tests
         public const string BrokenDrone = "iscBrokenDrone1";
         public const string GunnerDroneBody = "Drone1Body";
         public const string ToughMonster = "BeetleQueen";
+        // A monster that can be instakilled. DebugToolkit ranks a name match on the master's name and the body's display
+        // name; the Devoted Lemurian's display name is "Lemurian" too, so the plain one's master is named in full.
+        public const string ExecutableMonster = "LemurianMaster";
+        public const string ExecutableMonsterBody = "LemurianBody";
 
         // The damage number particle's start size is this many characters wide by one tall.
         public const float DamageNumberCharacters = 4f;
