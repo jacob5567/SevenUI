@@ -21,6 +21,8 @@ namespace SevenUI.Tests
         private const float CanvasHeight = 1080f;
         // Within a pixel or so: the clusters are drawn in perspective, and turned slightly before the mod levels them.
         private const float SizeTolerance = 1.5f;
+        // Added to the zone's percentage to write one that doesn't match it.
+        private const int MismatchedPercentStep = 7;
         // The canvas's item slots on the scoreboard, and how far a second row may reach below the 52px slot beside it:
         // to the bottom of the row's 60px of content.
         private const float ScoreboardItemSlot = 40f;
@@ -340,6 +342,18 @@ namespace SevenUI.Tests
                            row.Label.text.Length > 0 && row.GameLabel.alpha == 0f;
                 },
                 () => $"the teleporter's charge as a row with its percentage at the right ({look}) {h.Diagnosis()}");
+
+            // The game's text written with another percentage than the zone's, as the Pillar of Mass's objective can be
+            // for a frame: the copy still leaves it out.
+            ChargeRow charge = SevenUIChecks.HudRoot(h).GetComponentInChildren<ChargeRow>();
+            int other = (charge.Zone.displayChargePercent + MismatchedPercentStep) % 100;
+            charge.GameLabel.text = charge.Label.text + $" ({other}%)";
+            yield return null;
+            look = $"text '{charge.Label.text}', game '{charge.GameLabel.text}'";
+            if (charge.Label.text.Contains("%"))
+            {
+                throw h.Fail($"the charge's text without a percentage that isn't the zone's ({look}) {h.Diagnosis()}");
+            }
         }
 
         // The equipment's stock inside its slot's bottom-right corner, as the canvas draws a slot's stock: the last

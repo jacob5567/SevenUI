@@ -34,7 +34,7 @@ namespace SevenUI
             if (!ReferenceEquals(text, shownSource) || percent != shownPercent)
             {
                 shownSource = text;
-                Label.text = WithoutPercent(text, percent);
+                Label.text = WithoutPercent(text);
                 Label.fontStyle = GameLabel.fontStyle;
             }
             if (percent != shownPercent)
@@ -54,11 +54,14 @@ namespace SevenUI
         }
 
         // The percentage as the game's English and most other languages write it, in brackets after the text; left in
-        // when a language writes it some other way.
-        private static string WithoutPercent(string text, int percent)
+        // when a language writes it some other way. Any number: the text can be written a frame apart from the zone's
+        // percentage (the Pillar of Mass's is), and a text that didn't match showed its percentage for that frame.
+        private static readonly Regex BracketedPercent = new Regex(@"\s*[(（]\s*\d{1,3}\s*[%％]\s*[)）]");
+
+        private static string WithoutPercent(string text)
         {
             if (string.IsNullOrEmpty(text)) return text;
-            return Regex.Replace(text, @"\s*[(（]\s*" + percent + @"\s*[%％]\s*[)）]", "");
+            return BracketedPercent.Replace(text, "");
         }
     }
 }
