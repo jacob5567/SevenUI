@@ -21,6 +21,12 @@ namespace SevenUI.Tests
         private const float CanvasHeight = 1080f;
         // Within a pixel or so: the clusters are drawn in perspective, and turned slightly before the mod levels them.
         private const float SizeTolerance = 1.5f;
+        // The canvas's item slots on the scoreboard, and how far a second row may reach below the 52px slot beside it:
+        // to the bottom of the row's 60px of content.
+        private const float ScoreboardItemSlot = 40f;
+        private const float ScoreboardRowSlack = 8f;
+        private const string ScoreboardKeyItemName = "KeyItemBackground";
+        private const string ScoreboardEquipmentName = "EquipmentBackground";
         private const float HealthHeight = 22f;
         private const float ExpHeight = 4f;
         // The level's 52px block and the 12px gap after it.
@@ -63,6 +69,34 @@ namespace SevenUI.Tests
         }
 
         private static bool Near(float value, float expected) => Mathf.Abs(value - expected) < SizeTolerance;
+
+        // Null when a row's item icons are drawn as the canvas's slots: none over another, none wider than a slot, the
+        // rows starting at the items cell's left edge, the first row's top level with the slot beside the items, and
+        // none below the row's slots.
+        private static string ItemsProblem(Harness h, ScoreboardStrip strip, Transform background)
+        {
+            RectTransform slot = (background.Find(ScoreboardKeyItemName) ?? background.Find(ScoreboardEquipmentName)) as RectTransform;
+            List<Rect> icons = strip.itemInventoryDisplay.GetComponentsInChildren<ItemIcon>()
+                .Where(icon => icon.isActiveAndEnabled).Select(icon => Box(h, icon.rectTransform)).ToList();
+            if (!slot || icons.Count == 0) return "no slot or icons";
+            Rect slotBox = Box(h, slot);
+            Rect cell = Box(h, (RectTransform)strip.itemInventoryDisplay.transform);
+            float left = icons.Min(icon => icon.xMin);
+            float top = icons.Max(icon => icon.yMax);
+            float bottom = icons.Min(icon => icon.yMin);
+            float widest = icons.Max(icon => icon.width);
+            bool overlap = icons.Select((a, i) => icons.Skip(i + 1).Any(b =>
+                a.xMin < b.xMax - SizeTolerance && b.xMin < a.xMax - SizeTolerance &&
+                a.yMin < b.yMax - SizeTolerance && b.yMin < a.yMax - SizeTolerance)).Any(any => any);
+            if (overlap || widest > ScoreboardItemSlot + SizeTolerance || !Near(left, cell.xMin) ||
+                !Near(top, slotBox.yMax) || bottom < slotBox.yMin - ScoreboardRowSlack)
+            {
+                return $"{icons.Count} icons up to {widest:0.#} wide, overlapping {overlap}, from x {left:0.#} in a cell " +
+                       $"from {cell.xMin:0.#}, from y {top:0.#} to {bottom:0.#} beside a slot from {slotBox.yMax:0.#} " +
+                       $"to {slotBox.yMin:0.#}";
+            }
+            return null;
+        }
 
         private static string BoxText(Rect box) => $"x {box.xMin:0.#}-{box.xMax:0.#} y {box.yMin:0.#}-{box.yMax:0.#}";
 
@@ -380,7 +414,7 @@ namespace SevenUI.Tests
         }
 
         // The open scoreboard's header strip with each header at its column, and the viewer's row: tinted, its money
-        // last, the survivor and level under the name, and the equipment outlined.
+        // last, the survivor and level under the name, the equipment outlined, and its items as the canvas's slots.
         public static IEnumerator ExpectScoreboardAsCanvas(this Harness h)
         {
             string look = null;
@@ -409,9 +443,10 @@ namespace SevenUI.Tests
                     Transform money = background.Find("TotalTextContainer");
                     Transform equipment = background.Find("EquipmentBackground");
                     bool moneyLast = money && equipment && money.GetSiblingIndex() > equipment.GetSiblingIndex();
+                    string items = ItemsProblem(h, row.Strip, background);
                     look = $"misplaced headers [{string.Join(", ", misplaced)}], row color {row.Background.color}, " +
-                           $"survivor '{row.Survivor.text}', money after the equipment {moneyLast}";
-                    return headers.transform.Find(ScoreboardStyler.HeaderStripName) && misplaced.Count == 0 &&
+                           $"survivor '{row.Survivor.text}', money after the equipment {moneyLast}, items {items ?? "as slots"}";
+                    return headers.transform.Find(ScoreboardStyler.HeaderStripName) && misplaced.Count == 0 && items == null &&
                            SevenUIChecks.Near(row.Background.color, Palette.ScoreboardOwnRow) && row.Survivor.text.Contains(" · ") &&
                            moneyLast && equipment.Find("SevenUIEquipmentOutline");
                 },

@@ -72,6 +72,7 @@ namespace SevenUI
                 playerBars.Update();
                 top.Update();
                 skillSlots.Update();
+                scoreboard.Update();
                 if (marginsApplied)
                 {
                     // After the slots, since the skill row's end is the equipment slot as fitted.

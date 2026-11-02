@@ -11,9 +11,9 @@ namespace SevenUI
     // Restyles the scoreboard (Tab) and its inspect panel as on the design canvas: a dark flat board under a header
     // strip of grey capitals lined up with the columns (ScoreboardHeaders), and flat rows split by thin lines, the
     // viewer's tinted in the accent (ScoreboardRow). In each row the portrait sits on a flat square, the name in bold
-    // over the survivor and level and the item counts, the key item on a flat slot, the items without a box, the
-    // equipment on a slot with its orange outline, and the money last, in gold at the right. The game keeps building
-    // and filling the rows; its parts are resized and its money moved to the row's end.
+    // over the survivor and level and the item counts, the key item on a flat slot, the items without a box in 40px
+    // slots 4px apart, the equipment on a slot with its orange outline, and the money last, in gold at the right. The
+    // game keeps building and filling the rows; its parts are resized and its money moved to the row's end.
     internal sealed class ScoreboardStyler
     {
         // Under the scoreboard panel.
@@ -64,6 +64,13 @@ namespace SevenUI
         private const float MoneyWidth = 120f;
         private const float MoneyFontSize = 20f;
         private const float HeaderFontSize = 12f;
+        // The canvas's item slots: 40px, 4px apart, wrapping.
+        private const float ItemSlotSize = 40f;
+        private const float ItemGap = 4f;
+        // Where an icon's place is, on the icon: its top-left corner.
+        private static readonly Vector2 IconTopLeft = new Vector2(0f, 1f);
+        // In the items cell's units.
+        private const float AlignTolerance = 0.01f;
         private const float DividerHeight = 1f;
         private const float OutlineEdge = 2f;
         // The outline sprite's edge, in its pixels (FlatSprite.Outline).
@@ -74,6 +81,7 @@ namespace SevenUI
         private readonly List<ScoreboardController> boards = new List<ScoreboardController>();
         private readonly List<ScoreboardStrip> rows = new List<ScoreboardStrip>();
         private readonly HashSet<ScoreboardStrip> styled = new HashSet<ScoreboardStrip>();
+        private readonly List<ItemIcon> icons = new List<ItemIcon>();
 
         public ScoreboardStyler(Transform root)
         {
@@ -94,6 +102,20 @@ namespace SevenUI
         {
             recorder.Restore();
             styled.Clear();
+        }
+
+        // While the scoreboard is open: a few reads per icon, and a move for those the game has just placed.
+        public void Update()
+        {
+            styled.RemoveWhere(row => !row);
+            foreach (ScoreboardStrip row in styled)
+            {
+                ItemInventoryDisplay display = row.itemInventoryDisplay;
+                if (display && display.isActiveAndEnabled)
+                {
+                    AlignLeft(display);
+                }
+            }
         }
 
         private void StyleBoard(Transform board)
@@ -117,6 +139,8 @@ namespace SevenUI
                 {
                     StyleRow(row);
                 }
+                // The game makes a row's icons as its items arrive.
+                PinIcons(row.itemInventoryDisplay);
             }
             rows.Clear();
         }
@@ -227,6 +251,10 @@ namespace SevenUI
             if (equipment && !equipment.Find(OutlineName))
             {
                 AddEquipmentOutline(equipment);
+            }
+            if (row.itemInventoryDisplay)
+            {
+                FitItems(row.itemInventoryDisplay);
             }
             // The items keep their gamepad outline, shown only while lit.
             Image items = row.itemInventoryDisplay ? row.itemInventoryDisplay.GetComponent<Image>() : null;
@@ -342,6 +370,82 @@ namespace SevenUI
             text.overflowMode = TextOverflowModes.Ellipsis;
             text.raycastTarget = false;
             return text;
+        }
+
+        // The game steps the scoreboard's items 48 units apart (its itemIconPrefabWidth), but the scoreboard's icon is
+        // 58 across, so neighbors overlap by 10, and rows too. The game sizes the steps to fit the cell: as many rows as
+        // fit its height, as wide as fit its width. Stepping by the icon's own size plus the gap, with the step capped at
+        // the canvas's, draws the icons as the canvas's slots, smaller and in more rows only once a row is full. The
+        // game rounds the step's width to whole units when it scales the icons, so it is set whole.
+        private void FitItems(ItemInventoryDisplay display)
+        {
+            RectTransform prefab = display.itemIconPrefab ? display.itemIconPrefab.transform as RectTransform : null;
+            float iconWidth = prefab ? prefab.rect.width : 0f;
+            if (iconWidth <= 0f) return;
+            float stepWidth = display.itemIconPrefabWidth;
+            float maxWidth = display.maxIconWidth;
+            float maxHeight = display.maxHeight;
+            recorder.OnRestore(() =>
+            {
+                if (!display) return;
+                display.itemIconPrefabWidth = stepWidth;
+                display.maxIconWidth = maxWidth;
+                display.maxHeight = maxHeight;
+                display.UpdateDisplay();
+            });
+            float step = ItemSlotSize + ItemGap;
+            display.itemIconPrefabWidth = Mathf.Round(iconWidth * step / ItemSlotSize);
+            display.maxIconWidth = step;
+            display.maxHeight = RowHeight - 2 * RowPaddingY;
+            // Lays the icons out again, at the new size; it reads the inventory and draws.
+            display.UpdateDisplay();
+        }
+
+        // The game puts each icon at its place by its pivot, which the scoreboard's icon has outside its picture, a
+        // tenth of its size left of and above it, so the icons start lower and further right than their places. With
+        // the pivot on the icon's corner they start at their places, the first row level with the slots beside it.
+        private void PinIcons(ItemInventoryDisplay display)
+        {
+            if (!display) return;
+            display.GetComponentsInChildren(true, icons);
+            foreach (ItemIcon icon in icons)
+            {
+                RectTransform rect = icon.rectTransform;
+                if (!rect || rect.pivot == IconTopLeft) continue;
+                Vector2 pivot = rect.pivot;
+                recorder.OnRestore(() =>
+                {
+                    if (rect) rect.pivot = pivot;
+                });
+                rect.pivot = IconTopLeft;
+            }
+            icons.Clear();
+        }
+
+        // The game centers each row of icons in the items cell, splitting what is left of its width, less than a
+        // step, around them; the canvas starts them at the cell's left edge, under its header. The game places all the
+        // icons when their size changes, and only a new one when an item arrives, so each icon still at the game's
+        // margin from a step is moved back by it. The margin is the game's (ItemInventoryDisplay.CalculateLayoutValues):
+        // the cell's width less as many whole steps as fit, halved.
+        private void AlignLeft(ItemInventoryDisplay display)
+        {
+            Rect cell = ((RectTransform)display.transform).rect;
+            display.GetComponentsInChildren(false, icons);
+            foreach (ItemIcon icon in icons)
+            {
+                RectTransform rect = icon.rectTransform;
+                float step = display.itemIconPrefabWidth * rect.localScale.x;
+                if ((int)step <= 0) continue;
+                int perRow = Mathf.Max((int)cell.width / (int)step, 1);
+                float margin = (cell.width - perRow * step) * 0.5f;
+                if (margin <= AlignTolerance) continue;
+                float offset = Mathf.Repeat(rect.localPosition.x - cell.xMin, step);
+                if (Mathf.Abs(offset - margin) < AlignTolerance)
+                {
+                    rect.localPosition -= new Vector3(margin, 0f, 0f);
+                }
+            }
+            icons.Clear();
         }
 
         private void Slot(Transform slot, Color color)
