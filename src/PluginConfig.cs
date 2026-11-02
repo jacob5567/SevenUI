@@ -27,7 +27,7 @@ namespace SevenUI
                 "bars and slots, and the health numbers as text. Off brings back the game's look.");
             TightMargins = config.Bind("Panels", "TightMargins", true,
                 "Draw the HUD's corners near the screen's edges, as on SevenUI's design: 2.6% of the screen's height " +
-                "in (2.2% at the top). Off keeps the game's margins, 5% of the screen. Only with FlatPanels on.");
+                "in (2.2% at the top), and the ally cards 2.6% in and 28% down. Off keeps the game's margins, 5% of the screen. Only with FlatPanels on.");
             ScoreboardBesideRunInfo = config.Bind("Panels", "ScoreboardBesideRunInfo", true,
                 "Place the scoreboard as on SevenUI's design: near the top of the screen, centered between its left edge " +
                 "and the run info. Off centers it on the screen, where the game puts it. Only with FlatPanels on.");

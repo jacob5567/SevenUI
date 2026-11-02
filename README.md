@@ -36,7 +36,7 @@ Edit `BepInEx/config/sevenstack.SevenUI.cfg`, or use the in-game settings menu i
 | `BarlowFont` | true | Draw HUD text in Barlow instead of the game's font. Languages the game draws in Noto Sans keep it. |
 | `MonospaceDamageNumbers` | true | Draw the floating damage numbers in JetBrains Mono, a monospace font, instead of the game's pixel digits. |
 | `FlatPanels` | true | Draw the HUD flat: facing the screen squarely instead of leaning in, with flat translucent panels, flat bars and slots, and the health numbers as text. Off brings back the game's look. Everything under "What it changes" except the fonts. |
-| `TightMargins` | true | Draw the HUD's corners near the screen's edges, as on SevenUI's design: 2.6% of the screen's height in (2.2% at the top). Off keeps the game's margins, 5% of the screen. Only with `FlatPanels` on. |
+| `TightMargins` | true | Draw the HUD's corners near the screen's edges, as on SevenUI's design: 2.6% of the screen's height in (2.2% at the top), and the ally cards 2.6% in and 28% down. Off keeps the game's margins, 5% of the screen. Only with `FlatPanels` on. |
 | `ScoreboardBesideRunInfo` | true | Place the scoreboard as on SevenUI's design: near the top of the screen, centered between its left edge and the run info. Off centers it on the screen, where the game puts it. Only with `FlatPanels` on. |
 | `DebugLogging` | false | Log extra detail, and enable the dump key. |
 | `DebugAlwaysShow` | false | Show the mod's visuals even when they wouldn't normally appear, for testing. |

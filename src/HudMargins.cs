@@ -6,7 +6,7 @@ using UnityEngine;
 namespace SevenUI
 {
     // With TightMargins on, draws the HUD's corners as near the screen's edges as on the design canvas: 28 canvas
-    // pixels in at the sides and bottom, 24 at the top. The game keeps the corner clusters inside its main area, 5% of
+    // pixels in at the sides and bottom, 24 at the top, and the ally cards on the left 28 in and 300 down. The game keeps the corner clusters inside its main area, 5% of
     // the screen in from each edge, and each cluster's panels sit differently in its own box (the run info pokes above
     // it, the skills' key labels hang below it). So the spring canvas that holds the clusters is stretched over the whole screen, and each
     // corner cluster is moved until its outermost panel sits at the canvas's margin. The main area itself is left
@@ -22,12 +22,15 @@ namespace SevenUI
         private const string UpperRightName = "UpperRightCluster";
         private const string BottomLeftName = "BottomLeftCluster";
         private const string BottomRightName = "BottomRightCluster";
+        // The ally cards' cluster, at the left, which the game anchors to the spring canvas's edge.
+        private const string LeftName = "LeftCluster";
         private const string BarsPath = "BarRoots";
 
         // The design canvas's margins, in its pixels on a 1080-pixel-high screen.
         private const float CanvasHeight = 1080f;
         private const float SideMargin = 28f;
         private const float TopMargin = 24f;
+        private const float AlliesTop = 300f;
         // Below this, in screen pixels, a cluster isn't moved, so it isn't dirtied every frame.
         private const float MovePixels = 0.05f;
 
@@ -42,6 +45,7 @@ namespace SevenUI
         private RectTransform upperRight;
         private RectTransform bottomLeft;
         private RectTransform bottomRight;
+        private RectTransform left;
         // The outermost panel of each cluster that isn't the cluster's own box.
         private RectTransform runInfo;
         private RectTransform bars;
@@ -68,6 +72,7 @@ namespace SevenUI
             upperRight = spring.Find(UpperRightName) as RectTransform;
             bottomLeft = spring.Find(BottomLeftName) as RectTransform;
             bottomRight = spring.Find(BottomRightName) as RectTransform;
+            left = spring.Find(LeftName) as RectTransform;
             Transform background = upperRight ? FindDeep(upperRight, RunInfoStyler.BackgroundName) : null;
             runInfo = background as RectTransform;
             // The level and the bars, which the restyle lays out to fill it.
@@ -102,6 +107,7 @@ namespace SevenUI
             Fit(screen, bottomLeft, bars, bars, false, false);
             RectTransform rowEnd = equipmentSlot ? equipmentSlot : LastSkill();
             Fit(screen, bottomRight, rowEnd, skillKey, true, false);
+            Fit(screen, left, left, left, false, true, AlliesTop);
         }
 
         // Stretches the spring canvas over what the screen shows of the main area's plane. The top cluster, which
@@ -133,7 +139,7 @@ namespace SevenUI
 
         // Moves the cluster so the horizontal panel's outer side and the vertical panel's outer edge sit at the margins.
         private void Fit(Rect screen, RectTransform cluster, RectTransform horizontal, RectTransform vertical, bool right,
-            bool top)
+            bool top, float topMargin = TopMargin)
         {
             if (!cluster || !horizontal || !vertical || cluster.parent != spring) return;
             float pixel = screen.height / CanvasHeight;
@@ -141,7 +147,7 @@ namespace SevenUI
             Rect upDown = OnScreen(vertical);
             float gapX = right ? screen.xMax - across.xMax : across.xMin - screen.xMin;
             float gapY = top ? screen.yMax - upDown.yMax : upDown.yMin - screen.yMin;
-            float marginY = (top ? TopMargin : SideMargin) * pixel;
+            float marginY = (top ? topMargin : SideMargin) * pixel;
             Vector2 shift = new Vector2(right ? gapX - SideMargin * pixel : SideMargin * pixel - gapX,
                 top ? gapY - marginY : marginY - gapY);
             if (Mathf.Abs(shift.x) < MovePixels && Mathf.Abs(shift.y) < MovePixels) return;

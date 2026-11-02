@@ -32,6 +32,12 @@ namespace SevenUI.Tests
         private const string ScoreboardCountsWord = " items";
         private const string ScoreboardStripsPath = "Container/StripContainer";
         private const string ScoreboardHeadersPath = "Container/HeaderGroup";
+        private const string ScoreboardPortraitPath = "ClassBackground/SevenUIPortraitSquare";
+        private const string ScoreboardNamePath = "NameObject";
+        // The ally cards' place on the canvas.
+        private const string AllyClusterPath = "MainContainer/MainUIArea/SpringCanvas/LeftCluster";
+        private const float AllySideMargin = 28f;
+        private const float AllyTop = 300f;
         private const string ScoreboardEquipmentName = "EquipmentBackground";
         private const float HealthHeight = 22f;
         private const float ExpHeight = 4f;
@@ -75,6 +81,39 @@ namespace SevenUI.Tests
         }
 
         private static bool Near(float value, float expected) => Mathf.Abs(value - expected) < SizeTolerance;
+
+        // Null when the portrait's square is centered on the name block beside it, as on the canvas.
+        private static string PortraitProblem(Harness h, Transform background)
+        {
+            RectTransform square = background.Find(ScoreboardPortraitPath) as RectTransform;
+            RectTransform name = background.Find(ScoreboardNamePath) as RectTransform;
+            if (!square || !name) return "no portrait or name block";
+            Rect squareBox = Box(h, square);
+            Rect nameBox = Box(h, name);
+            return Near(squareBox.center.y, nameBox.center.y)
+                ? null
+                : $"square's middle at {squareBox.center.y:0.#}, the name block's at {nameBox.center.y:0.#}";
+        }
+
+        // With TightMargins, the ally cards' cluster 28px in from the screen's left edge and 300px down, as on the canvas.
+        public static IEnumerator ExpectAllyCardsAsCanvas(this Harness h)
+        {
+            string look = null;
+            yield return h.Until(
+                () =>
+                {
+                    RectTransform cluster = SevenUIChecks.HudRoot(h).Find(AllyClusterPath) as RectTransform;
+                    if (!cluster) return false;
+                    Rect box = Box(h, cluster);
+                    (Camera camera, float unit) = Screen(h);
+                    Rect screen = CanvasLayoutChecks.ScreenOf(camera);
+                    float left = box.xMin - screen.xMin / unit;
+                    float down = screen.yMax / unit - box.yMax;
+                    look = $"{left:0.#} in, {down:0.#} down";
+                    return !SevenUIPlugin.Settings.TightMargins.Value || Near(left, AllySideMargin) && Near(down, AllyTop);
+                },
+                () => $"the ally cards {AllySideMargin}px in and {AllyTop}px down ({look}) {h.Diagnosis()}");
+        }
 
         // Null when the board is the canvas's width and in its place: with ScoreboardBesideRunInfo, its top 110px down
         // and as far from the screen's left edge as from the run info's panel; without, centered on the screen.
@@ -478,11 +517,12 @@ namespace SevenUI.Tests
                     bool moneyLast = money && equipment && money.GetSiblingIndex() > equipment.GetSiblingIndex();
                     string items = ItemsProblem(h, row.Strip, background);
                     string placed = PlacementProblem(h, board);
+                    string portrait = PortraitProblem(h, background);
                     look = $"misplaced headers [{string.Join(", ", misplaced)}], row color {row.Background.color}, " +
                            $"survivor '{row.Survivor.text}', counts '{row.Counts.text}', money after the equipment {moneyLast}, " +
-                           $"items {items ?? "as slots"}, board {placed ?? "in place"}";
+                           $"items {items ?? "as slots"}, board {placed ?? "in place"}, portrait {portrait ?? "centered"}";
                     return headers.transform.Find(ScoreboardStyler.HeaderStripName) && misplaced.Count == 0 && items == null &&
-                           placed == null && row.Counts.text.Contains(ScoreboardCountsWord) &&
+                           placed == null && portrait == null && row.Counts.text.Contains(ScoreboardCountsWord) &&
                            SevenUIChecks.Near(row.Background.color, ScoreboardRow.OwnRowColor) && row.Survivor.text.Contains(" · ") &&
                            moneyLast && equipment.Find("SevenUIEquipmentOutline");
                 },

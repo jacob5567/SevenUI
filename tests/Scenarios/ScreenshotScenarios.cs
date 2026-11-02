@@ -20,6 +20,7 @@ namespace SevenUI.Tests
         // pickup notification or damage numbers are still showing.
         private const float SettleSeconds = 0.5f;
         private const float AllyCardSeconds = 1.5f;
+        private const int AllyCount = 2;
         // With the strips' animations skipped, a moment for the panel to settle before the shot.
         private const float TrialObjectivesSeconds = 0.5f;
         private const string TrialTokenPrefix = "QUEST_TRIAL_";
@@ -35,6 +36,10 @@ namespace SevenUI.Tests
         // Enough for the drones and the chest, at any difficulty or stage count the tests reach.
         private const int Money = 2000;
         private const float BarrierFraction = 0.4f;
+        // Enough Personal Shield Generators for the shield to take a good share of the bar; it fills after a few seconds
+        // out of danger.
+        private const int ShieldStacks = 3;
+        private const float ShieldTimeout = 15f;
         private const float LowHealthFraction = 0.25f;
         private static readonly float[] DamageHits = { 24f, 180f, 1350f, 26000f };
         // Each stack of BoostHp adds 10% to max health (what the game gives bosses for theirs), so the biggest hit
@@ -69,6 +74,7 @@ namespace SevenUI.Tests
         {
             yield return Shot("hud", Hud);
             yield return Shot("barrier_and_low_health", BarrierAndLowHealth);
+            yield return Shot("full_health_and_shield", FullHealthAndShield);
             yield return Shot("cooldowns", Cooldowns);
             yield return Shot("ntormat_pages", NtormatPages);
             yield return Shot("eclipse_and_karma", EclipseAndKarma);
@@ -164,6 +170,17 @@ namespace SevenUI.Tests
             }
         }
 
+        // Full health with a full shield beside it on the bar, where the two meet.
+        private static IEnumerator FullHealthAndShield(Harness h)
+        {
+            h.Cmd($"{Commands.GiveItem} {GameNames.PersonalShield} {ShieldStacks}");
+            HealthComponent health = Harness.LocalBody.healthComponent;
+            yield return h.Until(() => health && health.shield > 0f && health.shield >= health.fullShield &&
+                                       health.health >= health.fullHealth, "full health and a full shield", ShieldTimeout);
+            yield return h.Wait(SettleSeconds);
+            yield return h.CaptureLooks();
+        }
+
         private static IEnumerator BarrierAndLowHealth(Harness h)
         {
             h.Cmd($"{Commands.GiveItem} {GameNames.PersonalShield} 1");
@@ -233,15 +250,9 @@ namespace SevenUI.Tests
 
         private static IEnumerator AllyCards(Harness h)
         {
-            h.Cmd($"{Commands.GiveMoney} {Money}");
-            for (int i = 0; i < 2; i++)
-            {
-                PurchaseInteraction drone = null;
-                yield return h.Spawned<PurchaseInteraction>($"{Commands.SpawnInteractable} {GameNames.BrokenDrone}",
-                    found => drone = found);
-                yield return h.Interact(drone.gameObject);
-            }
+            yield return Allies.BuyDrones(h, AllyCount);
             yield return h.Wait(AllyCardSeconds);
+            yield return h.ExpectAllyCardsAsCanvas();
             yield return h.AimAway();
             yield return h.CaptureLooks();
         }

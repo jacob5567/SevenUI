@@ -26,6 +26,9 @@ namespace SevenUI
         // Under each row, and its headers' names.
         public const string RowBackgroundName = "LongBackground";
         private const string ClassName = "ClassBackground";
+        // Under the portrait's cell: the game's picture, and the mod's square behind it.
+        private const string PortraitPictureName = "ClassIcon";
+        private const string PortraitSquareName = "SevenUIPortraitSquare";
         private const string NameObjectName = "NameObject";
         private const string MoneyName = "TotalTextContainer";
         private const string KeyItemName = "KeyItemBackground";
@@ -64,6 +67,8 @@ namespace SevenUI
         private const float CountsFontSize = 13f;
         private const float LineGap = 3f;
         private const float LineHeight = 1.2f;
+        // The name block's three lines, which the portrait beside it is centered on, as on the canvas.
+        private const float NameBlockHeight = (NameFontSize + SurvivorFontSize + CountsFontSize) * LineHeight + 2f * LineGap;
         private const float MoneyWidth = 120f;
         private const float MoneyFontSize = 20f;
         private const float HeaderFontSize = 12f;
@@ -262,7 +267,7 @@ namespace SevenUI
             layout.childForceExpandHeight = false;
             layout.childAlignment = TextAnchor.UpperLeft;
 
-            Slot(background.Find(ClassName), Palette.Trough);
+            CenterPortrait(background.Find(ClassName));
             Slot(background.Find(KeyItemName), Palette.Trough);
             Transform equipment = background.Find(EquipmentName);
             Slot(equipment, Palette.Trough);
@@ -316,7 +321,7 @@ namespace SevenUI
 
             Transform nameObject = background.Find(NameObjectName);
             Size(nameObject ? nameObject.GetComponent<LayoutElement>() : null, NameWidth,
-                (NameFontSize + SurvivorFontSize + CountsFontSize) * LineHeight + 2f * LineGap);
+                NameBlockHeight);
             if (nameObject && row.nameLabel && !nameObject.Find(RowTextsName))
             {
                 StyleName(row, nameObject, backgroundImage, items);
@@ -467,6 +472,36 @@ namespace SevenUI
                 }
             }
             icons.Clear();
+        }
+
+        // The row's columns line up at the top, as on the canvas, which centers only the portrait, on the name block
+        // beside it. The portrait's cell stays the row's slot at the top, and its square and picture are drawn lower in
+        // it by half the name block's extra height.
+        private void CenterPortrait(Transform portrait)
+        {
+            if (!portrait) return;
+            Image cell = portrait.GetComponent<Image>();
+            Fill(cell, Color.clear);
+            Size(portrait.GetComponent<LayoutElement>(), SlotSize, SlotSize);
+            if (portrait.Find(PortraitSquareName)) return;
+            float down = (NameBlockHeight - SlotSize) / 2f;
+            GameObject square = NewUIObject(PortraitSquareName, portrait);
+            square.transform.SetAsFirstSibling();
+            RectTransform squareRect = (RectTransform)square.transform;
+            Stretch(squareRect);
+            squareRect.offsetMin = new Vector2(0f, -down);
+            squareRect.offsetMax = new Vector2(0f, -down);
+            Image squareImage = square.AddComponent<Image>();
+            squareImage.color = Palette.Trough;
+            squareImage.raycastTarget = false;
+            recorder.Add(square);
+            RectTransform picture = portrait.Find(PortraitPictureName) as RectTransform;
+            if (picture)
+            {
+                recorder.RecordRect(picture);
+                picture.offsetMin += new Vector2(0f, -down);
+                picture.offsetMax += new Vector2(0f, -down);
+            }
         }
 
         private void Slot(Transform slot, Color color)
