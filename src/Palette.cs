@@ -28,6 +28,13 @@ namespace SevenUI
         // rgba(184,196,255,0.06) and #262a34, the viewer's own row on the scoreboard and the lines between rows.
         public static readonly Color ScoreboardOwnRow = new Color(0.722f, 0.769f, 1f, 0.06f);
         public static readonly Color RowDivider = new Color(0.149f, 0.165f, 0.204f, 1f);
+        // The scoreboard's count of items per tier: #7fd07f, #e06a5f, #e3d35a, #7aa8ff and #c07ad8 for uncommon,
+        // legendary, boss, lunar and void items; common ones in Text.
+        public static readonly Color CountUncommon = new Color(0.498f, 0.816f, 0.498f, 1f);
+        public static readonly Color CountLegendary = new Color(0.878f, 0.416f, 0.373f, 1f);
+        public static readonly Color CountBoss = new Color(0.890f, 0.827f, 0.353f, 1f);
+        public static readonly Color CountLunar = new Color(0.478f, 0.659f, 1f, 1f);
+        public static readonly Color CountVoid = new Color(0.753f, 0.478f, 0.847f, 1f);
         // Pickup notifications sit on a slightly darker panel, since they appear over the middle of the screen.
         public static readonly Color NotificationPanel = new Color(0f, 0f, 0f, 0.55f);
         // #2c303a, the slot behind an item icon.

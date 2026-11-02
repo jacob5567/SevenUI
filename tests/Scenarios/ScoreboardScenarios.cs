@@ -23,6 +23,7 @@ namespace SevenUI.Tests
         public static IEnumerable<Scenario> Checks()
         {
             yield return new Scenario(1, "scoreboard_items_in_slots", Stages.TitanicPlains, ItemsInSlots);
+            yield return new Scenario(1, "scoreboard_centered_without_setting", Stages.TitanicPlains, CenteredWithoutSetting);
         }
 
         public static Scenario SpreadScreenshot() => Shot("scoreboard", Spread);
@@ -45,6 +46,17 @@ namespace SevenUI.Tests
         {
             ScoreboardSetUp.GiveDifferentItems(h, ManyItems);
             yield return ScoreboardSetUp.Open(h);
+            yield return h.ExpectScoreboardAsCanvas();
+        }
+
+        // ScoreboardBesideRunInfo moves the board beside the run info; off, it is centered on the screen, as the game
+        // centers it, still the canvas's width.
+        private static IEnumerator CenteredWithoutSetting(Harness h)
+        {
+            ScreenshotScenarios.GiveItemSpread(h);
+            yield return ScoreboardSetUp.Open(h);
+            yield return h.ExpectScoreboardAsCanvas();
+            h.SetConfig(SevenUIPlugin.Settings.ScoreboardBesideRunInfo, false);
             yield return h.ExpectScoreboardAsCanvas();
         }
 

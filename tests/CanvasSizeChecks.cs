@@ -26,6 +26,12 @@ namespace SevenUI.Tests
         private const float ScoreboardItemSlot = 40f;
         private const float ScoreboardRowSlack = 8f;
         private const string ScoreboardKeyItemName = "KeyItemBackground";
+        // The canvas's board: 1220px wide, 110px from the top; its count line names the total's items.
+        private const float ScoreboardWidth = 1220f;
+        private const float ScoreboardTop = 110f;
+        private const string ScoreboardCountsWord = " items";
+        private const string ScoreboardStripsPath = "Container/StripContainer";
+        private const string ScoreboardHeadersPath = "Container/HeaderGroup";
         private const string ScoreboardEquipmentName = "EquipmentBackground";
         private const float HealthHeight = 22f;
         private const float ExpHeight = 4f;
@@ -69,6 +75,32 @@ namespace SevenUI.Tests
         }
 
         private static bool Near(float value, float expected) => Mathf.Abs(value - expected) < SizeTolerance;
+
+        // Null when the board is the canvas's width and in its place: with ScoreboardBesideRunInfo, its top 110px down
+        // and as far from the screen's left edge as from the run info's panel; without, centered on the screen.
+        private static string PlacementProblem(Harness h, ScoreboardController board)
+        {
+            RectTransform strips = board.transform.Find(ScoreboardStripsPath) as RectTransform;
+            RectTransform headers = board.transform.Find(ScoreboardHeadersPath) as RectTransform;
+            if (!strips || !headers) return "no board";
+            Rect box = Box(h, strips);
+            float top = Box(h, headers).yMax;
+            (Camera camera, float unit) = Screen(h);
+            Rect screen = CanvasLayoutChecks.ScreenOf(camera);
+            float left = box.xMin - screen.xMin / unit;
+            float fromTop = screen.yMax / unit - top;
+            string look = $"x {left:0.#} to {box.xMax - screen.xMin / unit:0.#}, {box.width:0.#} wide, top {fromTop:0.#} down";
+            if (!Near(box.width, ScoreboardWidth)) return look;
+            if (!SevenUIPlugin.Settings.ScoreboardBesideRunInfo.Value)
+            {
+                return Near(box.center.x, screen.center.x / unit) ? null : look;
+            }
+            RectTransform column = SevenUIChecks.HudRoot(h).GetComponentsInChildren<RectTransform>()
+                .FirstOrDefault(rect => rect.name == RunInfoStyler.BackgroundName);
+            if (!column) return "no run info panel";
+            float toColumn = Box(h, column).xMin - box.xMax;
+            return Near(fromTop, ScoreboardTop) && Near(left, toColumn) ? null : $"{look}, {toColumn:0.#} from the run info";
+        }
 
         // Null when a row's item icons are drawn as the canvas's slots: none over another, none wider than a slot, the
         // rows starting at the items cell's left edge, the first row's top level with the slot beside the items, and
@@ -413,8 +445,9 @@ namespace SevenUI.Tests
                       $"{NotificationSlotSize}px slot ({look}) {h.Diagnosis()}");
         }
 
-        // The open scoreboard's header strip with each header at its column, and the viewer's row: tinted, its money
-        // last, the survivor and level under the name, the equipment outlined, and its items as the canvas's slots.
+        // The open scoreboard as wide as the canvas's and where the setting puts it, its header strip with each header at
+        // its column, and the viewer's row: tinted, its money last, the survivor and level under the name and the item
+        // counts under those, the equipment outlined, and its items as the canvas's slots.
         public static IEnumerator ExpectScoreboardAsCanvas(this Harness h)
         {
             string look = null;
@@ -444,10 +477,13 @@ namespace SevenUI.Tests
                     Transform equipment = background.Find("EquipmentBackground");
                     bool moneyLast = money && equipment && money.GetSiblingIndex() > equipment.GetSiblingIndex();
                     string items = ItemsProblem(h, row.Strip, background);
+                    string placed = PlacementProblem(h, board);
                     look = $"misplaced headers [{string.Join(", ", misplaced)}], row color {row.Background.color}, " +
-                           $"survivor '{row.Survivor.text}', money after the equipment {moneyLast}, items {items ?? "as slots"}";
+                           $"survivor '{row.Survivor.text}', counts '{row.Counts.text}', money after the equipment {moneyLast}, " +
+                           $"items {items ?? "as slots"}, board {placed ?? "in place"}";
                     return headers.transform.Find(ScoreboardStyler.HeaderStripName) && misplaced.Count == 0 && items == null &&
-                           SevenUIChecks.Near(row.Background.color, Palette.ScoreboardOwnRow) && row.Survivor.text.Contains(" · ") &&
+                           placed == null && row.Counts.text.Contains(ScoreboardCountsWord) &&
+                           SevenUIChecks.Near(row.Background.color, ScoreboardRow.OwnRowColor) && row.Survivor.text.Contains(" · ") &&
                            moneyLast && equipment.Find("SevenUIEquipmentOutline");
                 },
                 () => $"the scoreboard laid out as on the canvas ({look}) {h.Diagnosis()}");

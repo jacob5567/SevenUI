@@ -10,6 +10,7 @@ namespace SevenUI
         public readonly ConfigEntry<bool> MonospaceDamageNumbers;
         public readonly ConfigEntry<bool> FlatPanels;
         public readonly ConfigEntry<bool> TightMargins;
+        public readonly ConfigEntry<bool> ScoreboardBesideRunInfo;
 
         public readonly ConfigEntry<bool> DebugLogging;
         public readonly ConfigEntry<bool> DebugAlwaysShow;
@@ -27,6 +28,9 @@ namespace SevenUI
             TightMargins = config.Bind("Panels", "TightMargins", true,
                 "Draw the HUD's corners near the screen's edges, as on SevenUI's design: 2.6% of the screen's height " +
                 "in (2.2% at the top). Off keeps the game's margins, 5% of the screen. Only with FlatPanels on.");
+            ScoreboardBesideRunInfo = config.Bind("Panels", "ScoreboardBesideRunInfo", true,
+                "Place the scoreboard as on SevenUI's design: near the top of the screen, centered between its left edge " +
+                "and the run info. Off centers it on the screen, where the game puts it. Only with FlatPanels on.");
 
             // Risk Of Options uses the section name as the menu header, so keep it exactly "Debug".
             DebugLogging = config.Bind("Debug", "DebugLogging", false,

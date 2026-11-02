@@ -54,6 +54,9 @@ namespace SevenUI
         private const int RowPaddingX = 20;
         private const int RowPaddingY = 16;
         private const float ColumnGap = 24f;
+        // Between the portrait and the name block; the row lays its columns out ColumnGap apart, so the block's texts
+        // reach back into the column gap by the difference.
+        private const float NameGap = 12f;
         private const float SlotSize = 52f;
         private const float NameWidth = 224f;
         private const float NameFontSize = 19f;
@@ -67,6 +70,10 @@ namespace SevenUI
         // The canvas's item slots: 40px, 4px apart, wrapping.
         private const float ItemSlotSize = 40f;
         private const float ItemGap = 4f;
+        // The canvas's board, rgba(0,0,0,0.62) over its #1a1d24 background: what its header strip and viewer's row tint
+        // were chosen over.
+        public static readonly Color CanvasBoard = new Color(0.039f, 0.043f, 0.054f, 1f);
+        private const string ContainerName = "Container";
         // Where an icon's place is, on the icon: its top-left corner.
         private static readonly Vector2 IconTopLeft = new Vector2(0f, 1f);
         // In the items cell's units.
@@ -82,6 +89,7 @@ namespace SevenUI
         private readonly List<ScoreboardStrip> rows = new List<ScoreboardStrip>();
         private readonly HashSet<ScoreboardStrip> styled = new HashSet<ScoreboardStrip>();
         private readonly List<ItemIcon> icons = new List<ItemIcon>();
+        private ScoreboardPlacement placement;
 
         public ScoreboardStyler(Transform root)
         {
@@ -102,11 +110,16 @@ namespace SevenUI
         {
             recorder.Restore();
             styled.Clear();
+            placement = null;
         }
 
         // While the scoreboard is open: a few reads per icon, and a move for those the game has just placed.
         public void Update()
         {
+            if (placement != null && placement.Alive)
+            {
+                placement.Update(SevenUIPlugin.Settings.ScoreboardBesideRunInfo.Value);
+            }
             styled.RemoveWhere(row => !row);
             foreach (ScoreboardStrip row in styled)
             {
@@ -125,6 +138,11 @@ namespace SevenUI
             Fill(Find<Image>(board, InspectVisualPath), Palette.ItemSlot);
             Fill(Find<Image>(board, SidecarPanelPath), Palette.ScoreboardPanel);
             Fill(Find<Image>(board, SidecarVisualPath), Palette.ItemSlot);
+            VerticalLayoutGroup container = Find<VerticalLayoutGroup>(board, ContainerName);
+            if ((placement == null || !placement.Alive) && container)
+            {
+                placement = new ScoreboardPlacement((RectTransform)board, container, root, recorder);
+            }
 
             Transform headers = board.Find(HeadersPath);
             if (headers && !headers.Find(HeaderStripName))
@@ -158,7 +176,7 @@ namespace SevenUI
             GameObject tint = NewUIObject("Tint", strip.transform);
             Stretch((RectTransform)tint.transform);
             Image tintImage = tint.AddComponent<Image>();
-            tintImage.color = Palette.HeaderStrip;
+            tintImage.color = CanvasBlend.Over(Palette.HeaderStrip, CanvasBoard);
             tintImage.raycastTarget = false;
             recorder.Add(strip);
 
@@ -323,6 +341,9 @@ namespace SevenUI
 
             GameObject holder = NewUIObject(RowTextsName, nameObject);
             Stretch((RectTransform)holder.transform);
+            ((RectTransform)holder.transform).offsetMin = new Vector2(NameGap - ColumnGap, 0f);
+            Vector2 nameOffset = name.rectTransform.offsetMin;
+            name.rectTransform.offsetMin = new Vector2(NameGap - ColumnGap, nameOffset.y);
             TMP_Text survivor = AddText("Survivor", holder.transform, name, SurvivorFontSize, Palette.HeaderText);
             Line(survivor.rectTransform, ref y, SurvivorFontSize);
             TMP_Text counts = AddText("Counts", holder.transform, name, CountsFontSize, Palette.HeaderText);
