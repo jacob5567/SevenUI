@@ -11,9 +11,14 @@ namespace SevenUI.Tests
     {
         public override string Name => SevenUIPlugin.PluginName;
 
-        public override IEnumerable<Scenario> Scenarios()
+        // Every scenario runs in a plain mod_test; a suite picks a group to run on its own with --suite.
+        public override IEnumerable<Suite> Suites()
         {
-            return FontScenarios.All().Concat(PanelScenarios.All()).Concat(ObjectiveScenarios.All()).Concat(ScreenshotScenarios.All());
+            yield return new Suite("font", FontScenarios.All());
+            yield return new Suite("panels", PanelScenarios.All().Concat(ScoreboardScenarios.Checks()));
+            yield return new Suite("objectives", ObjectiveScenarios.All());
+            yield return new Suite("scoreboard", ScoreboardScenarios.All());
+            yield return new Suite("screenshots", ScreenshotScenarios.All().Append(ScoreboardScenarios.SpreadScreenshot()));
         }
 
         public override string Precondition(Scenario scenario)

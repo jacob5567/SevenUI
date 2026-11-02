@@ -12,16 +12,15 @@ namespace SevenUI.Tests
     // mission, a trial or a compulsion that can't be set up on demand.
     internal static class ObjectiveScenarios
     {
-        private const string Suite = "objectives";
         // Enough rows to fill the column a few times over, without the panel reaching far off the screen.
         private const int BatchSize = 8;
         private static readonly float[] Progress = { 0.4f, 0.7f };
 
         public static IEnumerable<Scenario> All()
         {
-            yield return new Scenario(1, Suite, "each_objective_alone_as_canvas", Stages.TitanicPlains, EachObjectiveAlone);
-            yield return new Scenario(1, Suite, "every_objective_as_canvas", Stages.TitanicPlains, EveryObjective);
-            yield return new Scenario(1, Suite, "trial_progress_as_canvas", Stages.TitanicPlains, TrialProgress);
+            yield return new Scenario(1, "each_objective_alone_as_canvas", Stages.TitanicPlains, EachObjectiveAlone);
+            yield return new Scenario(1, "every_objective_as_canvas", Stages.TitanicPlains, EveryObjective);
+            yield return new Scenario(1, "trial_progress_as_canvas", Stages.TitanicPlains, TrialProgress);
         }
 
         private static IEnumerator EachObjectiveAlone(Harness h)

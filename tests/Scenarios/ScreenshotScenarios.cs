@@ -10,13 +10,12 @@ using UnityEngine;
 namespace SevenUI.Tests
 {
     // Not checks: sets up each part of the HUD SevenUI restyles and saves a screenshot of it twice, in SevenUI's look and
-    // with the mod's settings off, for comparing. Run with mod_test --mod SevenUI --suite screenshots; the runner logs
-    // where the files went. Tooltips need the pointer, so they aren't shot. The
+    // with the mod's settings off, for comparing. They run with the checks, or alone with mod_test --mod SevenUI --suite
+    // screenshots; the runner logs where the files went. Tooltips need the pointer, so they aren't shot. The
     // survivor shots turn the player into each survivor that adds HUD elements of its own, and skip the ones whose
     // expansion the player doesn't have.
     internal static class ScreenshotScenarios
     {
-        private const string Suite = "screenshots";
         // Long enough for new HUD objects, restyling and the switch between looks to settle, and short enough that a
         // pickup notification or damage numbers are still showing.
         private const float SettleSeconds = 0.5f;
@@ -69,7 +68,6 @@ namespace SevenUI.Tests
         public static IEnumerable<Scenario> All()
         {
             yield return Shot("hud", Hud);
-            yield return Shot("scoreboard", Scoreboard);
             yield return Shot("barrier_and_low_health", BarrierAndLowHealth);
             yield return Shot("cooldowns", Cooldowns);
             yield return Shot("ntormat_pages", NtormatPages);
@@ -87,11 +85,11 @@ namespace SevenUI.Tests
             yield return Survivor("drifter", GameNames.Drifter);
             yield return Survivor("acolyte", GameNames.Acolyte);
             // Starts the teleporter, which changes the stage, so it goes last.
-            yield return new Scenario(2, Suite, "boss_bar", Stages.TitanicPlains, BossBar, onlyWhenNamed: true);
+            yield return new Scenario(2, "boss_bar", Stages.TitanicPlains, BossBar);
         }
 
         private static Scenario Shot(string name, System.Func<Harness, IEnumerator> run) =>
-            new Scenario(1, Suite, name, Stages.TitanicPlains, run, onlyWhenNamed: true);
+            new Scenario(1, name, Stages.TitanicPlains, run);
 
         private static Scenario Survivor(string name, string body, System.Action<CharacterBody> setUp = null) =>
             Shot($"survivor_{name}", h => AsSurvivor(h, body, setUp));
@@ -142,21 +140,6 @@ namespace SevenUI.Tests
             yield return h.CaptureLooks();
         }
 
-        // The tab screen, with items in the player's row. The HUD closes the scoreboard every frame unless the info key
-        // is held or it was opened as a toggle, as the pause menu's button opens it; closing it ends the toggle.
-        private static IEnumerator Scoreboard(Harness h)
-        {
-            GiveItemSpread(h);
-            h.Cmd($"{Commands.GiveEquipment} {GameNames.Fruit}");
-            LocalUser user = LocalUserManager.GetFirstLocalUser();
-            h.OnCleanup(() => HUD.SetScoreboardActive(user, false, EScoreboardDeactivateReturnContext.Game));
-            HUD.SetScoreboardActive(user, true, EScoreboardDeactivateReturnContext.Game, shouldForceScoreboardToggle: true);
-            yield return h.Until(() => HUD.IsScoreboardActive(user), "the scoreboard open");
-            yield return h.ExpectScoreboardAsCanvas();
-            yield return h.Wait(SettleSeconds);
-            yield return h.CaptureLooks();
-        }
-
         private static IEnumerator NtormatPages(Harness h)
         {
             yield return h.GiveNtormat();
@@ -165,7 +148,7 @@ namespace SevenUI.Tests
         }
 
         // One item of each main tier, and a stack of a common one, none that changes the player or the others.
-        private static void GiveItemSpread(Harness h)
+        internal static void GiveItemSpread(Harness h)
         {
             List<ItemDef> given = new List<ItemDef>();
             System.Func<ItemDef, bool> held = TestItems.HeldBy(Harness.LocalBody.inventory, given);

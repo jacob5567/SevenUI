@@ -10,22 +10,21 @@ namespace SevenUI.Tests
     // gains later, and goes back to the game's font when the setting is turned off.
     internal static class FontScenarios
     {
-        private const string Suite = "font";
         // Any hit that procs: the lenses do the killing.
         private const float FakeNumbersHit = 10f;
 
         public static IEnumerable<Scenario> All()
         {
-            yield return new Scenario(1, Suite, "hud_text_uses_barlow", Stages.TitanicPlains, HudTextUsesBarlow);
-            yield return new Scenario(1, Suite, "new_item_icons_use_barlow", Stages.TitanicPlains, NewItemIconsUseBarlow);
-            yield return new Scenario(1, Suite, "timer_uses_barlow_condensed", Stages.TitanicPlains, TimerUsesBarlowCondensed);
-            yield return new Scenario(1, Suite, "level_uses_barlow_condensed", Stages.TitanicPlains, LevelUsesBarlowCondensed);
-            yield return new Scenario(1, Suite, "sleeping_text_keeps_barlow", Stages.TitanicPlains, SleepingTextKeepsBarlow);
-            yield return new Scenario(1, Suite, "damage_numbers_use_monospace", Stages.TitanicPlains, DamageNumbersUseMonospace);
-            yield return new Scenario(1, Suite, "damage_numbers_narrowed_on_next_stage", Stages.TitanicPlains, DamageNumbersNarrowedOnNextStage);
-            yield return new Scenario(1, Suite, "lens_fake_numbers_narrowed", Stages.TitanicPlains, LensFakeNumbersNarrowed);
-            yield return new Scenario(1, Suite, "turning_off_restores_game_font", Stages.TitanicPlains, TurningOffRestoresGameFont);
-            yield return new Scenario(1, Suite, "lookingglass_stats_use_barlow", Stages.TitanicPlains, LookingGlassStatsUseBarlow);
+            yield return new Scenario(1, "hud_text_uses_barlow", Stages.TitanicPlains, HudTextUsesBarlow);
+            yield return new Scenario(1, "new_item_icons_use_barlow", Stages.TitanicPlains, NewItemIconsUseBarlow);
+            yield return new Scenario(1, "timer_uses_barlow_condensed", Stages.TitanicPlains, TimerUsesBarlowCondensed);
+            yield return new Scenario(1, "level_uses_barlow_condensed", Stages.TitanicPlains, LevelUsesBarlowCondensed);
+            yield return new Scenario(1, "sleeping_text_keeps_barlow", Stages.TitanicPlains, SleepingTextKeepsBarlow);
+            yield return new Scenario(1, "damage_numbers_use_monospace", Stages.TitanicPlains, DamageNumbersUseMonospace);
+            yield return new Scenario(1, "damage_numbers_narrowed_on_next_stage", Stages.TitanicPlains, DamageNumbersNarrowedOnNextStage);
+            yield return new Scenario(1, "lens_fake_numbers_narrowed", Stages.TitanicPlains, LensFakeNumbersNarrowed);
+            yield return new Scenario(1, "turning_off_restores_game_font", Stages.TitanicPlains, TurningOffRestoresGameFont);
+            yield return new Scenario(1, "lookingglass_stats_use_barlow", Stages.TitanicPlains, LookingGlassStatsUseBarlow);
         }
 
         private static IEnumerator HudTextUsesBarlow(Harness h)

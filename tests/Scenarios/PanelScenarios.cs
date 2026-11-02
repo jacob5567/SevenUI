@@ -13,7 +13,6 @@ namespace SevenUI.Tests
     // objective panel shows its stats in two columns.
     internal static class PanelScenarios
     {
-        private const string Suite = "panels";
         // Plenty for a small chest at any difficulty or stage count the tests reach.
         private const int ChestMoney = 1000;
         // The game counts the shown amount up over about this long.
@@ -28,24 +27,24 @@ namespace SevenUI.Tests
 
         public static IEnumerable<Scenario> All()
         {
-            yield return new Scenario(1, Suite, "hud_faces_screen", Stages.TitanicPlains, HudFacesScreen);
-            yield return new Scenario(1, Suite, "tight_margins_switch", Stages.TitanicPlains, TightMarginsSwitch);
-            yield return new Scenario(1, Suite, "run_info_is_flat", Stages.TitanicPlains, RunInfoIsFlat);
-            yield return new Scenario(1, Suite, "eclipse_and_karma_shown", Stages.TitanicPlains, EclipseAndKarmaShown);
-            yield return new Scenario(1, Suite, "objective_panel_is_flat", Stages.TitanicPlains, ObjectivePanelIsFlat);
-            yield return new Scenario(1, Suite, "player_bars_are_flat", Stages.TitanicPlains, PlayerBarsAreFlat);
-            yield return new Scenario(1, Suite, "buffs_wrap_in_rows", Stages.TitanicPlains, BuffsWrapInRows);
-            yield return new Scenario(1, Suite, "skill_slots_are_flat", Stages.TitanicPlains, SkillSlotsAreFlat);
-            yield return new Scenario(1, Suite, "notification_icons_in_slot", Stages.TitanicPlains, NotificationIconsInSlot);
-            yield return new Scenario(1, Suite, "stocks_in_slot_corners", Stages.TitanicPlains, StocksInSlotCorners);
-            yield return new Scenario(1, Suite, "ntormat_pages_follow_key_item", Stages.TitanicPlains, NtormatPagesFollowKeyItem);
-            yield return new Scenario(1, Suite, "top_is_flat", Stages.TitanicPlains, TopIsFlat);
-            yield return new Scenario(1, Suite, "item_icons_are_flat", Stages.TitanicPlains, ItemIconsAreFlat);
-            yield return new Scenario(1, Suite, "prompt_is_flat", Stages.TitanicPlains, PromptIsFlat);
-            yield return new Scenario(1, Suite, "prompt_as_canvas", Stages.TitanicPlains, PromptAsCanvas);
-            yield return new Scenario(1, Suite, "scoreboard_and_chat_are_flat", Stages.TitanicPlains, ScoreboardAndChatAreFlat);
-            yield return new Scenario(1, Suite, "turning_off_restores_panels", Stages.TitanicPlains, TurningOffRestoresPanels);
-            yield return new Scenario(1, Suite, "lookingglass_stats_in_columns", Stages.TitanicPlains, LookingGlassStatsInColumns);
+            yield return new Scenario(1, "hud_faces_screen", Stages.TitanicPlains, HudFacesScreen);
+            yield return new Scenario(1, "tight_margins_switch", Stages.TitanicPlains, TightMarginsSwitch);
+            yield return new Scenario(1, "run_info_is_flat", Stages.TitanicPlains, RunInfoIsFlat);
+            yield return new Scenario(1, "eclipse_and_karma_shown", Stages.TitanicPlains, EclipseAndKarmaShown);
+            yield return new Scenario(1, "objective_panel_is_flat", Stages.TitanicPlains, ObjectivePanelIsFlat);
+            yield return new Scenario(1, "player_bars_are_flat", Stages.TitanicPlains, PlayerBarsAreFlat);
+            yield return new Scenario(1, "buffs_wrap_in_rows", Stages.TitanicPlains, BuffsWrapInRows);
+            yield return new Scenario(1, "skill_slots_are_flat", Stages.TitanicPlains, SkillSlotsAreFlat);
+            yield return new Scenario(1, "notification_icons_in_slot", Stages.TitanicPlains, NotificationIconsInSlot);
+            yield return new Scenario(1, "stocks_in_slot_corners", Stages.TitanicPlains, StocksInSlotCorners);
+            yield return new Scenario(1, "ntormat_pages_follow_key_item", Stages.TitanicPlains, NtormatPagesFollowKeyItem);
+            yield return new Scenario(1, "top_is_flat", Stages.TitanicPlains, TopIsFlat);
+            yield return new Scenario(1, "item_icons_are_flat", Stages.TitanicPlains, ItemIconsAreFlat);
+            yield return new Scenario(1, "prompt_is_flat", Stages.TitanicPlains, PromptIsFlat);
+            yield return new Scenario(1, "prompt_as_canvas", Stages.TitanicPlains, PromptAsCanvas);
+            yield return new Scenario(1, "scoreboard_and_chat_are_flat", Stages.TitanicPlains, ScoreboardAndChatAreFlat);
+            yield return new Scenario(1, "turning_off_restores_panels", Stages.TitanicPlains, TurningOffRestoresPanels);
+            yield return new Scenario(1, "lookingglass_stats_in_columns", Stages.TitanicPlains, LookingGlassStatsInColumns);
         }
 
         private static IEnumerator HudFacesScreen(Harness h)
