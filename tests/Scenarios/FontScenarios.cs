@@ -11,6 +11,8 @@ namespace SevenUI.Tests
     internal static class FontScenarios
     {
         private const string Suite = "font";
+        // Any hit that procs: the lenses do the killing.
+        private const float FakeNumbersHit = 10f;
 
         public static IEnumerable<Scenario> All()
         {
@@ -21,6 +23,7 @@ namespace SevenUI.Tests
             yield return new Scenario(1, Suite, "sleeping_text_keeps_barlow", Stages.TitanicPlains, SleepingTextKeepsBarlow);
             yield return new Scenario(1, Suite, "damage_numbers_use_monospace", Stages.TitanicPlains, DamageNumbersUseMonospace);
             yield return new Scenario(1, Suite, "damage_numbers_narrowed_on_next_stage", Stages.TitanicPlains, DamageNumbersNarrowedOnNextStage);
+            yield return new Scenario(1, Suite, "lens_fake_numbers_narrowed", Stages.TitanicPlains, LensFakeNumbersNarrowed);
             yield return new Scenario(1, Suite, "turning_off_restores_game_font", Stages.TitanicPlains, TurningOffRestoresGameFont);
             yield return new Scenario(1, Suite, "lookingglass_stats_use_barlow", Stages.TitanicPlains, LookingGlassStatsUseBarlow);
         }
@@ -74,6 +77,25 @@ namespace SevenUI.Tests
             yield return h.Until(() => DamageNumberManager.instance && DamageNumberManager.instance != before,
                 "a new damage number manager on the next stage");
             yield return h.ExpectDamageNumbersMonospace(true);
+        }
+
+        // Lost Seer's Lenses' execute effect bursts fake crit numbers with the damage numbers' material, from a
+        // particle system of its own: narrowed with the real numbers, and back to the game's width with them.
+        private static IEnumerator LensFakeNumbersNarrowed(Harness h)
+        {
+            LensInstakills.GiveLenses(h);
+            yield return InstakillShowsFakeNumbers(h, true);
+            h.SetConfig(SevenUIPlugin.Settings.MonospaceDamageNumbers, false);
+            yield return h.ExpectDamageNumbersMonospace(false);
+            yield return InstakillShowsFakeNumbers(h, false);
+        }
+
+        private static IEnumerator InstakillShowsFakeNumbers(Harness h, bool monospace)
+        {
+            List<CharacterBody> lemurians = new List<CharacterBody>();
+            yield return LensInstakills.SpawnLemurians(h, 1, lemurians);
+            LensInstakills.Hit(lemurians[0], FakeNumbersHit, false);
+            yield return h.ExpectFakeNumbersFit(monospace);
         }
 
         private static IEnumerator TurningOffRestoresGameFont(Harness h)

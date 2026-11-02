@@ -27,6 +27,9 @@ namespace SevenUI.Tests
         // name; the Devoted Lemurian's display name is "Lemurian" too, so the plain one's master is named in full.
         public const string ExecutableMonster = "LemurianMaster";
         public const string ExecutableMonsterBody = "LemurianBody";
+        // The particle system in Lost Seer's Lenses' execute effect (CritGlassesVoidExecuteEffect) that bursts fake
+        // crit numbers, drawn with the damage numbers' material.
+        public const string LensesFakeNumbers = "FakeDamageNumbers";
 
         // The damage number particle's start size is this many characters wide by one tall.
         public const float DamageNumberCharacters = 4f;

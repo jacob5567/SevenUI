@@ -804,33 +804,73 @@ namespace SevenUI.Tests
             return renderer && renderer.sharedMaterial ? renderer.sharedMaterial.mainTexture : null;
         }
 
-        // The damage number particle's width over its height, in characters: the game's are square.
-        private static float DamageNumberWidth()
+        // A particle's width over its height, in characters: the game's are square, the mod's narrowed.
+        private const float WidthTolerance = 0.01f;
+
+        private static float ExpectedWidth(bool monospace) =>
+            GameNames.DamageNumberCharacters * (monospace ? DamageNumberFont.CellAspect : 1f);
+
+        // Each particle system drawn with the damage numbers' material, live, pooled or a loaded prefab (the lenses'
+        // execute effect's among them), with its width in characters.
+        private static List<(string name, float width)> DamageNumberWidths()
         {
             DamageNumberManager manager = DamageNumberManager.instance;
-            ParticleSystem particles = manager ? manager.GetComponent<ParticleSystem>() : null;
-            if (!particles) return 0f;
-            ParticleSystem.MainModule main = particles.main;
-            return main.startSizeXMultiplier / main.startSizeYMultiplier;
+            ParticleSystemRenderer numbers = manager ? manager.GetComponent<ParticleSystemRenderer>() : null;
+            if (!numbers || !numbers.sharedMaterial) return new List<(string, float)>();
+            return Resources.FindObjectsOfTypeAll<ParticleSystemRenderer>()
+                .Where(renderer => renderer.sharedMaterial == numbers.sharedMaterial)
+                .Select(renderer => renderer.GetComponent<ParticleSystem>())
+                .Where(particles => particles)
+                .Select(particles =>
+                {
+                    ParticleSystem.MainModule main = particles.main;
+                    return (particles.name, main.startSizeXMultiplier / main.startSizeYMultiplier);
+                })
+                .ToList();
         }
 
-        // The mod's sheet, on a particle narrowed for its narrower characters, or the game's sheet on the game's
-        // particle.
+        // The mod's sheet, on particles narrowed for its narrower characters, or the game's sheet on the game's
+        // particles: every system drawn with the material, the manager's and the lenses' fake numbers' alike.
         public static IEnumerator ExpectDamageNumbersMonospace(this Harness h, bool monospace)
         {
             Texture sheet = null;
-            float width = 0f;
+            List<(string name, float width)> widths = new List<(string, float)>();
+            float expected = ExpectedWidth(monospace);
             yield return h.Until(
                 () =>
                 {
                     sheet = DamageNumberSheet();
-                    width = DamageNumberWidth();
-                    bool narrowed = width < GameNames.DamageNumberCharacters - 0.01f;
-                    bool square = Mathf.Abs(width - GameNames.DamageNumberCharacters) < 0.01f;
-                    return sheet && (sheet.name == Texts.DamageNumberSheetName) == monospace && (monospace ? narrowed : square);
+                    widths = DamageNumberWidths();
+                    return sheet && (sheet.name == Texts.DamageNumberSheetName) == monospace &&
+                           widths.Any(shown => shown.name == GameNames.LensesFakeNumbers) &&
+                           widths.All(shown => Mathf.Abs(shown.width - expected) < WidthTolerance);
                 },
-                () => $"the damage numbers {(monospace ? "in the mod's monospace sheet, on a narrowed particle" : "back on the game's sheet and particle")} " +
-                      $"(sheet {(sheet ? sheet.name : "none")}, particle {width:0.00} characters wide) {h.Diagnosis()}");
+                () => $"the damage numbers {(monospace ? "in the mod's monospace sheet, on narrowed particles" : "back on the game's sheet and particles")} " +
+                      $"{expected:0.00} characters wide (sheet {(sheet ? sheet.name : "none")}, particles " +
+                      $"{string.Join(", ", widths.Select(shown => $"{shown.name} {shown.width:0.00}"))}) {h.Diagnosis()}");
+        }
+
+        // Lost Seer's Lenses' execute effect's burst of fake crit numbers as it plays, each emitted as wide as the
+        // real numbers.
+        public static IEnumerator ExpectFakeNumbersFit(this Harness h, bool monospace)
+        {
+            float expected = ExpectedWidth(monospace);
+            string seen = "none playing";
+            yield return h.Until(
+                () =>
+                {
+                    ParticleSystem burst = Resources.FindObjectsOfTypeAll<ParticleSystem>().FirstOrDefault(particles =>
+                        particles.name == GameNames.LensesFakeNumbers && particles.gameObject.scene.IsValid() &&
+                        particles.particleCount > 0);
+                    if (!burst) return false;
+                    ParticleSystem.Particle[] shown = new ParticleSystem.Particle[burst.particleCount];
+                    int count = burst.GetParticles(shown);
+                    List<float> widths = shown.Take(count)
+                        .Select(particle => particle.startSize3D.x / particle.startSize3D.y).ToList();
+                    seen = $"{count} numbers {string.Join(", ", widths.Distinct().Select(width => width.ToString("0.00")))} characters wide";
+                    return widths.All(width => Mathf.Abs(width - expected) < WidthTolerance);
+                },
+                () => $"Lost Seer's Lenses' fake crit numbers {expected:0.00} characters wide ({seen}) {h.Diagnosis()}");
         }
 
         // How long to let the HUD switch between looks before the next screenshot.
