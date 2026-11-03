@@ -22,7 +22,9 @@ namespace SevenUI
         private static Sprite white;
         private static Sprite hatch;
         private static Sprite protectionHatch;
+        private static Sprite tintedProtectionHatch;
         public const string ProtectionHatchName = "SevenUIProtectionHatch";
+        public const string TintedProtectionHatchName = "SevenUIProtectionHatchTinted";
         private static Sprite outline;
         private static Sprite topStrip;
 
@@ -105,6 +107,21 @@ namespace SevenUI
         public static Sprite ProtectionHatch => protectionHatch
             ? protectionHatch
             : protectionHatch = MakeHatch(ProtectionHatchName, Palette.ProtectionStripe, Palette.ProtectionGap);
+
+        // The same stripes in white and a grey as much darker as the green's gap, for an image tinted with the health's
+        // color when the game draws the health in another (infusion's red, a void body's purple).
+        public static Sprite TintedProtectionHatch => tintedProtectionHatch
+            ? tintedProtectionHatch
+            : tintedProtectionHatch = MakeHatch(TintedProtectionHatchName, Color.white, ProtectionGapShade);
+
+        private static Color ProtectionGapShade
+        {
+            get
+            {
+                float shade = Palette.ProtectionGap.grayscale / Palette.ProtectionStripe.grayscale;
+                return new Color(shade, shade, shade, 1f);
+            }
+        }
 
         private static Sprite MakeHatch(string name, Color stripeColor, Color gapColor)
         {

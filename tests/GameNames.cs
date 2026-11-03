@@ -16,6 +16,8 @@ namespace SevenUI.Tests
         // Personal Shield Generator, for a shield, and Foreign Fruit, an equipment with a cooldown.
         public const string PersonalShield = "PersonalShield";
         public const string Fruit = "Fruit";
+        // Infusion, which turns the health bar red.
+        public const string Infusion = "Infusion";
 
         // spawn_interactable and spawn_ai arguments: a small chest, a broken Gunner Drone to buy, and a monster with
         // enough health to take several hits.

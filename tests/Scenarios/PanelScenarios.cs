@@ -48,6 +48,7 @@ namespace SevenUI.Tests
             yield return new Scenario(1, "prompt_as_canvas", Stages.TitanicPlains, PromptAsCanvas);
             yield return new Scenario(1, "scoreboard_and_chat_are_flat", Stages.TitanicPlains, ScoreboardAndChatAreFlat);
             yield return new Scenario(1, "protection_striped_on_player", Stages.TitanicPlains, ProtectionStripedOnPlayer);
+            yield return new Scenario(1, "protection_tinted_with_infusion", Stages.TitanicPlains, ProtectionTintedWithInfusion);
             yield return new Scenario(1, "protection_striped_on_allies", Stages.TitanicPlains, ProtectionStripedOnAllies);
             yield return new Scenario(1, "turning_off_restores_panels", Stages.TitanicPlains, TurningOffRestoresPanels);
             yield return new Scenario(1, "lookingglass_stats_in_columns", Stages.TitanicPlains, LookingGlassStatsInColumns);
@@ -256,6 +257,15 @@ namespace SevenUI.Tests
             HealthComponent health = Harness.LocalBody.healthComponent;
             health.AddBarrier(health.fullCombinedHealth * ProtectionBarrierShare);
             yield return ProtectionBothLooks(h, () => new[] { hud.healthBar }, "the player's");
+        }
+
+        // Infusion turns the game's health red; the stripes follow it rather than staying green.
+        private static IEnumerator ProtectionTintedWithInfusion(Harness h)
+        {
+            HUD hud = SevenUIChecks.HudRoot(h).GetComponent<HUD>();
+            h.Cmd($"{Commands.GiveItem} {GameNames.Infusion} 1");
+            yield return h.ExpectProtectionTinted(hud.healthBar, "the player's");
+            yield return h.Screenshot("infusion");
         }
 
         private static IEnumerator ProtectionStripedOnAllies(Harness h)

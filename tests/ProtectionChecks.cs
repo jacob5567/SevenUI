@@ -50,8 +50,8 @@ namespace SevenUI.Tests
             List<Image> images = bar.GetComponentsInChildren<Image>()
                 .Where(image => image.enabled && image.sprite && image.color.a > 0f && image.gameObject.activeInHierarchy)
                 .ToList();
-            if (images.Any(image => image.sprite.name == unwanted)) return $"drawn in {unwanted}";
-            Image stripes = images.FirstOrDefault(image => image.sprite.name == wanted);
+            if (images.Any(image => image.sprite.name.StartsWith(unwanted))) return $"drawn in {unwanted}";
+            Image stripes = images.FirstOrDefault(image => image.sprite.name.StartsWith(wanted));
             bool drawn = bar.style && bar.style.ospStyle.enabled;
             if (!drawn) return stripes ? "stripes its style doesn't draw" : null;
             // Reads the bar's numbers only.
@@ -68,6 +68,25 @@ namespace SevenUI.Tests
                 return "stripes over the barrier";
             }
             return null;
+        }
+
+        // With the health drawn in another color than the canvas's green (infusion's red), the stripes are that color.
+        public static IEnumerator ExpectProtectionTinted(this Harness h, HealthBar bar, string whose)
+        {
+            string look = "no stripes";
+            yield return h.Until(
+                () =>
+                {
+                    Color health = bar.barInfoCollection.trailingOverHealthbarInfo.color;
+                    Image stripes = bar.GetComponentsInChildren<Image>()
+                        .FirstOrDefault(image => image.enabled && image.name == ProtectionStripes.StripesName);
+                    if (!stripes) return false;
+                    look = $"health {health}, stripes {stripes.sprite.name} in {stripes.color}";
+                    return stripes.sprite.name == FlatSprite.TintedProtectionHatchName && !SevenUIChecks.Near(health, Palette.Health) &&
+                           SevenUIChecks.Near(new Color(health.r, health.g, health.b, 1f), stripes.color);
+                },
+                () => $"one-shot protection on {whose} health bar tinted with its health's color ({look}) {h.Diagnosis()}");
+            h.Log($"One-shot protection on {whose} health bar: {look}");
         }
     }
 }

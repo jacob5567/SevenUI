@@ -9,10 +9,14 @@ namespace SevenUI
     // game draws its bars in the order of its list, protection after the barrier, the flash and the execute threshold,
     // which its translucent pattern could be; the flat style's opaque stripes would hide them. So the game's protection
     // bar is kept but drawn clear (FlatHealthStyles), as the marker of where the protection is, and this draws the
-    // stripes over the same span just above the health, shield and curse. Only its own image is ever moved.
+    // stripes over the same span just above the health, shield and curse. Only its own image is ever moved. They are
+    // the health's green, or, when the game draws the health in another color (infusion or a boss's red, a void body's
+    // purple, low health's red), stripes of that color.
     internal sealed class ProtectionStripes : MonoBehaviour
     {
         public const string StripesName = "SevenUIProtectionStripes";
+
+        private const float ColorTolerance = 0.01f;
 
         public HealthBar Bar;
 
@@ -47,6 +51,7 @@ namespace SevenUI
             bars.Clear();
             stripes.enabled = marker;
             if (!marker) return;
+            Tint(Bar.barInfoCollection.trailingOverHealthbarInfo.color);
 
             RectTransform from = marker.rectTransform;
             RectTransform to = stripes.rectTransform;
@@ -67,6 +72,25 @@ namespace SevenUI
                 stripes.transform.SetSiblingIndex(wanted);
             }
         }
+
+        // The green pair as chosen for the canvas's health; any other health color tints the neutral pair.
+        private void Tint(Color health)
+        {
+            bool green = SameColor(health, Palette.Health);
+            Sprite sprite = green ? FlatSprite.ProtectionHatch : FlatSprite.TintedProtectionHatch;
+            Color color = green ? Color.white : new Color(health.r, health.g, health.b, 1f);
+            if (stripes.sprite != sprite)
+            {
+                stripes.sprite = sprite;
+            }
+            if (stripes.color != color)
+            {
+                stripes.color = color;
+            }
+        }
+
+        private static bool SameColor(Color a, Color b) =>
+            Mathf.Abs(a.r - b.r) < ColorTolerance && Mathf.Abs(a.g - b.g) < ColorTolerance && Mathf.Abs(a.b - b.b) < ColorTolerance;
 
         private static Image NewStripes(RectTransform container)
         {
