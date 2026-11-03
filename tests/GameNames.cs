@@ -97,6 +97,39 @@ namespace SevenUI.Tests
         public const string ObjectivePanel = "ObjectivePanel";
         public const string ObjectiveTitle = "Label";
 
+        // The pick-an-item interactables: Command's cube, which offers every item of the dropped item's tier, and a Void
+        // Potential, which offers the options it is given; and three void items for it, as a Void Potential offers.
+        public const string CommandCube = "RoR2/Base/Command/CommandCube.prefab";
+        public const string VoidPotential = "RoR2/DLC1/OptionPickup/OptionPickup.prefab";
+        public static readonly string[] VoidItems = { "CritGlassesVoid", "ChainLightningVoid", "MissileVoid" };
+
+        // Every other pick-an-item panel prefab in the game's catalog, by what opens it, for a Command cube to open in
+        // its place.
+        public static readonly (string Name, string Key)[] PickerPanels =
+        {
+            ("scrapper", "RoR2/Base/Scrapper/ScrapperPickerPanel.prefab"),
+            ("delusion", "RoR2/CU8/DelusionOptionPickerPanel.prefab"),
+            ("lemurian_egg", "RoR2/CU8/LemurianEgg/LemurianEggPickerPanel.prefab"),
+            ("fragment_potential", "RoR2/DLC2/FragmentPotentialPickerPanel.prefab"),
+            ("rebirth", "RoR2/DLC2/RebirthPickerPanel.prefab"),
+            ("drone_assembly", "RoR2/DLC3/DroneAssemblyStation/DroneAssemblyStationPickerPanel.prefab"),
+            ("drone_assembly_v2", "RoR2/DLC3/DroneAssemblyStation/AssemblyStationPickerPanelv2.prefab"),
+            ("drone_cleanup", "RoR2/DLC3/Drones/CleanupPickerPanel.prefab"),
+            ("drone_scrapper", "RoR2/DLC3/DroneScrapper/DroneScrapperPickerPanel.prefab"),
+            ("meal_prep", "RoR2/DLC3/MealPrep/MealPrepPickerPanel.prefab"),
+            ("solus_vendor", "RoR2/DLC3/SolusVendorShrine/SolusVendorShrinePickerPanel-Variant.prefab"),
+            ("acolyte_unlock", "RoR2/DLC4/champrush/UnlockableAcolytePickerPanel.prefab"),
+            ("cursed_book", "RoR2/DLC4/CursedBook/CursedBookPickerPanel.prefab"),
+            ("cursed_potential", "RoR2/DLC4/CursedPotentialPickerPanel.prefab"),
+            ("page_potential", "RoR2/DLC4/PagePotentialPickerPanel.prefab"),
+            ("hallowed_potential", "RoR2/DLC4/UI/HallowedPotentialPickerPanel.prefab"),
+            ("trial_initial", "RoR2/DLC4/UI/TrialPotentialInitialPickerPanel.prefab"),
+            ("trial_blessing", "RoR2/DLC4/UI/TrialPotentialBlessingPickerPanel.prefab"),
+            ("trial_blessing_b", "RoR2/DLC4/UI/TrialPotentialBlessingPickerPanelB.prefab"),
+            ("ultima_potential", "RoR2/DLC4/UI/UltimalPotentialPickerPanel.prefab"),
+            ("wake_potential", "RoR2/DLC4/Wake/WakePotentialPickerPanel.prefab"),
+        };
+
         public const string LookingGlassGUID = "droppod.lookingglass";
         // LookingGlass's stats panel, a copy of the objective panel it adds next to it.
         public const string LookingGlassPanel = "PlayerStats";

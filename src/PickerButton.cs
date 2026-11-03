@@ -1,0 +1,73 @@
+using RoR2;
+using RoR2.UI;
+using TMPro;
+using UnityEngine;
+using UnityEngine.UI;
+
+namespace SevenUI
+{
+    // One option's button in a restyled pick-an-item panel and the parts the mod added to it, which PickerPanel lays out
+    // as a card or a grid slot and keeps up to date: the hover outline, the owned count and the dimmed text of an
+    // option that is no longer available.
+    internal sealed class PickerButton
+    {
+        // The share of its color an unavailable option's text keeps, as on the design canvas.
+        private const float UnavailableAlpha = 0.4f;
+
+        public MPButton Button;
+        public HGButton Hover;
+        public PickupDef Pickup;
+        public RectTransform Icon;
+        public Image Outline;
+        public TMP_Text Count;
+        public TMP_Text Name;
+        public TMP_Text Description;
+        public TMP_Text Key;
+
+        private int shownCount = -1;
+        private bool shownAvailable = true;
+
+        // Hovered with the pointer, or selected with a gamepad: the game's own state, which it shows by fading in its
+        // hover outline.
+        public bool Hovered => Hover && Hover.hovering;
+
+        public bool Available => Button && Button.interactable;
+
+        // A few reads each frame; text and colors change only when what they show did.
+        public void Update(Inventory inventory)
+        {
+            if (!Button) return;
+            if (Outline)
+            {
+                bool hovered = Hovered;
+                if (Outline.enabled != hovered)
+                {
+                    Outline.enabled = hovered;
+                }
+            }
+            if (Count)
+            {
+                int count = inventory && Pickup != null && Pickup.itemIndex != ItemIndex.None ? inventory.GetItemCountTotal(Pickup.itemIndex) : 0;
+                if (count != shownCount)
+                {
+                    shownCount = count;
+                    // As in the item bar: a count only for two or more.
+                    Count.text = count > 1 ? count.ToString() : "";
+                }
+            }
+            bool available = Available;
+            if (available != shownAvailable)
+            {
+                shownAvailable = available;
+                float alpha = available ? 1f : UnavailableAlpha;
+                foreach (TMP_Text text in new[] { Name, Description, Key })
+                {
+                    if (text)
+                    {
+                        text.alpha = alpha;
+                    }
+                }
+            }
+        }
+    }
+}

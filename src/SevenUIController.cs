@@ -22,6 +22,7 @@ namespace SevenUI
         private ItemIconsStyler itemIcons;
         private AllyCardsStyler allyCards;
         private PromptsStyler prompts;
+        private PickerStyler pickers;
         private ScoreboardStyler scoreboard;
         private ChatStyler chat;
         private TiltFlattener tilt;
@@ -32,6 +33,8 @@ namespace SevenUI
         private bool fontApplied;
         private bool panelsApplied;
         private bool marginsApplied;
+
+        public PickerStyler Pickers => pickers;
 
         private void Awake()
         {
@@ -47,6 +50,7 @@ namespace SevenUI
             itemIcons = new ItemIconsStyler(root);
             allyCards = new AllyCardsStyler(root);
             prompts = new PromptsStyler(root);
+            pickers = new PickerStyler(hud, root);
             scoreboard = new ScoreboardStyler(root);
             chat = new ChatStyler(root);
             tilt = new TiltFlattener(root);
@@ -69,6 +73,7 @@ namespace SevenUI
             if (panelsApplied)
             {
                 prompts.Update();
+                pickers.Update();
                 playerBars.Update();
                 top.Update();
                 skillSlots.Update();
@@ -118,6 +123,7 @@ namespace SevenUI
             itemIcons.Apply();
             allyCards.Apply();
             prompts.Apply();
+            pickers.Apply();
             scoreboard.Apply();
             chat.Apply();
             topBars.Apply();
@@ -133,6 +139,7 @@ namespace SevenUI
             itemIcons.Restore();
             allyCards.Restore();
             prompts.Restore();
+            pickers.Restore();
             scoreboard.Restore();
             chat.Restore();
             tilt.Restore();
@@ -171,6 +178,7 @@ namespace SevenUI
             itemIcons.Describe(output);
             allyCards.Describe(output);
             prompts.Describe(output);
+            pickers.Describe(output);
             scoreboard.Describe(output);
             chat.Describe(output);
             output.AppendLine($"  leveled tilts: {tilt.LeveledCount}");

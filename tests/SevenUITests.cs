@@ -18,6 +18,7 @@ namespace SevenUI.Tests
             yield return new Suite("panels", PanelScenarios.All().Concat(ScoreboardScenarios.Checks()));
             yield return new Suite("objectives", ObjectiveScenarios.All());
             yield return new Suite("scoreboard", ScoreboardScenarios.All());
+            yield return new Suite("pickers", PickerScenarios.All());
             yield return new Suite("screenshots", ScreenshotScenarios.All().Append(ScoreboardScenarios.SpreadScreenshot()));
         }
 
