@@ -30,6 +30,11 @@ namespace SevenUI.Tests
         private const string EnglishLanguage = "en";
         // In the money cluster's units.
         private const float RowTolerance = 0.5f;
+        // Capitals without a descender or a round overshoot, whose ink runs from the baseline to the cap line.
+        private const string FlatCapitals = "BDEFHIKLMNPRTUVWXYZ";
+        // A third of a canvas pixel, in the objective panel's units: well under the 0.05em, 0.8px at its 16px, that
+        // Barlow's line set its letters low by.
+        private const float CapitalsTolerance = RunInfoUnits.PerCanvasPixel / 3f;
         // How far a currency's figures may sit from its panel's middle: a canvas pixel, in the money cluster's units.
         private const float CurrencyCenterTolerance = 1f;
         // The boss bar is 800 of the top cluster's units wide, which match the canvas's pixels; its title row's ends
@@ -226,7 +231,7 @@ namespace SevenUI.Tests
         // The visible characters' ink, from each glyph's own box in the font (its bearing and height) at the character's
         // baseline, in the text's own space. textBounds and the characters' corners are the box around their quads,
         // which reach past the ink by the material's padding for its shadow and outline.
-        private static Bounds GlyphBounds(TMP_Text text)
+        private static Bounds GlyphBounds(TMP_Text text, System.Func<char, bool> include = null)
         {
             TMP_TextInfo info = text.textInfo;
             Bounds bounds = new Bounds();
@@ -235,6 +240,7 @@ namespace SevenUI.Tests
             {
                 TMP_CharacterInfo character = info.characterInfo[i];
                 if (!character.isVisible || character.textElement == null || character.textElement.glyph == null) continue;
+                if (include != null && !include(character.character)) continue;
                 UnityEngine.TextCore.GlyphMetrics metrics = character.textElement.glyph.metrics;
                 // The element's whole scale: the font size against the font's, and the character's and glyph's own.
                 float scale = character.scale;
@@ -378,6 +384,33 @@ namespace SevenUI.Tests
                 ? "no rows"
                 : string.Join(", ", rows.Select(row =>
                     $"'{row.label.text}' {row.label.alignment} box/font {BoxPerFont(row):0.##} width share {LabelShare(row.label):0.##}"));
+
+        // Each one-line objective's capitals centered on its checkbox, as the font's line is centered on its capitals.
+        // The capitals that sit on the baseline and reach the cap line, so the letters' ink is the capitals' band.
+        public static IEnumerator ExpectObjectiveTextCentered(this Harness h)
+        {
+            List<string> looks = new List<string>();
+            yield return h.Until(
+                () =>
+                {
+                    looks.Clear();
+                    List<(TMP_Text label, RectTransform box)> rows = ObjectiveRows(h)
+                        .Where(row => row.box && row.label.textInfo != null && row.label.textInfo.lineCount == 1).ToList();
+                    if (rows.Count == 0) return false;
+                    bool centered = true;
+                    foreach ((TMP_Text label, RectTransform box) in rows)
+                    {
+                        Bounds capitals = GlyphBounds(label, character => FlatCapitals.IndexOf(character) >= 0);
+                        if (capitals.size.y <= 0f) continue;
+                        float boxMiddle = label.transform.InverseTransformPoint(box.TransformPoint(box.rect.center)).y;
+                        float off = capitals.center.y - boxMiddle;
+                        looks.Add($"'{label.text}' capitals {off:0.##} off the box's middle");
+                        centered &= Mathf.Abs(off) < CapitalsTolerance;
+                    }
+                    return centered && looks.Count > 0;
+                },
+                () => $"the objectives' capitals centered on their checkboxes ({string.Join(", ", looks)}) {h.Diagnosis()}");
+        }
 
         // Each shown objective left-aligned after a checkbox at the canvas's size for its text.
         public static IEnumerator ExpectObjectiveRowsAsCanvas(this Harness h)

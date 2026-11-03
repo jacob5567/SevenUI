@@ -375,6 +375,7 @@ namespace SevenUI.Tests
         {
             yield return h.ExpectObjectivePanelFlat();
             yield return h.ExpectObjectiveRowsAsCanvas();
+            yield return h.ExpectObjectiveTextCentered();
             yield return h.ExpectObjectiveIconsDropped();
             yield return h.ExpectObjectiveBoxesFlat();
         }

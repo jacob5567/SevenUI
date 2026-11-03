@@ -42,7 +42,7 @@ namespace SevenUI
                 SevenUIPlugin.Log.LogError($"Couldn't load the font {name}: {error}");
                 return null;
             }
-            FaceInfo faceInfo = FontEngine.GetFaceInfo();
+            FaceInfo faceInfo = CenterOnCapitals(FontEngine.GetFaceInfo());
 
             List<uint> glyphIndexes = new List<uint>();
             List<(uint unicode, uint glyphIndex)> characters = new List<(uint, uint)>();
@@ -75,6 +75,19 @@ namespace SevenUI
             }
             SevenUIPlugin.Log.LogError($"The glyphs of {name} don't fit a {LargeAtlasSize}x{LargeAtlasSize} atlas");
             return null;
+        }
+
+        // The line's ascent and descent moved together so the middle between them is the capitals' middle. Barlow's
+        // leave more room above its capitals than below its baseline (1000 and 200 of 1000 units, around 700-unit
+        // capitals), so text centered by its line, or sized to it in a layout, drew its letters 0.05em low; most of
+        // the HUD's text is one or the other. The distance between them, and so the spacing of lines, is kept.
+        private static FaceInfo CenterOnCapitals(FaceInfo faceInfo)
+        {
+            if (faceInfo.capLine <= 0f) return faceInfo;
+            float shift = (faceInfo.ascentLine + faceInfo.descentLine) / 2f - faceInfo.capLine / 2f;
+            faceInfo.ascentLine -= shift;
+            faceInfo.descentLine -= shift;
+            return faceInfo;
         }
 
         private static TMP_FontAsset TryBake(string name, FaceInfo faceInfo, List<uint> glyphIndexes,

@@ -1,7 +1,9 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using ModTestRunner;
 using RoR2;
+using TMPro;
 using UnityEngine;
 
 namespace SevenUI.Tests
@@ -12,10 +14,13 @@ namespace SevenUI.Tests
     {
         // Any hit that procs: the lenses do the killing.
         private const float FakeNumbersHit = 10f;
+        // How far a line's middle may sit from its capitals' middle, as a share of the font's size.
+        private const float CapitalsTolerance = 0.005f;
 
         public static IEnumerable<Scenario> All()
         {
             yield return new Scenario(1, "hud_text_uses_barlow", Stages.TitanicPlains, HudTextUsesBarlow);
+            yield return new Scenario(1, "barlow_lines_centered_on_capitals", Stages.TitanicPlains, BarlowLinesCenteredOnCapitals);
             yield return new Scenario(1, "new_item_icons_use_barlow", Stages.TitanicPlains, NewItemIconsUseBarlow);
             yield return new Scenario(1, "timer_uses_barlow_condensed", Stages.TitanicPlains, TimerUsesBarlowCondensed);
             yield return new Scenario(1, "level_uses_barlow_condensed", Stages.TitanicPlains, LevelUsesBarlowCondensed);
@@ -30,6 +35,38 @@ namespace SevenUI.Tests
         private static IEnumerator HudTextUsesBarlow(Harness h)
         {
             yield return h.ExpectHudBarlow();
+        }
+
+        // Every Barlow font the HUD's text uses, and its bold and italic, has its line's middle on its capitals' middle,
+        // so text centered by its line, or sized to it, centers its letters (FontBaker.CenterOnCapitals).
+        private static IEnumerator BarlowLinesCenteredOnCapitals(Harness h)
+        {
+            yield return h.ExpectHudBarlow();
+            HashSet<TMP_FontAsset> fonts = new HashSet<TMP_FontAsset>();
+            foreach (TMP_Text text in SevenUIChecks.HudRoot(h).GetComponentsInChildren<TMP_Text>(true))
+            {
+                if (!text.font || !text.font.name.StartsWith("Barlow")) continue;
+                fonts.Add(text.font);
+                foreach (TMP_FontWeightPair pair in text.font.fontWeightTable ?? new TMP_FontWeightPair[0])
+                {
+                    if (pair.regularTypeface) fonts.Add(pair.regularTypeface);
+                    if (pair.italicTypeface) fonts.Add(pair.italicTypeface);
+                }
+            }
+            if (fonts.Count == 0) throw h.Fail("no HUD text uses Barlow");
+            List<string> off = new List<string>();
+            foreach (TMP_FontAsset font in fonts)
+            {
+                UnityEngine.TextCore.FaceInfo face = font.faceInfo;
+                float lineMiddle = (face.ascentLine + face.descentLine) / 2f;
+                float capitalsMiddle = face.capLine / 2f;
+                if (Mathf.Abs(lineMiddle - capitalsMiddle) > CapitalsTolerance * face.pointSize)
+                {
+                    off.Add($"{font.name}: line middle {lineMiddle:0.##}, capitals' middle {capitalsMiddle:0.##} of {face.pointSize}");
+                }
+            }
+            if (off.Count > 0) throw h.Fail($"Barlow lines not centered on their capitals: {string.Join("; ", off)}");
+            h.Log($"{fonts.Count} Barlow fonts centered on their capitals: {string.Join(", ", fonts.Select(font => font.name))}");
         }
 
         // Stacked items add item icons with stack counts, which are created after the HUD was first restyled.
