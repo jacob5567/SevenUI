@@ -275,9 +275,12 @@ namespace SevenUI.Tests
         }
 
         // An equipment on the ground is named in plain text ("Get Foreign Fruit"); the strip takes its tier's orange.
-        // Unlike an item, walking into it doesn't pick it up.
+        // The player holds one first: walking into an equipment picks it up while the equipment slot is empty
+        // (GenericPickupController.OnTriggerStay), and the prompt only shows for one left on the ground.
         private static IEnumerator PromptStripEquipment(Harness h)
         {
+            h.Cmd($"{Commands.GiveEquipment} {GameNames.Fruit}");
+            yield return h.Until(() => Harness.LocalBody.inventory.EquipmentSetFull(), "the player holding an equipment");
             GenericPickupController pickup = h.SpawnPickup(GameNames.Fruit);
             yield return h.StandBefore(pickup.gameObject);
             yield return h.ExpectPromptStrip(Palette.Equipment, "equipment");
