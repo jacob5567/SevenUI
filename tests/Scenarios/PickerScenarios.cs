@@ -44,7 +44,8 @@ namespace SevenUI.Tests
         private const string FullDescriptionKey = "Full Description in Hud";
         private const string StatsKey = "Item Stats Calculations";
         // The game's parts of a picker panel the restyle keeps: its title, its key hints and its cancel button.
-        private static readonly string[] KeptParts = { "Label", "SubmenuLegend", "CancelButton" };
+        private const string CancelName = "CancelButton";
+        private static readonly string[] KeptParts = { "Label", "SubmenuLegend", CancelName };
         private const string SevenUIPrefix = "SevenUI";
         private const string StatTag = "<style=\"";
         // How far ahead the player's starting look is kept, and how long a teleport takes to land.
@@ -450,6 +451,11 @@ namespace SevenUI.Tests
             string others = string.Join(", ", Object.FindObjectsOfType<PickupPickerPanel>()
                 .Where(other => other != panel.Panel && other.isActiveAndEnabled).Select(other => other.name));
             if (others.Length > 0) return $"other picker panels are open beside the restyled one: {others}";
+            Transform shownCancel = panel.Panel.buttonContainer.parent.Find(CancelName);
+            if (shownCancel && shownCancel.gameObject.activeInHierarchy && panel.Cancel == null)
+            {
+                return "the cancel button is showing in the game's look";
+            }
             Transform juice = panel.Panel.buttonContainer.parent;
             string art = string.Join(", ", juice.Cast<Transform>()
                 .Where(child => child.gameObject.activeSelf && child != panel.Panel.buttonContainer && !child.name.StartsWith(SevenUIPrefix) &&

@@ -99,6 +99,8 @@ namespace SevenUI
         private int detailsIndex = -1;
         private TMP_FontAsset shownFont;
         private PickerButton cancel;
+        // A cancel button the game hadn't shown yet when the panel was styled, styled once it is.
+        private bool cancelWaiting;
         private int columns;
         private bool fullDescriptions;
 
@@ -156,6 +158,7 @@ namespace SevenUI
             detailsIndex = -1;
             shownFont = null;
             cancel = null;
+            cancelWaiting = false;
         }
 
         // Every frame while the panel is open: restyles it once the game has made its buttons, again if the game gives
@@ -190,6 +193,10 @@ namespace SevenUI
                 {
                     hovered = i;
                 }
+            }
+            if (cancelWaiting)
+            {
+                StyleCancel();
             }
             cancel?.Update(null);
             KeepColumns();
@@ -304,6 +311,10 @@ namespace SevenUI
             Transform button = juice.Find(CancelName);
             MPButton mpButton = button ? button.GetComponent<MPButton>() : null;
             if (!mpButton) return;
+            // Shown for the first time, a button wakes its components, and the game's skin then puts its own look on it
+            // over this one even while turned off; the cursed book shows its cancel button after the panel opens.
+            cancelWaiting = !button.gameObject.activeInHierarchy;
+            if (cancelWaiting) return;
             // The game's skin sets the button's tint, which darkens the face, and puts its text style back every frame.
             recorder.SetEnabled(button.GetComponent<ButtonSkinController>(), false);
             ColorBlock colors = mpButton.colors;
@@ -468,8 +479,7 @@ namespace SevenUI
             Transform hoverOutline = button.transform.Find(HoverOutlineName);
             recorder.Disable(hoverOutline ? hoverOutline.GetComponent<Image>() : null);
             // The game's button turns its 'image on interactable' back on every frame while it can be pressed, which
-            // would bring back a frame hidden above (the cursed book's cancel button kept the game's frame), so the
-            // button loses the reference while the flat look is on.
+            // would bring back a frame hidden above, so the button loses the reference while the flat look is on.
             HGButton hg = button as HGButton;
             if (hg && hg.imageOnInteractable)
             {
