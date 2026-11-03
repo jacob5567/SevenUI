@@ -7,34 +7,43 @@ using UnityEngine.UI;
 
 namespace SevenUI
 {
-    // The interaction prompt as on the design canvas: on one flat panel at the HUD's right edge, the key in a thin
-    // outlined box, then the action ("Open Chest") and its cost in bold, "$25" in the canvas's gold, without the game's
-    // brackets. The Inspect prompt, when the game shows it, is a second row in the same style. The game's prompt rows
-    // are strips as wide as the screen's right column, which only look right as gradients fading out, with the key in
-    // yellow; their texts stay in place, hidden, and are copied into the panel's rows whenever they change, since the
-    // prompt's words depend on what the player looks at. The panel's right edge follows the run info's, wherever the
-    // game or LookingGlass (its "Move Purchase Text") puts the prompt.
+    // The interaction prompt on one flat panel at the HUD's right edge, with a 2px strip along its top in the color of
+    // what the action costs: gold for money, red for health, the tier's color for items, and the accent when it is free.
+    // Each row is a key on a small keycap, then the action ("Open chest") and its cost in bold without the game's
+    // brackets; the keys share a column, so "Open chest" and "Inspect" start at the same x whether the key is E or Tab.
+    // The game's prompt rows are strips as wide as the screen's right column, which only look right as gradients fading
+    // out, with the key in yellow; their texts stay in place, hidden, and are copied into the panel's rows whenever they
+    // change, since the prompt's words depend on what the player looks at. The panel's right edge follows the run
+    // info's, wherever the game or LookingGlass (its "Move Purchase Text") puts the prompt.
     internal sealed class PromptPanel
     {
         public const string PanelName = "SevenUIPromptPanel";
-        // The design canvas's sizes, in its pixels, scaled to the cluster's units: 8px by 14px of padding, 26px boxes
-        // with a 1px edge around 14px keys, 18px text 12px apart, and rows 6px apart.
+        public const string StripName = "Strip";
+        public const string KeyFaceName = "Face";
+        // The design's sizes, in canvas pixels, scaled to the cluster's units: 14px of padding at the sides, 8px below
+        // and 10px above, which holds the 2px strip; 18px text 12px past the key column, and rows 6px apart.
         private const float Canvas = HudUnits.PerCanvasPixel;
         private const float PaddingX = 14f * Canvas;
-        private const float PaddingY = 8f * Canvas;
-        private const float BoxSize = 26f * Canvas;
-        private const float BoxEdge = 1f * Canvas;
-        private const float KeyInset = 6f * Canvas;
-        private const float KeyFontSize = 14f * Canvas;
+        private const float PaddingTop = 10f * Canvas;
+        private const float PaddingBottom = 8f * Canvas;
+        private const float StripHeight = 2f * Canvas;
         private const float TextFontSize = 18f * Canvas;
         private const float Gap = 12f * Canvas;
         private const float RowGap = 6f * Canvas;
-        // The outline sprite's edge, in its pixels (FlatSprite.Outline).
-        private const float OutlineEdgePixels = 2f;
+        // A key 26px tall and at least as wide, its label 7px from its sides: an ItemSlot face with corners 3px round
+        // over a darker lip showing 2px below it, and a 1px light along its top. The 14px label is centered on the face.
+        private const float KeySize = 26f * Canvas;
+        private const float KeyPaddingX = 7f * Canvas;
+        private const float KeyLipHeight = 2f * Canvas;
+        private const float KeyHighlightHeight = 1f * Canvas;
+        private const float KeyRadius = 3f * Canvas;
+        private const float KeyFontSize = 14f * Canvas;
         // The game's purchase prompt puts its cost in brackets after the action (PurchaseInteraction.GetContextString).
         private static readonly Regex Cost = new Regex(@"^(?<action>.*?)\s*(<nobr>)?\((?<cost>.*)\)(</nobr>)?\s*$",
             RegexOptions.Singleline);
         private static readonly Regex StyleTags = new Regex("</?style[^>]*>");
+        // A gamepad's buttons are sprites, drawn as they are with no key behind them.
+        private const string SpriteTag = "<sprite";
 
         private sealed class Row
         {
@@ -42,22 +51,23 @@ namespace SevenUI
             public TMP_Text GameText;
             public GameObject Display;
             public RectTransform Box;
+            public GameObject Cap;
             public TMP_Text Key;
             public TMP_Text Action;
             public TMP_Text Price;
             public string ShownKey;
             public string ShownText;
             public bool ShownActive;
+            public Color StripColor;
         }
 
         private readonly ContextManager prompt;
         private readonly RectTransform parent;
         private readonly RectTransform panel;
+        private readonly Image strip;
         private readonly RectTransform rightEdge;
         private readonly Row[] rows;
         private readonly Vector3[] corners = new Vector3[4];
-        private readonly string gameMoneyColor;
-        private readonly string moneyColor;
         private float shownRight = float.NaN;
         private TMP_FontAsset shownFont;
 
@@ -66,8 +76,6 @@ namespace SevenUI
             this.prompt = prompt;
             this.rightEdge = rightEdge;
             parent = (RectTransform)prompt.transform;
-            gameMoneyColor = "<color=#" + ColorCatalog.GetColorHexString(ColorCatalog.ColorIndex.Money) + ">";
-            moneyColor = "<color=#" + ColorUtility.ToHtmlStringRGB(Palette.Money) + ">";
 
             GameObject created = NewUIObject(PanelName, parent);
             created.AddComponent<LayoutIgnorer>();
@@ -79,6 +87,13 @@ namespace SevenUI
             Image image = created.AddComponent<Image>();
             image.color = Palette.Panel;
             image.raycastTarget = false;
+            strip = NewImage(StripName, panel, Palette.Accent);
+            RectTransform stripRect = strip.rectTransform;
+            stripRect.anchorMin = new Vector2(0f, 1f);
+            stripRect.anchorMax = Vector2.one;
+            stripRect.pivot = new Vector2(0.5f, 1f);
+            stripRect.anchoredPosition = Vector2.zero;
+            stripRect.sizeDelta = new Vector2(0f, StripHeight);
             created.SetActive(false);
             recorder.Add(created);
 
@@ -95,39 +110,60 @@ namespace SevenUI
 
         public RectTransform Panel => panel;
 
-        public string ShownAction => rows[0].Action.text;
-
-        public string ShownPrice => rows[0].Price.text;
+        public Color StripColor => strip.color;
 
         private Row AddRow(TMP_Text gameKey, TMP_Text gameText, GameObject display, StyleRecorder recorder)
         {
-            Row row = new Row { GameKey = gameKey, GameText = gameText, Display = display };
+            Row row = new Row { GameKey = gameKey, GameText = gameText, Display = display, StripColor = Palette.Accent };
             foreach (TMP_Text text in new[] { gameKey, gameText })
             {
                 if (!text) continue;
                 recorder.Record(text);
                 text.alpha = 0f;
             }
-            GameObject box = NewUIObject("Key", panel);
-            row.Box = (RectTransform)box.transform;
+            row.Box = (RectTransform)NewUIObject("Key", panel).transform;
             row.Box.anchorMin = row.Box.anchorMax = row.Box.pivot = new Vector2(0f, 1f);
-            Image outline = box.AddComponent<Image>();
-            outline.sprite = FlatSprite.Outline;
-            outline.type = Image.Type.Sliced;
-            outline.pixelsPerUnitMultiplier = OutlineEdgePixels / BoxEdge;
-            outline.color = Palette.HeaderText;
-            outline.raycastTarget = false;
-            row.Key = AddText("Glyph", box.transform, gameKey, KeyFontSize, TextAlignmentOptions.Center);
+
+            // The lip fills the key; the face covers all but its bottom, and the light runs along the face's top
+            // between its round corners.
+            row.Cap = NewUIObject("Cap", row.Box);
+            Stretch((RectTransform)row.Cap.transform, 0f);
+            Stretch(Rounded(NewImage("Lip", row.Cap.transform, Palette.KeyLip)).rectTransform, 0f);
+            Image face = Rounded(NewImage(KeyFaceName, row.Cap.transform, Palette.ItemSlot));
+            Stretch(face.rectTransform, KeyLipHeight);
+            RectTransform light = NewImage("Light", face.transform, Palette.KeyHighlight).rectTransform;
+            light.anchorMin = new Vector2(0f, 1f);
+            light.anchorMax = Vector2.one;
+            light.pivot = new Vector2(0.5f, 1f);
+            light.anchoredPosition = Vector2.zero;
+            light.sizeDelta = new Vector2(-2f * KeyRadius, KeyHighlightHeight);
+
+            // Midline centers the label's drawn letters rather than its line, whose room for descenders would leave a
+            // capital low.
+            row.Key = AddText("Glyph", row.Box, gameKey, KeyFontSize, TextAlignmentOptions.Midline);
             row.Key.fontStyle = FontStyles.Bold;
-            RectTransform keyRect = row.Key.rectTransform;
-            keyRect.anchorMin = Vector2.zero;
-            keyRect.anchorMax = Vector2.one;
-            keyRect.offsetMin = keyRect.offsetMax = Vector2.zero;
             row.Action = AddText("Action", panel, gameText, TextFontSize, TextAlignmentOptions.MidlineLeft);
             row.Price = AddText("Cost", panel, gameText, TextFontSize, TextAlignmentOptions.MidlineLeft);
             row.Price.fontStyle = FontStyles.Bold;
             row.Price.color = Palette.Money;
             return row;
+        }
+
+        private static Image Rounded(Image image)
+        {
+            image.sprite = FlatSprite.Rounded;
+            image.type = Image.Type.Sliced;
+            image.pixelsPerUnitMultiplier = FlatSprite.RoundedRadius / KeyRadius;
+            return image;
+        }
+
+        // Fills its parent but for 'bottom' units at the bottom.
+        private static void Stretch(RectTransform rect, float bottom)
+        {
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = new Vector2(0f, bottom);
+            rect.offsetMax = Vector2.zero;
         }
 
         // In the game text's font, so the font swap gives it Barlow like the rest of the HUD, and with its sprites for
@@ -178,6 +214,7 @@ namespace SevenUI
             {
                 shownFont = rows[0].Action.font;
                 shownRight = right;
+                MatchKeyFonts();
                 changed = true;
             }
             if (changed)
@@ -186,21 +223,39 @@ namespace SevenUI
             }
         }
 
+        // The game draws its key glyphs in a font the font swap leaves alone, so the keys take the actions' font, Barlow
+        // once it is swapped, keeping their own sprites for a gamepad's buttons.
+        private void MatchKeyFonts()
+        {
+            foreach (Row row in rows)
+            {
+                if (!row.Action.font) continue;
+                row.Key.font = row.Action.font;
+                row.Key.fontSharedMaterial = row.Action.fontSharedMaterial;
+            }
+        }
+
         private void Copy(Row row)
         {
             row.Key.text = row.ShownKey != null ? StyleTags.Replace(row.ShownKey, "") : "";
             string text = row.ShownText ?? "";
             Match match = Cost.Match(text);
-            if (match.Success)
-            {
-                row.Action.text = match.Groups["action"].Value;
-                row.Price.text = match.Groups["cost"].Value.Replace(gameMoneyColor, moneyColor);
-            }
-            else
-            {
-                row.Action.text = text;
-                row.Price.text = "";
-            }
+            string cost = match.Success ? match.Groups["cost"].Value : "";
+            row.Action.text = GameColors.Retag(match.Success ? match.Groups["action"].Value : text);
+            row.Price.text = GameColors.Retag(cost);
+            row.StripColor = GameColors.FirstTag(cost, out Color costColor) ? costColor : PickupColor();
+        }
+
+        // The tier's color of the item or equipment the player is looking at, whose prompt ("Get Hopoo Feather") names
+        // it in plain text; the accent for anything else, which costs nothing. The pickup's tier shows in the world.
+        private Color PickupColor()
+        {
+            HUD hud = prompt.hud;
+            InteractionDriver driver = hud && hud.targetBodyObject ? hud.targetBodyObject.GetComponent<InteractionDriver>() : null;
+            GameObject target = driver ? driver.currentInteractable : null;
+            GenericPickupController pickup = target ? target.GetComponent<GenericPickupController>() : null;
+            PickupDef def = pickup ? PickupCatalog.GetPickupDef(pickup.pickup.pickupIndex) : null;
+            return def != null ? GameColors.ToCanvas(def.baseColor) : Palette.Accent;
         }
 
         // The run info's right edge in the prompt's units, or the prompt's own right side without one.
@@ -211,8 +266,9 @@ namespace SevenUI
             return parent.InverseTransformPoint(corners[2]).x;
         }
 
-        // Each shown row from the top, its parts left to right; the panel around them, its right edge at the run
-        // info's and its top over the prompt's first row.
+        // Each shown row from the top, the keys in one column as wide as the widest and the texts past it; the panel
+        // around them, its right edge at the run info's and its top over the prompt's first row, and its strip in the
+        // first shown row's color.
         private void Fit()
         {
             bool any = false;
@@ -228,7 +284,26 @@ namespace SevenUI
             // narrow before that.
             panel.gameObject.SetActive(any);
             if (!any) return;
-            float y = -PaddingY;
+
+            float column = 0f;
+            bool stripSet = false;
+            foreach (Row row in rows)
+            {
+                if (!Shown(row)) continue;
+                bool sprite = row.Key.text.Contains(SpriteTag);
+                row.Cap.SetActive(!sprite);
+                // A sprite fills the key's whole height; a label is centered on the face above the lip.
+                Stretch(row.Key.rectTransform, sprite ? 0f : KeyLipHeight);
+                row.Box.sizeDelta = new Vector2(Mathf.Max(KeySize, row.Key.GetPreferredValues(row.Key.text).x + 2f * KeyPaddingX), KeySize);
+                column = Mathf.Max(column, row.Box.sizeDelta.x);
+                if (!stripSet)
+                {
+                    strip.color = row.StripColor;
+                    stripSet = true;
+                }
+            }
+
+            float y = -PaddingTop;
             float width = 0f;
             bool first = true;
             foreach (Row row in rows)
@@ -239,23 +314,18 @@ namespace SevenUI
                     y -= RowGap;
                 }
                 first = false;
-                float keyWidth = Mathf.Max(BoxSize, row.Key.GetPreferredValues(row.Key.text).x + 2f * KeyInset);
-                float x = PaddingX;
-                row.Box.anchoredPosition = new Vector2(x, y);
-                row.Box.sizeDelta = new Vector2(keyWidth, BoxSize);
-                x += keyWidth + Gap;
-                x = Place(row.Action, x, y);
+                row.Box.anchoredPosition = new Vector2(PaddingX, y);
+                float x = Place(row.Action, PaddingX + column + Gap, y);
                 if (row.Price.gameObject.activeSelf)
                 {
                     x = Place(row.Price, x + Gap, y);
                 }
                 width = Mathf.Max(width, x);
-                y -= BoxSize;
+                y -= KeySize;
             }
-            Vector2 size = new Vector2(width + PaddingX, -y + PaddingY);
-            panel.sizeDelta = size;
+            panel.sizeDelta = new Vector2(width + PaddingX, -y + PaddingBottom);
             // The panel is anchored at the prompt's left middle; its first row centered on the prompt's.
-            float top = BoxSize / 2f + PaddingY;
+            float top = KeySize / 2f + PaddingTop;
             panel.anchoredPosition = new Vector2(shownRight - parent.rect.xMin, top);
         }
 
@@ -265,8 +335,16 @@ namespace SevenUI
         {
             float width = text.GetPreferredValues(text.text).x;
             text.rectTransform.anchoredPosition = new Vector2(x, y);
-            text.rectTransform.sizeDelta = new Vector2(width, BoxSize);
+            text.rectTransform.sizeDelta = new Vector2(width, KeySize);
             return x + width;
+        }
+
+        private static Image NewImage(string name, Transform holder, Color color)
+        {
+            Image image = NewUIObject(name, holder).AddComponent<Image>();
+            image.color = color;
+            image.raycastTarget = false;
+            return image;
         }
 
         private static GameObject NewUIObject(string name, Transform holder)

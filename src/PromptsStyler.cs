@@ -8,9 +8,9 @@ using UnityEngine.UI;
 
 namespace SevenUI
 {
-    // Restyles the interaction prompt ("Open Chest") and the pickup notifications as on the design canvas: flat
-    // translucent panels in place of the soft gradients, the prompt's laid out by PromptPanel, and the notification
-    // smaller and higher, with a light strip along its top and its icon on a dark slot.
+    // Restyles the interaction prompt ("Open Chest") and the pickup notifications: flat translucent panels in place of
+    // the soft gradients, the prompt's laid out by PromptPanel, and the notification smaller and higher, with a light
+    // strip along its top and its icon on a dark slot.
     // Found by their components, wherever they sit in the HUD: LookingGlass moves the prompt.
     internal sealed class PromptsStyler
     {
@@ -320,7 +320,7 @@ namespace SevenUI
             {
                 if (!panel.Alive) continue;
                 output.AppendLine($"  prompt panel: active={panel.Panel.gameObject.activeSelf} position={panel.Panel.anchoredPosition} " +
-                                  $"size={panel.Panel.sizeDelta}");
+                                  $"size={panel.Panel.sizeDelta} strip=#{ColorUtility.ToHtmlStringRGB(panel.StripColor)}");
             }
         }
     }

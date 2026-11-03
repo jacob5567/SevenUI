@@ -22,6 +22,7 @@ namespace SevenUI.Tests
         // spawn_interactable and spawn_ai arguments: a small chest, a broken Gunner Drone to buy, and a monster with
         // enough health to take several hits.
         public const string SmallChest = "iscChest1";
+        public const string ShrineOfBlood = "iscShrineBlood";
         public const string BrokenDrone = "iscBrokenDrone1";
         public const string GunnerDroneBody = "Drone1Body";
         public const string ToughMonster = "BeetleQueen";

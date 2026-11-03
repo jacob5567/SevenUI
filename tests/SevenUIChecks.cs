@@ -20,6 +20,9 @@ namespace SevenUI.Tests
         // How long LookingGlass may take to add its stats panel; it builds it once the body's stats are known.
         private const float LookingGlassPanelTimeout = 10f;
         private const float ColorTolerance = 0.01f;
+        // A canvas pixel, in HUD units: how far a key's letters may sit from its face's middle, and the rows' actions
+        // from one x.
+        private const float CenterTolerance = 1f;
         // A share of a skill slot's size, for comparing slots' sizes and edges.
         private const float SlotTolerance = 0.02f;
 
@@ -724,6 +727,75 @@ namespace SevenUI.Tests
                            Covers(panel, action) && Covers(panel, cost) && Mathf.Abs(panelRight - runInfo.rect.xMax) < 1f;
                 },
                 () => $"the prompt laid out as on the canvas ({look}; {PromptLook(prompt)}) {h.Diagnosis()}");
+        }
+
+        // The shown rows' keys and actions, top to bottom.
+        private static List<(RectTransform key, TMP_Text action)> PromptRows(RectTransform panel)
+        {
+            List<RectTransform> keys = new List<RectTransform>();
+            List<TMP_Text> actions = new List<TMP_Text>();
+            foreach (Transform child in panel)
+            {
+                if (!child.gameObject.activeSelf) continue;
+                if (child.name == Texts.PromptKeyName) keys.Add((RectTransform)child);
+                if (child.name == Texts.PromptActionName) actions.Add(child.GetComponent<TMP_Text>());
+            }
+            return keys.Zip(actions, (key, action) => (key, action)).ToList();
+        }
+
+        // With a prompt showing: each key a keycap on the slot grey, its label in Barlow with its letters centered on
+        // the keycap's face, and the actions starting at one x, however wide their keys.
+        public static IEnumerator ExpectPromptKeys(this Harness h)
+        {
+            ContextManager prompt = null;
+            string look = "no rows";
+            yield return h.Until(
+                () =>
+                {
+                    prompt = Prompt(h);
+                    RectTransform panel = PromptPanel(prompt);
+                    if (!panel || !panel.gameObject.activeSelf) return false;
+                    List<(RectTransform key, TMP_Text action)> rows = PromptRows(panel);
+                    if (rows.Count == 0) return false;
+                    List<string> parts = new List<string>();
+                    bool good = true;
+                    float actionX = rows[0].action.rectTransform.anchoredPosition.x;
+                    foreach ((RectTransform key, TMP_Text action) in rows)
+                    {
+                        TMP_Text glyph = key.Find(Texts.PromptKeyGlyphName)?.GetComponent<TMP_Text>();
+                        Image face = key.Find(Texts.PromptKeyFacePath)?.GetComponent<Image>();
+                        if (!glyph || !face) return false;
+                        Bounds letters = glyph.textBounds;
+                        float lettersMiddle = face.rectTransform.InverseTransformPoint(glyph.transform.TransformPoint(letters.center)).y;
+                        float offCenter = lettersMiddle - face.rectTransform.rect.center.y;
+                        string font = glyph.font ? glyph.font.name : "none";
+                        parts.Add($"'{glyph.text}' font {font} face {face.color} {offCenter:0.##} off center, action '{action.text}' at x {action.rectTransform.anchoredPosition.x:0.#}");
+                        good &= Near(face.color, Palette.ItemSlot) && font.Contains("Barlow") && Mathf.Abs(offCenter) < CenterTolerance &&
+                                Mathf.Abs(action.rectTransform.anchoredPosition.x - actionX) < CenterTolerance;
+                    }
+                    look = string.Join("; ", parts);
+                    return good;
+                },
+                () => $"the prompt's keys as keycaps ({look}; {PromptLook(prompt)}) {h.Diagnosis()}");
+        }
+
+        // With a prompt showing: the strip along the panel's top in the color named.
+        public static IEnumerator ExpectPromptStrip(this Harness h, Color expected, string what)
+        {
+            ContextManager prompt = null;
+            string look = "no strip";
+            yield return h.Until(
+                () =>
+                {
+                    prompt = Prompt(h);
+                    RectTransform panel = PromptPanel(prompt);
+                    Image strip = panel ? panel.Find(Texts.PromptStripName)?.GetComponent<Image>() : null;
+                    if (!strip || !panel.gameObject.activeSelf) return false;
+                    TMP_Text action = panel.Find(Texts.PromptActionName)?.GetComponent<TMP_Text>();
+                    look = $"strip {strip.color} for '{(action ? action.text : "-")}'";
+                    return Near(strip.color, expected);
+                },
+                () => $"the prompt's strip in {what}'s color {expected} ({look}; {PromptLook(prompt)}) {h.Diagnosis()}");
         }
 
         // Whether the panel's rectangle holds the text's drawn characters.

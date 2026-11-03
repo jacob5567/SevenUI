@@ -48,6 +48,9 @@ namespace SevenUI.Tests
             yield return new Scenario(1, "item_icons_are_flat", Stages.TitanicPlains, ItemIconsAreFlat);
             yield return new Scenario(1, "prompt_is_flat", Stages.TitanicPlains, PromptIsFlat);
             yield return new Scenario(1, "prompt_as_canvas", Stages.TitanicPlains, PromptAsCanvas);
+            yield return new Scenario(1, "prompt_strip_health", Stages.TitanicPlains, PromptStripHealth);
+            yield return new Scenario(1, "prompt_strip_equipment", Stages.TitanicPlains, PromptStripEquipment);
+            yield return new Scenario(1, "prompt_strip_free", Stages.TitanicPlains, PromptStripFree);
             yield return new Scenario(1, "scoreboard_and_chat_are_flat", Stages.TitanicPlains, ScoreboardAndChatAreFlat);
             yield return new Scenario(1, "chat_input_outlined", Stages.TitanicPlains, ChatInputOutlined);
             yield return new Scenario(1, "protection_striped_on_player", Stages.TitanicPlains, ProtectionStripedOnPlayer);
@@ -249,6 +252,36 @@ namespace SevenUI.Tests
             yield return h.Spawned<PurchaseInteraction>($"{Commands.SpawnInteractable} {GameNames.SmallChest}", found => chest = found);
             yield return h.StandBefore(chest.gameObject);
             yield return h.ExpectPromptAsCanvas();
+            yield return h.ExpectPromptKeys();
+            yield return h.ExpectPromptStrip(Palette.Money, "money");
+        }
+
+        // The Shrine of Blood costs health, in the health's red.
+        private static IEnumerator PromptStripHealth(Harness h)
+        {
+            PurchaseInteraction shrine = null;
+            yield return h.Spawned<PurchaseInteraction>($"{Commands.SpawnInteractable} {GameNames.ShrineOfBlood}", found => shrine = found);
+            yield return h.StandBefore(shrine.gameObject);
+            yield return h.ExpectPromptStrip(Palette.Debuff, "health");
+        }
+
+        // An equipment on the ground is named in plain text ("Get Foreign Fruit"); the strip takes its tier's orange.
+        // Unlike an item, walking into it doesn't pick it up.
+        private static IEnumerator PromptStripEquipment(Harness h)
+        {
+            GenericPickupController pickup = h.SpawnPickup(GameNames.Fruit);
+            yield return h.StandBefore(pickup.gameObject);
+            yield return h.ExpectPromptStrip(Palette.Equipment, "equipment");
+            yield return h.ExpectPromptKeys();
+        }
+
+        // Activating the teleporter costs nothing, so the strip is the accent.
+        private static IEnumerator PromptStripFree(Harness h)
+        {
+            TeleporterInteraction teleporter = TeleporterInteraction.instance;
+            if (!teleporter) throw h.Skip("no teleporter on this stage");
+            yield return h.StandBefore(teleporter.gameObject);
+            yield return h.ExpectPromptStrip(Palette.Accent, "a free action");
         }
 
         // At full health one-shot protection covers a tenth of the player's bar: in green stripes under the barrier, and

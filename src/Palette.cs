@@ -41,6 +41,9 @@ namespace SevenUI
         public static readonly Color NotificationPanel = new Color(0f, 0f, 0f, 0.55f);
         // #2c303a, the slot behind an item icon.
         public static readonly Color ItemSlot = new Color(0.173f, 0.188f, 0.227f, 1f);
+        // #1a1c22 and 8% white, a prompt key's lower lip and the light along its top edge, on an ItemSlot face.
+        public static readonly Color KeyLip = new Color(0.102f, 0.110f, 0.133f, 1f);
+        public static readonly Color KeyHighlight = new Color(1f, 1f, 1f, 0.08f);
         // #3a3f4c, the empty part of a bar.
         public static readonly Color Trough = new Color(0.227f, 0.247f, 0.298f, 1f);
         // #e9d27a and #8fd0e8, the money and lunar coin amounts in the top left.

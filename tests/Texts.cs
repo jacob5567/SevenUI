@@ -21,5 +21,11 @@ namespace SevenUI.Tests
         public const string HeaderStripName = "SevenUIHeaderStrip";
         // The panel the mod fits behind the interaction prompt's text (PromptPanel).
         public const string PromptPanelName = "SevenUIPromptPanel";
+        // Under the prompt's panel: the strip along its top, and each row's key with its glyph and the keycap's face.
+        public const string PromptStripName = "Strip";
+        public const string PromptKeyName = "Key";
+        public const string PromptKeyGlyphName = "Glyph";
+        public const string PromptKeyFacePath = "Cap/Face";
+        public const string PromptActionName = "Action";
     }
 }

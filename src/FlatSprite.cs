@@ -2,8 +2,9 @@ using UnityEngine;
 
 namespace SevenUI
 {
-    // Plain sprites drawn in code: a white one for flat bars, a sliced square outline, a sliced strip along the top, and
-    // diagonal stripes to tile, dark for a curse and green for one-shot protection.
+    // Plain sprites drawn in code: a white one for flat bars, a sliced square outline, a sliced square with rounded
+    // corners, a sliced strip along the top, and diagonal stripes to tile, dark for a curse and green for one-shot
+    // protection.
     internal static class FlatSprite
     {
         // The outline texture's size and border, in pixels. At 100 pixels per unit the border is this many HUD canvas
@@ -11,6 +12,9 @@ namespace SevenUI
         private const int OutlineTextureSize = 8;
         private const int OutlineBorder = 2;
         private const float PixelsPerUnit = 100f;
+        // The rounded square's texture size and corner radius, in pixels; the corners are its slice borders.
+        public const int RoundedRadius = 6;
+        private const int RoundedTextureSize = 2 * RoundedRadius + 2;
         // The top strip texture's height, and how much of it, from the top, is the strip: canvas units, as above.
         private const int TopStripTextureHeight = 8;
         private const int TopStripHeight = 6;
@@ -27,6 +31,7 @@ namespace SevenUI
         public const string TintedProtectionHatchName = "SevenUIProtectionHatchTinted";
         private static Sprite outline;
         private static Sprite topStrip;
+        private static Sprite rounded;
 
         // For flat bars the game draws from its own sprites. The game copies a bar's sprite to its image only when the
         // sprite changes, and a new bar image starts with its prefab's sprite, so "no sprite" would leave new bars
@@ -72,6 +77,43 @@ namespace SevenUI
                     outline.name = "SevenUIOutline";
                 }
                 return outline;
+            }
+        }
+
+        // A white square with rounded, smoothed corners for a sliced image, tinted by the image's color. The corners are
+        // RoundedRadius canvas units across at a pixels-per-unit multiplier of 1; a larger multiplier makes them smaller.
+        public static Sprite Rounded
+        {
+            get
+            {
+                if (!rounded)
+                {
+                    Texture2D texture = new Texture2D(RoundedTextureSize, RoundedTextureSize, TextureFormat.RGBA32, false);
+                    texture.name = "SevenUIRounded";
+                    texture.filterMode = FilterMode.Bilinear;
+                    texture.wrapMode = TextureWrapMode.Clamp;
+                    float far = RoundedTextureSize - RoundedRadius;
+                    for (int y = 0; y < RoundedTextureSize; y++)
+                    {
+                        for (int x = 0; x < RoundedTextureSize; x++)
+                        {
+                            // The pixel's middle, its distance from the nearest corner's circle center, and coverage
+                            // from that across the circle's one-pixel edge.
+                            float px = x + 0.5f;
+                            float py = y + 0.5f;
+                            float dx = Mathf.Max(RoundedRadius - px, px - far, 0f);
+                            float dy = Mathf.Max(RoundedRadius - py, py - far, 0f);
+                            float alpha = Mathf.Clamp01(RoundedRadius + 0.5f - Mathf.Sqrt(dx * dx + dy * dy));
+                            texture.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
+                        }
+                    }
+                    texture.Apply(false, true);
+                    rounded = Sprite.Create(texture, new Rect(0f, 0f, RoundedTextureSize, RoundedTextureSize),
+                        new Vector2(0.5f, 0.5f), PixelsPerUnit, 0, SpriteMeshType.FullRect,
+                        new Vector4(RoundedRadius, RoundedRadius, RoundedRadius, RoundedRadius));
+                    rounded.name = "SevenUIRounded";
+                }
+                return rounded;
             }
         }
 
