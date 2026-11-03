@@ -43,6 +43,9 @@ namespace SevenUI.Tests
         private const string FullDescriptionSection = "Misc";
         private const string FullDescriptionKey = "Full Description in Hud";
         private const string StatsKey = "Item Stats Calculations";
+        // The game's parts of a picker panel the restyle keeps: its title, its key hints and its cancel button.
+        private static readonly string[] KeptParts = { "Label", "SubmenuLegend", "CancelButton" };
+        private const string SevenUIPrefix = "SevenUI";
         private const string StatTag = "<style=\"";
         // How far ahead the player's starting look is kept, and how long a teleport takes to land.
         private const float HomeLookDistance = 10f;
@@ -370,7 +373,7 @@ namespace SevenUI.Tests
             if (!opened) throw h.Skip("the game closed the panel as it opened, from a Command cube");
             h.Log($"{name}: SevenUI leaves {opened.name} in the game's look");
             string parts = string.Join(", ", opened.GetComponentsInChildren<Transform>(true)
-                .Where(part => part.name.StartsWith("SevenUI")).Select(part => part.name).Distinct());
+                .Where(part => part.name.StartsWith(SevenUIPrefix)).Select(part => part.name).Distinct());
             if (parts.Length > 0) throw h.Fail($"the unstyled panel has the mod's {parts}");
             yield return h.Wait(SettleSeconds);
             yield return h.Screenshot("game");
@@ -393,7 +396,25 @@ namespace SevenUI.Tests
                 yield return h.Until(() => DetailsShow(panel, 0), () => $"the details show \"{panel.DetailsNameText.text}\", not the first item");
             }
             yield return h.Wait(SettleSeconds);
+            string shown = ShownAsStyled(panel);
+            if (shown != null) throw h.Fail(shown);
             yield return CaptureLooks(h, panel);
+        }
+
+        // Once settled, what is on screen is the restyled panel: no other picker panel is open in the game's look, and
+        // the game has not shown its art under the panel's content again.
+        private static string ShownAsStyled(PickerPanel panel)
+        {
+            if (!panel.Alive) return "the panel closed";
+            string others = string.Join(", ", Object.FindObjectsOfType<PickupPickerPanel>()
+                .Where(other => other != panel.Panel && other.isActiveAndEnabled).Select(other => other.name));
+            if (others.Length > 0) return $"other picker panels are open beside the restyled one: {others}";
+            Transform juice = panel.Panel.buttonContainer.parent;
+            string art = string.Join(", ", juice.Cast<Transform>()
+                .Where(child => child.gameObject.activeSelf && child != panel.Panel.buttonContainer && !child.name.StartsWith(SevenUIPrefix) &&
+                                !KeptParts.Contains(child.name))
+                .Select(child => child.name));
+            return art.Length > 0 ? $"the game's art is showing again: {art}" : null;
         }
 
         private static bool IsVisibleItem(PickupDef pickup)
@@ -563,18 +584,21 @@ namespace SevenUI.Tests
         private static IEnumerator CaptureLooks(Harness h, PickerPanel panel)
         {
             yield return h.Screenshot("sevenui");
+            if (!panel.Alive) throw h.Fail("the game closed the panel before its screenshot");
+            PickupPickerPanel opened = panel.Panel;
             PluginConfig settings = SevenUIPlugin.Settings;
             h.SetConfig(settings.FlatPanels, false);
             h.SetConfig(settings.BarlowFont, false);
             yield return h.Wait(SettleSeconds);
-            Transform panelRoot = panel.Panel.transform;
+            if (!opened) throw h.Fail("the game closed the panel as it went back to its own look");
+            Transform panelRoot = opened.transform;
             string left = string.Join(", ", panelRoot.GetComponentsInChildren<Transform>(true)
-                .Where(part => part.name.StartsWith("SevenUI")).Select(part => part.name).Distinct());
+                .Where(part => part.name.StartsWith(SevenUIPrefix)).Select(part => part.name).Distinct());
             if (left.Length > 0) throw h.Fail($"the game's look still has the mod's {left}");
             yield return h.Screenshot("vanilla");
             h.SetConfig(settings.FlatPanels, true);
             h.SetConfig(settings.BarlowFont, true);
-            yield return h.Until(() => OpenPanel(panel.Panel) is PickerPanel again && again.Styled, "the panel restyled again", OpenTimeout);
+            yield return h.Until(() => OpenPanel(opened) is PickerPanel again && again.Styled, "the panel restyled again", OpenTimeout);
             yield return h.Wait(SettleSeconds);
         }
     }
