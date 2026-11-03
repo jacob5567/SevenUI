@@ -113,8 +113,8 @@ namespace SevenUI
             if (count > 0)
             {
                 TMP_Text label = NewText("SevenUIStackCount", titleRect, tooltip.titleLabel, CountSize, Palette.HeaderText);
+                // Barlow Condensed SemiBold, the canvas's 600 weight, unbolded.
                 label.gameObject.AddComponent<CondensedText>();
-                label.fontStyle = FontStyles.Bold;
                 label.alignment = TextAlignmentOptions.Right;
                 label.text = "×" + count;
                 RectTransform countRect = label.rectTransform;

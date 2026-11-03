@@ -13,6 +13,7 @@ namespace SevenUI
         private const string SemiBoldResource = "SevenUI.fonts.Barlow-SemiBold.ttf";
         private const string ItalicResource = "SevenUI.fonts.Barlow-MediumItalic.ttf";
         private const string CondensedResource = "SevenUI.fonts.BarlowCondensed-SemiBold.ttf";
+        private const string CondensedBoldResource = "SevenUI.fonts.BarlowCondensed-Bold.ttf";
 
         // TMP's font weight table is indexed by weight / 100, so 4 is regular (400) and 7 is bold (700). Italic text
         // takes the italic typeface at its weight, and without one TMP slants the regular letters.
@@ -48,13 +49,19 @@ namespace SevenUI
             return body;
         }
 
-        // Barlow Condensed SemiBold, for numbers such as the run timer, or null if baking failed.
+        // Barlow Condensed SemiBold, for numbers such as the run timer, with Barlow Condensed Bold as its bold for the
+        // canvas's 700-weight stack counts, or null if baking failed.
         public static TMP_FontAsset Condensed(Material template)
         {
             if (!condensedBaked)
             {
                 condensedBaked = true;
                 condensed = BakeEmbedded(CondensedResource, "Barlow Condensed SemiBold", template);
+                TMP_FontAsset bold = BakeEmbedded(CondensedBoldResource, "Barlow Condensed Bold", template);
+                if (condensed && bold)
+                {
+                    condensed.fontWeightTable[BoldWeightIndex].regularTypeface = bold;
+                }
             }
             return condensed;
         }
