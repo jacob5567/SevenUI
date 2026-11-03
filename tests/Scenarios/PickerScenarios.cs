@@ -293,6 +293,16 @@ namespace SevenUI.Tests
                 throw h.Fail($"the cancel button's face is {(face ? face.color.ToString() : "missing")} with the material " +
                              $"{(face ? face.material.name : "none")}, not {Palette.GhostButton} with the default");
             }
+            // Its label is centered and fits inside it, as option E's: the game's auto-sizing is off.
+            TMP_Text label = cancel.Label;
+            Rect button = ((RectTransform)cancel.Button.transform).rect;
+            if (label.enableAutoSizing || label.alignment != TextAlignmentOptions.Center || label.preferredHeight > button.height ||
+                label.preferredWidth > button.width)
+            {
+                throw h.Fail($"the cancel button's label is {label.preferredWidth:0.#} by {label.preferredHeight:0.#} in a " +
+                             $"{button.width:0.#} by {button.height:0.#} button, {label.alignment}, auto-sizing " +
+                             $"{(label.enableAutoSizing ? "on" : "off")}");
+            }
             yield return h.Until(() => cancel.RestOutline.enabled && !cancel.Outline.enabled && cancel.Label.color == Palette.HeaderText,
                 () => $"the cancel button at rest has its thin outline {OnOff(cancel.RestOutline)}, its accent outline " +
                       $"{OnOff(cancel.Outline)} and text {cancel.Label.color}");

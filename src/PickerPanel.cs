@@ -324,10 +324,28 @@ namespace SevenUI
             rect.pivot = Vector2.one;
             rect.anchoredPosition = new Vector2(0f, -LegendGap);
             rect.sizeDelta = new Vector2(CancelWidth, CancelHeight);
+            // The game sizes the label to fit its own larger button, which overrides the font size: its label is
+            // 13px regular text, centered in the button.
             foreach (TMP_Text text in button.GetComponentsInChildren<TMP_Text>(true))
             {
                 recorder.Record(text);
+                bool autoSizing = text.enableAutoSizing;
+                bool wrapping = text.enableWordWrapping;
+                recorder.OnRestore(() =>
+                {
+                    if (text)
+                    {
+                        text.enableAutoSizing = autoSizing;
+                        text.enableWordWrapping = wrapping;
+                    }
+                });
+                text.enableAutoSizing = false;
+                text.enableWordWrapping = false;
                 text.fontSize = CancelTextSize;
+                text.fontStyle = FontStyles.Normal;
+                text.characterSpacing = 0f;
+                text.margin = Vector4.zero;
+                text.alignment = TextAlignmentOptions.Center;
                 text.color = Palette.HeaderText;
                 if (!cancel.Label)
                 {
