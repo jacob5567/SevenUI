@@ -463,8 +463,9 @@ namespace SevenUI.Tests
             place is Vector3 value ? $"{value.x:F2}, {value.y:F2}, {value.z:F2}" : "none";
 
         // The notification showing, or the one whose title is the token's; with its icon in the middle of its slot,
-        // whichever of the game's notifications it is (the drone's and the trial's hold their icon in a frame).
-        public static IEnumerator ExpectNotificationAsCanvas(this Harness h, string titleToken = null)
+        // whichever of the game's notifications it is (the drone's and the trial's hold their icon in a frame), and
+        // its strip in the color given.
+        public static IEnumerator ExpectNotificationAsCanvas(this Harness h, Color strip, string titleToken = null)
         {
             string look = null;
             yield return h.Until(
@@ -486,15 +487,16 @@ namespace SevenUI.Tests
                     Rect screen = CanvasLayoutChecks.ScreenOf(camera);
                     float middleDown = screen.height / unit - box.center.y;
                     float offCenter = box.center.x - screen.center.x / unit;
+                    Image stripImage = backdrop.Find(PromptsStyler.NotificationStripName)?.GetComponent<Image>();
                     look = $"panel {BoxText(box)}, middle {middleDown:0.#} down, {offCenter:0.#} off center, " +
-                           $"strip {(bool)backdrop.Find(PromptsStyler.NotificationStripName)}, title color {notification.titleTMP.color}, " +
+                           $"strip {(stripImage ? stripImage.color.ToString() : "none")}, title color {notification.titleTMP.color}, " +
                            $"slot {BoxText(slot)}, icon {BoxText(icon)}";
                     return iconCentered && Near(box.width, NotificationWidth) && Near(middleDown, NotificationMiddleDown) &&
-                           Mathf.Abs(offCenter) < SizeTolerance && backdrop.Find(PromptsStyler.NotificationStripName) &&
+                           Mathf.Abs(offCenter) < SizeTolerance && stripImage && SevenUIChecks.Near(stripImage.color, strip) &&
                            SevenUIChecks.Near(notification.titleTMP.color, Palette.Text);
                 },
                 () => $"the {titleToken ?? "pickup"} notification {NotificationWidth}px wide, {NotificationMiddleDown}px down, " +
-                      $"with a strip, a white title and its icon {NotificationIconSize}px in the middle of its " +
+                      $"with a strip in {strip}, a white title and its icon {NotificationIconSize}px in the middle of its " +
                       $"{NotificationSlotSize}px slot ({look}) {h.Diagnosis()}");
         }
 

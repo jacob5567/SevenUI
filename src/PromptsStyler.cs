@@ -9,8 +9,8 @@ using UnityEngine.UI;
 namespace SevenUI
 {
     // Restyles the interaction prompt ("Open Chest") and the pickup notifications: flat translucent panels in place of
-    // the soft gradients, the prompt's laid out by PromptPanel, and the notification smaller and higher, with a light
-    // strip along its top and its icon on a dark slot.
+    // the soft gradients, the prompt's laid out by PromptPanel, and the notification smaller and higher, with a strip
+    // along its top in the color of what was picked up and its icon on a dark slot.
     // Found by their components, wherever they sit in the HUD: LookingGlass moves the prompt.
     internal sealed class PromptsStyler
     {
@@ -104,10 +104,11 @@ namespace SevenUI
             recorder.Disable(display ? display.GetComponent<RawImage>() : null);
         }
 
-        // As on the design canvas: a 500px panel with a light strip along its top, the icon on a dark slot and the
-        // title in bold white over the description in grey, centered with its middle 758px down a 1080px screen. The
-        // game draws it 1.3 times larger, about 670px wide, low over the skills, with the title in the item's tier
-        // color. Done on every pass over the HUD, so each step only changes what isn't changed yet.
+        // As on the design canvas: a 500px panel with a strip along its top, the icon on a dark slot and the title in
+        // bold white over the description in grey, centered with its middle 758px down a 1080px screen. The strip
+        // takes the color the game gives the title, the item's tier color. The game draws it 1.3 times larger, about
+        // 670px wide, low over the skills. Done on every pass over the HUD, so each step only changes what isn't
+        // changed yet.
         private void StyleNotification(GenericNotification notification)
         {
             Transform content = notification.canvasGroup ? notification.canvasGroup.transform : notification.transform;
@@ -137,6 +138,13 @@ namespace SevenUI
                 recorder.Record(notification.titleTMP);
                 notification.titleTMP.fontStyle |= FontStyles.Bold;
                 notification.titleTMP.fontSize = NotificationTitleSize;
+                // The game colors the title by what was picked up (an item's tier, a drone's kind, a trial's lime) as it
+                // fills it in. That color moves to the strip, in the canvas's shade, and the title turns white.
+                Image strip = backdrop ? backdrop.Find(NotificationStripName)?.GetComponent<Image>() : null;
+                if (strip && !SameColor(notification.titleTMP.color, Palette.Text))
+                {
+                    strip.color = GameColors.ToCanvas(notification.titleTMP.color);
+                }
                 notification.titleTMP.color = Palette.Text;
                 SetPreferredWidth(notification.titleTMP.GetComponent<LayoutElement>());
             }
@@ -184,6 +192,14 @@ namespace SevenUI
             texts.padding = new RectOffset(0, 0, 0, 0);
             texts.spacing = NotificationTextGap;
             StyleIconArea(iconArea, notification.iconImage);
+        }
+
+        // Equal to the byte, as the game's colors come from Color32s.
+        private static bool SameColor(Color a, Color b)
+        {
+            Color32 x = a;
+            Color32 y = b;
+            return x.r == y.r && x.g == y.g && x.b == y.b;
         }
 
         private void SetPreferredWidth(LayoutElement element)

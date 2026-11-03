@@ -171,7 +171,7 @@ namespace SevenUI.Tests
         }
 
         // A Winnowing trial's notification and a repaired drone's, which the game draws from prefabs of their own with
-        // the icon in a frame. Pushed straight to the local player's queue, which shows them in turn; the trial's for
+        // the icon in a frame; the trial's strip green, the drone's in its kind's color. Pushed straight to the local player's queue, which shows them in turn; the trial's for
         // a short while, so the drone's follows soon.
         private static IEnumerator NotificationIconsInSlot(Harness h)
         {
@@ -181,11 +181,12 @@ namespace SevenUI.Tests
                 nameToken = TrialNameToken,
                 descriptionToken = TrialDescriptionToken,
             }, TrialNotificationSeconds);
-            yield return h.ExpectNotificationAsCanvas(TrialNameToken);
+            yield return h.ExpectNotificationAsCanvas(Palette.CountUncommon, TrialNameToken);
             DroneIndex drone = DroneCatalog.GetDroneIndexFromBodyIndex(BodyCatalog.FindBodyIndex(GameNames.GunnerDroneBody));
             if (drone == DroneIndex.None) throw h.Skip("no drone for the Gunner Drone's body");
             CharacterMasterNotificationQueue.PushDroneNotification(master, drone);
-            yield return h.ExpectNotificationAsCanvas(DroneCatalog.GetDroneDef(drone).nameToken);
+            DroneDef droneDef = DroneCatalog.GetDroneDef(drone);
+            yield return h.ExpectNotificationAsCanvas(GameColors.ToCanvas(ColorCatalog.GetColor(droneDef.color)), droneDef.nameToken);
         }
 
         // Foreign Fruit with a Fuel Cell, so the slot shows its stock, and a Backup Magazine, so the secondary skill

@@ -6,8 +6,9 @@ using UnityEngine;
 
 namespace SevenUI
 {
-    // The game's colors for costs and item tiers (ColorCatalog), each with the canvas's color for the same thing: money,
-    // health, coins and the tiers as the HUD shows them elsewhere. Built on first use, after the catalog is.
+    // The game's colors for costs, item tiers, drones and trials (ColorCatalog), each with the canvas's color for the
+    // same thing: money, health, coins and the tiers as the HUD shows them elsewhere. Built on first use, after the
+    // catalog is.
     internal static class GameColors
     {
         private static readonly (ColorCatalog.ColorIndex game, Color canvas)[] Pairs =
@@ -23,6 +24,11 @@ namespace SevenUI
             (ColorCatalog.ColorIndex.LunarItem, Palette.CountLunar),
             (ColorCatalog.ColorIndex.VoidItem, Palette.CountVoid),
             (ColorCatalog.ColorIndex.Equipment, Palette.Equipment),
+            // Drones' kinds, and a Winnowing trial's lime.
+            (ColorCatalog.ColorIndex.Combat, Palette.Debuff),
+            (ColorCatalog.ColorIndex.Healing, Palette.Health),
+            (ColorCatalog.ColorIndex.Utility, Palette.CountVoid),
+            (ColorCatalog.ColorIndex.Trial, Palette.CountUncommon),
         };
         private static readonly Regex ColorTag = new Regex("<color=#(?<hex>[0-9A-Fa-f]{6})>");
         private static Dictionary<Color32, Color> canvasColors;
