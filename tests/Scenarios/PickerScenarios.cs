@@ -11,6 +11,7 @@ using RoR2.UI;
 using TMPro;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using Object = UnityEngine.Object;
 
@@ -438,7 +439,37 @@ namespace SevenUI.Tests
             yield return h.Wait(SettleSeconds);
             string shown = ShownAsStyled(panel);
             if (shown != null) throw h.Fail(shown);
+            yield return NoTooltipOnHover(h, panel);
             yield return CaptureLooks(h, panel);
+        }
+
+        // The pointer moving onto an option opens no tooltip: its card, or the details under the grid, already show
+        // its name and description. The pointer can't be moved, so the event the game would get is sent to the button.
+        private static IEnumerator NoTooltipOnHover(Harness h, PickerPanel panel)
+        {
+            string enabled = string.Join(", ", panel.Buttons.Where(option => option.Button &&
+                option.Button.GetComponents<TooltipProvider>().Any(tooltip => tooltip.enabled)).Select(option => option.Button.name));
+            if (enabled.Length > 0) throw h.Fail($"options still have their tooltips turned on: {enabled}");
+            // The event system the game's tooltips open on (TooltipProvider.OnPointerEnter).
+            MPEventSystem events = EventSystem.current as MPEventSystem;
+            if (!events) throw h.Fail("there is no event system to send the pointer's events with");
+            GameObject option = panel.Buttons[0].Button.gameObject;
+            PointerEventData pointer = new PointerEventData(events);
+            ExecuteEvents.Execute(option, pointer, ExecuteEvents.pointerEnterHandler);
+            h.OnCleanup(() =>
+            {
+                if (option)
+                {
+                    ExecuteEvents.Execute(option, pointer, ExecuteEvents.pointerExitHandler);
+                }
+            });
+            yield return h.Wait(SettleSeconds);
+            TooltipProvider open = events.currentTooltipProvider;
+            if (open && open.transform.IsChildOf(panel.Panel.transform))
+            {
+                throw h.Fail($"pointing at {option.name} opened its tooltip \"{open.titleText}\"");
+            }
+            ExecuteEvents.Execute(option, pointer, ExecuteEvents.pointerExitHandler);
         }
 
         // Once settled, what is on screen is the restyled panel: no other picker panel is open in the game's look, and

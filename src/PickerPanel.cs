@@ -441,6 +441,13 @@ namespace SevenUI
             // black, not the item bar's grey), and puts its text style back every frame. The tint is left neutral; an
             // option that can't be picked keeps the game's.
             recorder.SetEnabled(button.GetComponent<ButtonSkinController>(), false);
+            // The hovered option's name and description show in its card or under the grid, so a tooltip over it
+            // (LookingGlass gives each option one) would repeat them. A turned-off provider gets no pointer or
+            // selection events; its text is still read for the description (PickupDescriptions).
+            foreach (TooltipProvider tooltip in button.GetComponents<TooltipProvider>())
+            {
+                recorder.SetEnabled(tooltip, false);
+            }
             ColorBlock colors = button.colors;
             recorder.OnRestore(() =>
             {
