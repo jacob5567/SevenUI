@@ -98,6 +98,7 @@ namespace SevenUI
         private TMP_FontAsset shownFont;
         private PickerButton cancel;
         private int columns;
+        private bool fullDescriptions;
 
         private PickerPanel(PickupPickerPanel panel, HUD hud, RectTransform mainPanel)
         {
@@ -133,6 +134,8 @@ namespace SevenUI
         public RectTransform MainPanel => mainPanel;
 
         public TMP_Text DetailsNameText => detailsName;
+
+        public TMP_Text DetailsDescriptionText => detailsDescription;
 
         public void Restore()
         {
@@ -196,6 +199,7 @@ namespace SevenUI
             shownButtonCount = elements.Count;
             Cards = options.Length <= CardLimit;
             columns = Cards ? options.Length : Mathf.Min(options.Length, GridColumns);
+            fullDescriptions = PickupDescriptions.Full();
             recorder.RecordRect(mainPanel);
 
             foreach (Transform child in juice)
@@ -392,7 +396,11 @@ namespace SevenUI
         // the canvas's sharp one, shown while the game's would be.
         private PickerButton StyleButton(MPButton button, PickupDef pickup, Color face)
         {
-            PickerButton styled = new PickerButton { Button = button, Hover = button as HGButton, Pickup = pickup };
+            PickerButton styled = new PickerButton
+            {
+                Button = button, Hover = button as HGButton, Pickup = pickup,
+                DescriptionText = PickupDescriptions.For(pickup, button, fullDescriptions),
+            };
             Image frame = button.image;
             if (frame)
             {
@@ -459,7 +467,7 @@ namespace SevenUI
             card.Name.fontStyle = FontStyles.Bold;
             card.Name.text = pickup != null ? Language.GetString(pickup.nameToken) : "";
             card.Description = AddText("Description", holder, DescriptionSize, Palette.HeaderText);
-            card.Description.text = pickup != null ? Language.GetString(pickup.pickupToken) : "";
+            card.Description.text = card.DescriptionText;
             card.Outline = AddOutline(holder);
             return card;
         }
@@ -484,7 +492,7 @@ namespace SevenUI
             PickupDef pickup = buttons[index].Pickup;
             detailsName.text = pickup != null ? Language.GetString(pickup.nameToken) : "";
             detailsName.color = TierColor(pickup);
-            detailsDescription.text = pickup != null ? Language.GetString(pickup.pickupToken) : "";
+            detailsDescription.text = buttons[index].DescriptionText;
         }
 
         // Sizes the panel and places its parts, from the texts as measured in their current font.
@@ -546,8 +554,7 @@ namespace SevenUI
                 float descriptionHeight = 0f;
                 foreach (PickerButton slot in buttons)
                 {
-                    string description = slot.Pickup != null ? Language.GetString(slot.Pickup.pickupToken) : "";
-                    descriptionHeight = Mathf.Max(descriptionHeight, detailsDescription.GetPreferredValues(description, textWidth, 0f).y);
+                    descriptionHeight = Mathf.Max(descriptionHeight, detailsDescription.GetPreferredValues(slot.DescriptionText, textWidth, 0f).y);
                 }
                 TopLeft(detailsName.rectTransform, PaddingX, y, textWidth, nameHeight);
                 y += nameHeight + NameGap;

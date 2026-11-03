@@ -17,6 +17,8 @@ namespace SevenUI
         public MPButton Button;
         public HGButton Hover;
         public PickupDef Pickup;
+        // The option's description as the panel shows it (PickupDescriptions), chosen once when it is styled.
+        public string DescriptionText = "";
         public RectTransform Icon;
         public Image Outline;
         public TMP_Text Count;

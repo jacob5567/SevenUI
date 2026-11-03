@@ -2,6 +2,9 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using BepInEx;
+using BepInEx.Bootstrap;
+using BepInEx.Configuration;
 using ModTestRunner;
 using RoR2;
 using RoR2.UI;
@@ -35,6 +38,10 @@ namespace SevenUI.Tests
         // inventory's worth for the ones that offer the player's own items.
         private const int FewOptions = 3;
         private const int InventoryOptions = 12;
+        // LookingGlass's setting for full item descriptions in the HUD, which the descriptions follow.
+        private const string LookingGlassGUID = "droppod.lookingglass";
+        private const string FullDescriptionSection = "Misc";
+        private const string FullDescriptionKey = "Full Description in Hud";
         // How far ahead the player's starting look is kept, and how long a teleport takes to land.
         private const float HomeLookDistance = 10f;
         private const float TeleportSettleSeconds = 0.2f;
@@ -88,6 +95,8 @@ namespace SevenUI.Tests
                 yield return new Scenario(1, "picker_command_" + name, Stages.TitanicPlains, h => Command(h, name, drops));
             }
             yield return new Scenario(1, "picker_command_single", Stages.TitanicPlains, CommandSingle);
+            yield return new Scenario(1, "picker_descriptions_short", Stages.TitanicPlains, ShortDescriptions);
+            yield return new Scenario(1, "picker_descriptions_full", Stages.TitanicPlains, FullDescriptions);
             foreach ((string name, string key) in GameNames.PickerPanels)
             {
                 yield return new Scenario(1, "picker_panel_" + name, Stages.TitanicPlains, h => OtherPanel(h, name, key));
@@ -96,15 +105,95 @@ namespace SevenUI.Tests
 
         private static IEnumerator VoidPotential(Harness h)
         {
+            PickupPickerController picker = null;
+            yield return SpawnVoidPotential(h, spawned => picker = spawned);
+            PickerPanel panel = null;
+            yield return OpenStyled(h, picker, found => panel = found);
+            yield return CheckStyled(h, picker, panel);
+        }
+
+        private static IEnumerator SpawnVoidPotential(Harness h, Action<PickupPickerController> spawned)
+        {
             UniquePickup[] voids = GameNames.VoidItems.Select(name => ItemCatalog.FindItemIndex(name))
                 .Select(item => new UniquePickup(item != ItemIndex.None ? PickupCatalog.FindPickupIndex(item) : PickupIndex.none)).ToArray();
             if (voids.Any(pickup => pickup.pickupIndex == PickupIndex.none)) throw h.Skip("the void items need Survivors of the Void");
             yield return GoHome(h);
             PickupPickerController picker = h.SpawnPrefab<PickupPickerController>(GameNames.VoidPotential);
             picker.SetOptionsServer(PickupPickerController.GenerateOptionsFromList(voids));
+            spawned(picker);
+        }
+
+        // With LookingGlass's full descriptions off, or without LookingGlass, the cards show the game's short pickup text.
+        private static IEnumerator ShortDescriptions(Harness h)
+        {
+            ConfigEntry<bool> full = FullDescriptionSetting();
+            if (full != null)
+            {
+                h.SetConfig(full, false);
+            }
+            PickupPickerController picker = null;
+            yield return SpawnVoidPotential(h, spawned => picker = spawned);
             PickerPanel panel = null;
             yield return OpenStyled(h, picker, found => panel = found);
-            yield return CheckStyled(h, picker, panel);
+            foreach (PickerButton card in panel.Buttons)
+            {
+                string expected = Language.GetString(card.Pickup.pickupToken);
+                if (card.Description.text != expected)
+                {
+                    throw h.Fail($"{Language.GetString(card.Pickup.nameToken)}'s card shows \"{card.Description.text}\", not its pickup text \"{expected}\"");
+                }
+            }
+            yield return h.Wait(SettleSeconds);
+            yield return h.Screenshot("short");
+        }
+
+        // With them on, the cards and a grid's details show each item's full description, as LookingGlass's tooltip does.
+        private static IEnumerator FullDescriptions(Harness h)
+        {
+            ConfigEntry<bool> full = FullDescriptionSetting();
+            if (full == null) throw h.Skip("full descriptions are LookingGlass's setting, and it is not installed");
+            // LookingGlass reads it as the game sets a panel's options, so it is set before any picker opens.
+            h.SetConfig(full, true);
+            PickupPickerController picker = null;
+            yield return SpawnVoidPotential(h, spawned => picker = spawned);
+            PickerPanel panel = null;
+            yield return OpenStyled(h, picker, found => panel = found);
+            foreach (PickerButton card in panel.Buttons)
+            {
+                string missing = FullDescriptionMissing(card.Pickup, card.Description.text);
+                if (missing != null) throw h.Fail($"{Language.GetString(card.Pickup.nameToken)}'s card {missing}");
+            }
+            yield return h.Wait(SettleSeconds);
+            yield return h.Screenshot("cards");
+
+            yield return GoHome(h);
+            PickupPickerController command = h.SpawnPrefab<PickupPickerController>(GameNames.CommandCube);
+            command.SetOptionsFromPickupForCommandArtifact(new UniquePickup(PickupCatalog.FindPickupIndex(ItemCatalog.FindItemIndex(GameNames.Syringe))));
+            PickerPanel grid = null;
+            yield return OpenStyled(h, command, found => grid = found);
+            if (grid.Cards) throw h.Fail($"{grid.Buttons.Count} options are cards, not a grid");
+            yield return h.Until(() => DetailsShow(grid, 0), () => $"the details show \"{grid.DetailsNameText.text}\", not the first item");
+            string detailsMissing = FullDescriptionMissing(grid.Buttons[0].Pickup, grid.DetailsDescriptionText.text);
+            if (detailsMissing != null) throw h.Fail($"the details for {Language.GetString(grid.Buttons[0].Pickup.nameToken)} {detailsMissing}");
+            yield return h.Wait(SettleSeconds);
+            yield return h.Screenshot("grid");
+        }
+
+        private static ConfigEntry<bool> FullDescriptionSetting()
+        {
+            if (!Chainloader.PluginInfos.TryGetValue(LookingGlassGUID, out PluginInfo info) || !info.Instance) return null;
+            return info.Instance.Config.TryGetEntry(FullDescriptionSection, FullDescriptionKey, out ConfigEntry<bool> entry) ? entry : null;
+        }
+
+        // Why a shown text is not the item's full description, or null: it has the full description and is not the short one.
+        private static string FullDescriptionMissing(PickupDef pickup, string shown)
+        {
+            ItemDef item = ItemCatalog.GetItemDef(pickup.itemIndex);
+            if (!item) return "is not an item";
+            string description = Language.GetString(item.descriptionToken);
+            if (shown == Language.GetString(pickup.pickupToken)) return $"shows the short pickup text \"{shown}\"";
+            if (!shown.Contains(description)) return $"shows \"{shown}\", without the full description \"{description}\"";
+            return null;
         }
 
         private static IEnumerator CommandWhite(Harness h)
