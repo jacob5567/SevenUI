@@ -551,8 +551,9 @@ namespace SevenUI.Tests
                 () => $"the buffs back in the game's single row ({BuffsLook(display, null)}) {h.Diagnosis()}");
         }
 
-        // The run's difficulty by name and, with Karma on, the Karma icon at the given level: each inside the run
-        // info's panel, none overlapping the timer, the right-hand text or each other.
+        // The run's difficulty by name and, with Karma on, the Karma row at the given level in place of the game's
+        // icon: each inside the run info's panel, none overlapping the timer, the right-hand text or each other, and the
+        // column under the panel starting below it.
         public static IEnumerator ExpectDifficultyAndKarmaShown(this Harness h, int karmaLevel)
         {
             string look = null;
@@ -563,32 +564,39 @@ namespace SevenUI.Tests
                     if (!bar || !Run.instance) return false;
                     Transform panel = bar.transform.parent;
                     RectTransform background = panel.Find(Texts.RunInfoBackgroundName) as RectTransform;
+                    RectTransform column = panel.Find(GameNames.RightInfoBar) as RectTransform;
                     RunInfoText text = panel.GetComponentInChildren<RunInfoText>(true);
                     TimerText timerText = panel.GetComponentInChildren<TimerText>(true);
                     TMP_Text timer = timerText ? timerText.GetComponent<TMP_Text>() : null;
-                    KarmaIcon karma = panel.GetComponentInChildren<KarmaIcon>(true);
-                    if (!background || !text || !timer || !karma) return false;
+                    KarmaIcon icon = panel.GetComponentInChildren<KarmaIcon>(true);
+                    RectTransform row = bar.transform.Find(KarmaRow.RowName) as RectTransform;
+                    if (!background || !column || !text || !timer || !icon || !row) return false;
                     RectTransform space = (RectTransform)panel;
                     Bounds box = In(space, background);
                     Bounds timerBounds = TextIn(space, timer);
                     Bounds name = TextIn(space, text.Difficulty);
                     Bounds stage = TextIn(space, text.StageAndLevel);
+                    Bounds columnBounds = In(space, column);
                     DifficultyDef difficulty = DifficultyCatalog.GetDifficultyDef(Run.instance.selectedDifficulty);
                     // The game's name, with an Eclipse level out of its brackets: "Eclipse (8)" shows as "Eclipse 8".
                     string expected = difficulty != null ? Language.GetString(difficulty.nameToken).Replace("(", "").Replace(")", "") : null;
-                    bool karmaShown = karma.holder && karma.holder.gameObject.activeInHierarchy;
-                    Bounds karmaBounds = karma.image ? In(space, karma.image.rectTransform) : new Bounds();
+                    bool iconDrawn = icon.holder && icon.holder.gameObject.activeInHierarchy && icon.image && icon.image.enabled;
+                    bool rowShown = row.gameObject.activeInHierarchy;
+                    Bounds rowBounds = In(space, row);
+                    TMP_Text label = row.Find(KarmaRow.LabelName)?.GetComponent<TMP_Text>();
+                    int filled = row.GetComponentsInChildren<Image>().Count(segment =>
+                        segment.name == KarmaRow.SegmentName && SevenUIChecks.Near(segment.color, Palette.Karma));
                     look = $"name '{text.Difficulty.text}' (expected '{expected}') x {name.min.x:0}-{name.max.x:0}, " +
                            $"stage x {stage.min.x:0}-{stage.max.x:0}, timer x {timerBounds.min.x:0}-{timerBounds.max.x:0}, " +
-                           $"panel x {box.min.x:0}-{box.max.x:0}, karma shown={karmaShown} " +
-                           $"x {karmaBounds.min.x:0}-{karmaBounds.max.x:0} sprite " +
-                           $"{(karma.image && karma.image.sprite ? karma.image.sprite.name : "-")}";
+                           $"panel x {box.min.x:0}-{box.max.x:0} y {box.min.y:0}-{box.max.y:0}, column top {columnBounds.max.y:0}, " +
+                           $"game icon drawn={iconDrawn}, karma row shown={rowShown} y {rowBounds.min.y:0}-{rowBounds.max.y:0} " +
+                           $"'{(label ? label.text : "-")}' with {filled} filled";
                     bool named = expected != null && text.Difficulty.text == expected && Inside(box, name) &&
-                                 Inside(box, stage) && !Overlap(name, timerBounds) && !Overlap(stage, timerBounds);
-                    if (karmaLevel < 0) return named && !karmaShown;
-                    Sprite levelSprite = karma.icons != null && karmaLevel < karma.icons.Length ? karma.icons[karmaLevel] : null;
-                    return named && karmaShown && karma.image.sprite == levelSprite && Inside(box, karmaBounds) &&
-                           !Overlap(karmaBounds, timerBounds) && !Overlap(karmaBounds, name) && !Overlap(karmaBounds, stage);
+                                 Inside(box, stage) && !Overlap(name, timerBounds) && !Overlap(stage, timerBounds) &&
+                                 columnBounds.max.y <= box.min.y && !iconDrawn;
+                    if (karmaLevel < 0) return named && !rowShown;
+                    return named && rowShown && label && label.text.EndsWith(" " + karmaLevel) && filled == karmaLevel &&
+                           Inside(box, rowBounds) && rowBounds.max.y <= timerBounds.min.y && !Overlap(rowBounds, stage);
                 },
                 () => $"the difficulty{(karmaLevel >= 0 ? $" and Karma {karmaLevel}" : "")} shown in the run info ({look}) " +
                       $"{h.Diagnosis()}");

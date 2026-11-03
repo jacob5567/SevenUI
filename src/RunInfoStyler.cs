@@ -9,8 +9,9 @@ using UnityEngine.UI;
 namespace SevenUI
 {
     // Restyles the run info in the top right as one flat panel, laid out as on the design canvas: the timer at the left;
-    // the difficulty's name, and the stage and level under it, at the right, with the Karma icon beside them; and below
-    // them a thin accent bar with the current difficulty segment's name, in place of the game's scrolling segments. The
+    // the difficulty's name, and the stage and level under it, at the right; and below them a thin accent bar with the
+    // current difficulty segment's name, in place of the game's scrolling segments. While Karma is on, a row under the
+    // bar shows it (KarmaRow) in place of the game's Karma icon, and the panel and the column under it make room. The
     // panel is the canvas's height, and the timer reads "24:51" without the hundredths (TightTimerFormat). The column
     // it heads, which holds the objective panel, is widened to 300 of the canvas's pixels and starts a gap under it.
     // The game's objects keep running; only their look and places change.
@@ -61,6 +62,8 @@ namespace SevenUI
         private const float BarHeight = 6f * Canvas;
         private const float BarNameGap = 10f * Canvas;
         private const float BarNameFontSize = 12f * Canvas;
+        // The Karma row: another bar's row, the rows' gap under the difficulty bar's.
+        private const float KarmaRowSpace = RowGap + BarRowHeight;
         // Above and below the rows, in the run info's units, for a panel without a timer.
         private const float PanelPadding = 6f;
         // The most of the bar's row the segment's name may take before it shrinks.
@@ -70,6 +73,10 @@ namespace SevenUI
         private readonly Transform root;
         private readonly StyleRecorder recorder = new StyleRecorder();
         private readonly List<DifficultyBarController> bars = new List<DifficultyBarController>();
+        private readonly List<(Transform panel, DifficultyBarController bar, KarmaRow karma)> styled =
+            new List<(Transform, DifficultyBarController, KarmaRow)>();
+        // Whether the rows were last laid out with the Karma row.
+        private bool karmaShown;
         private readonly Vector3[] corners = new Vector3[4];
         // What the panel background covers; the difficulty bar is added by its own transform. Not every child: the
         // difficulty tutorial popup is one, and sits well outside the panel.
@@ -96,6 +103,32 @@ namespace SevenUI
         public void Restore()
         {
             recorder.Restore();
+            styled.Clear();
+            karmaShown = false;
+        }
+
+        // Every frame while the panels are on: Karma is turned on by the run's rules, synced to clients after the HUD
+        // is made, and its level changes during the run. Two reads of KarmaManager's fields when nothing changed.
+        public void Update()
+        {
+            styled.RemoveAll(entry => !entry.panel || !entry.bar || !entry.karma.Alive);
+            KarmaManager manager = KarmaManager.instance;
+            bool shown = manager && manager.IsKarmaEnabled();
+            if (shown != karmaShown)
+            {
+                karmaShown = shown;
+                foreach ((Transform panel, DifficultyBarController bar, KarmaRow karma) in styled)
+                {
+                    karma.Root.gameObject.SetActive(shown);
+                    PlaceBelowRows(panel, bar);
+                }
+            }
+            if (!shown) return;
+            int level = manager.GetEffectiveKarma();
+            foreach ((_, _, KarmaRow karma) in styled)
+            {
+                karma.Set(level);
+            }
         }
 
         private void StylePanel(Transform panel, DifficultyBarController bar)
@@ -107,6 +140,11 @@ namespace SevenUI
             Disable<Image>(panel, SetDifficultyPanelPath);
             Disable<Image>(panel, DifficultyIconPath);
             Disable<Image>(panel, OutlinePath);
+            KarmaIcon karmaIcon = panel.GetComponentInChildren<KarmaIcon>(true);
+            if (karmaIcon)
+            {
+                recorder.Disable(karmaIcon.image);
+            }
             PlaceRows(panel, (RectTransform)bar.transform);
             Transform background = panel.Find(BackgroundName);
             if (!background)
@@ -171,10 +209,8 @@ namespace SevenUI
         private void PlaceRowsDown(Transform panel, RectTransform column, RectTransform timer, RectTransform stage,
             RectTransform difficultyBar)
         {
-            float scale = timer.localScale.y;
             float middle = Middle(panel, timer);
-            float barMiddle = middle - (TimerRowHeight / 2f + RowGap + BarRowHeight / 2f) * scale;
-            float bottom = barMiddle - (BarRowHeight / 2f + BottomPadding) * scale;
+            float barMiddle = BarMiddle(panel, timer);
             SetYRange(panel, stage, middle - StageHeight / 2f * stage.localScale.y, middle + StageHeight / 2f * stage.localScale.y);
             Vector2 bar = YRange(panel, difficultyBar);
             float barHalf = (bar.y - bar.x) / 2f;
@@ -184,8 +220,38 @@ namespace SevenUI
             float height = column.rect.height;
             column.anchoredPosition += new Vector2(0f, (1f - column.pivot.y) * height);
             column.pivot = new Vector2(column.pivot.x, 1f);
+            PlaceColumn(panel, column, RowsBottom(panel, timer));
+        }
+
+        // The difficulty bar's middle, a row and a gap under the timer's.
+        private float BarMiddle(Transform panel, RectTransform timer) =>
+            Middle(panel, timer) - (TimerRowHeight / 2f + RowGap + BarRowHeight / 2f) * timer.localScale.y;
+
+        // The bottom of the panel's rows: the bar's row, the Karma row while it shows, and the padding under them.
+        private float RowsBottom(Transform panel, RectTransform timer) =>
+            BarMiddle(panel, timer) - (BarRowHeight / 2f + (karmaShown ? KarmaRowSpace : 0f) + BottomPadding) *
+            timer.localScale.y;
+
+        // The column hangs a gap under the rows; its height is its own layout's.
+        private void PlaceColumn(Transform panel, RectTransform column, float bottom)
+        {
             float top = bottom - ColumnGap * column.localScale.y;
-            SetYRange(panel, column, top - height * column.localScale.y, top);
+            SetYRange(panel, column, top - column.rect.height * column.localScale.y, top);
+        }
+
+        // After the Karma row comes or goes: the column and the panel's background follow the rows' new bottom.
+        private void PlaceBelowRows(Transform panel, DifficultyBarController bar)
+        {
+            RectTransform column = panel.Find(RightInfoBarPath) as RectTransform;
+            RectTransform timer = panel.Find(TimerPanelPath) as RectTransform;
+            if (column && timer && recorder.HasRect(column))
+            {
+                PlaceColumn(panel, column, RowsBottom(panel, timer));
+            }
+            if (panel.Find(BackgroundName) is RectTransform background)
+            {
+                FitBackground(panel, background, (RectTransform)bar.transform);
+            }
         }
 
         // The panel's top and bottom around the rows placed by PlaceRowsDown, or null without a timer.
@@ -193,11 +259,8 @@ namespace SevenUI
         {
             RectTransform timer = panel.Find(TimerPanelPath) as RectTransform;
             if (!timer || !timer.gameObject.activeSelf) return null;
-            float scale = timer.localScale.y;
             float middle = Middle(panel, timer);
-            float barMiddle = middle - (TimerRowHeight / 2f + RowGap + BarRowHeight / 2f) * scale;
-            return new Vector2(barMiddle - (BarRowHeight / 2f + BottomPadding) * scale,
-                middle + (TimerRowHeight / 2f + TopPadding) * scale);
+            return new Vector2(RowsBottom(panel, timer), middle + (TimerRowHeight / 2f + TopPadding) * timer.localScale.y);
         }
 
         private float Middle(Transform panel, RectTransform rect)
@@ -269,12 +332,6 @@ namespace SevenUI
             text.StageAndLevel.fontSize = StageFontSize;
             text.StageAndLevel.fontStyle = FontStyles.Normal;
             text.StageAndLevel.color = Palette.HeaderText;
-            KarmaIcon karma = panel.GetComponentInChildren<KarmaIcon>(true);
-            if (karma)
-            {
-                text.Karma = (RectTransform)karma.transform;
-                recorder.RecordRect(text.Karma);
-            }
             recorder.Add(holder);
         }
 
@@ -316,6 +373,16 @@ namespace SevenUI
             if (!transform.Find(ReadoutName))
             {
                 AddReadout(bar);
+            }
+            if (!transform.Find(KarmaRow.RowName))
+            {
+                TMP_Text gameLabel = bar.labels != null && bar.labels.Length > 0 ? bar.labels[0] : null;
+                KarmaRow karma = new KarmaRow((RectTransform)transform, gameLabel, BarRowHeight, KarmaRowSpace, RowInset,
+                    BarNameFontSize);
+                recorder.Add(karma.Root.gameObject);
+                styled.Add((bar.transform.parent, bar, karma));
+                // Shown, and the rows placed for it, on the next Update.
+                karmaShown = false;
             }
         }
 

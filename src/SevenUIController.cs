@@ -72,6 +72,7 @@ namespace SevenUI
             DamageNumberFont.Update(SevenUIPlugin.Settings.MonospaceDamageNumbers.Value);
             if (panelsApplied)
             {
+                runInfo.Update();
                 prompts.Update();
                 pickers.Update();
                 playerBars.Update();

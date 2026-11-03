@@ -22,6 +22,8 @@ namespace SevenUI.Tests
         // spawn_interactable and spawn_ai arguments: a small chest, a broken Gunner Drone to buy, and a monster with
         // enough health to take several hits.
         public const string SmallChest = "iscChest1";
+        // The column under the run info, which holds the objective panel.
+        public const string RightInfoBar = "RightInfoBar";
         public const string ShrineOfBlood = "iscShrineBlood";
         public const string LunarPod = "iscLunarChest";
         public const string BrokenDrone = "iscBrokenDrone1";
