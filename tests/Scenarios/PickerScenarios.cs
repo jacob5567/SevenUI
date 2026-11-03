@@ -620,6 +620,10 @@ namespace SevenUI.Tests
                     return $"slot {i} is {rect.rect.size}, not {PickerPanel.SlotSize:0.#} square";
                 Image frame = panel.Buttons[i].Button.image;
                 if (frame && frame.sprite) return $"slot {i} still has the game's frame {frame.sprite.name}";
+                // Its face draws in the item bar's slot grey: the button's tint, which multiplies it, is neutral.
+                Color tint = frame ? frame.canvasRenderer.GetColor() : Color.clear;
+                if (!frame || frame.color != Palette.ItemSlot || tint != Color.white)
+                    return $"slot {i}'s face is {(frame ? frame.color.ToString() : "missing")} tinted {tint}, not {Palette.ItemSlot} untinted";
             }
             return OnScreen(panel);
         }

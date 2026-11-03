@@ -315,19 +315,6 @@ namespace SevenUI
             // over this one even while turned off; the cursed book shows its cancel button after the panel opens.
             cancelWaiting = !button.gameObject.activeInHierarchy;
             if (cancelWaiting) return;
-            // The game's skin sets the button's tint, which darkens the face, and puts its text style back every frame.
-            recorder.SetEnabled(button.GetComponent<ButtonSkinController>(), false);
-            ColorBlock colors = mpButton.colors;
-            recorder.OnRestore(() =>
-            {
-                if (mpButton)
-                {
-                    mpButton.colors = colors;
-                }
-            });
-            ColorBlock flat = colors;
-            flat.normalColor = flat.highlightedColor = flat.pressedColor = flat.selectedColor = Color.white;
-            mpButton.colors = flat;
             cancel = StyleButton(mpButton, null, Palette.GhostButton);
             RectTransform rect = (RectTransform)button;
             recorder.RecordRect(rect);
@@ -450,6 +437,21 @@ namespace SevenUI
                 DescriptionText = PickupDescriptions.For(pickup, button, fullDescriptions),
             };
             styled.Parts = ItemStatsText.Split(styled.DescriptionText);
+            // The game's skin sets the button's tint, which multiplies the face's color (the options' slots came out
+            // black, not the item bar's grey), and puts its text style back every frame. The tint is left neutral; an
+            // option that can't be picked keeps the game's.
+            recorder.SetEnabled(button.GetComponent<ButtonSkinController>(), false);
+            ColorBlock colors = button.colors;
+            recorder.OnRestore(() =>
+            {
+                if (button)
+                {
+                    button.colors = colors;
+                }
+            });
+            ColorBlock flat = colors;
+            flat.normalColor = flat.highlightedColor = flat.pressedColor = flat.selectedColor = Color.white;
+            button.colors = flat;
             // The button's own image when its target graphic isn't set, as on the cursed book's cancel button.
             Image frame = button.image ? button.image : button.GetComponent<Image>();
             if (frame)
