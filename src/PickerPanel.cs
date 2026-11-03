@@ -258,6 +258,11 @@ namespace SevenUI
             });
             title.enableWordWrapping = false;
             title.overflowMode = TextOverflowModes.Overflow;
+            // Art the game hangs on the title, such as the delusion panel's outline frames around it.
+            foreach (Image decoration in title.GetComponentsInChildren<Image>(true))
+            {
+                recorder.Disable(decoration);
+            }
         }
 
         // The game's key legend ("Cancel"), without its backdrop, right-aligned under the panel.
@@ -404,7 +409,8 @@ namespace SevenUI
                 DescriptionText = PickupDescriptions.For(pickup, button, fullDescriptions),
             };
             styled.Parts = ItemStatsText.Split(styled.DescriptionText);
-            Image frame = button.image;
+            // The button's own image when its target graphic isn't set, as on the cursed book's cancel button.
+            Image frame = button.image ? button.image : button.GetComponent<Image>();
             if (frame)
             {
                 recorder.Record(frame);
