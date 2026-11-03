@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using RoR2;
 using TMPro;
 using UnityEngine;
@@ -5,8 +6,8 @@ using UnityEngine;
 namespace SevenUI
 {
     // The run info's right-hand text as on the design canvas: the run's difficulty by name in the accent, where the
-    // game draws its icon (an Eclipse run shows its level there, "Eclipse (3)"), and under it the stage and the
-    // monsters' level on one line. The game's stage and level labels stay in place, hidden, and the game keeps writing
+    // game draws its icon (an Eclipse run shows its level there, "Eclipse 3" without the game's brackets), and under it
+    // the stage and the monsters' level on one line. The game's stage and level labels stay in place, hidden, and the game keeps writing
     // them; this copies their text when it changes, so it is translated and agrees with them on host and client.
     //
     // The Karma icon, which the game shows beside the difficulty's icon when Karma is on for the run, is kept just left
@@ -14,6 +15,8 @@ namespace SevenUI
     internal sealed class RunInfoText : MonoBehaviour
     {
         private const string Separator = " · ";
+        // A level in brackets at the end of a difficulty's name, as in the Eclipse levels' "Eclipse (3)".
+        private static readonly Regex BracketedLevel = new Regex(@"\s*\((?<level>\d+)\)\s*$");
         // The design canvas's 8px, in the run info parts' units.
         private const float KarmaGap = 8f * RunInfoUnits.PerCanvasPixel;
 
@@ -42,7 +45,7 @@ namespace SevenUI
             {
                 shownDifficulty = difficulty;
                 DifficultyDef def = DifficultyCatalog.GetDifficultyDef(difficulty);
-                Difficulty.text = def != null ? Language.GetString(def.nameToken) : "";
+                Difficulty.text = Name(def);
                 changed = true;
             }
             string stage = GameStage ? GameStage.text : null;
@@ -66,6 +69,13 @@ namespace SevenUI
             {
                 PlaceKarma();
             }
+        }
+
+        // The difficulty's name as the run info shows it, with an Eclipse level's brackets taken off.
+        public static string Name(DifficultyDef def)
+        {
+            if (def == null) return "";
+            return BracketedLevel.Replace(Language.GetString(def.nameToken), " ${level}");
         }
 
         // Centered on the text's height, a gap left of its wider line. The icon sits in another part of the run info,

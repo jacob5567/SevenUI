@@ -574,7 +574,8 @@ namespace SevenUI.Tests
                     Bounds name = TextIn(space, text.Difficulty);
                     Bounds stage = TextIn(space, text.StageAndLevel);
                     DifficultyDef difficulty = DifficultyCatalog.GetDifficultyDef(Run.instance.selectedDifficulty);
-                    string expected = difficulty != null ? Language.GetString(difficulty.nameToken) : null;
+                    // The game's name, with an Eclipse level out of its brackets: "Eclipse (8)" shows as "Eclipse 8".
+                    string expected = difficulty != null ? Language.GetString(difficulty.nameToken).Replace("(", "").Replace(")", "") : null;
                     bool karmaShown = karma.holder && karma.holder.gameObject.activeInHierarchy;
                     Bounds karmaBounds = karma.image ? In(space, karma.image.rectTransform) : new Bounds();
                     look = $"name '{text.Difficulty.text}' (expected '{expected}') x {name.min.x:0}-{name.max.x:0}, " +
