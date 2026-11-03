@@ -42,6 +42,8 @@ namespace SevenUI.Tests
         private const string LookingGlassGUID = "droppod.lookingglass";
         private const string FullDescriptionSection = "Misc";
         private const string FullDescriptionKey = "Full Description in Hud";
+        private const string StatsKey = "Item Stats Calculations";
+        private const string StatTag = "<style=\"";
         // How far ahead the player's starting look is kept, and how long a teleport takes to land.
         private const float HomeLookDistance = 10f;
         private const float TeleportSettleSeconds = 0.2f;
@@ -154,6 +156,11 @@ namespace SevenUI.Tests
             if (full == null) throw h.Skip("full descriptions are LookingGlass's setting, and it is not installed");
             // LookingGlass reads it as the game sets a panel's options, so it is set before any picker opens.
             h.SetConfig(full, true);
+            ConfigEntry<bool> stats = LookingGlassSetting(StatsKey);
+            if (stats != null)
+            {
+                h.SetConfig(stats, true);
+            }
             PickupPickerController picker = null;
             yield return SpawnVoidPotential(h, spawned => picker = spawned);
             PickerPanel panel = null;
@@ -162,6 +169,12 @@ namespace SevenUI.Tests
             {
                 string missing = FullDescriptionMissing(card.Pickup, card.Description.text);
                 if (missing != null) throw h.Fail($"{Language.GetString(card.Pickup.nameToken)}'s card {missing}");
+                if (card.Description.text.Contains(StatTag)) throw h.Fail($"{Language.GetString(card.Pickup.nameToken)}'s card has the stats in its description");
+            }
+            // LookingGlass has stats for the void items, which go in their own section under a line.
+            if (stats != null && !panel.Buttons.Any(card => card.Stats != null && card.Stats.Shown))
+            {
+                throw h.Fail("no card shows LookingGlass's stats in their own section");
             }
             yield return h.Wait(SettleSeconds);
             yield return h.Screenshot("cards");
@@ -179,10 +192,12 @@ namespace SevenUI.Tests
             yield return h.Screenshot("grid");
         }
 
-        private static ConfigEntry<bool> FullDescriptionSetting()
+        private static ConfigEntry<bool> FullDescriptionSetting() => LookingGlassSetting(FullDescriptionKey);
+
+        private static ConfigEntry<bool> LookingGlassSetting(string key)
         {
             if (!Chainloader.PluginInfos.TryGetValue(LookingGlassGUID, out PluginInfo info) || !info.Instance) return null;
-            return info.Instance.Config.TryGetEntry(FullDescriptionSection, FullDescriptionKey, out ConfigEntry<bool> entry) ? entry : null;
+            return info.Instance.Config.TryGetEntry(FullDescriptionSection, key, out ConfigEntry<bool> entry) ? entry : null;
         }
 
         // Why a shown text is not the item's full description, or null: it has the full description and is not the short one.

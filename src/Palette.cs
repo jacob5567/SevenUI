@@ -69,5 +69,9 @@ namespace SevenUI
         public static readonly Color Divider = new Color(0.204f, 0.220f, 0.275f, 1f);
         // #e9d27a, the barrier, a strip along the top of the health bar.
         public static readonly Color Barrier = new Color(0.914f, 0.824f, 0.478f, 1f);
+        // rgba(8,9,12,0.92), the item tooltip's panel, with a header band of 8% #e7e9f0 over it and its text #c3c7d3.
+        public static readonly Color TooltipPanel = new Color(0.031f, 0.035f, 0.047f, 0.92f);
+        public static readonly Color TooltipHeader = new Color(0.906f, 0.914f, 0.941f, 0.08f);
+        public static readonly Color TooltipBody = new Color(0.765f, 0.780f, 0.827f, 1f);
     }
 }

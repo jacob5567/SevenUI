@@ -19,6 +19,9 @@ namespace SevenUI
         public PickupDef Pickup;
         // The option's description as the panel shows it (PickupDescriptions), chosen once when it is styled.
         public string DescriptionText = "";
+        // That description split from LookingGlass's stats, which a card shows in its own section under it.
+        public ItemStatsText.Parts Parts = new ItemStatsText.Parts();
+        public StatsSection Stats;
         public RectTransform Icon;
         public Image Outline;
         public TMP_Text Count;

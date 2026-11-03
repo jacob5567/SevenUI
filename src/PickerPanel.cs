@@ -94,6 +94,7 @@ namespace SevenUI
         private RectTransform divider;
         private TMP_Text detailsName;
         private TMP_Text detailsDescription;
+        private StatsSection detailsStats;
         private int detailsIndex = -1;
         private TMP_FontAsset shownFont;
         private PickerButton cancel;
@@ -147,6 +148,7 @@ namespace SevenUI
             divider = null;
             detailsName = null;
             detailsDescription = null;
+            detailsStats = null;
             detailsIndex = -1;
             shownFont = null;
             cancel = null;
@@ -401,6 +403,7 @@ namespace SevenUI
                 Button = button, Hover = button as HGButton, Pickup = pickup,
                 DescriptionText = PickupDescriptions.For(pickup, button, fullDescriptions),
             };
+            styled.Parts = ItemStatsText.Split(styled.DescriptionText);
             Image frame = button.image;
             if (frame)
             {
@@ -467,7 +470,9 @@ namespace SevenUI
             card.Name.fontStyle = FontStyles.Bold;
             card.Name.text = pickup != null ? Language.GetString(pickup.nameToken) : "";
             card.Description = AddText("Description", holder, DescriptionSize, Palette.HeaderText);
-            card.Description.text = card.DescriptionText;
+            card.Description.text = card.Parts.Description;
+            card.Stats = NewStats(holder);
+            card.Stats.Set(card.Parts);
             card.Outline = AddOutline(holder);
             return card;
         }
@@ -482,6 +487,7 @@ namespace SevenUI
             detailsName = AddText("Name", details, NameSize, Palette.Text);
             detailsName.fontStyle = FontStyles.Bold;
             detailsDescription = AddText("Description", details, DescriptionSize, Palette.HeaderText);
+            detailsStats = NewStats(details);
             detailsIndex = -1;
         }
 
@@ -492,7 +498,9 @@ namespace SevenUI
             PickupDef pickup = buttons[index].Pickup;
             detailsName.text = pickup != null ? Language.GetString(pickup.nameToken) : "";
             detailsName.color = TierColor(pickup);
-            detailsDescription.text = buttons[index].DescriptionText;
+            detailsDescription.text = buttons[index].Parts.Description;
+            detailsStats.Set(buttons[index].Parts);
+            Layout();
         }
 
         // Sizes the panel and places its parts, from the texts as measured in their current font.
@@ -515,12 +523,15 @@ namespace SevenUI
                     descriptionHeight = Mathf.Max(descriptionHeight, Measure(card.Description, textWidth));
                 }
                 float y = CardPadding + CardSlotSize + CardPartGap;
+                float statsTop = y + nameHeight + CardPartGap + descriptionHeight;
+                float statsHeight = 0f;
                 foreach (PickerButton card in buttons)
                 {
                     TopLeft(card.Name.rectTransform, CardPadding, y, textWidth, nameHeight);
                     TopLeft(card.Description.rectTransform, CardPadding, y + nameHeight + CardPartGap, textWidth, descriptionHeight);
+                    statsHeight = Mathf.Max(statsHeight, card.Stats.Layout(CardPadding, statsTop, textWidth));
                 }
-                float cardHeight = y + nameHeight + CardPartGap + descriptionHeight + CardPadding;
+                float cardHeight = statsTop + statsHeight + CardPadding;
                 float width = count * CardWidth + (count - 1) * CardGap;
                 grid.cellSize = new Vector2(CardWidth, cardHeight);
                 container.anchoredPosition = new Vector2(0f, -(titleHeight + CardGap));
@@ -551,15 +562,22 @@ namespace SevenUI
                 TopLeft(divider, PaddingX, y, textWidth, DividerHeight);
                 y += DividerHeight + DetailsGap;
                 float nameHeight = detailsName.GetPreferredValues("A").y;
-                float descriptionHeight = 0f;
+                // As tall as the tallest item's, so the panel keeps its size as the hovered item changes.
+                float detailsHeight = 0f;
                 foreach (PickerButton slot in buttons)
                 {
-                    descriptionHeight = Mathf.Max(descriptionHeight, detailsDescription.GetPreferredValues(slot.DescriptionText, textWidth, 0f).y);
+                    float description = detailsDescription.GetPreferredValues(slot.Parts.Description, textWidth, 0f).y;
+                    detailsStats.Set(slot.Parts);
+                    detailsHeight = Mathf.Max(detailsHeight, description + detailsStats.Layout(0f, 0f, textWidth));
                 }
+                ItemStatsText.Parts shown = detailsIndex >= 0 && detailsIndex < count ? buttons[detailsIndex].Parts : new ItemStatsText.Parts();
+                detailsStats.Set(shown);
+                float shownDescription = detailsDescription.GetPreferredValues(shown.Description, textWidth, 0f).y;
                 TopLeft(detailsName.rectTransform, PaddingX, y, textWidth, nameHeight);
                 y += nameHeight + NameGap;
-                TopLeft(detailsDescription.rectTransform, PaddingX, y, textWidth, descriptionHeight);
-                y += descriptionHeight + PaddingBottom;
+                TopLeft(detailsDescription.rectTransform, PaddingX, y, textWidth, shownDescription);
+                detailsStats.Layout(PaddingX, y + shownDescription, textWidth);
+                y += detailsHeight + PaddingBottom;
                 size = new Vector2(width, y);
             }
             mainPanel.anchorMin = mainPanel.anchorMax = new Vector2(0.5f, 0.5f);
@@ -625,6 +643,9 @@ namespace SevenUI
             rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0f, 1f);
             return text;
         }
+
+        private StatsSection NewStats(Transform holder) =>
+            new StatsSection(holder, title, Canvas, DescriptionSize, made => recorder.Add(made));
 
         private RectTransform NewImage(string name, Transform holder, Color color)
         {
