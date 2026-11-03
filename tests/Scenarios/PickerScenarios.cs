@@ -99,6 +99,7 @@ namespace SevenUI.Tests
             yield return new Scenario(1, "picker_command_single", Stages.TitanicPlains, CommandSingle);
             yield return new Scenario(1, "picker_descriptions_short", Stages.TitanicPlains, ShortDescriptions);
             yield return new Scenario(1, "picker_descriptions_full", Stages.TitanicPlains, FullDescriptions);
+            yield return new Scenario(1, "picker_descriptions_full_grid", Stages.TitanicPlains, FullDescriptionsGrid);
             foreach ((string name, string key) in GameNames.PickerPanels)
             {
                 yield return new Scenario(1, "picker_panel_" + name, Stages.TitanicPlains, h => OtherPanel(h, name, key));
@@ -149,7 +150,7 @@ namespace SevenUI.Tests
             yield return h.Screenshot("short");
         }
 
-        // With them on, the cards and a grid's details show each item's full description, as LookingGlass's tooltip does.
+        // With them on, the cards show each item's full description, as LookingGlass's tooltip does, and its stats apart.
         private static IEnumerator FullDescriptions(Harness h)
         {
             ConfigEntry<bool> full = FullDescriptionSetting();
@@ -178,7 +179,14 @@ namespace SevenUI.Tests
             }
             yield return h.Wait(SettleSeconds);
             yield return h.Screenshot("cards");
+        }
 
+        // The same in a grid's details. Its own scenario: the game opens no picker while another's panel is open.
+        private static IEnumerator FullDescriptionsGrid(Harness h)
+        {
+            ConfigEntry<bool> full = FullDescriptionSetting();
+            if (full == null) throw h.Skip("full descriptions are LookingGlass's setting, and it is not installed");
+            h.SetConfig(full, true);
             yield return GoHome(h);
             PickupPickerController command = h.SpawnPrefab<PickupPickerController>(GameNames.CommandCube);
             command.SetOptionsFromPickupForCommandArtifact(new UniquePickup(PickupCatalog.FindPickupIndex(ItemCatalog.FindItemIndex(GameNames.Syringe))));
