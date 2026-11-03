@@ -181,7 +181,8 @@ namespace SevenUI.Tests
             yield return h.Screenshot("cards");
         }
 
-        // The same in a grid's details. Its own scenario: the game opens no picker while another's panel is open.
+        // The same in a grid's details, which fit the hovered item. Its own scenario: the game opens no picker while
+        // another's panel is open.
         private static IEnumerator FullDescriptionsGrid(Harness h)
         {
             ConfigEntry<bool> full = FullDescriptionSetting();
@@ -198,7 +199,36 @@ namespace SevenUI.Tests
             if (detailsMissing != null) throw h.Fail($"the details for {Language.GetString(grid.Buttons[0].Pickup.nameToken)} {detailsMissing}");
             yield return h.Wait(SettleSeconds);
             yield return h.Screenshot("grid");
+
+            // The panel fits the hovered item's details: the item with the longest text makes it taller, with its top,
+            // and so the grid, where it was.
+            RectTransform main = grid.MainPanel;
+            float firstHeight = main.rect.height;
+            float firstTop = TopEdge(main);
+            int longest = Enumerable.Range(0, grid.Buttons.Count).OrderByDescending(i => grid.Buttons[i].DescriptionText.Length).First();
+            if (longest == 0) throw h.Skip("the first item has the longest description, so there is none longer to hover");
+            PickerButton hovered = grid.Buttons[longest];
+            hovered.Hover.hovering = true;
+            h.OnCleanup(() =>
+            {
+                if (hovered.Hover)
+                {
+                    hovered.Hover.hovering = false;
+                }
+            });
+            yield return h.Until(() => DetailsShow(grid, longest) && main.rect.height > firstHeight + SizeTolerance,
+                () => $"the panel is {main.rect.height:0.#} tall with {Language.GetString(hovered.Pickup.nameToken)}'s details, " +
+                      $"{firstHeight:0.#} with {Language.GetString(grid.Buttons[0].Pickup.nameToken)}'s");
+            if (Mathf.Abs(TopEdge(main) - firstTop) > SizeTolerance)
+            {
+                throw h.Fail($"the panel's top moved from {firstTop:0.#} to {TopEdge(main):0.#} as it grew");
+            }
+            yield return h.Wait(SettleSeconds);
+            yield return h.Screenshot("grid_longest");
         }
+
+        // A rect's top edge in its parent's space.
+        private static float TopEdge(RectTransform rect) => rect.anchoredPosition.y + (1f - rect.pivot.y) * rect.rect.height;
 
         private static ConfigEntry<bool> FullDescriptionSetting() => LookingGlassSetting(FullDescriptionKey);
 

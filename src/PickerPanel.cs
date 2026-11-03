@@ -512,6 +512,8 @@ namespace SevenUI
             RectTransform container = panel.buttonContainer;
             GridLayoutGroup grid = panel.gridlayoutGroup;
             Vector2 size;
+            // How far above the screen's middle the panel's top sits.
+            float top;
             if (Cards)
             {
                 float textWidth = CardWidth - 2f * CardPadding;
@@ -541,6 +543,7 @@ namespace SevenUI
                     TopLeft(title.rectTransform, 0f, 0f, width, titleHeight);
                 }
                 size = new Vector2(width, titleHeight + CardGap + cardHeight);
+                top = size.y / 2f;
             }
             else
             {
@@ -562,7 +565,8 @@ namespace SevenUI
                 TopLeft(divider, PaddingX, y, textWidth, DividerHeight);
                 y += DividerHeight + DetailsGap;
                 float nameHeight = detailsName.GetPreferredValues("A").y;
-                // As tall as the tallest item's, so the panel keeps its size as the hovered item changes.
+                // The panel fits the hovered item's details. Its top stays where it would be for the tallest item's,
+                // centered on the screen, so the grid keeps its place and only the bottom moves as the item changes.
                 float detailsHeight = 0f;
                 foreach (PickerButton slot in buttons)
                 {
@@ -576,13 +580,13 @@ namespace SevenUI
                 TopLeft(detailsName.rectTransform, PaddingX, y, textWidth, nameHeight);
                 y += nameHeight + NameGap;
                 TopLeft(detailsDescription.rectTransform, PaddingX, y, textWidth, shownDescription);
-                detailsStats.Layout(PaddingX, y + shownDescription, textWidth);
-                y += detailsHeight + PaddingBottom;
-                size = new Vector2(width, y);
+                float shownStats = detailsStats.Layout(PaddingX, y + shownDescription, textWidth);
+                size = new Vector2(width, y + shownDescription + shownStats + PaddingBottom);
+                top = (y + detailsHeight + PaddingBottom) / 2f;
             }
             mainPanel.anchorMin = mainPanel.anchorMax = new Vector2(0.5f, 0.5f);
-            mainPanel.pivot = new Vector2(0.5f, 0.5f);
-            mainPanel.anchoredPosition = Vector2.zero;
+            mainPanel.pivot = new Vector2(0.5f, 1f);
+            mainPanel.anchoredPosition = new Vector2(0f, top);
             mainPanel.sizeDelta = size;
         }
 
