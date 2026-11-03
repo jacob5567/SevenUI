@@ -197,7 +197,7 @@ namespace SevenUI.Tests
             PickerPanel grid = null;
             yield return OpenStyled(h, command, found => grid = found);
             if (grid.Cards) throw h.Fail($"{grid.Buttons.Count} options are cards, not a grid");
-            yield return h.Until(() => DetailsShow(grid, 0), () => $"the details show \"{grid.DetailsNameText.text}\", not the first item");
+            yield return h.Until(() => DetailsShow(grid, 0), () => $"the details show {DetailsLook(grid)}, not the first item");
             string detailsMissing = FullDescriptionMissing(grid.Buttons[0].Pickup, grid.DetailsDescriptionText.text);
             if (detailsMissing != null) throw h.Fail($"the details for {Language.GetString(grid.Buttons[0].Pickup.nameToken)} {detailsMissing}");
             yield return h.Wait(SettleSeconds);
@@ -434,7 +434,7 @@ namespace SevenUI.Tests
             else
             {
                 yield return h.Until(() => GridAsCanvas(panel) == null, () => GridAsCanvas(panel));
-                yield return h.Until(() => DetailsShow(panel, 0), () => $"the details show \"{panel.DetailsNameText.text}\", not the first item");
+                yield return h.Until(() => DetailsShow(panel, 0), () => $"the details show {DetailsLook(panel)}, not the first item");
             }
             yield return h.Wait(SettleSeconds);
             string shown = ShownAsStyled(panel);
@@ -600,6 +600,17 @@ namespace SevenUI.Tests
             h.Teleport(home);
             yield return h.Wait(TeleportSettleSeconds);
             yield return h.AimAt(homeLook);
+        }
+
+        // What the details show and why, for a failure: the option they name, by its place, and any option the game
+        // counts as hovered, which the details follow (the real pointer resting on the grid, or a gamepad's selection).
+        private static string DetailsLook(PickerPanel panel)
+        {
+            string name = panel.DetailsNameText ? panel.DetailsNameText.text : "";
+            int shown = panel.Buttons.ToList().FindIndex(option => option.Pickup != null && Language.GetString(option.Pickup.nameToken) == name);
+            string hovered = string.Join(", ", panel.Buttons.Select((option, i) => (option, i)).Where(entry => entry.option.Hovered)
+                .Select(entry => $"{entry.i} ({Language.GetString(entry.option.Pickup.nameToken)})"));
+            return $"\"{name}\" (option {shown} of {panel.Buttons.Count}; hovered: {(hovered.Length > 0 ? hovered : "none")})";
         }
 
         private static bool DetailsShow(PickerPanel panel, int index) =>
