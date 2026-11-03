@@ -743,8 +743,9 @@ namespace SevenUI.Tests
             return keys.Zip(actions, (key, action) => (key, action)).ToList();
         }
 
-        // With a prompt showing: each key a keycap on the slot grey, its label in Barlow with its letters centered on
-        // the keycap's face, and the actions starting at one x, however wide their keys.
+        // With a prompt showing: each key a keycap on the slot grey, its label in Barlow without the HUD text's drop
+        // shadow and with its letters centered on the keycap's face, and the actions starting at one x, however wide
+        // their keys.
         public static IEnumerator ExpectPromptKeys(this Harness h)
         {
             ContextManager prompt = null;
@@ -769,8 +770,10 @@ namespace SevenUI.Tests
                         float lettersMiddle = face.rectTransform.InverseTransformPoint(glyph.transform.TransformPoint(letters.center)).y;
                         float offCenter = lettersMiddle - face.rectTransform.rect.center.y;
                         string font = glyph.font ? glyph.font.name : "none";
-                        parts.Add($"'{glyph.text}' font {font} face {face.color} {offCenter:0.##} off center, action '{action.text}' at x {action.rectTransform.anchoredPosition.x:0.#}");
-                        good &= Near(face.color, Palette.ItemSlot) && font.Contains("Barlow") && Mathf.Abs(offCenter) < CenterTolerance &&
+                        Material material = glyph.fontSharedMaterial;
+                        bool shadow = material && material.IsKeywordEnabled(ShaderUtilities.Keyword_Underlay);
+                        parts.Add($"'{glyph.text}' font {font} shadow {shadow} face {face.color} {offCenter:0.##} off center, action '{action.text}' at x {action.rectTransform.anchoredPosition.x:0.#}");
+                        good &= Near(face.color, Palette.ItemSlot) && font.Contains("Barlow") && !shadow && Mathf.Abs(offCenter) < CenterTolerance &&
                                 Mathf.Abs(action.rectTransform.anchoredPosition.x - actionX) < CenterTolerance;
                     }
                     look = string.Join("; ", parts);

@@ -224,14 +224,15 @@ namespace SevenUI
         }
 
         // The game draws its key glyphs in a font the font swap leaves alone, so the keys take the actions' font, Barlow
-        // once it is swapped, keeping their own sprites for a gamepad's buttons.
+        // once it is swapped, keeping their own sprites for a gamepad's buttons. Without the actions' drop shadow: the
+        // label sits on the keycap's face, not over the stage.
         private void MatchKeyFonts()
         {
             foreach (Row row in rows)
             {
-                if (!row.Action.font) continue;
+                if (!row.Action.font || !row.Action.fontSharedMaterial) continue;
                 row.Key.font = row.Action.font;
-                row.Key.fontSharedMaterial = row.Action.fontSharedMaterial;
+                row.Key.fontSharedMaterial = FontLibrary.WithoutShadow(row.Action.fontSharedMaterial);
             }
         }
 

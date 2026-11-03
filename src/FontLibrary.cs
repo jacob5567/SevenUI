@@ -26,6 +26,7 @@ namespace SevenUI
         private static TMP_FontAsset condensed;
         private static readonly Dictionary<(Material, TMP_FontAsset), Material> RetargetedMaterials =
             new Dictionary<(Material, TMP_FontAsset), Material>();
+        private static readonly Dictionary<Material, Material> ShadowlessMaterials = new Dictionary<Material, Material>();
 
         // Barlow Medium with Barlow SemiBold as its bold and Barlow Medium Italic as its italic, or null if baking
         // failed. The template material is a game font's, so the baked asset's own material uses the game's text shader.
@@ -73,6 +74,23 @@ namespace SevenUI
             {
                 material = FontBaker.RetargetMaterial(source, font);
                 RetargetedMaterials[(source, font)] = material;
+            }
+            return material;
+        }
+
+        // A copy of a text material without the game's drop shadow, which TMP draws as an underlay, for text on a face of
+        // its own such as a prompt's key.
+        public static Material WithoutShadow(Material source)
+        {
+            if (!ShadowlessMaterials.TryGetValue(source, out Material material) || !material)
+            {
+                material = new Material(source) { name = source.name + " (no shadow)" };
+                material.DisableKeyword(ShaderUtilities.Keyword_Underlay);
+                if (material.HasProperty(ShaderUtilities.ID_UnderlayColor))
+                {
+                    material.SetColor(ShaderUtilities.ID_UnderlayColor, Color.clear);
+                }
+                ShadowlessMaterials[source] = material;
             }
             return material;
         }
