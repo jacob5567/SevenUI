@@ -13,6 +13,6 @@
 - Item pickers (Command, the potentials and the like) are flat: a few options as cards with their descriptions, more as a grid of large slots with the hovered item's description under it.
 - Ally cards are flat panels with flat health bars, and buff counts are bold.
 - Items sit on dark slots with their tier's color along the bottom, and stack counts are text.
-- The skill and equipment slots are flat, with a top-down cooldown cover and small grey key labels. The scoreboard and sprint buttons have flat icons.
+- The skill and equipment slots are flat, with a top-down cooldown cover and small grey key labels. The scoreboard and sprint buttons have flat icons, and the tutorial popups over them are dark panels.
 - The run info is one flat translucent panel with the timer first, with a thin bar and the difficulty's name in place of the scrolling difficulty segments. Eclipse levels read "Eclipse 3", and Karma is a row of eight segments under the bar.
 - The objective, artifact and LookingGlass stats panels are flat translucent panels, and the objective panel has a header strip.

@@ -168,6 +168,7 @@ namespace SevenUI.Tests
             yield return h.ExpectSkillSlotsFlat();
             yield return h.ExpectExtraKeysPlain();
             yield return h.ExpectExtraIconsFlat();
+            yield return h.ExpectTutorialPopupsFlat();
             yield return h.ExpectSlotsSkillSized();
             yield return h.ExpectSkillRowAsCanvas();
             yield return h.ExpectUtilityAreaFollowsRow();

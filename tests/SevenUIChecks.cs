@@ -431,6 +431,44 @@ namespace SevenUI.Tests
                 () => $"flat scoreboard and sprint icons ({look}) {h.Diagnosis()}");
         }
 
+        // The tutorial popups that the game hasn't destroyed (it does once their tip is used), each a dark panel with
+        // an accent strip, white text and an arrow in the panel's color. They are styled whether or not they show.
+        public static IEnumerator ExpectTutorialPopupsFlat(this Harness h)
+        {
+            HUDTutorialController tutorials = HudRoot(h).GetComponentInChildren<HUDTutorialController>(true);
+            if (!tutorials) throw h.Skip("the HUD has no tutorial popups");
+            GameObject[] popups =
+                { tutorials.equipmentTutorialObject, tutorials.sprintTutorialObject, tutorials.remoteOpTutorialObject };
+            string look = "";
+            yield return h.Until(
+                () =>
+                {
+                    List<GameObject> present = popups.Where(popup => popup).ToList();
+                    look = string.Join("; ", present.Select(PopupLook));
+                    return present.Count > 0 && present.All(IsPopupFlat);
+                },
+                () => $"flat tutorial popups ({look}) {h.Diagnosis()}");
+        }
+
+        private static bool IsPopupFlat(GameObject popup)
+        {
+            Image panel = popup.GetComponent<Image>();
+            Image strip = popup.transform.Find(TutorialPopups.StripName)?.GetComponent<Image>();
+            Image arrow = popup.transform.Find("TutorialArrow")?.GetComponent<Image>();
+            TMP_Text text = popup.GetComponentInChildren<TMP_Text>(true);
+            return panel && Near(panel.color, Palette.TooltipPanel) && strip && Near(strip.color, Palette.Accent) &&
+                   (!arrow || Near(arrow.color, Palette.TooltipPanel)) && text && Near(text.color, Palette.Text);
+        }
+
+        private static string PopupLook(GameObject popup)
+        {
+            Image panel = popup.GetComponent<Image>();
+            TMP_Text text = popup.GetComponentInChildren<TMP_Text>(true);
+            return $"{popup.name}: panel {(panel ? panel.color.ToString() : "none")}, " +
+                   $"strip {(popup.transform.Find(TutorialPopups.StripName) ? "yes" : "no")}, " +
+                   $"text {(text ? text.color.ToString() : "none")}";
+        }
+
         private static string IconLook(Image icon) =>
             icon ? $"sprite {(icon.sprite ? icon.sprite.name : "none")} color {icon.color}" : "missing";
 

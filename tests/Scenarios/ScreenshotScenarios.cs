@@ -80,6 +80,7 @@ namespace SevenUI.Tests
             yield return Shot("eclipse_and_karma", EclipseAndKarma);
             yield return Shot("interaction_prompt", InteractionPrompt);
             yield return Shot("lunar_pod_prompt", LunarPodPrompt);
+            yield return Shot("tutorial_popups", TutorialPopupsShown);
             yield return Shot("pickup_notification", PickupNotification);
             yield return Shot("trial_objectives", TrialObjectives);
             yield return Shot("ally_cards", AllyCards);
@@ -241,6 +242,29 @@ namespace SevenUI.Tests
             PurchaseInteraction pod = null;
             yield return h.Spawned<PurchaseInteraction>($"{Commands.SpawnInteractable} {GameNames.LunarPod}", found => pod = found);
             yield return h.StandBefore(pod.gameObject);
+            yield return h.Wait(SettleSeconds);
+            yield return h.CaptureLooks();
+        }
+
+        // The game shows the sprint popup after half a minute without sprinting, and the equipment popup on a first
+        // equipment, each once per profile; here they are turned on directly, and off at cleanup unless the game has
+        // destroyed them.
+        private static IEnumerator TutorialPopupsShown(Harness h)
+        {
+            HUDTutorialController tutorials = SevenUIChecks.HudRoot(h).GetComponentInChildren<HUDTutorialController>(true);
+            if (!tutorials) throw h.Skip("the HUD has no tutorial popups");
+            GameObject[] shown = { tutorials.sprintTutorialObject, tutorials.equipmentTutorialObject };
+            foreach (GameObject popup in shown.Where(popup => popup))
+            {
+                popup.SetActive(true);
+            }
+            h.OnCleanup(() =>
+            {
+                foreach (GameObject popup in shown.Where(popup => popup))
+                {
+                    popup.SetActive(false);
+                }
+            });
             yield return h.Wait(SettleSeconds);
             yield return h.CaptureLooks();
         }

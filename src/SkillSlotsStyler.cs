@@ -13,7 +13,8 @@ namespace SevenUI
     // ready outline in its own color, a top-down cooldown cover in place of the radial overlay, cooldowns and stocks in
     // Barlow Condensed with the stocks in their slots' bottom-right corners (CornerStock), and the key labels (the
     // slots' and the inventory and sprint buttons') as small grey capitals without their dark plates, and the scoreboard
-    // and sprint buttons' icons as flat strokes (FlatIcons). The game keeps running the slots.
+    // and sprint buttons' icons as flat strokes (FlatIcons), with the tutorial popups above them as dark panels
+    // (TutorialPopups). The game keeps running the slots.
     internal sealed class SkillSlotsStyler
     {
         private const string ClusterPath = "MainContainer/MainUIArea/SpringCanvas/BottomRightCluster";
@@ -93,6 +94,7 @@ namespace SevenUI
                 StyleIcon(extraButtons.Find(ScoreboardIconPath), FlatIcons.Scoreboard);
                 StyleIcon(extraButtons.Find(SprintIconPath), FlatIcons.Sprint);
             }
+            TutorialPopups.Style(hud, row, recorder);
             cluster.GetComponentsInChildren(true, keyItems);
             foreach (KeyItemIcon slot in keyItems)
             {
