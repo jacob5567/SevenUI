@@ -452,6 +452,19 @@ namespace SevenUI.Tests
             yield return h.StandBefore(picker.gameObject, StandDistance);
             Interactor interactor = Harness.LocalBody.GetComponent<Interactor>();
             if (!interactor) throw h.Fail("the player body has no Interactor");
+            // Every panel this opens is closed afterwards, set up before opening: the game can make a panel and then
+            // throw while filling it in, and a panel left open would cover the scenarios after.
+            HashSet<PickupPickerPanel> before = new HashSet<PickupPickerPanel>(Object.FindObjectsOfType<PickupPickerPanel>());
+            h.OnCleanup(() =>
+            {
+                foreach (PickupPickerPanel made in Object.FindObjectsOfType<PickupPickerPanel>())
+                {
+                    if (!before.Contains(made))
+                    {
+                        Close(made);
+                    }
+                }
+            });
             try
             {
                 picker.OnInteractionBegin(interactor);
@@ -461,21 +474,21 @@ namespace SevenUI.Tests
                 throw h.Skip($"the game could not open the panel from a Command cube: {exception.GetType().Name} {exception.Message}");
             }
             yield return h.Until(() => picker.panelInstanceController, "the picker's panel", OpenTimeout);
-            PickupPickerPanel opened = picker.panelInstanceController;
-            h.OnCleanup(() =>
+            found(picker.panelInstanceController);
+        }
+
+        private static void Close(PickupPickerPanel panel)
+        {
+            if (!panel) return;
+            // The game's tooltip follows the selected button, and reads it after it is destroyed unless deselected.
+            foreach (MPEventSystem events in MPEventSystem.readOnlyInstancesList)
             {
-                if (!opened) return;
-                // The game's tooltip follows the selected button, and reads it after it is destroyed unless deselected.
-                foreach (MPEventSystem events in MPEventSystem.readOnlyInstancesList)
+                if (events && events.currentSelectedGameObject && events.currentSelectedGameObject.transform.IsChildOf(panel.transform))
                 {
-                    if (events && events.currentSelectedGameObject && events.currentSelectedGameObject.transform.IsChildOf(opened.transform))
-                    {
-                        events.SetSelectedGameObject(null);
-                    }
+                    events.SetSelectedGameObject(null);
                 }
-                Object.Destroy(opened.gameObject);
-            });
-            found(opened);
+            }
+            Object.Destroy(panel.gameObject);
         }
 
         private static IEnumerator OpenStyled(Harness h, PickupPickerController picker, Action<PickerPanel> found)
