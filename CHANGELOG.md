@@ -9,7 +9,8 @@
 - Money and the boss bar are flat, and the item bar and money lose their frames.
 - The interaction prompt and pickup notifications are flat panels.
 - The scoreboard and the chat's input field are flat.
-- Tooltips of HUD items, skills and equipment use Barlow, with a bold title and no outline.
+- Tooltips of HUD items, skills and equipment are flat, with the item's tier color along the top, its stack count beside its name, and LookingGlass's item stats in their own section.
+- Item pickers (Command, the potentials and the like) are flat: a few options as cards with their descriptions, more as a grid of large slots with the hovered item's description under it.
 - Ally cards are flat panels with flat health bars, and buff counts are bold.
 - Items sit on dark slots with their tier's color along the bottom, and stack counts are text.
 - The skill and equipment slots are flat, with a top-down cooldown cover and small grey key labels.
