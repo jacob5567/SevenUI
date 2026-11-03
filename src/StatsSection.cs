@@ -8,8 +8,9 @@ namespace SevenUI
 {
     // LookingGlass's item stats under a description, as on the canvas's item tooltip: a 1px line 8px below the text,
     // then, 8px under it, a row per stat with its name on the left and its value on the right in the accent color.
-    // A picker's "With another stack, you will have:" goes above the rows. Laid out by hand from its parent's top
-    // left, so the tooltip and the pickers can both place it.
+    // A picker's "With another stack, you will have:" goes above the rows, italic and dimmer, so it reads as a note on
+    // the rows rather than one of them. Laid out by hand from its parent's top left, so the tooltip and the pickers
+    // can both place it.
     internal sealed class StatsSection
     {
         public const string SectionName = "SevenUIStats";
@@ -46,7 +47,8 @@ namespace SevenUI
             Image line = divider.gameObject.AddComponent<Image>();
             line.color = Palette.Divider;
             line.raycastTarget = false;
-            caption = NewText("Caption", Palette.HeaderText, TextAlignmentOptions.TopLeft);
+            caption = NewText("Caption", Palette.HeaderSubtle, TextAlignmentOptions.TopLeft);
+            caption.fontStyle = FontStyles.Italic;
             Root.gameObject.SetActive(false);
         }
 
