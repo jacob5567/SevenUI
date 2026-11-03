@@ -766,7 +766,41 @@ namespace SevenUI.Tests
 
         private static string OverlaysLook(Image board, Image input) =>
             $"board sprite={(board ? (board.sprite ? board.sprite.name : "none") : "-")}, " +
-            $"chat input sprite={(input ? (input.sprite ? input.sprite.name : "none") : "-")}";
+            $"chat input sprite={(input ? (input.sprite ? input.sprite.name : "none") : "-")} " +
+            $"color={(input ? input.color.ToString() : "-")}, {ChatInputLook(input)}";
+
+        private static string ChatInputLook(Image input)
+        {
+            Image outline = input ? input.transform.Find(ChatStyler.OutlineName)?.GetComponent<Image>() : null;
+            Image edge = input ? input.transform.Find(ChatStyler.EdgeName)?.GetComponent<Image>() : null;
+            return $"field {(input ? (input.enabled ? "shown" : "hidden") : "-")}, " +
+                   $"outline {(outline ? (outline.enabled ? "on " : "off ") + outline.color : "missing")}, " +
+                   $"edge {(edge ? (edge.enabled ? "on " : "off ") + edge.color + " " + edge.rectTransform.rect.width.ToString("0.#") + " wide" : "missing")}";
+        }
+
+        // While typing: the field is shown with its grey outline and the accent strip down its left edge, 2 canvas pixels
+        // wide; once the input closes, the outline and the strip go with the field.
+        public static IEnumerator ExpectChatInputOutlined(this Harness h, bool typing)
+        {
+            Image input = null;
+            yield return h.Until(
+                () =>
+                {
+                    input = ChatInput(h);
+                    Image outline = input ? input.transform.Find(ChatStyler.OutlineName)?.GetComponent<Image>() : null;
+                    Image edge = input ? input.transform.Find(ChatStyler.EdgeName)?.GetComponent<Image>() : null;
+                    if (!outline || !edge) return false;
+                    bool shown = input.enabled && input.gameObject.activeInHierarchy;
+                    if (!typing) return !shown || (!outline.enabled && !edge.enabled);
+                    return shown && outline.enabled && edge.enabled && Near(outline.color, Palette.Divider) && outline.sprite &&
+                           Near(edge.color, Palette.Accent) &&
+                           Mathf.Abs(edge.rectTransform.rect.width - 2f * HudUnits.PerCanvasPixel) < ChatEdgeTolerance;
+                },
+                () => $"the chat input {(typing ? "outlined while typing" : "hidden with its outline once closed")} " +
+                      $"({ChatInputLook(input)}) {h.Diagnosis()}");
+        }
+
+        private const float ChatEdgeTolerance = 0.1f;
 
         public static IEnumerator ExpectOverlaysFlat(this Harness h)
         {
@@ -778,7 +812,8 @@ namespace SevenUI.Tests
                     board = ScoreboardBoard(h);
                     input = ChatInput(h);
                     return board && !board.sprite && Near(board.color, Palette.ScoreboardPanel) &&
-                           input && !input.sprite && Near(input.color, Palette.ScoreboardPanel);
+                           input && !input.sprite && Near(input.color, Palette.GhostButton) &&
+                           input.transform.Find(ChatStyler.OutlineName) && input.transform.Find(ChatStyler.EdgeName);
                 },
                 () => $"a flat scoreboard and chat input ({OverlaysLook(board, input)}) {h.Diagnosis()}");
         }
@@ -792,7 +827,8 @@ namespace SevenUI.Tests
                 {
                     board = ScoreboardBoard(h);
                     input = ChatInput(h);
-                    return board && board.sprite && input && input.sprite;
+                    return board && board.sprite && input && input.sprite &&
+                           !input.transform.Find(ChatStyler.OutlineName) && !input.transform.Find(ChatStyler.EdgeName);
                 },
                 () => $"the game's scoreboard and chat input back ({OverlaysLook(board, input)}) {h.Diagnosis()}");
         }

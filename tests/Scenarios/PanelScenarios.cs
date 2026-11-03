@@ -18,6 +18,8 @@ namespace SevenUI.Tests
         private const int ChestMoney = 1000;
         // The game counts the shown amount up over about this long.
         private const float CountUpSeconds = 3f;
+        // Long enough for the chat's input to fade in before its screenshot.
+        private const float ChatSettleSeconds = 0.3f;
         // The Trial of Infernal Greed's texts.
         private const string TrialNameToken = "QUEST_TRIAL_SADISMMONEY_NAME";
         private const string TrialDescriptionToken = "QUEST_TRIAL_SADISMMONEY_DESC";
@@ -47,6 +49,7 @@ namespace SevenUI.Tests
             yield return new Scenario(1, "prompt_is_flat", Stages.TitanicPlains, PromptIsFlat);
             yield return new Scenario(1, "prompt_as_canvas", Stages.TitanicPlains, PromptAsCanvas);
             yield return new Scenario(1, "scoreboard_and_chat_are_flat", Stages.TitanicPlains, ScoreboardAndChatAreFlat);
+            yield return new Scenario(1, "chat_input_outlined", Stages.TitanicPlains, ChatInputOutlined);
             yield return new Scenario(1, "protection_striped_on_player", Stages.TitanicPlains, ProtectionStripedOnPlayer);
             yield return new Scenario(1, "protection_tinted_with_infusion", Stages.TitanicPlains, ProtectionTintedWithInfusion);
             yield return new Scenario(1, "protection_striped_on_allies", Stages.TitanicPlains, ProtectionStripedOnAllies);
@@ -286,6 +289,28 @@ namespace SevenUI.Tests
         private static IEnumerator ScoreboardAndChatAreFlat(Harness h)
         {
             yield return h.ExpectOverlaysFlat();
+        }
+
+        // The chat's input, opened as the chat key does: outlined with the accent strip while typing, and the outline
+        // and strip gone with the field once it closes.
+        private static IEnumerator ChatInputOutlined(Harness h)
+        {
+            SevenUIController controller = SevenUIChecks.Controller;
+            ChatBox chat = controller ? controller.GetComponentInChildren<ChatBox>(true) : null;
+            if (!chat) throw h.Fail($"the HUD has no chat box {h.Diagnosis()}");
+            chat.SetShowInput(true);
+            h.OnCleanup(() =>
+            {
+                if (chat)
+                {
+                    chat.SetShowInput(false);
+                }
+            });
+            yield return h.ExpectChatInputOutlined(true);
+            yield return h.Wait(ChatSettleSeconds);
+            yield return h.Screenshot("typing");
+            chat.SetShowInput(false);
+            yield return h.ExpectChatInputOutlined(false);
         }
 
         private static IEnumerator ObjectivePanelIsFlat(Harness h)

@@ -8,7 +8,7 @@
 - The health and experience bars are flat, the barrier is a strip along the top of the health bar, and the health numbers are text instead of sprite digits.
 - Money and the boss bar are flat, and the item bar and money lose their frames.
 - The interaction prompt and pickup notifications are flat panels.
-- The scoreboard and the chat's input field are flat.
+- The scoreboard is flat, and the chat's input field is outlined with an accent strip at its left.
 - Tooltips of HUD items, skills and equipment are flat, with the item's tier color along the top, its stack count beside its name, and LookingGlass's item stats in their own section.
 - Item pickers (Command, the potentials and the like) are flat: a few options as cards with their descriptions, more as a grid of large slots with the hovered item's description under it.
 - Ally cards are flat panels with flat health bars, and buff counts are bold.
