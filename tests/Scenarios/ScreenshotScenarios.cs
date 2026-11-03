@@ -79,6 +79,7 @@ namespace SevenUI.Tests
             yield return Shot("ntormat_pages", NtormatPages);
             yield return Shot("eclipse_and_karma", EclipseAndKarma);
             yield return Shot("interaction_prompt", InteractionPrompt);
+            yield return Shot("lunar_pod_prompt", LunarPodPrompt);
             yield return Shot("pickup_notification", PickupNotification);
             yield return Shot("trial_objectives", TrialObjectives);
             yield return Shot("ally_cards", AllyCards);
@@ -216,6 +217,19 @@ namespace SevenUI.Tests
             PurchaseInteraction chest = null;
             yield return h.Spawned<PurchaseInteraction>($"{Commands.SpawnInteractable} {GameNames.SmallChest}", found => chest = found);
             yield return h.StandBefore(chest.gameObject);
+            yield return h.Wait(SettleSeconds);
+            yield return h.CaptureLooks();
+        }
+
+        // A cost in lunar coins, with the top left's coins in the same shot. The coins are the profile's own; without
+        // one the game shows no action.
+        private static IEnumerator LunarPodPrompt(Harness h)
+        {
+            NetworkUser user = NetworkUser.readOnlyLocalPlayersList.FirstOrDefault();
+            if (!user || user.lunarCoins < 1) throw h.Skip("the profile has no lunar coin, which the Lunar Pod's prompt needs");
+            PurchaseInteraction pod = null;
+            yield return h.Spawned<PurchaseInteraction>($"{Commands.SpawnInteractable} {GameNames.LunarPod}", found => pod = found);
+            yield return h.StandBefore(pod.gameObject);
             yield return h.Wait(SettleSeconds);
             yield return h.CaptureLooks();
         }

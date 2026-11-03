@@ -782,6 +782,38 @@ namespace SevenUI.Tests
                 () => $"the prompt's keys as keycaps ({look}; {PromptLook(prompt)}) {h.Diagnosis()}");
         }
 
+        // With a prompt for something bought with lunar coins: the flat coin between the action and the number, in the
+        // coins' blue and centered on the row, and the game's coin sprite gone from the number.
+        public static IEnumerator ExpectPromptCoin(this Harness h)
+        {
+            ContextManager prompt = null;
+            string look = "no coin";
+            yield return h.Until(
+                () =>
+                {
+                    prompt = Prompt(h);
+                    RectTransform panel = PromptPanel(prompt);
+                    if (!panel || !panel.gameObject.activeSelf) return false;
+                    Image coin = panel.Find(Texts.PromptCoinName)?.GetComponent<Image>();
+                    TMP_Text action = panel.Find(Texts.PromptActionName)?.GetComponent<TMP_Text>();
+                    TMP_Text cost = panel.Find(Texts.PromptCostName)?.GetComponent<TMP_Text>();
+                    RectTransform key = panel.Find(Texts.PromptKeyName) as RectTransform;
+                    if (!coin || !action || !cost || !key) return false;
+                    Rect coinRect = coin.rectTransform.rect;
+                    float coinLeft = coin.rectTransform.anchoredPosition.x;
+                    float coinMiddle = coin.rectTransform.anchoredPosition.y - coinRect.height / 2f;
+                    float rowMiddle = key.anchoredPosition.y - key.rect.height / 2f;
+                    float actionRight = action.rectTransform.anchoredPosition.x + action.rectTransform.rect.width;
+                    float costLeft = cost.rectTransform.anchoredPosition.x;
+                    look = $"coin active {coin.gameObject.activeSelf}, color {coin.color}, x {coinLeft:0.#}-{coinLeft + coinRect.width:0.#}, " +
+                           $"{coinMiddle - rowMiddle:0.##} off the row's middle, action ends {actionRight:0.#}, cost '{cost.text}' at {costLeft:0.#}";
+                    return coin.gameObject.activeSelf && coin.sprite == FlatSprite.LunarCoin && Near(coin.color, Palette.LunarCoin) &&
+                           !cost.text.Contains("<sprite") && coinLeft > actionRight && coinLeft + coinRect.width <= costLeft &&
+                           Mathf.Abs(coinMiddle - rowMiddle) < CenterTolerance;
+                },
+                () => $"the prompt's cost with the flat lunar coin ({look}; {PromptLook(prompt)}) {h.Diagnosis()}");
+        }
+
         // With a prompt showing: the strip along the panel's top in the color named.
         public static IEnumerator ExpectPromptStrip(this Harness h, Color expected, string what)
         {

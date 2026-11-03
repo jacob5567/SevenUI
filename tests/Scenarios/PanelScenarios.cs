@@ -51,6 +51,8 @@ namespace SevenUI.Tests
             yield return new Scenario(1, "prompt_strip_health", Stages.TitanicPlains, PromptStripHealth);
             yield return new Scenario(1, "prompt_strip_equipment", Stages.TitanicPlains, PromptStripEquipment);
             yield return new Scenario(1, "prompt_strip_free", Stages.TitanicPlains, PromptStripFree);
+            yield return new Scenario(1, "prompt_lunar_cost", Stages.TitanicPlains, PromptLunarCost);
+            yield return new Scenario(1, "lunar_coin_flat", Stages.TitanicPlains, LunarCoinFlat);
             yield return new Scenario(1, "scoreboard_and_chat_are_flat", Stages.TitanicPlains, ScoreboardAndChatAreFlat);
             yield return new Scenario(1, "chat_input_outlined", Stages.TitanicPlains, ChatInputOutlined);
             yield return new Scenario(1, "protection_striped_on_player", Stages.TitanicPlains, ProtectionStripedOnPlayer);
@@ -228,6 +230,12 @@ namespace SevenUI.Tests
             yield return h.ExpectCurrenciesInRow();
         }
 
+        // The lunar coins' sign alone, so a profile without coins skips only this.
+        private static IEnumerator LunarCoinFlat(Harness h)
+        {
+            yield return h.ExpectLunarCoinFlat();
+        }
+
         // A stack and a single item, then more of the single item, so a count appears on an icon already restyled.
         private static IEnumerator ItemIconsAreFlat(Harness h)
         {
@@ -274,6 +282,19 @@ namespace SevenUI.Tests
             yield return h.StandBefore(pickup.gameObject);
             yield return h.ExpectPromptStrip(Palette.Equipment, "equipment");
             yield return h.ExpectPromptKeys();
+        }
+
+        // A Lunar Pod's cost: the flat coin before the number, in the coins' blue, as is the strip. Lunar coins are kept
+        // in the player's profile, so the test uses the profile's own and skips without one rather than adding any.
+        private static IEnumerator PromptLunarCost(Harness h)
+        {
+            NetworkUser user = NetworkUser.readOnlyLocalPlayersList.FirstOrDefault();
+            if (!user || user.lunarCoins < 1) throw h.Skip("the profile has no lunar coin, which the Lunar Pod's prompt needs");
+            PurchaseInteraction pod = null;
+            yield return h.Spawned<PurchaseInteraction>($"{Commands.SpawnInteractable} {GameNames.LunarPod}", found => pod = found);
+            yield return h.StandBefore(pod.gameObject);
+            yield return h.ExpectPromptStrip(Palette.LunarCoin, "lunar coins");
+            yield return h.ExpectPromptCoin();
         }
 
         // Activating the teleporter costs nothing, so the strip is the accent.

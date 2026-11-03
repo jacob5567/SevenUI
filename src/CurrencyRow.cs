@@ -9,7 +9,7 @@ namespace SevenUI
     // Lays the currencies out in a row from the money cluster's top-left corner, each on a panel fitted to its sign and
     // amount, as on the design canvas, in place of the game's column of strips as wide as the cluster. The game's
     // layout group is turned off and each currency placed by hand, again whenever an amount changes or a currency
-    // appears.
+    // appears. The lunar coins' sign is the mod's flat coin in place of the game's shaded one.
     internal sealed class CurrencyRow
     {
         // In the money cluster's units, which match the design canvas's pixels.
@@ -21,11 +21,15 @@ namespace SevenUI
         // The dollar sign is a Barlow Condensed glyph; the coins are sprites, kept at the game's size for the amount.
         private const float DollarFontSize = 20f;
         private const string SpriteTag = "<sprite";
+        // The flat lunar coin, 16px across, as tall as the dollar sign's figures.
+        public const string LunarCoinName = "SevenUILunarCoin";
+        private const float CoinSize = 16f;
 
         private sealed class Currency
         {
             public RectTransform Rect;
             public TMP_Text Sign;
+            public RectTransform Coin;
             public TMP_Text Amount;
             public string ShownAmount;
             public bool ShownActive;
@@ -55,6 +59,10 @@ namespace SevenUI
                 float gameAmountSize = currency.Amount.fontSize;
                 StyleAmount(currency.Amount, color, recorder);
                 StyleSign(currency.Sign, gameAmountSize, color, recorder);
+                if (money == hud.lunarCoinText)
+                {
+                    currency.Coin = AddCoin(currency, recorder);
+                }
                 currencies.Add(currency);
             }
         }
@@ -90,9 +98,9 @@ namespace SevenUI
             foreach (Currency currency in currencies)
             {
                 if (!currency.Rect || !currency.Amount || !currency.ShownActive) continue;
-                float sign = currency.Sign ? currency.Sign.preferredWidth : 0f;
+                float sign = currency.Coin ? CoinSize : currency.Sign ? currency.Sign.preferredWidth : 0f;
                 float amount = currency.Amount.preferredWidth;
-                if (currency.Sign)
+                if (currency.Sign && !currency.Coin)
                 {
                     Place((RectTransform)currency.Sign.transform, 0f, PaddingX, sign);
                 }
@@ -103,6 +111,28 @@ namespace SevenUI
                 currency.Rect.sizeDelta = new Vector2(width, PanelHeight);
                 x += width + PanelGap;
             }
+        }
+
+        // The flat coin at the panel's left, centered up and down, with the game's coin sprite hidden.
+        private static RectTransform AddCoin(Currency currency, StyleRecorder recorder)
+        {
+            if (currency.Sign)
+            {
+                currency.Sign.alpha = 0f;
+            }
+            GameObject created = new GameObject(LunarCoinName, typeof(RectTransform), typeof(CanvasRenderer));
+            created.layer = currency.Rect.gameObject.layer;
+            RectTransform coin = (RectTransform)created.transform;
+            coin.SetParent(currency.Rect, false);
+            coin.anchorMin = coin.anchorMax = coin.pivot = new Vector2(0f, 0.5f);
+            coin.anchoredPosition = new Vector2(PaddingX, 0f);
+            coin.sizeDelta = new Vector2(CoinSize, CoinSize);
+            Image image = created.AddComponent<Image>();
+            image.sprite = FlatSprite.LunarCoin;
+            image.color = Palette.LunarCoin;
+            image.raycastTarget = false;
+            recorder.Add(created);
+            return coin;
         }
 
         // A text as tall as its panel and as wide as its text, against the panel's left (0) or right (1) side.

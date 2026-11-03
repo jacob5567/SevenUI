@@ -11,6 +11,7 @@ namespace SevenUI
     // what the action costs: gold for money, red for health, the tier's color for items, and the accent when it is free.
     // Each row is a key on a small keycap, then the action ("Open chest") and its cost in bold without the game's
     // brackets; the keys share a column, so "Open chest" and "Inspect" start at the same x whether the key is E or Tab.
+    // A cost in lunar coins shows the mod's flat coin before its number, as the top-left currencies do.
     // The game's prompt rows are strips as wide as the screen's right column, which only look right as gradients fading
     // out, with the key in yellow; their texts stay in place, hidden, and are copied into the panel's rows whenever they
     // change, since the prompt's words depend on what the player looks at. The panel's right edge follows the run
@@ -38,6 +39,13 @@ namespace SevenUI
         private const float KeyHighlightHeight = 1f * Canvas;
         private const float KeyRadius = 3f * Canvas;
         private const float KeyFontSize = 14f * Canvas;
+        // The flat lunar coin, 14px across and 3px before the number.
+        public const string CoinName = "Coin";
+        private const float CoinSize = 14f * Canvas;
+        private const float CoinGap = 3f * Canvas;
+        // The game's lunar coin in a cost (COST_LUNARCOIN_FORMAT: " <sprite name="LunarCoin" tint=1>{0}"), with the
+        // space before it.
+        private static readonly Regex LunarCoinSprite = new Regex(@"\s*<sprite name=""LunarCoin""[^>]*>");
         // The game's purchase prompt puts its cost in brackets after the action (PurchaseInteraction.GetContextString).
         private static readonly Regex Cost = new Regex(@"^(?<action>.*?)\s*(<nobr>)?\((?<cost>.*)\)(</nobr>)?\s*$",
             RegexOptions.Singleline);
@@ -55,6 +63,8 @@ namespace SevenUI
             public TMP_Text Key;
             public TMP_Text Action;
             public TMP_Text Price;
+            public Image Coin;
+            public bool PaysInCoins;
             public string ShownKey;
             public string ShownText;
             public bool ShownActive;
@@ -146,6 +156,12 @@ namespace SevenUI
             row.Price = AddText("Cost", panel, gameText, TextFontSize, TextAlignmentOptions.MidlineLeft);
             row.Price.fontStyle = FontStyles.Bold;
             row.Price.color = Palette.Money;
+            row.Coin = NewImage(CoinName, panel, Palette.LunarCoin);
+            row.Coin.sprite = FlatSprite.LunarCoin;
+            RectTransform coin = row.Coin.rectTransform;
+            coin.anchorMin = coin.anchorMax = coin.pivot = new Vector2(0f, 1f);
+            coin.sizeDelta = new Vector2(CoinSize, CoinSize);
+            row.Coin.gameObject.SetActive(false);
             return row;
         }
 
@@ -243,8 +259,11 @@ namespace SevenUI
             Match match = Cost.Match(text);
             string cost = match.Success ? match.Groups["cost"].Value : "";
             row.Action.text = GameColors.Retag(match.Success ? match.Groups["action"].Value : text);
-            row.Price.text = GameColors.Retag(cost);
+            string price = LunarCoinSprite.Replace(cost, "");
+            row.Price.text = GameColors.Retag(price);
             row.StripColor = GameColors.FirstTag(cost, out Color costColor) ? costColor : PickupColor();
+            row.Coin.color = row.StripColor;
+            row.PaysInCoins = price.Length != cost.Length;
         }
 
         // The tier's color of the item or equipment the player is looking at, whose prompt ("Get Hopoo Feather") names
@@ -279,6 +298,7 @@ namespace SevenUI
                 row.Box.gameObject.SetActive(shown);
                 row.Action.gameObject.SetActive(shown);
                 row.Price.gameObject.SetActive(shown && row.Price.text.Length > 0);
+                row.Coin.gameObject.SetActive(shown && row.PaysInCoins && row.Price.text.Length > 0);
                 any |= shown;
             }
             // Before measuring: a text is set up for the canvas when it first becomes active, and measures far too
@@ -319,7 +339,13 @@ namespace SevenUI
                 float x = Place(row.Action, PaddingX + column + Gap, y);
                 if (row.Price.gameObject.activeSelf)
                 {
-                    x = Place(row.Price, x + Gap, y);
+                    x += Gap;
+                    if (row.Coin.gameObject.activeSelf)
+                    {
+                        row.Coin.rectTransform.anchoredPosition = new Vector2(x, y - (KeySize - CoinSize) / 2f);
+                        x += CoinSize + CoinGap;
+                    }
+                    x = Place(row.Price, x, y);
                 }
                 width = Mathf.Max(width, x);
                 y -= KeySize;

@@ -3,8 +3,8 @@ using UnityEngine;
 namespace SevenUI
 {
     // Plain sprites drawn in code: a white one for flat bars, a sliced square outline, a sliced square with rounded
-    // corners, a sliced strip along the top, and diagonal stripes to tile, dark for a curse and green for one-shot
-    // protection.
+    // corners, a sliced strip along the top, the lunar coin, and diagonal stripes to tile, dark for a curse and green
+    // for one-shot protection.
     internal static class FlatSprite
     {
         // The outline texture's size and border, in pixels. At 100 pixels per unit the border is this many HUD canvas
@@ -12,6 +12,18 @@ namespace SevenUI
         private const int OutlineTextureSize = 8;
         private const int OutlineBorder = 2;
         private const float PixelsPerUnit = 100f;
+        // The lunar coin on a 16-unit grid: a ring 1.6 wide around the middle, and a crescent inside it, a disc with a
+        // smaller one taken out of its upper right. Drawn at 64 pixels with mipmaps, so it stays smooth from 14 to
+        // 32 screen pixels.
+        private const int CoinTextureSize = 64;
+        private const float CoinGrid = 16f;
+        private const float CoinMiddle = 8f;
+        private const float CoinRingRadius = 6.6f;
+        private const float CoinRingHalfWidth = 0.8f;
+        private const float CrescentRadius = 3.9f;
+        private const float CrescentBiteX = 9.9f;
+        private const float CrescentBiteY = 9.6f;
+        private const float CrescentBiteRadius = 3.3f;
         // The rounded square's texture size and corner radius, in pixels; the corners are its slice borders.
         public const int RoundedRadius = 6;
         private const int RoundedTextureSize = 2 * RoundedRadius + 2;
@@ -32,6 +44,7 @@ namespace SevenUI
         private static Sprite outline;
         private static Sprite topStrip;
         private static Sprite rounded;
+        private static Sprite lunarCoin;
 
         // For flat bars the game draws from its own sprites. The game copies a bar's sprite to its image only when the
         // sprite changes, and a new bar image starts with its prefab's sprite, so "no sprite" would leave new bars
@@ -115,6 +128,50 @@ namespace SevenUI
                 }
                 return rounded;
             }
+        }
+
+        // The lunar coin in white, for an image tinted the coins' color: flat, with thin strokes like the "$" beside it,
+        // in place of the game's shaded coin.
+        public static Sprite LunarCoin
+        {
+            get
+            {
+                if (!lunarCoin)
+                {
+                    Texture2D texture = new Texture2D(CoinTextureSize, CoinTextureSize, TextureFormat.RGBA32, true);
+                    texture.name = "SevenUILunarCoin";
+                    texture.filterMode = FilterMode.Trilinear;
+                    texture.wrapMode = TextureWrapMode.Clamp;
+                    float pixelsPerUnit = CoinTextureSize / CoinGrid;
+                    for (int y = 0; y < CoinTextureSize; y++)
+                    {
+                        for (int x = 0; x < CoinTextureSize; x++)
+                        {
+                            // Each shape's signed distance in grid units, negative inside; the union is the nearer.
+                            float gx = (x + 0.5f) / pixelsPerUnit;
+                            float gy = (y + 0.5f) / pixelsPerUnit;
+                            float middle = Distance(gx, gy, CoinMiddle, CoinMiddle);
+                            float ring = Mathf.Abs(middle - CoinRingRadius) - CoinRingHalfWidth;
+                            float crescent = Mathf.Max(middle - CrescentRadius,
+                                CrescentBiteRadius - Distance(gx, gy, CrescentBiteX, CrescentBiteY));
+                            float alpha = Mathf.Clamp01(0.5f - Mathf.Min(ring, crescent) * pixelsPerUnit);
+                            texture.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
+                        }
+                    }
+                    texture.Apply(true, true);
+                    lunarCoin = Sprite.Create(texture, new Rect(0f, 0f, CoinTextureSize, CoinTextureSize),
+                        new Vector2(0.5f, 0.5f), PixelsPerUnit);
+                    lunarCoin.name = "SevenUILunarCoin";
+                }
+                return lunarCoin;
+            }
+        }
+
+        private static float Distance(float x, float y, float toX, float toY)
+        {
+            float dx = x - toX;
+            float dy = y - toY;
+            return Mathf.Sqrt(dx * dx + dy * dy);
         }
 
         // A white strip along the top of a sliced image, the same height however tall the image is, with nothing below

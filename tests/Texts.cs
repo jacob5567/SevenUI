@@ -27,5 +27,7 @@ namespace SevenUI.Tests
         public const string PromptKeyGlyphName = "Glyph";
         public const string PromptKeyFacePath = "Cap/Face";
         public const string PromptActionName = "Action";
+        public const string PromptCostName = "Cost";
+        public const string PromptCoinName = "Coin";
     }
 }

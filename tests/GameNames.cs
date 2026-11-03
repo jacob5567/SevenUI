@@ -23,6 +23,7 @@ namespace SevenUI.Tests
         // enough health to take several hits.
         public const string SmallChest = "iscChest1";
         public const string ShrineOfBlood = "iscShrineBlood";
+        public const string LunarPod = "iscLunarChest";
         public const string BrokenDrone = "iscBrokenDrone1";
         public const string GunnerDroneBody = "Drone1Body";
         public const string ToughMonster = "BeetleQueen";

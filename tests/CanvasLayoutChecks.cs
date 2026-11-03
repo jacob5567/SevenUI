@@ -251,6 +251,33 @@ namespace SevenUI.Tests
                 () => $"the currencies in a row on fitted panels ({CurrencyLook(currencies)}) {h.Diagnosis()}");
         }
 
+        // The lunar coins' sign the mod's flat coin, in the coins' blue and centered up and down on its panel, with the
+        // game's coin sprite hidden. Skipped when the HUD shows no lunar coins.
+        public static IEnumerator ExpectLunarCoinFlat(this Harness h)
+        {
+            HUD hud = Hud(h);
+            if (!hud.lunarCoinText || !hud.lunarCoinText.gameObject.activeInHierarchy) throw h.Skip("the HUD shows no lunar coins");
+            string look = "no coin";
+            yield return h.Until(
+                () =>
+                {
+                    RectTransform panel = (RectTransform)hud.lunarCoinText.transform;
+                    Image coin = panel.Find(CurrencyRow.LunarCoinName)?.GetComponent<Image>();
+                    TMP_Text sign = panel.GetComponentsInChildren<TMP_Text>(true)
+                        .FirstOrDefault(text => text != hud.lunarCoinText.targetText && text.transform.parent == panel);
+                    if (!coin) return false;
+                    Bounds coinBounds = In(panel, coin.rectTransform);
+                    float offCenter = coinBounds.center.y - panel.rect.center.y;
+                    look = $"coin active {coin.gameObject.activeInHierarchy}, sprite {(coin.sprite ? coin.sprite.name : "none")}, " +
+                           $"color {coin.color}, {offCenter:0.##} off center, x {coinBounds.min.x:0.#}-{coinBounds.max.x:0.#}, " +
+                           $"game sign alpha {(sign ? sign.alpha : -1f)}";
+                    return coin.gameObject.activeInHierarchy && coin.sprite == FlatSprite.LunarCoin &&
+                           SevenUIChecks.Near(coin.color, Palette.LunarCoin) && Mathf.Abs(offCenter) < RowTolerance &&
+                           coinBounds.min.x >= panel.rect.xMin && (!sign || sign.alpha == 0f);
+                },
+                () => $"the lunar coins' flat coin ({look}) {h.Diagnosis()}");
+        }
+
         private static DifficultyBarController DifficultyBar(Harness h) =>
             SevenUIChecks.HudRoot(h).GetComponentsInChildren<DifficultyBarController>(true).FirstOrDefault();
 
