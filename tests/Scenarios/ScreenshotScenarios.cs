@@ -172,9 +172,11 @@ namespace SevenUI.Tests
         }
 
         // Full health with a full shield beside it on the bar, where the two meet.
+        // Healed first: health regenerates far slower than the timeout from what an earlier scenario may have left.
         private static IEnumerator FullHealthAndShield(Harness h)
         {
             h.Cmd($"{Commands.GiveItem} {GameNames.PersonalShield} {ShieldStacks}");
+            h.SetHealthFraction(Harness.LocalBody, 1f);
             HealthComponent health = Harness.LocalBody.healthComponent;
             yield return h.Until(() => health && health.shield > 0f && health.shield >= health.fullShield &&
                                        health.health >= health.fullHealth, "full health and a full shield", ShieldTimeout);
@@ -186,8 +188,17 @@ namespace SevenUI.Tests
         {
             h.Cmd($"{Commands.GiveItem} {GameNames.PersonalShield} 1");
             yield return h.Wait(SettleSeconds);
-            HealthComponent health = Harness.LocalBody.healthComponent;
-            h.SetHealthFraction(Harness.LocalBody, LowHealthFraction);
+            CharacterBody body = Harness.LocalBody;
+            HealthComponent health = body.healthComponent;
+            h.SetHealthFraction(body, LowHealthFraction);
+            // Healed again after, so the next scenario on the stage starts at full health.
+            h.OnCleanup(() =>
+            {
+                if (body)
+                {
+                    h.SetHealthFraction(body, 1f);
+                }
+            });
             // A server method; the runner is the host. Barrier decays, so the screenshots follow at once.
             health.AddBarrier(health.fullCombinedHealth * BarrierFraction);
             yield return h.Wait(SettleSeconds);
