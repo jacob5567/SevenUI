@@ -217,10 +217,39 @@ namespace SevenUI.Tests
         // The amount's drawn characters, not its box.
         private static Bounds AmountBounds(RectTransform cluster, TMP_Text amount)
         {
-            Bounds local = amount.textBounds;
+            Bounds local = GlyphBounds(amount);
             Bounds bounds = new Bounds(cluster.InverseTransformPoint(amount.transform.TransformPoint(local.min)), Vector3.zero);
             bounds.Encapsulate(cluster.InverseTransformPoint(amount.transform.TransformPoint(local.max)));
             return bounds;
+        }
+
+        // The visible characters' ink, from each glyph's own box in the font (its bearing and height) at the character's
+        // baseline, in the text's own space. textBounds and the characters' corners are the box around their quads,
+        // which reach past the ink by the material's padding for its shadow and outline.
+        private static Bounds GlyphBounds(TMP_Text text)
+        {
+            TMP_TextInfo info = text.textInfo;
+            Bounds bounds = new Bounds();
+            bool any = false;
+            for (int i = 0; info != null && i < info.characterCount; i++)
+            {
+                TMP_CharacterInfo character = info.characterInfo[i];
+                if (!character.isVisible || character.textElement == null || character.textElement.glyph == null) continue;
+                UnityEngine.TextCore.GlyphMetrics metrics = character.textElement.glyph.metrics;
+                // The element's whole scale: the font size against the font's, and the character's and glyph's own.
+                float scale = character.scale;
+                float top = character.baseLine + metrics.horizontalBearingY * scale;
+                Vector3 min = new Vector3(character.origin + metrics.horizontalBearingX * scale, top - metrics.height * scale);
+                Vector3 max = new Vector3(min.x + metrics.width * scale, top);
+                if (!any)
+                {
+                    bounds = new Bounds(min, Vector3.zero);
+                    any = true;
+                }
+                bounds.Encapsulate(min);
+                bounds.Encapsulate(max);
+            }
+            return any ? bounds : text.textBounds;
         }
 
         private static string CurrencyLook(List<(MoneyText money, Bounds panel, Bounds amount)> currencies) =>
