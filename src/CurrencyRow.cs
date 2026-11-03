@@ -163,7 +163,9 @@ namespace SevenUI
             recorder.RecordRect((RectTransform)amount.transform);
             amount.fontSize = AmountFontSize;
             amount.fontStyle |= FontStyles.Bold;
-            amount.alignment = TextAlignmentOptions.Right;
+            // Midline centers the drawn figures on the panel; centering the line would leave room under them for
+            // descenders figures don't have, and draw them low.
+            amount.alignment = TextAlignmentOptions.MidlineRight;
             amount.margin = Vector4.zero;
             KeepOnOneLine(amount, recorder);
             if (color.HasValue)
@@ -181,7 +183,7 @@ namespace SevenUI
             sign.fontSize = sign.text.Contains(SpriteTag) && gameAmountSize > 0f
                 ? sign.fontSize * AmountFontSize / gameAmountSize
                 : DollarFontSize;
-            sign.alignment = TextAlignmentOptions.Left;
+            sign.alignment = TextAlignmentOptions.MidlineLeft;
             sign.margin = Vector4.zero;
             KeepOnOneLine(sign, recorder);
             if (color.HasValue)

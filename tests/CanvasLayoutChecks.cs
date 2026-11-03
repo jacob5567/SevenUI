@@ -30,6 +30,8 @@ namespace SevenUI.Tests
         private const string EnglishLanguage = "en";
         // In the money cluster's units.
         private const float RowTolerance = 0.5f;
+        // How far a currency's figures may sit from its panel's middle: a canvas pixel, in the money cluster's units.
+        private const float CurrencyCenterTolerance = 1f;
         // The boss bar is 800 of the top cluster's units wide, which match the canvas's pixels; its title row's ends
         // meet the bar's within this, as glyphs sit a little inside their boxes.
         private const float BossBarWidth = 800f;
@@ -224,10 +226,11 @@ namespace SevenUI.Tests
         private static string CurrencyLook(List<(MoneyText money, Bounds panel, Bounds amount)> currencies) =>
             string.Join(", ", currencies.Select(c =>
                 $"{c.money.name} panel x {c.panel.min.x:0.#}-{c.panel.max.x:0.#} top {c.panel.max.y:0.#}, " +
-                $"amount x {c.amount.min.x:0.#}-{c.amount.max.x:0.#}, color {c.money.targetText.color}"));
+                $"amount x {c.amount.min.x:0.#}-{c.amount.max.x:0.#}, {c.amount.center.y - c.panel.center.y:0.##} off center, " +
+                $"color {c.money.targetText.color}"));
 
-        // Side by side with tops level, each panel holding its amount, and the money and lunar coins in the canvas's
-        // colors.
+        // Side by side with tops level, each panel holding its amount with the figures centered up and down, and the
+        // money and lunar coins in the canvas's colors.
         public static IEnumerator ExpectCurrenciesInRow(this Harness h)
         {
             HUD hud = Hud(h);
@@ -244,6 +247,7 @@ namespace SevenUI.Tests
                         if (Mathf.Abs(panel.max.y - currencies[0].panel.max.y) > RowTolerance) return false;
                         if (i > 0 && panel.min.x < currencies[i - 1].panel.max.x) return false;
                         if (amount.min.x < panel.min.x || amount.max.x > panel.max.x + RowTolerance) return false;
+                        if (Mathf.Abs(amount.center.y - panel.center.y) > CurrencyCenterTolerance) return false;
                     }
                     return SevenUIChecks.Near(hud.moneyText.targetText.color, Palette.Money) &&
                            (!hud.lunarCoinText || SevenUIChecks.Near(hud.lunarCoinText.targetText.color, Palette.LunarCoin));
