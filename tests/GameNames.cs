@@ -103,8 +103,9 @@ namespace SevenUI.Tests
         public const string VoidPotential = "RoR2/DLC1/OptionPickup/OptionPickup.prefab";
         public static readonly string[] VoidItems = { "CritGlassesVoid", "ChainLightningVoid", "MissileVoid" };
 
-        // Every other pick-an-item panel prefab in the game's catalog, by what opens it, for a Command cube to open in
-        // its place.
+        // Every other pick-an-item panel the game opens, by what opens it, for a Command cube to open in its place.
+        // Panels nothing in the game opens (the cut drone assembly station's, the drone cleanup panel, the first
+        // trial blessing panel) aren't tested.
         public static readonly (string Name, string Key)[] PickerPanels =
         {
             ("scrapper", "RoR2/Base/Scrapper/ScrapperPickerPanel.prefab"),
@@ -112,8 +113,6 @@ namespace SevenUI.Tests
             ("lemurian_egg", "RoR2/CU8/LemurianEgg/LemurianEggPickerPanel.prefab"),
             ("fragment_potential", "RoR2/DLC2/FragmentPotentialPickerPanel.prefab"),
             ("rebirth", "RoR2/DLC2/RebirthPickerPanel.prefab"),
-            ("drone_assembly_v2", "RoR2/DLC3/DroneAssemblyStation/AssemblyStationPickerPanelv2.prefab"),
-            ("drone_cleanup", "RoR2/DLC3/Drones/CleanupPickerPanel.prefab"),
             ("meal_prep", "RoR2/DLC3/MealPrep/MealPrepPickerPanel.prefab"),
             ("solus_vendor", "RoR2/DLC3/SolusVendorShrine/SolusVendorShrinePickerPanel-Variant.prefab"),
             ("acolyte_unlock", "RoR2/DLC4/champrush/UnlockableAcolytePickerPanel.prefab"),
@@ -122,7 +121,6 @@ namespace SevenUI.Tests
             ("page_potential", "RoR2/DLC4/PagePotentialPickerPanel.prefab"),
             ("hallowed_potential", "RoR2/DLC4/UI/HallowedPotentialPickerPanel.prefab"),
             ("trial_initial", "RoR2/DLC4/UI/TrialPotentialInitialPickerPanel.prefab"),
-            ("trial_blessing", "RoR2/DLC4/UI/TrialPotentialBlessingPickerPanel.prefab"),
             ("trial_blessing_b", "RoR2/DLC4/UI/TrialPotentialBlessingPickerPanelB.prefab"),
             ("ultima_potential", "RoR2/DLC4/UI/UltimalPotentialPickerPanel.prefab"),
             ("wake_potential", "RoR2/DLC4/Wake/WakePotentialPickerPanel.prefab"),

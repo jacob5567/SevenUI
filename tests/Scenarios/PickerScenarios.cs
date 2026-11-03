@@ -60,21 +60,19 @@ namespace SevenUI.Tests
         // items are picker_command_white, which also hovers.
         private static readonly (string Name, Func<PickupDef, bool> Drops)[] CommandGroups =
         {
-            ("green", pickup => IsGroupItem(pickup, ItemTier.Tier2, false)),
-            ("red", pickup => IsGroupItem(pickup, ItemTier.Tier3, false)),
-            ("boss", pickup => IsGroupItem(pickup, ItemTier.Boss, false)),
-            ("lunar", pickup => IsGroupItem(pickup, ItemTier.Lunar, false)),
-            ("void_white", pickup => IsGroupItem(pickup, ItemTier.VoidTier1, false)),
-            ("void_green", pickup => IsGroupItem(pickup, ItemTier.VoidTier2, false)),
-            ("void_red", pickup => IsGroupItem(pickup, ItemTier.VoidTier3, false)),
-            ("void_boss", pickup => IsGroupItem(pickup, ItemTier.VoidBoss, false)),
-            ("power_shape", pickup => IsGroupItem(pickup, ItemTier.Boss, true)),
-            ("cursed", pickup => IsGroupItem(pickup, ItemTier.Cursed, false)),
-            ("page", pickup => IsGroupItem(pickup, ItemTier.Page, false)),
-            ("hex", pickup => IsGroupItem(pickup, ItemTier.Hex, false)),
-            ("equipment", pickup => IsGroupEquipment(pickup, false, false)),
-            ("lunar_equipment", pickup => IsGroupEquipment(pickup, false, true)),
-            ("boss_equipment", pickup => IsGroupEquipment(pickup, true, false)),
+            ("green", pickup => IsGroupItem(pickup, ItemTier.Tier2)),
+            ("red", pickup => IsGroupItem(pickup, ItemTier.Tier3)),
+            ("boss", pickup => IsGroupItem(pickup, ItemTier.Boss)),
+            ("lunar", pickup => IsGroupItem(pickup, ItemTier.Lunar)),
+            ("void_white", pickup => IsGroupItem(pickup, ItemTier.VoidTier1)),
+            ("void_green", pickup => IsGroupItem(pickup, ItemTier.VoidTier2)),
+            ("void_red", pickup => IsGroupItem(pickup, ItemTier.VoidTier3)),
+            ("void_boss", pickup => IsGroupItem(pickup, ItemTier.VoidBoss)),
+            ("cursed", pickup => IsGroupItem(pickup, ItemTier.Cursed)),
+            ("page", pickup => IsGroupItem(pickup, ItemTier.Page)),
+            ("hex", pickup => IsGroupItem(pickup, ItemTier.Hex)),
+            ("equipment", pickup => IsGroupEquipment(pickup, false)),
+            ("lunar_equipment", pickup => IsGroupEquipment(pickup, true)),
         };
 
         // The other panels' options where they are not a few common items: the player's inventory, or the tier the
@@ -470,17 +468,18 @@ namespace SevenUI.Tests
             return item && !item.hidden && item.tier != ItemTier.NoTier;
         }
 
-        // As the game picks a group's items: the tier, power shapes apart, and never a world-unique item.
-        private static bool IsGroupItem(PickupDef pickup, ItemTier tier, bool powerShape)
+        // As the game picks a group's items: the tier, without power shapes (a group of their own) or world-unique items.
+        private static bool IsGroupItem(PickupDef pickup, ItemTier tier)
         {
             ItemDef item = pickup.itemIndex != ItemIndex.None ? ItemCatalog.GetItemDef(pickup.itemIndex) : null;
-            return item && item.tier == tier && item.ContainsTag(ItemTag.PowerShape) == powerShape && !item.ContainsTag(ItemTag.WorldUnique);
+            return item && item.tier == tier && !item.ContainsTag(ItemTag.PowerShape) && !item.ContainsTag(ItemTag.WorldUnique);
         }
 
-        private static bool IsGroupEquipment(PickupDef pickup, bool boss, bool lunar)
+        // Boss equipment is a group of its own.
+        private static bool IsGroupEquipment(PickupDef pickup, bool lunar)
         {
             EquipmentDef equipment = pickup.equipmentIndex != EquipmentIndex.None ? EquipmentCatalog.GetEquipmentDef(pickup.equipmentIndex) : null;
-            return equipment && equipment.canDrop && equipment.isBoss == boss && equipment.isLunar == lunar;
+            return equipment && equipment.canDrop && !equipment.isBoss && equipment.isLunar == lunar;
         }
 
         // The player uses the interactable, and the game opens its panel under the HUD. The cube and the potential are
