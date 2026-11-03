@@ -24,6 +24,9 @@ namespace SevenUI
         public StatsSection Stats;
         public RectTransform Icon;
         public Image Outline;
+        // An outlined button's resting outline and label, which the hover outline replaces and lights.
+        public Image RestOutline;
+        public TMP_Text Label;
         public TMP_Text Count;
         public TMP_Text Name;
         public TMP_Text Description;
@@ -48,6 +51,14 @@ namespace SevenUI
                 if (Outline.enabled != hovered)
                 {
                     Outline.enabled = hovered;
+                    if (RestOutline)
+                    {
+                        RestOutline.enabled = !hovered;
+                    }
+                    if (Label)
+                    {
+                        Label.color = hovered ? Palette.Text : Palette.HeaderText;
+                    }
                 }
             }
             if (Count)

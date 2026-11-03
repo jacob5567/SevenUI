@@ -72,12 +72,13 @@ namespace SevenUI
         private const float CountSize = 15f * Canvas;
         private const float CountInset = 3f * Canvas;
         private const float NameGap = 3f * Canvas;
-        // The legend's and the cancel button's distance under the panel, and the button's size and text, as the canvas's
-        // key hints.
+        // The legend's and the cancel button's distance under the panel, and the button's size and text; its resting
+        // outline is 1px in the divider's grey.
         private const float LegendGap = 8f * Canvas;
         private const float CancelWidth = 120f * Canvas;
-        private const float CancelHeight = 30f * Canvas;
-        private const float CancelTextSize = 14f * Canvas;
+        private const float CancelHeight = 28f * Canvas;
+        private const float CancelTextSize = 13f * Canvas;
+        private const float RestOutlineEdge = 1f * Canvas;
         // The outline sprite's edge, in its pixels (FlatSprite.Outline).
         private const float OutlineEdgePixels = 2f;
 
@@ -131,6 +132,9 @@ namespace SevenUI
         public bool Cards { get; private set; }
 
         public IReadOnlyList<PickerButton> Buttons => buttons;
+
+        // Read by the SevenUI.Tests plugin.
+        public PickerButton Cancel => cancel;
 
         public RectTransform MainPanel => mainPanel;
 
@@ -292,8 +296,9 @@ namespace SevenUI
             group.padding = new RectOffset(0, 0, 0, 0);
         }
 
-        // The game's cancel button, which it hangs just under its panel, there for the pointer: a small flat button at the
-        // panel's right under it, outlined while hovered like the options.
+        // The game's cancel button, which it hangs just under its panel, there for the pointer: a small outlined button
+        // at the panel's right under it, with a faint face the stage shows through, a thin grey outline and grey text,
+        // lit with the options' accent outline and white text while hovered.
         private void StyleCancel()
         {
             Transform button = juice.Find(CancelName);
@@ -312,7 +317,7 @@ namespace SevenUI
             ColorBlock flat = colors;
             flat.normalColor = flat.highlightedColor = flat.pressedColor = flat.selectedColor = Color.white;
             mpButton.colors = flat;
-            cancel = StyleButton(mpButton, null, Palette.ScoreboardPanel);
+            cancel = StyleButton(mpButton, null, Palette.GhostButton);
             RectTransform rect = (RectTransform)button;
             recorder.RecordRect(rect);
             rect.anchorMin = rect.anchorMax = new Vector2(1f, 0f);
@@ -323,10 +328,17 @@ namespace SevenUI
             {
                 recorder.Record(text);
                 text.fontSize = CancelTextSize;
-                text.color = Palette.Text;
+                text.color = Palette.HeaderText;
+                if (!cancel.Label)
+                {
+                    cancel.Label = text;
+                }
             }
-            cancel.Outline = AddOutline(NewObject("SevenUIPickerCancel", button));
-            Stretch((RectTransform)cancel.Outline.transform.parent);
+            RectTransform outlines = NewObject("SevenUIPickerCancel", button);
+            Stretch(outlines);
+            cancel.RestOutline = AddOutline(outlines, Palette.Divider, RestOutlineEdge);
+            cancel.RestOutline.enabled = true;
+            cancel.Outline = AddOutline(outlines, Palette.Accent, OutlineEdge);
         }
 
         // The game's grid, which places the buttons: its cell and spacing become the slots' or the cards'.
@@ -621,14 +633,17 @@ namespace SevenUI
             return count;
         }
 
-        private Image AddOutline(RectTransform holder)
+        private Image AddOutline(RectTransform holder) => AddOutline(holder, Palette.Accent, OutlineEdge);
+
+        // An outline of this color and edge width over the holder, hidden until shown.
+        private Image AddOutline(RectTransform holder, Color color, float edge)
         {
-            RectTransform rect = NewImage("Outline", holder, Palette.Accent);
+            RectTransform rect = NewImage("Outline", holder, color);
             Stretch(rect);
             Image outline = rect.GetComponent<Image>();
             outline.sprite = FlatSprite.Outline;
             outline.type = Image.Type.Sliced;
-            outline.pixelsPerUnitMultiplier = OutlineEdgePixels / OutlineEdge;
+            outline.pixelsPerUnitMultiplier = OutlineEdgePixels / edge;
             outline.enabled = false;
             return outline;
         }

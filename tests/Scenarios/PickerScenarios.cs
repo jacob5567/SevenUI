@@ -280,7 +280,30 @@ namespace SevenUI.Tests
                       $"for the hovered slot {HoveredSlot}");
             yield return h.Wait(SettleSeconds);
             yield return h.Screenshot("hovered");
+            hovered.Hover.hovering = false;
+
+            // The cancel button: a thin grey outline and grey text at rest, the accent outline and white text hovered.
+            PickerButton cancel = panel.Cancel;
+            if (cancel == null || !cancel.Hover) throw h.Fail("the panel has no restyled cancel button");
+            yield return h.Until(() => cancel.RestOutline.enabled && !cancel.Outline.enabled && cancel.Label.color == Palette.HeaderText,
+                () => $"the cancel button at rest has its thin outline {OnOff(cancel.RestOutline)}, its accent outline " +
+                      $"{OnOff(cancel.Outline)} and text {cancel.Label.color}");
+            cancel.Hover.hovering = true;
+            h.OnCleanup(() =>
+            {
+                if (cancel.Hover)
+                {
+                    cancel.Hover.hovering = false;
+                }
+            });
+            yield return h.Until(() => !cancel.RestOutline.enabled && cancel.Outline.enabled && cancel.Label.color == Palette.Text,
+                () => $"the hovered cancel button has its thin outline {OnOff(cancel.RestOutline)}, its accent outline " +
+                      $"{OnOff(cancel.Outline)} and text {cancel.Label.color}");
+            yield return h.Wait(SettleSeconds);
+            yield return h.Screenshot("cancel_hovered");
         }
+
+        private static string OnOff(Behaviour part) => part.enabled ? "on" : "off";
 
         // Command offers every pickup in the dropped one's group, as cards or a grid by how many there are. Some are
         // unavailable in this run, and dimmed.
