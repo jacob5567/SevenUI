@@ -429,6 +429,21 @@ namespace SevenUI
                 frame.sprite = null;
                 frame.type = Image.Type.Simple;
                 frame.color = face;
+                // The game's button skin gives the image a material of its own, which can draw the face darker than
+                // its color (the cancel button's faint face came out near black), so the flat face uses the default
+                // UI material.
+                Material material = frame.material;
+                if (material != frame.defaultMaterial)
+                {
+                    recorder.OnRestore(() =>
+                    {
+                        if (frame)
+                        {
+                            frame.material = material;
+                        }
+                    });
+                    frame.material = null;
+                }
             }
             Transform baseOutline = button.transform.Find(BaseOutlineName);
             recorder.Disable(baseOutline ? baseOutline.GetComponent<Image>() : null);

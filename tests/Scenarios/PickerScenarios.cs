@@ -285,6 +285,14 @@ namespace SevenUI.Tests
             // The cancel button: a thin grey outline and grey text at rest, the accent outline and white text hovered.
             PickerButton cancel = panel.Cancel;
             if (cancel == null || !cancel.Hover) throw h.Fail("the panel has no restyled cancel button");
+            // Its face lets the stage show through: the faint face color, drawn with the default UI material rather
+            // than the game's skin's.
+            Image face = cancel.Button.image;
+            if (!face || face.color != Palette.GhostButton || face.material != face.defaultMaterial)
+            {
+                throw h.Fail($"the cancel button's face is {(face ? face.color.ToString() : "missing")} with the material " +
+                             $"{(face ? face.material.name : "none")}, not {Palette.GhostButton} with the default");
+            }
             yield return h.Until(() => cancel.RestOutline.enabled && !cancel.Outline.enabled && cancel.Label.color == Palette.HeaderText,
                 () => $"the cancel button at rest has its thin outline {OnOff(cancel.RestOutline)}, its accent outline " +
                       $"{OnOff(cancel.Outline)} and text {cancel.Label.color}");
