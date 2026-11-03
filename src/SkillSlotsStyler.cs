@@ -12,13 +12,18 @@ namespace SevenUI
     // and spacing (SkillRow), the equipment and key item at the skills' size, each past a thin divider and with a thin
     // ready outline in its own color, a top-down cooldown cover in place of the radial overlay, cooldowns and stocks in
     // Barlow Condensed with the stocks in their slots' bottom-right corners (CornerStock), and the key labels (the
-    // slots' and the inventory and sprint buttons') as small grey capitals without their dark plates. The game keeps
-    // running the slots.
+    // slots' and the inventory and sprint buttons') as small grey capitals without their dark plates, and the scoreboard
+    // and sprint buttons' icons as flat strokes (FlatIcons). The game keeps running the slots.
     internal sealed class SkillSlotsStyler
     {
         private const string ClusterPath = "MainContainer/MainUIArea/SpringCanvas/BottomRightCluster";
         // The inventory and sprint buttons and the key item slot, left of the skills.
         private const string ExtraButtonsPath = "Scaler/ExtraButtonPanels";
+        // The scoreboard (Tab) and sprint buttons' icons, under the extra buttons. The game names both SprintIcon. The
+        // sprint button also has a DescendIcon, which the game shows in its place while the body is a remote-operated
+        // drone; it keeps the game's sprite.
+        private const string ScoreboardIconPath = "InventoryCluster/SprintIcon";
+        private const string SprintIconPath = "SprintCluster/SprintIcon";
         // The equipment and key item slots' background, under their display roots.
         private const string SlotBackgroundName = "BGPanel";
         // The key item slot's ready outline, like the equipment's, which the game ships turned off and never shows.
@@ -85,6 +90,8 @@ namespace SevenUI
             if (extraButtons)
             {
                 StyleKeys(extraButtons);
+                StyleIcon(extraButtons.Find(ScoreboardIconPath), FlatIcons.Scoreboard);
+                StyleIcon(extraButtons.Find(SprintIconPath), FlatIcons.Sprint);
             }
             cluster.GetComponentsInChildren(true, keyItems);
             foreach (KeyItemIcon slot in keyItems)
@@ -384,6 +391,17 @@ namespace SevenUI
                 }
             }
             keys.Clear();
+        }
+
+        // In the canvas's flat strokes, in the text white; the game's icons are tinted off-white and pale blue.
+        private void StyleIcon(Transform icon, Sprite sprite)
+        {
+            Image image = icon ? icon.GetComponent<Image>() : null;
+            if (!image || image.sprite == sprite) return;
+            recorder.Record(image);
+            image.sprite = sprite;
+            image.type = Image.Type.Simple;
+            image.color = Palette.Text;
         }
 
         public void Describe(StringBuilder output)

@@ -64,6 +64,9 @@ namespace SevenUI.Tests
 
         // The inventory and sprint buttons and the key item slot, left of the skills, with their key labels.
         public const string ExtraButtons = "MainContainer/MainUIArea/SpringCanvas/BottomRightCluster/Scaler/ExtraButtonPanels";
+        // Under the extra buttons: the scoreboard (Tab) and sprint buttons' icons, both named SprintIcon by the game.
+        public const string ScoreboardIcon = "InventoryCluster/SprintIcon";
+        public const string SprintIcon = "SprintCluster/SprintIcon";
 
         // An empty slot above the skills that the game parents Drone Tech's drones and Seeker's lotus to.
         public const string UtilityArea = "MainContainer/MainUIArea/SpringCanvas/BottomRightCluster/Scaler/UtilityArea";

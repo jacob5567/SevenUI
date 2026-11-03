@@ -413,6 +413,27 @@ namespace SevenUI.Tests
                       $") {h.Diagnosis()}");
         }
 
+        // The scoreboard and sprint buttons' icons, drawn as the canvas's flat strokes in the text white.
+        public static IEnumerator ExpectExtraIconsFlat(this Harness h)
+        {
+            string look = "no buttons";
+            yield return h.Until(
+                () =>
+                {
+                    Transform buttons = HudRoot(h).Find(GameNames.ExtraButtons);
+                    if (!buttons) return false;
+                    Image scoreboard = buttons.Find(GameNames.ScoreboardIcon)?.GetComponent<Image>();
+                    Image sprint = buttons.Find(GameNames.SprintIcon)?.GetComponent<Image>();
+                    look = $"scoreboard {IconLook(scoreboard)}, sprint {IconLook(sprint)}";
+                    return scoreboard && scoreboard.sprite == FlatIcons.Scoreboard && Near(scoreboard.color, Palette.Text) &&
+                           sprint && sprint.sprite == FlatIcons.Sprint && Near(sprint.color, Palette.Text);
+                },
+                () => $"flat scoreboard and sprint icons ({look}) {h.Diagnosis()}");
+        }
+
+        private static string IconLook(Image icon) =>
+            icon ? $"sprite {(icon.sprite ? icon.sprite.name : "none")} color {icon.color}" : "missing";
+
         // A rect's bottom-left and top-right corners in world space.
         private static (Vector3 min, Vector3 max) WorldBox(RectTransform rect) =>
             (rect.TransformPoint(rect.rect.min), rect.TransformPoint(rect.rect.max));
