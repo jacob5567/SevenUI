@@ -434,6 +434,22 @@ namespace SevenUI
             recorder.Disable(baseOutline ? baseOutline.GetComponent<Image>() : null);
             Transform hoverOutline = button.transform.Find(HoverOutlineName);
             recorder.Disable(hoverOutline ? hoverOutline.GetComponent<Image>() : null);
+            // The game's button turns its 'image on interactable' back on every frame while it can be pressed, which
+            // would bring back a frame hidden above (the cursed book's cancel button kept the game's frame), so the
+            // button loses the reference while the flat look is on.
+            HGButton hg = button as HGButton;
+            if (hg && hg.imageOnInteractable)
+            {
+                Image onInteractable = hg.imageOnInteractable;
+                recorder.OnRestore(() =>
+                {
+                    if (hg)
+                    {
+                        hg.imageOnInteractable = onInteractable;
+                    }
+                });
+                hg.imageOnInteractable = null;
+            }
             Transform icon = button.transform.Find(IconName);
             if (icon)
             {
