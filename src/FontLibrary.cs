@@ -11,9 +11,12 @@ namespace SevenUI
     {
         private const string MediumResource = "SevenUI.fonts.Barlow-Medium.ttf";
         private const string SemiBoldResource = "SevenUI.fonts.Barlow-SemiBold.ttf";
+        private const string ItalicResource = "SevenUI.fonts.Barlow-MediumItalic.ttf";
         private const string CondensedResource = "SevenUI.fonts.BarlowCondensed-SemiBold.ttf";
 
-        // TMP's font weight table is indexed by weight / 100, so 7 is bold (700).
+        // TMP's font weight table is indexed by weight / 100, so 4 is regular (400) and 7 is bold (700). Italic text
+        // takes the italic typeface at its weight, and without one TMP slants the regular letters.
+        private const int RegularWeightIndex = 4;
         private const int BoldWeightIndex = 7;
 
         private static bool baked;
@@ -23,8 +26,8 @@ namespace SevenUI
         private static readonly Dictionary<(Material, TMP_FontAsset), Material> RetargetedMaterials =
             new Dictionary<(Material, TMP_FontAsset), Material>();
 
-        // Barlow Medium with Barlow SemiBold as its bold, or null if baking failed. The template material is a game
-        // font's, so the baked asset's own material uses the game's text shader.
+        // Barlow Medium with Barlow SemiBold as its bold and Barlow Medium Italic as its italic, or null if baking
+        // failed. The template material is a game font's, so the baked asset's own material uses the game's text shader.
         public static TMP_FontAsset Body(Material template)
         {
             if (!baked)
@@ -35,6 +38,11 @@ namespace SevenUI
                 if (body && semiBold)
                 {
                     body.fontWeightTable[BoldWeightIndex].regularTypeface = semiBold;
+                }
+                TMP_FontAsset italic = BakeEmbedded(ItalicResource, "Barlow Medium Italic", template);
+                if (body && italic)
+                {
+                    body.fontWeightTable[RegularWeightIndex].italicTypeface = italic;
                 }
             }
             return body;
@@ -77,6 +85,11 @@ namespace SevenUI
             if (bold && bold != font)
             {
                 AddFallback(bold, fallback);
+            }
+            TMP_FontAsset italic = font.fontWeightTable[RegularWeightIndex].italicTypeface;
+            if (italic && italic != font)
+            {
+                AddFallback(italic, fallback);
             }
         }
 
