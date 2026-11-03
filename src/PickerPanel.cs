@@ -38,7 +38,7 @@ namespace SevenUI
         // column count differs from panel to panel and other mods change it (LookingGlass resizes Command's), so the
         // flat look sets its own, and the gamepad navigation to match.
         public const int CardLimit = 6;
-        public const int GridColumns = 8;
+        public const int GridColumns = 6;
 
         // The design canvas's sizes, in its pixels, scaled to the HUD's units.
         private const float Canvas = HudUnits.PerCanvasPixel;
