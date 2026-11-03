@@ -197,7 +197,7 @@ namespace SevenUI.Tests
             PickerPanel grid = null;
             yield return OpenStyled(h, command, found => grid = found);
             if (grid.Cards) throw h.Fail($"{grid.Buttons.Count} options are cards, not a grid");
-            yield return h.Until(() => DetailsShow(grid, 0), () => $"the details show {DetailsLook(grid)}, not the first item");
+            yield return h.Until(() => DetailsShowResting(grid), () => $"the details show {DetailsLook(grid)}, not the first or hovered item");
             string detailsMissing = FullDescriptionMissing(grid.Buttons[0].Pickup, grid.DetailsDescriptionText.text);
             if (detailsMissing != null) throw h.Fail($"the details for {Language.GetString(grid.Buttons[0].Pickup.nameToken)} {detailsMissing}");
             yield return h.Wait(SettleSeconds);
@@ -421,7 +421,7 @@ namespace SevenUI.Tests
         }
 
         // As cards or a grid by how many options there are, laid out as the canvas's, with the details under a grid
-        // showing its first item, in both looks.
+        // showing its first item or the one under the pointer, in both looks.
         private static IEnumerator CheckStyled(Harness h, PickupPickerController picker, PickerPanel panel)
         {
             int count = picker.options.Length;
@@ -434,7 +434,7 @@ namespace SevenUI.Tests
             else
             {
                 yield return h.Until(() => GridAsCanvas(panel) == null, () => GridAsCanvas(panel));
-                yield return h.Until(() => DetailsShow(panel, 0), () => $"the details show {DetailsLook(panel)}, not the first item");
+                yield return h.Until(() => DetailsShowResting(panel), () => $"the details show {DetailsLook(panel)}, not the first or hovered item");
             }
             yield return h.Wait(SettleSeconds);
             string shown = ShownAsStyled(panel);
@@ -611,6 +611,14 @@ namespace SevenUI.Tests
             string hovered = string.Join(", ", panel.Buttons.Select((option, i) => (option, i)).Where(entry => entry.option.Hovered)
                 .Select(entry => $"{entry.i} ({Language.GetString(entry.option.Pickup.nameToken)})"));
             return $"\"{name}\" (option {shown} of {panel.Buttons.Count}; hovered: {(hovered.Length > 0 ? hovered : "none")})";
+        }
+
+        // As the grid opens: the details show the first item, or the one under the pointer. The game puts the pointer in
+        // the middle of the screen as a menu opens, where a small grid has a slot (the 10th of 12, in rows of six).
+        private static bool DetailsShowResting(PickerPanel panel)
+        {
+            int hovered = panel.Buttons.ToList().FindIndex(option => option.Hovered);
+            return DetailsShow(panel, hovered >= 0 ? hovered : 0);
         }
 
         private static bool DetailsShow(PickerPanel panel, int index) =>
