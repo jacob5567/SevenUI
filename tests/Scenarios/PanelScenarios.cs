@@ -78,9 +78,11 @@ namespace SevenUI.Tests
             yield return h.ExpectTopBarsAtCanvasWidth();
         }
 
-        // Each Eclipse level by name, the longest with Karma at its highest, and Karma turned off again.
+        // Each Eclipse level by name, the longest with Karma at its highest, and Karma turned off again. A run starts
+        // with Karma on when the lobby's starting Karma rule is set, so it is turned off first.
         private static IEnumerator EclipseAndKarmaShown(Harness h)
         {
+            RunSetUp.SetKarma(h, RunSetUp.KarmaOff);
             for (DifficultyIndex eclipse = DifficultyIndex.Eclipse1; eclipse <= DifficultyIndex.Eclipse8; eclipse++)
             {
                 RunSetUp.SetDifficulty(h, eclipse);
@@ -94,8 +96,10 @@ namespace SevenUI.Tests
             yield return h.ExpectDifficultyAndKarmaShown(RunSetUp.KarmaOff);
         }
 
+        // The canvas's run info has no Karma row; a run started with the lobby's Karma rule set would show one.
         private static IEnumerator RunInfoIsFlat(Harness h)
         {
+            RunSetUp.SetKarma(h, RunSetUp.KarmaOff);
             yield return h.ExpectRunInfoFlat();
             yield return h.ExpectRunInfoAsCanvas();
             yield return h.ExpectRunInfoCanvasHeight();
