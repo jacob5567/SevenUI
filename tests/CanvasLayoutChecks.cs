@@ -671,9 +671,11 @@ namespace SevenUI.Tests
         // The run's artifacts in a row of the run info, in place of the game's panel under it: with any on, the game's
         // icons, pictures loaded, on one line inside the panel, under the difficulty bar and Karma's row while it shows,
         // left of the label, none over another, all one size and none taller than the row; the game's panel left out of
-        // the column, which starts below the run info. With none on, the row is hidden.
-        public static IEnumerator ExpectArtifactsShown(this Harness h, int count)
+        // the column, which starts below the run info. With none on, the row is hidden. 'turnedOn' is how many the
+        // test turned on; those the tests leave alone (Rebirth) count too while the run has them on.
+        public static IEnumerator ExpectArtifactsShown(this Harness h, int turnedOn)
         {
+            int count = turnedOn + RunSetUp.LeftAloneOn();
             string look = null;
             yield return h.Until(
                 () =>

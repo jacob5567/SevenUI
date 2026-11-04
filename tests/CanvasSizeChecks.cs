@@ -51,6 +51,8 @@ namespace SevenUI.Tests
         private const float DividedGap = 26f;
         // 8 + 34 + 8 + 14.4 + 10, and the column 8 under it.
         private const float RunInfoHeight = 74.4f;
+        // The artifacts' row: the rows' 8px gap and its 22px icons.
+        private const float ArtifactRowSpace = 8f + 22f;
         private const float ColumnGap = 8f;
         private const string UpperRightPath = "MainContainer/MainUIArea/SpringCanvas/UpperRightCluster";
         // A 500px notification, its middle 758px down.
@@ -301,6 +303,8 @@ namespace SevenUI.Tests
                 },
                 () => $"the stack counts in the buffs' top-right corners ({look}) {h.Diagnosis()}");
         }
+        // The canvas's run info has no artifacts' row; while an artifact the tests leave alone (Rebirth) is on, the
+        // panel is taller by the row and its gap.
         public static IEnumerator ExpectRunInfoCanvasHeight(this Harness h)
         {
             string look = null;
@@ -317,10 +321,12 @@ namespace SevenUI.Tests
                     Rect below = Box(h, column);
                     string text = timer.targetLabel.text;
                     look = $"panel {BoxText(panel)}, column {BoxText(below)}, timer '{text}'";
-                    return Near(panel.height, RunInfoHeight) && Near(panel.yMin - below.yMax, ColumnGap) &&
+                    float height = RunInfoHeight + (RunSetUp.LeftAloneOn() > 0 ? ArtifactRowSpace : 0f);
+                    return Near(panel.height, height) && Near(panel.yMin - below.yMax, ColumnGap) &&
                            !text.Contains("<voffset") && !Tags.Replace(text, "").Contains(".");
                 },
-                () => $"the run info {RunInfoHeight}px tall with the column {ColumnGap}px under it, and the timer without " +
+                () => $"the run info {RunInfoHeight}px tall (and the artifacts' row while Rebirth is on) with the column " +
+                      $"{ColumnGap}px under it, and the timer without " +
                       $"hundredths ({look}) {h.Diagnosis()}");
         }
 

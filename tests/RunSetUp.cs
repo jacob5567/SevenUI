@@ -41,7 +41,20 @@ namespace SevenUI.Tests
             ApplyKarma(karma, level != KarmaOff, Math.Max(level, 0));
         }
 
-        // Exactly these artifacts on, every other off; the run's own set is put back at cleanup.
+        // Left as the run has it: Rebirth keeps an item in the player's profile for their next run, so the tests never
+        // turn it on or off.
+        private static bool LeftAlone(ArtifactDef artifact) => artifact == DLC2Content.Artifacts.Rebirth;
+
+        // How many of the artifacts the tests leave alone are on: a check counts them among the shown artifacts.
+        public static int LeftAloneOn()
+        {
+            RunArtifactManager manager = RunArtifactManager.instance;
+            ArtifactDef rebirth = DLC2Content.Artifacts.Rebirth;
+            return manager && rebirth && manager.IsArtifactEnabled(rebirth) ? 1 : 0;
+        }
+
+        // Exactly these artifacts on and every other off, but for those left alone; the run's own set is put back at
+        // cleanup.
         public static void SetArtifacts(Harness h, params ArtifactDef[] on)
         {
             RunArtifactManager manager = RunArtifactManager.instance;
@@ -68,7 +81,7 @@ namespace SevenUI.Tests
             for (int i = 0; i < ArtifactCatalog.artifactCount; i++)
             {
                 ArtifactDef artifact = ArtifactCatalog.GetArtifactDef((ArtifactIndex)i);
-                if (!artifact) continue;
+                if (!artifact || LeftAlone(artifact)) continue;
                 bool wanted = on.Contains(artifact);
                 if (manager.IsArtifactEnabled(artifact) != wanted)
                 {
