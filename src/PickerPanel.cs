@@ -578,7 +578,8 @@ namespace SevenUI
         {
             RectTransform details = NewObject(DetailsName, juice);
             Stretch(details);
-            divider = NewImage("Divider", details, Palette.RowDivider);
+            // In the grey of the cards' line over their stats; the scoreboard's darker row line barely showed here.
+            divider = NewImage("Divider", details, Palette.Divider);
             detailsName = AddText("Name", details, NameSize, Palette.Text);
             detailsName.fontStyle = FontStyles.Bold;
             detailsDescription = AddText("Description", details, DescriptionSize, Palette.HeaderText);
