@@ -198,8 +198,11 @@ namespace SevenUI.Tests
             yield return OpenStyled(h, command, found => grid = found);
             if (grid.Cards) throw h.Fail($"{grid.Buttons.Count} options are cards, not a grid");
             yield return h.Until(() => DetailsShowResting(grid), () => $"the details show {DetailsLook(grid)}, not the first or hovered item");
-            string detailsMissing = FullDescriptionMissing(grid.Buttons[0].Pickup, grid.DetailsDescriptionText.text);
-            if (detailsMissing != null) throw h.Fail($"the details for {Language.GetString(grid.Buttons[0].Pickup.nameToken)} {detailsMissing}");
+            // The first option's, or one the pointer rests on as the grid opens.
+            int shown = ShownIndex(grid);
+            PickupDef shownPickup = grid.Buttons[shown].Pickup;
+            string detailsMissing = FullDescriptionMissing(shownPickup, grid.DetailsDescriptionText.text);
+            if (detailsMissing != null) throw h.Fail($"the details for {Language.GetString(shownPickup.nameToken)} {detailsMissing}");
             yield return h.Wait(SettleSeconds);
             yield return h.Screenshot("grid");
 
@@ -209,7 +212,7 @@ namespace SevenUI.Tests
             float firstHeight = main.rect.height;
             float firstTop = TopEdge(main);
             int longest = Enumerable.Range(0, grid.Buttons.Count).OrderByDescending(i => grid.Buttons[i].DescriptionText.Length).First();
-            if (longest == 0) throw h.Skip("the first item has the longest description, so there is none longer to hover");
+            if (longest == shown) throw h.Skip("the item shown first has the longest description, so there is none longer to hover");
             PickerButton hovered = grid.Buttons[longest];
             hovered.Hover.hovering = true;
             h.OnCleanup(() =>
@@ -221,7 +224,7 @@ namespace SevenUI.Tests
             });
             yield return h.Until(() => DetailsShow(grid, longest) && main.rect.height > firstHeight + SizeTolerance,
                 () => $"the panel is {main.rect.height:0.#} tall with {Language.GetString(hovered.Pickup.nameToken)}'s details, " +
-                      $"{firstHeight:0.#} with {Language.GetString(grid.Buttons[0].Pickup.nameToken)}'s");
+                      $"{firstHeight:0.#} with {Language.GetString(shownPickup.nameToken)}'s");
             if (Mathf.Abs(TopEdge(main) - firstTop) > SizeTolerance)
             {
                 throw h.Fail($"the panel's top moved from {firstTop:0.#} to {TopEdge(main):0.#} as it grew");
@@ -604,10 +607,17 @@ namespace SevenUI.Tests
 
         // What the details show and why, for a failure: the option they name, by its place, and any option the game
         // counts as hovered, which the details follow (the real pointer resting on the grid, or a gamepad's selection).
+        // The option whose details show, by its name; -1 for none.
+        private static int ShownIndex(PickerPanel panel)
+        {
+            string name = panel.DetailsNameText ? panel.DetailsNameText.text : "";
+            return panel.Buttons.ToList().FindIndex(option => option.Pickup != null && Language.GetString(option.Pickup.nameToken) == name);
+        }
+
         private static string DetailsLook(PickerPanel panel)
         {
             string name = panel.DetailsNameText ? panel.DetailsNameText.text : "";
-            int shown = panel.Buttons.ToList().FindIndex(option => option.Pickup != null && Language.GetString(option.Pickup.nameToken) == name);
+            int shown = ShownIndex(panel);
             string hovered = string.Join(", ", panel.Buttons.Select((option, i) => (option, i)).Where(entry => entry.option.Hovered)
                 .Select(entry => $"{entry.i} ({Language.GetString(entry.option.Pickup.nameToken)})"));
             return $"\"{name}\" (option {shown} of {panel.Buttons.Count}; hovered: {(hovered.Length > 0 ? hovered : "none")})";
