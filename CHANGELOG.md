@@ -1,3 +1,11 @@
+## 1.0.1
+
+- Fixed the frame rate falling steadily after a few minutes in a run.
+- The run's artifacts show as a row in the run info, under the difficulty bar and Karma, in place of the separate artifact panel. The icons keep their tooltips and shrink to stay on one line when many artifacts are on.
+- The Karma icon's dark backdrop no longer shows beside the timer.
+- The scoreboard stays clear of the item bar when the bar has two rows of items.
+- The line between an item picker's grid and the item's details is easier to see.
+
 ## 1.0.0
 
 - First release.

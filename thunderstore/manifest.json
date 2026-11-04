@@ -1,6 +1,6 @@
 {
   "name": "SevenUI",
-  "version_number": "1.0.0",
+  "version_number": "1.0.1",
   "website_url": "https://github.com/jacob5567/SevenUI",
   "description": "Restyles the HUD flat and translucent: Barlow text, flat bars, slots and panels, a new scoreboard, item tooltips and item pickers, and monospace damage numbers. Works alongside LookingGlass. Client-side.",
   "dependencies": [
