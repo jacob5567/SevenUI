@@ -34,11 +34,10 @@ namespace SevenUI
         // backgrounds and overlays, which differ from panel to panel, such as the cursed book's stained glass).
         private static readonly string[] KeptParts = { TitleName, LegendName, CancelName };
 
-        // Up to this many options are cards, in one row; more are a grid of up to this many columns. The game's own
-        // column count differs from panel to panel and other mods change it (LookingGlass resizes Command's), so the
-        // flat look sets its own, and the gamepad navigation to match.
+        // Up to this many options are cards, in one row, with the gamepad navigation set to match; more are a grid in
+        // the game's own columns, which differ from panel to panel and which other mods may change (LookingGlass resizes
+        // Command's), so the grid keeps the game's navigation.
         public const int CardLimit = 6;
-        public const int GridColumns = 6;
 
         // The design canvas's sizes, in its pixels, scaled to the HUD's units.
         private const float Canvas = HudUnits.PerCanvasPixel;
@@ -133,6 +132,9 @@ namespace SevenUI
 
         public bool Cards { get; private set; }
 
+        // The options per row: all of them as cards, the game's columns as a grid.
+        public int Columns => columns;
+
         public IReadOnlyList<PickerButton> Buttons => buttons;
 
         // Read by the SevenUI.Tests plugin.
@@ -220,7 +222,7 @@ namespace SevenUI
             shownOptions = options;
             shownButtonCount = elements.Count;
             Cards = options.Length <= CardLimit;
-            columns = Cards ? options.Length : Mathf.Min(options.Length, GridColumns);
+            columns = Cards ? options.Length : Mathf.Min(options.Length, GameColumns());
             fullDescriptions = PickupDescriptions.Full();
             recorder.RecordRect(mainPanel);
 
@@ -249,8 +251,11 @@ namespace SevenUI
                 PickupDef pickup = PickupCatalog.GetPickupDef(options[i].pickup.pickupIndex);
                 buttons.Add(Cards ? StyleCard(elements[i], pickup) : StyleSlot(elements[i], pickup));
             }
-            Navigate(elements, options.Length);
-            if (!Cards)
+            if (Cards)
+            {
+                Navigate(elements, options.Length);
+            }
+            else
             {
                 AddDetails();
             }
@@ -395,10 +400,21 @@ namespace SevenUI
             container.anchorMin = container.anchorMax = container.pivot = new Vector2(0f, 1f);
         }
 
-        // Every frame too, since another mod may set the grid's columns after the panel is styled.
+        // Every frame too, since another mod may set the grid's columns after the panel is styled: the cards are held
+        // to one row, and a grid is laid out again in the game's columns when they change.
         private void KeepColumns()
         {
             GridLayoutGroup grid = panel.gridlayoutGroup;
+            if (!Cards)
+            {
+                int game = Mathf.Min(buttons.Count, GameColumns());
+                if (game != columns && game > 0)
+                {
+                    columns = game;
+                    Layout();
+                }
+                return;
+            }
             if (grid.constraint != GridLayoutGroup.Constraint.FixedColumnCount)
             {
                 grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
@@ -409,8 +425,19 @@ namespace SevenUI
             }
         }
 
-        // The game's explicit gamepad navigation (PickupPickerPanel.SetPickupOptions) for the flat look's columns,
-        // so up, down, left and right move as the buttons are laid out.
+        // The columns the game lays the grid out in (PickupPickerPanel sets them from maxColumnCount as it wakes), or
+        // another mod's count if it set its own.
+        private int GameColumns()
+        {
+            GridLayoutGroup grid = panel.gridlayoutGroup;
+            int count = grid.constraint == GridLayoutGroup.Constraint.FixedColumnCount && grid.constraintCount > 0
+                ? grid.constraintCount
+                : panel.maxColumnCount;
+            return Mathf.Max(1, count);
+        }
+
+        // The game's explicit gamepad navigation (PickupPickerPanel.SetPickupOptions) for the cards' one row, so up,
+        // down, left and right move as the cards are laid out.
         private void Navigate(ReadOnlyCollection<MPButton> elements, int count)
         {
             if (panel.automaticButtonNavigation) return;
