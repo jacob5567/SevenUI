@@ -67,6 +67,8 @@ namespace SevenUI.Tests
         // Under the extra buttons: the scoreboard (Tab) and sprint buttons' icons, both named SprintIcon by the game.
         public const string ScoreboardIcon = "InventoryCluster/SprintIcon";
         public const string SprintIcon = "SprintCluster/SprintIcon";
+        // Shown in the sprint icon's place while the player flies a remote-operated drone.
+        public const string DescendIcon = "SprintCluster/DescendIcon";
 
         // An empty slot above the skills that the game parents Drone Tech's drones and Seeker's lotus to.
         public const string UtilityArea = "MainContainer/MainUIArea/SpringCanvas/BottomRightCluster/Scaler/UtilityArea";

@@ -413,7 +413,8 @@ namespace SevenUI.Tests
                       $") {h.Diagnosis()}");
         }
 
-        // The scoreboard and sprint buttons' icons, drawn as the canvas's flat strokes in the text white.
+        // The scoreboard and sprint buttons' icons, and the descend icon that stands in for sprint while flying a
+        // remote-operated drone, drawn as the canvas's flat strokes in the text white.
         public static IEnumerator ExpectExtraIconsFlat(this Harness h)
         {
             string look = "no buttons";
@@ -424,11 +425,12 @@ namespace SevenUI.Tests
                     if (!buttons) return false;
                     Image scoreboard = buttons.Find(GameNames.ScoreboardIcon)?.GetComponent<Image>();
                     Image sprint = buttons.Find(GameNames.SprintIcon)?.GetComponent<Image>();
-                    look = $"scoreboard {IconLook(scoreboard)}, sprint {IconLook(sprint)}";
-                    return scoreboard && scoreboard.sprite == FlatIcons.Scoreboard && Near(scoreboard.color, Palette.Text) &&
-                           sprint && sprint.sprite == FlatIcons.Sprint && Near(sprint.color, Palette.Text);
+                    Image descend = buttons.Find(GameNames.DescendIcon)?.GetComponent<Image>();
+                    look = $"scoreboard {IconLook(scoreboard)}, sprint {IconLook(sprint)}, descend {IconLook(descend)}";
+                    return IsIcon(scoreboard, FlatIcons.Scoreboard) && IsIcon(sprint, FlatIcons.Sprint) &&
+                           IsIcon(descend, FlatIcons.Descend);
                 },
-                () => $"flat scoreboard and sprint icons ({look}) {h.Diagnosis()}");
+                () => $"flat scoreboard, sprint and descend icons ({look}) {h.Diagnosis()}");
         }
 
         // The tutorial popups that the game hasn't destroyed (it does once their tip is used), each a dark panel with
@@ -468,6 +470,8 @@ namespace SevenUI.Tests
                    $"strip {(popup.transform.Find(TutorialPopups.StripName) ? "yes" : "no")}, " +
                    $"text {(text ? text.color.ToString() : "none")}";
         }
+
+        private static bool IsIcon(Image icon, Sprite sprite) => icon && icon.sprite == sprite && Near(icon.color, Palette.Text);
 
         private static string IconLook(Image icon) =>
             icon ? $"sprite {(icon.sprite ? icon.sprite.name : "none")} color {icon.color}" : "missing";
