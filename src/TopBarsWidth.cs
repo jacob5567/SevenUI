@@ -11,7 +11,7 @@ namespace SevenUI
     // the screen; the width is measured on screen through the HUD's camera, not in the canvas's units.
     internal sealed class TopBarsWidth
     {
-        private const string TopCenterPath = "MainContainer/MainUIArea/SpringCanvas/TopCenterCluster";
+        public const string TopCenterPath = "MainContainer/MainUIArea/SpringCanvas/TopCenterCluster";
         private const float ScreenShare = 900f / 1920f;
         // Below this, in screen pixels, the cluster isn't resized, so it isn't dirtied every frame.
         private const float FitPixels = 0.5f;

@@ -1,3 +1,4 @@
+using RoR2.UI;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -5,7 +6,9 @@ namespace SevenUI
 {
     // The scoreboard as wide as on the design canvas, 1220 of its pixels, and, with ScoreboardBesideRunInfo, where the
     // canvas puts it: 110 pixels down from the top of the screen, centered between the screen's left edge and the run
-    // info's column. The game's panel spans the screen less 616 units and lays the board out centered in it, between
+    // info's column. The item bar above it grows down as rows are added, its icons shrinking to keep the rows within
+    // 116 units; two rows of large icons reach 110 pixels, so the board moves down to stay 8 pixels below the bar's
+    // last row. The game's panel spans the screen less 616 units and lays the board out centered in it, between
     // 140 units of padding on each side. Without the setting the panel stays the game's and the padding is what leaves
     // the canvas's width in the middle. Narrower screens get what room there is.
     //
@@ -17,6 +20,7 @@ namespace SevenUI
         private const float CanvasHeight = 1080f;
         private const float BoardWidth = 1220f;
         private const float BoardTop = 110f;
+        public const float ItemBarGap = 8f;
         // Kept between the board and the screen's edge or the column when there isn't room for the canvas's width.
         private const float MinMargin = 16f;
         // In the scoreboard's units.
@@ -32,6 +36,7 @@ namespace SevenUI
         private readonly Vector2 gameOffsetMax;
         private readonly Vector3[] corners = new Vector3[4];
         private RectTransform column;
+        private ItemInventoryDisplay itemBar;
 
         public ScoreboardPlacement(RectTransform panel, VerticalLayoutGroup container, Transform hud, StyleRecorder recorder)
         {
@@ -78,6 +83,11 @@ namespace SevenUI
             float boardWidth = Mathf.Min(BoardWidth * pixel, room - 2f * MinMargin * pixel);
             float left = screen.xMin + (room - boardWidth) / 2f;
             float top = screen.yMax - BoardTop * pixel;
+            float barBottom = ItemBarBottom();
+            if (!float.IsNaN(barBottom))
+            {
+                top = Mathf.Min(top, barBottom - ItemBarGap * pixel);
+            }
             if (!ToLocal(space, new Vector2(left, top), out Vector2 topLeft) ||
                 !ToLocal(space, new Vector2(left + boardWidth, top), out Vector2 topRight)) return;
             // Anchored to the left edge and top of the panel's space, keeping the game's bottom.
@@ -131,6 +141,32 @@ namespace SevenUI
                 left = Mathf.Min(left, RectTransformUtility.WorldToScreenPoint(camera, corner).x);
             }
             return left;
+        }
+
+        // The bottom of the item bar's last row on screen; NaN without items. The game adds and removes icons at the
+        // end of the bar and lays them out in order, so the last icon is in the last row.
+        private float ItemBarBottom()
+        {
+            if (!itemBar)
+            {
+                Transform topCenter = hud.Find(TopBarsWidth.TopCenterPath);
+                itemBar = topCenter ? topCenter.GetComponentInChildren<ItemInventoryDisplay>(true) : null;
+            }
+            if (!itemBar || !itemBar.isActiveAndEnabled) return float.NaN;
+            Transform bar = itemBar.transform;
+            for (int i = bar.childCount - 1; i >= 0; i--)
+            {
+                Transform icon = bar.GetChild(i);
+                if (!icon.gameObject.activeSelf || !icon.GetComponent<ItemIcon>()) continue;
+                ((RectTransform)icon).GetWorldCorners(corners);
+                float bottom = float.MaxValue;
+                foreach (Vector3 corner in corners)
+                {
+                    bottom = Mathf.Min(bottom, RectTransformUtility.WorldToScreenPoint(camera, corner).y);
+                }
+                return bottom;
+            }
+            return float.NaN;
         }
 
         private static Transform FindDeep(Transform parent, string name)

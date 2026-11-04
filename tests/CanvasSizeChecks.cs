@@ -140,7 +140,21 @@ namespace SevenUI.Tests
                 .FirstOrDefault(rect => rect.name == RunInfoStyler.BackgroundName);
             if (!column) return "no run info panel";
             float toColumn = Box(h, column).xMin - box.xMax;
-            return Near(fromTop, ScoreboardTop) && Near(left, toColumn) ? null : $"{look}, {toColumn:0.#} from the run info";
+            float barBottom = ItemBarBottom(h, screen.yMax / unit);
+            float wantedTop = Mathf.Max(ScoreboardTop, barBottom + ScoreboardPlacement.ItemBarGap);
+            return Near(fromTop, wantedTop) && Near(left, toColumn)
+                ? null
+                : $"{look}, {toColumn:0.#} from the run info, item bar down to {barBottom:0.#}, wanted top {wantedTop:0.#}";
+        }
+
+        // How far down the screen the HUD's item bar reaches, from the screen's top; 0 without items.
+        private static float ItemBarBottom(Harness h, float screenTop)
+        {
+            Transform topCenter = SevenUIChecks.HudRoot(h).Find(TopBarsWidth.TopCenterPath);
+            ItemInventoryDisplay bar = topCenter ? topCenter.GetComponentInChildren<ItemInventoryDisplay>() : null;
+            List<ItemIcon> icons = bar ? bar.GetComponentsInChildren<ItemIcon>().Where(icon => icon.isActiveAndEnabled).ToList() : null;
+            if (icons == null || icons.Count == 0) return 0f;
+            return screenTop - icons.Min(icon => Box(h, icon.rectTransform).yMin);
         }
 
         // Null when a row's item icons are drawn as the canvas's slots: none over another, none wider than a slot, the
