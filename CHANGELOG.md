@@ -1,3 +1,7 @@
+## 1.1.0
+
+- The same as 1.0.1, numbered as a minor release for its new artifacts row.
+
 ## 1.0.1
 
 - Fixed the frame rate falling steadily after a few minutes in a run.
