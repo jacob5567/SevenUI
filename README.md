@@ -2,7 +2,7 @@
 
 A flat restyle of Risk of Rain 2's HUD: Barlow text, flat translucent panels and bars, and a matching scoreboard, tooltips and item pickers. The game's layout stays the same, so other HUD mods keep working.
 
-![The HUD in a run with SevenUI](https://raw.githubusercontent.com/jacob5567/SevenUI/main/docs/screenshots/hud.png)
+![The HUD in a run with SevenUI](https://raw.githubusercontent.com/jacob5567/SevenUI/main/docs/screenshots/hud.jpg)
 
 ## What it changes
 
@@ -14,13 +14,13 @@ A flat restyle of Risk of Rain 2's HUD: Barlow text, flat translucent panels and
 - **Prompts and notifications:** keycaps, with a strip in the color of the cost or the item's tier.
 - **Scoreboard, tooltips and item pickers:** restyled to match, with item counts per tier on the scoreboard.
 
-![The game's HUD and SevenUI side by side](https://raw.githubusercontent.com/jacob5567/SevenUI/main/docs/screenshots/before-after.png)
+![The game's HUD and SevenUI side by side](https://raw.githubusercontent.com/jacob5567/SevenUI/main/docs/screenshots/before-after.jpg)
 
-![An interaction prompt and a pickup notification](https://raw.githubusercontent.com/jacob5567/SevenUI/main/docs/screenshots/prompts.png)
+![An interaction prompt and a pickup notification](https://raw.githubusercontent.com/jacob5567/SevenUI/main/docs/screenshots/prompts.jpg)
 
-![The scoreboard](https://raw.githubusercontent.com/jacob5567/SevenUI/main/docs/screenshots/scoreboard.png)
+![The scoreboard](https://raw.githubusercontent.com/jacob5567/SevenUI/main/docs/screenshots/scoreboard.jpg)
 
-![An item picker](https://raw.githubusercontent.com/jacob5567/SevenUI/main/docs/screenshots/picker.png)
+![An item picker](https://raw.githubusercontent.com/jacob5567/SevenUI/main/docs/screenshots/picker.jpg)
 
 ## Compatibility
 
