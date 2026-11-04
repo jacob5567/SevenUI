@@ -34,10 +34,14 @@ namespace SevenUI
 
         private int shownCount = -1;
         private bool shownAvailable = true;
+        private bool wasHovered;
 
         // Hovered with the pointer, or selected with a gamepad: the game's own state, which it shows by fading in its
         // hover outline.
         public bool Hovered => Hover && Hover.hovering;
+
+        // Hovered this frame and not the one before, as of the last Update.
+        public bool JustHovered { get; private set; }
 
         public bool Available => Button && Button.interactable;
 
@@ -45,6 +49,9 @@ namespace SevenUI
         public void Update(Inventory inventory)
         {
             if (!Button) return;
+            bool hovering = Hovered;
+            JustHovered = hovering && !wasHovered;
+            wasHovered = hovering;
             if (Outline)
             {
                 bool hovered = Hovered;

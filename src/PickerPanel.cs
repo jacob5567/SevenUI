@@ -185,15 +185,24 @@ namespace SevenUI
                 Layout();
             }
             Inventory inventory = hud && hud.targetMaster ? hud.targetMaster.inventory : null;
-            int hovered = -1;
+            // A gamepad's selection and the pointer can each hover an option at once, so the details follow the one
+            // hovered last.
+            int newlyHovered = -1;
+            int firstHovered = -1;
             for (int i = 0; i < buttons.Count; i++)
             {
                 buttons[i].Update(inventory);
-                if (hovered < 0 && buttons[i].Hovered)
+                if (buttons[i].JustHovered)
                 {
-                    hovered = i;
+                    newlyHovered = i;
+                }
+                if (firstHovered < 0 && buttons[i].Hovered)
+                {
+                    firstHovered = i;
                 }
             }
+            bool stillHovered = detailsIndex >= 0 && detailsIndex < buttons.Count && buttons[detailsIndex].Hovered;
+            int hovered = newlyHovered >= 0 ? newlyHovered : stillHovered ? detailsIndex : firstHovered;
             if (cancelWaiting)
             {
                 StyleCancel();

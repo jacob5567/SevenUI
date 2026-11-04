@@ -613,12 +613,13 @@ namespace SevenUI.Tests
             return $"\"{name}\" (option {shown} of {panel.Buttons.Count}; hovered: {(hovered.Length > 0 ? hovered : "none")})";
         }
 
-        // As the grid opens: the details show the first item, or the one under the pointer. The game puts the pointer in
-        // the middle of the screen as a menu opens, where a small grid has a slot (the 10th of 12, in rows of six).
+        // As the grid opens: the details show the first item, or one that is hovered. The game puts the pointer in the
+        // middle of the screen as a menu opens, where a small grid has a slot (the 10th of 12, in rows of six), and
+        // selects the first option while it takes a gamepad to be in use, so both can hover an option at once.
         private static bool DetailsShowResting(PickerPanel panel)
         {
-            int hovered = panel.Buttons.ToList().FindIndex(option => option.Hovered);
-            return DetailsShow(panel, hovered >= 0 ? hovered : 0);
+            List<int> hovered = Enumerable.Range(0, panel.Buttons.Count).Where(i => panel.Buttons[i].Hovered).ToList();
+            return hovered.Count > 0 ? hovered.Any(i => DetailsShow(panel, i)) : DetailsShow(panel, 0);
         }
 
         private static bool DetailsShow(PickerPanel panel, int index) =>
