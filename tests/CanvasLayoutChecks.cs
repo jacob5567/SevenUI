@@ -646,7 +646,8 @@ namespace SevenUI.Tests
                     DifficultyDef difficulty = DifficultyCatalog.GetDifficultyDef(Run.instance.selectedDifficulty);
                     // The game's name, with an Eclipse level out of its brackets: "Eclipse (8)" shows as "Eclipse 8".
                     string expected = difficulty != null ? Language.GetString(difficulty.nameToken).Replace("(", "").Replace(")", "") : null;
-                    bool iconDrawn = icon.holder && icon.holder.gameObject.activeInHierarchy && icon.image && icon.image.enabled;
+                    // The icon and the dark backdrop under it, which the game shows together by turning on their holder.
+                    bool iconDrawn = icon.holder && icon.holder.GetComponentsInChildren<Graphic>().Any(g => g.enabled);
                     bool rowShown = row.gameObject.activeInHierarchy;
                     Bounds rowBounds = In(space, row);
                     TMP_Text label = row.Find(KarmaRow.LabelName)?.GetComponent<TMP_Text>();

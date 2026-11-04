@@ -77,6 +77,7 @@ namespace SevenUI
         private readonly Transform root;
         private readonly StyleRecorder recorder = new StyleRecorder();
         private readonly List<DifficultyBarController> bars = new List<DifficultyBarController>();
+        private readonly List<Image> karmaImages = new List<Image>();
         // The artifacts' row is null for a panel without the game's artifact panel under it.
         private readonly List<(Transform panel, DifficultyBarController bar, KarmaRow karma, ArtifactRow artifacts)> styled =
             new List<(Transform, DifficultyBarController, KarmaRow, ArtifactRow)>();
@@ -168,10 +169,21 @@ namespace SevenUI
             Disable<Image>(panel, SetDifficultyPanelPath);
             Disable<Image>(panel, DifficultyIconPath);
             Disable<Image>(panel, OutlinePath);
+            // The Karma icon gives way to the Karma row: its sprite and the dark backdrop under it (BG), which the
+            // game shows with the icon by turning their holder on, so the images themselves stay off.
             KarmaIcon karmaIcon = panel.GetComponentInChildren<KarmaIcon>(true);
             if (karmaIcon)
             {
                 recorder.Disable(karmaIcon.image);
+                if (karmaIcon.holder)
+                {
+                    karmaIcon.holder.GetComponentsInChildren(true, karmaImages);
+                    foreach (Image image in karmaImages)
+                    {
+                        recorder.Disable(image);
+                    }
+                    karmaImages.Clear();
+                }
             }
             PlaceRows(panel, (RectTransform)bar.transform);
             Transform background = panel.Find(BackgroundName);
