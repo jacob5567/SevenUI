@@ -668,6 +668,62 @@ namespace SevenUI.Tests
                       $"{h.Diagnosis()}");
         }
 
+        // The run's artifacts in a row of the run info, in place of the game's panel under it: with any on, the game's
+        // icons, pictures loaded, on one line inside the panel, under the difficulty bar and Karma's row while it shows,
+        // left of the label, none over another, all one size and none taller than the row; the game's panel left out of
+        // the column, which starts below the run info. With none on, the row is hidden.
+        public static IEnumerator ExpectArtifactsShown(this Harness h, int count)
+        {
+            string look = null;
+            yield return h.Until(
+                () =>
+                {
+                    DifficultyBarController bar = DifficultyBar(h);
+                    if (!bar) return false;
+                    Transform panel = bar.transform.parent;
+                    RectTransform background = panel.Find(Texts.RunInfoBackgroundName) as RectTransform;
+                    RectTransform column = panel.Find(GameNames.RightInfoBar) as RectTransform;
+                    RectTransform row = bar.transform.Find(ArtifactRow.RowName) as RectTransform;
+                    RectTransform karma = bar.transform.Find(KarmaRow.RowName) as RectTransform;
+                    TMP_Text label = row ? row.Find(ArtifactRow.LabelName)?.GetComponent<TMP_Text>() : null;
+                    ArtifactDisplayPanelController game = panel.GetComponentInChildren<ArtifactDisplayPanelController>(true);
+                    if (!background || !column || !row || !karma || !label || !game) return false;
+                    bool shown = row.gameObject.activeInHierarchy;
+                    List<RawImage> icons = row.GetComponentsInChildren<RawImage>().ToList();
+                    LayoutElement gameLayout = game.panelObject ? game.panelObject.GetComponent<LayoutElement>() : null;
+                    bool gameLeftOut = !game.panelObject || !game.panelObject.activeInHierarchy || gameLayout && gameLayout.ignoreLayout;
+                    look = $"row shown={shown}, {icons.Count} icons (expected {count}), game panel left out={gameLeftOut}";
+                    if (count == 0) return !shown && gameLeftOut;
+                    if (!shown || icons.Count != count || !gameLeftOut) return false;
+
+                    RectTransform space = (RectTransform)panel;
+                    Bounds box = In(space, background);
+                    Bounds rowBounds = In(space, row);
+                    Bounds labelBounds = TextIn(space, label);
+                    Bounds barBounds = In(space, (RectTransform)bar.transform);
+                    Bounds columnBounds = In(space, column);
+                    List<Bounds> boxes = icons.Select(icon => In(space, icon.rectTransform)).ToList();
+                    float size = boxes[0].size.y;
+                    float middle = boxes[0].center.y;
+                    bool oneLine = boxes.All(b => Mathf.Abs(b.center.y - middle) < BuffTolerance);
+                    bool sameSize = boxes.All(b => Mathf.Abs(b.size.x - size) < BuffTolerance && Mathf.Abs(b.size.y - size) < BuffTolerance);
+                    bool overlap = boxes.Select((a, i) => boxes.Skip(i + 1).Any(b => Overlap(a, b))).Any(any => any);
+                    bool loaded = icons.All(icon => icon.texture);
+                    bool karmaShown = karma.gameObject.activeInHierarchy;
+                    float above = karmaShown ? In(space, karma).min.y : barBounds.center.y;
+                    look += $", icons {size:0.#} tall at y {middle:0.#} in a row {rowBounds.size.y:0.#} tall from y " +
+                            $"{rowBounds.min.y:0.#} to {rowBounds.max.y:0.#}, x {boxes.Min(b => b.min.x):0.#}-{boxes.Max(b => b.max.x):0.#}, " +
+                            $"label '{label.text}' from x {labelBounds.min.x:0.#}, one line={oneLine}, same size={sameSize}, " +
+                            $"overlap={overlap}, loaded={loaded}, under y {above:0.#}, panel y {box.min.y:0.#}-{box.max.y:0.#}, " +
+                            $"column top {columnBounds.max.y:0.#}";
+                    return oneLine && sameSize && !overlap && loaded && size <= rowBounds.size.y + BuffTolerance &&
+                           boxes.All(b => Inside(box, b) && Inside(rowBounds, b) && b.max.x <= labelBounds.min.x) &&
+                           Inside(box, labelBounds) && rowBounds.max.y <= above + BuffTolerance &&
+                           columnBounds.max.y <= box.min.y + BuffTolerance;
+                },
+                () => $"{count} artifacts shown in the run info ({look}) {h.Diagnosis()}");
+        }
+
         private static bool Inside(Bounds outer, Bounds inner) =>
             inner.min.x >= outer.min.x - BuffTolerance && inner.max.x <= outer.max.x + BuffTolerance &&
             inner.min.y >= outer.min.y - BuffTolerance && inner.max.y <= outer.max.y + BuffTolerance;

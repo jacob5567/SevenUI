@@ -9,7 +9,7 @@ A flat restyle of Risk of Rain 2's HUD: Barlow text, flat translucent panels and
 - **Text:** Barlow throughout the HUD, Barlow Condensed for timers, levels and cooldowns, and JetBrains Mono for damage numbers.
 - **Panels and bars:** flat and translucent, with the HUD facing the screen squarely and sitting closer to its edges.
 - **Health:** the barrier as a gold strip along the top, curses and one-shot protection as stripes, and the numbers as text.
-- **Run info:** the timer, difficulty or Eclipse level, stage and Karma in one panel.
+- **Run info:** the timer, difficulty or Eclipse level, stage, Karma and artifacts in one panel.
 - **Items, buffs and skills:** dark slots with tier colors, and a cooldown cover that shrinks as a skill recharges.
 - **Prompts and notifications:** keycaps, with a strip in the color of the cost or the item's tier.
 - **Scoreboard, tooltips and item pickers:** restyled to match, with item counts per tier on the scoreboard.

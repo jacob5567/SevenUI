@@ -11,7 +11,9 @@ namespace SevenUI
     // Restyles the run info in the top right as one flat panel, laid out as on the design canvas: the timer at the left;
     // the difficulty's name, and the stage and level under it, at the right; and below them a thin accent bar with the
     // current difficulty segment's name, in place of the game's scrolling segments. While Karma is on, a row under the
-    // bar shows it (KarmaRow) in place of the game's Karma icon, and the panel and the column under it make room. The
+    // bar shows it (KarmaRow) in place of the game's Karma icon, and while any artifact is on, a row under those shows
+    // the artifacts' icons (ArtifactRow) in place of the game's artifact panel; the panel and the column under it make
+    // room for each. The
     // panel is the canvas's height, and the timer reads "24:51" without the hundredths (TightTimerFormat). The column
     // it heads, which holds the objective panel, is widened to 300 of the canvas's pixels and starts a gap under it.
     // The game's objects keep running; only their look and places change.
@@ -64,6 +66,8 @@ namespace SevenUI
         private const float BarNameFontSize = 12f * Canvas;
         // The Karma row: another bar's row, the rows' gap under the difficulty bar's.
         private const float KarmaRowSpace = RowGap + BarRowHeight;
+        // The artifacts' row: its icons' height, the rows' gap under the row above it.
+        private const float ArtifactRowSpace = RowGap + ArtifactRow.Height;
         // Above and below the rows, in the run info's units, for a panel without a timer.
         private const float PanelPadding = 6f;
         // The most of the bar's row the segment's name may take before it shrinks.
@@ -73,10 +77,12 @@ namespace SevenUI
         private readonly Transform root;
         private readonly StyleRecorder recorder = new StyleRecorder();
         private readonly List<DifficultyBarController> bars = new List<DifficultyBarController>();
-        private readonly List<(Transform panel, DifficultyBarController bar, KarmaRow karma)> styled =
-            new List<(Transform, DifficultyBarController, KarmaRow)>();
-        // Whether the rows were last laid out with the Karma row.
+        // The artifacts' row is null for a panel without the game's artifact panel under it.
+        private readonly List<(Transform panel, DifficultyBarController bar, KarmaRow karma, ArtifactRow artifacts)> styled =
+            new List<(Transform, DifficultyBarController, KarmaRow, ArtifactRow)>();
+        // Whether the rows were last laid out with the Karma row, and with the artifacts' row.
         private bool karmaShown;
+        private bool artifactsShown;
         private readonly Vector3[] corners = new Vector3[4];
         // What the panel background covers; the difficulty bar is added by its own transform. Not every child: the
         // difficulty tutorial popup is one, and sits well outside the panel.
@@ -105,31 +111,53 @@ namespace SevenUI
             recorder.Restore();
             styled.Clear();
             karmaShown = false;
+            artifactsShown = false;
         }
 
         // Every frame while the panels are on: Karma is turned on by the run's rules, synced to clients after the HUD
-        // is made, and its level changes during the run. Two reads of KarmaManager's fields when nothing changed.
+        // is made, and its level changes during the run; the game adds and removes artifact icons as artifacts are
+        // turned on and off. Two reads of KarmaManager's fields and a child count per panel when nothing changed.
         public void Update()
         {
-            styled.RemoveAll(entry => !entry.panel || !entry.bar || !entry.karma.Alive);
+            styled.RemoveAll(entry => !entry.panel || !entry.bar || !entry.karma.Alive ||
+                                      entry.artifacts != null && !entry.artifacts.Alive);
             KarmaManager manager = KarmaManager.instance;
-            bool shown = manager && manager.IsKarmaEnabled();
-            if (shown != karmaShown)
+            bool karmaOn = manager && manager.IsKarmaEnabled();
+            bool artifactsOn = false;
+            foreach ((_, _, _, ArtifactRow artifacts) in styled)
             {
-                karmaShown = shown;
-                foreach ((Transform panel, DifficultyBarController bar, KarmaRow karma) in styled)
+                artifactsOn |= artifacts != null && artifacts.Count > 0;
+            }
+            if (karmaOn != karmaShown || artifactsOn != artifactsShown)
+            {
+                karmaShown = karmaOn;
+                artifactsShown = artifactsOn;
+                foreach ((Transform panel, DifficultyBarController bar, KarmaRow karma, ArtifactRow artifacts) in styled)
                 {
-                    karma.Root.gameObject.SetActive(shown);
+                    karma.Root.gameObject.SetActive(karmaOn);
+                    if (artifacts != null)
+                    {
+                        artifacts.Root.gameObject.SetActive(artifactsOn);
+                        artifacts.Place(ArtifactRowOffset());
+                    }
                     PlaceBelowRows(panel, bar);
                 }
             }
-            if (!shown) return;
+            foreach ((_, _, _, ArtifactRow artifacts) in styled)
+            {
+                artifacts?.Update();
+            }
+            if (!karmaOn) return;
             int level = manager.GetEffectiveKarma();
-            foreach ((_, _, KarmaRow karma) in styled)
+            foreach ((_, _, KarmaRow karma, _) in styled)
             {
                 karma.Set(level);
             }
         }
+
+        // How far the artifacts' row's middle sits below the difficulty bar's: under the Karma row while it shows.
+        private float ArtifactRowOffset() =>
+            BarRowHeight / 2f + (karmaShown ? KarmaRowSpace : 0f) + RowGap + ArtifactRow.Height / 2f;
 
         private void StylePanel(Transform panel, DifficultyBarController bar)
         {
@@ -227,9 +255,11 @@ namespace SevenUI
         private float BarMiddle(Transform panel, RectTransform timer) =>
             Middle(panel, timer) - (TimerRowHeight / 2f + RowGap + BarRowHeight / 2f) * timer.localScale.y;
 
-        // The bottom of the panel's rows: the bar's row, the Karma row while it shows, and the padding under them.
+        // The bottom of the panel's rows: the bar's row, the Karma and artifacts' rows while they show, and the padding
+        // under them.
         private float RowsBottom(Transform panel, RectTransform timer) =>
-            BarMiddle(panel, timer) - (BarRowHeight / 2f + (karmaShown ? KarmaRowSpace : 0f) + BottomPadding) *
+            BarMiddle(panel, timer) - (BarRowHeight / 2f + (karmaShown ? KarmaRowSpace : 0f) +
+                                       (artifactsShown ? ArtifactRowSpace : 0f) + BottomPadding) *
             timer.localScale.y;
 
         // The column hangs a gap under the rows; its height is its own layout's.
@@ -380,10 +410,25 @@ namespace SevenUI
                 KarmaRow karma = new KarmaRow((RectTransform)transform, gameLabel, BarRowHeight, KarmaRowSpace, RowInset,
                     BarNameFontSize);
                 recorder.Add(karma.Root.gameObject);
-                styled.Add((bar.transform.parent, bar, karma));
-                // Shown, and the rows placed for it, on the next Update.
+                ArtifactRow artifacts = AddArtifactRow(bar, gameLabel);
+                styled.Add((bar.transform.parent, bar, karma, artifacts));
+                // Shown, and the rows placed for them, on the next Update.
                 karmaShown = false;
+                artifactsShown = false;
             }
+        }
+
+        // The game's artifact panel heads the column under the run info; its icons move into a row of the run info.
+        private ArtifactRow AddArtifactRow(DifficultyBarController bar, TMP_Text fontFrom)
+        {
+            Transform column = bar.transform.parent ? bar.transform.parent.Find(RightInfoBarPath) : null;
+            ArtifactDisplayPanelController artifacts =
+                column ? column.GetComponentInChildren<ArtifactDisplayPanelController>(true) : null;
+            if (!artifacts) return null;
+            ArtifactRow row = new ArtifactRow((RectTransform)bar.transform, artifacts, fontFrom, RowInset,
+                BarNameFontSize, recorder);
+            recorder.Add(row.Root.gameObject);
+            return row.Alive ? row : null;
         }
 
         private Transform AddBackground(Transform panel)
@@ -540,6 +585,12 @@ namespace SevenUI
             foreach (RunInfoText text in cluster.GetComponentsInChildren<RunInfoText>(true))
             {
                 output.AppendLine($"  run text: '{text.ShownDifficulty}', '{(text.StageAndLevel ? text.StageAndLevel.text : "")}'");
+            }
+            foreach ((_, _, _, ArtifactRow artifacts) in styled)
+            {
+                if (artifacts == null || !artifacts.Alive) continue;
+                output.AppendLine($"  artifacts row: {artifacts.Count} shown={artifacts.Root.gameObject.activeSelf} " +
+                                  $"icons {artifacts.IconSize:0.#} units");
             }
         }
     }

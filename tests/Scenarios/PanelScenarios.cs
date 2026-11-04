@@ -37,6 +37,7 @@ namespace SevenUI.Tests
             yield return new Scenario(1, "tight_margins_switch", Stages.TitanicPlains, TightMarginsSwitch);
             yield return new Scenario(1, "run_info_is_flat", Stages.TitanicPlains, RunInfoIsFlat);
             yield return new Scenario(1, "eclipse_and_karma_shown", Stages.TitanicPlains, EclipseAndKarmaShown);
+            yield return new Scenario(1, "artifacts_in_run_info", Stages.TitanicPlains, ArtifactsInRunInfo);
             yield return new Scenario(1, "objective_panel_is_flat", Stages.TitanicPlains, ObjectivePanelIsFlat);
             yield return new Scenario(1, "player_bars_are_flat", Stages.TitanicPlains, PlayerBarsAreFlat);
             yield return new Scenario(1, "buffs_wrap_in_rows", Stages.TitanicPlains, BuffsWrapInRows);
@@ -97,10 +98,48 @@ namespace SevenUI.Tests
             yield return h.ExpectDifficultyAndKarmaShown(RunSetUp.KarmaOff);
         }
 
-        // The canvas's run info has no Karma row; a run started with the lobby's Karma rule set would show one.
+        // Artifacts whose effects wait for a stage, a spawn or a death, so turning them on mid-stage leaves the test's
+        // player alone (unlike Glass's health or Death's shared fate). Read when a scenario runs, after the content
+        // has loaded.
+        private static ArtifactDef[] FewArtifacts() => new[]
+        {
+            RoR2Content.Artifacts.Command, RoR2Content.Artifacts.Sacrifice, RoR2Content.Artifacts.Swarms,
+        };
+
+        // More than the seven that fit at full size, so the icons shrink.
+        private static ArtifactDef[] ManyArtifacts() => FewArtifacts().Concat(new[]
+        {
+            RoR2Content.Artifacts.EliteOnly, RoR2Content.Artifacts.Bomb, RoR2Content.Artifacts.WeakAssKnees,
+            RoR2Content.Artifacts.WispOnDeath, RoR2Content.Artifacts.SingleMonsterType, RoR2Content.Artifacts.MixEnemy,
+            RoR2Content.Artifacts.FriendlyFire, RoR2Content.Artifacts.RandomSurvivorOnRespawn,
+        }).ToArray();
+
+        // The artifacts in a row of the run info, under Karma's while it shows, shrinking to stay on one line, and
+        // gone with the last artifact.
+        private static IEnumerator ArtifactsInRunInfo(Harness h)
+        {
+            RunSetUp.SetKarma(h, RunSetUp.KarmaOff);
+            RunSetUp.SetArtifacts(h);
+            yield return h.ExpectArtifactsShown(0);
+            RunSetUp.SetArtifacts(h, FewArtifacts());
+            yield return h.ExpectArtifactsShown(FewArtifacts().Length);
+            yield return h.Screenshot("few");
+            RunSetUp.SetKarma(h, 2);
+            yield return h.ExpectDifficultyAndKarmaShown(2);
+            yield return h.ExpectArtifactsShown(FewArtifacts().Length);
+            yield return h.Screenshot("with_karma");
+            RunSetUp.SetArtifacts(h, ManyArtifacts());
+            yield return h.ExpectArtifactsShown(ManyArtifacts().Length);
+            yield return h.Screenshot("many");
+            RunSetUp.SetArtifacts(h);
+            yield return h.ExpectArtifactsShown(0);
+        }
+
+        // The canvas's run info has no Karma or artifacts row; a run started with either lobby rule set would show one.
         private static IEnumerator RunInfoIsFlat(Harness h)
         {
             RunSetUp.SetKarma(h, RunSetUp.KarmaOff);
+            RunSetUp.SetArtifacts(h);
             yield return h.ExpectRunInfoFlat();
             yield return h.ExpectRunInfoAsCanvas();
             yield return h.ExpectRunInfoCanvasHeight();

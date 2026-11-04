@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using ModTestRunner;
 using RoR2;
 using RoR2.UI;
@@ -7,7 +8,7 @@ using Object = UnityEngine.Object;
 namespace SevenUI.Tests
 {
     // Run settings the scenarios change as host, and put back at cleanup: the selected difficulty, chosen in the lobby,
-    // and Karma, a lobby rule. The runner is the host, so it may call the server's methods.
+    // and Karma and the artifacts, lobby rules. The runner is the host, so it may call the server's methods.
     internal static class RunSetUp
     {
         public const int KarmaOff = -1;
@@ -38,6 +39,42 @@ namespace SevenUI.Tests
                 ApplyKarma(karma, enabled, original);
             });
             ApplyKarma(karma, level != KarmaOff, Math.Max(level, 0));
+        }
+
+        // Exactly these artifacts on, every other off; the run's own set is put back at cleanup.
+        public static void SetArtifacts(Harness h, params ArtifactDef[] on)
+        {
+            RunArtifactManager manager = RunArtifactManager.instance;
+            if (!manager) throw h.Skip("the run has no artifact manager");
+            List<ArtifactDef> original = new List<ArtifactDef>();
+            for (int i = 0; i < ArtifactCatalog.artifactCount; i++)
+            {
+                ArtifactDef artifact = ArtifactCatalog.GetArtifactDef((ArtifactIndex)i);
+                if (artifact && manager.IsArtifactEnabled(artifact))
+                {
+                    original.Add(artifact);
+                }
+            }
+            h.OnCleanup(() =>
+            {
+                if (!manager) return;
+                ApplyArtifacts(manager, original);
+            });
+            ApplyArtifacts(manager, on);
+        }
+
+        private static void ApplyArtifacts(RunArtifactManager manager, IList<ArtifactDef> on)
+        {
+            for (int i = 0; i < ArtifactCatalog.artifactCount; i++)
+            {
+                ArtifactDef artifact = ArtifactCatalog.GetArtifactDef((ArtifactIndex)i);
+                if (!artifact) continue;
+                bool wanted = on.Contains(artifact);
+                if (manager.IsArtifactEnabled(artifact) != wanted)
+                {
+                    manager.SetArtifactEnabledServer(artifact, wanted);
+                }
+            }
         }
 
         private static void ApplyKarma(KarmaManager karma, bool enabled, int level)
