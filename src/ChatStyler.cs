@@ -46,6 +46,9 @@ namespace SevenUI
                 image.sprite = null;
                 image.type = Image.Type.Simple;
                 image.color = Palette.GhostButton;
+                // Once per field: each part added changes the HUD's object count, which restyles the HUD again on
+                // the next frame, so adding them on every pass would restyle it every frame as it grows.
+                if (field.Find(OutlineName)) continue;
 
                 Image outline = NewImage(OutlineName, field, Palette.Divider);
                 outline.sprite = FlatSprite.Outline;

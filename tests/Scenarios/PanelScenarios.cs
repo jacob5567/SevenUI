@@ -55,6 +55,7 @@ namespace SevenUI.Tests
             yield return new Scenario(1, "lunar_coin_flat", Stages.TitanicPlains, LunarCoinFlat);
             yield return new Scenario(1, "scoreboard_and_chat_are_flat", Stages.TitanicPlains, ScoreboardAndChatAreFlat);
             yield return new Scenario(1, "chat_input_outlined", Stages.TitanicPlains, ChatInputOutlined);
+            yield return new Scenario(1, "hud_settles", Stages.TitanicPlains, HudSettles);
             yield return new Scenario(1, "protection_striped_on_player", Stages.TitanicPlains, ProtectionStripedOnPlayer);
             yield return new Scenario(1, "protection_tinted_with_infusion", Stages.TitanicPlains, ProtectionTintedWithInfusion);
             yield return new Scenario(1, "protection_striped_on_allies", Stages.TitanicPlains, ProtectionStripedOnAllies);
@@ -353,6 +354,11 @@ namespace SevenUI.Tests
         private static IEnumerator ScoreboardAndChatAreFlat(Harness h)
         {
             yield return h.ExpectOverlaysFlat();
+        }
+
+        private static IEnumerator HudSettles(Harness h)
+        {
+            yield return h.ExpectHudSettles();
         }
 
         // The chat's input, opened as the chat key does: outlined with the accent strip while typing, and the outline

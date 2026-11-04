@@ -972,6 +972,37 @@ namespace SevenUI.Tests
 
         private const float ChatEdgeTolerance = 0.1f;
 
+        // Long enough for a restyle that adds objects on every pass to add them dozens of times: each one changes the
+        // HUD's object count, which restyles the HUD on the next frame. A stray buff or notification adds far fewer.
+        private const float SettleSeconds = 2f;
+        private const int SettleTolerance = 20;
+
+        // Once styled, the HUD stops growing on its own, and the chat's field has one outline and one edge.
+        public static IEnumerator ExpectHudSettles(this Harness h)
+        {
+            Transform root = HudRoot(h);
+            int before = root.hierarchyCount;
+            yield return h.Wait(SettleSeconds);
+            int after = root.hierarchyCount;
+            if (after - before > SettleTolerance)
+            {
+                throw h.Fail($"the HUD grew from {before} to {after} objects in {SettleSeconds} s while idle {h.Diagnosis()}");
+            }
+            Image input = ChatInput(h);
+            if (!input) throw h.Fail($"the HUD has no chat input field {h.Diagnosis()}");
+            int outlines = 0;
+            int edges = 0;
+            foreach (Transform child in input.transform)
+            {
+                outlines += child.name == ChatStyler.OutlineName ? 1 : 0;
+                edges += child.name == ChatStyler.EdgeName ? 1 : 0;
+            }
+            if (outlines != 1 || edges != 1)
+            {
+                throw h.Fail($"the chat input has {outlines} outlines and {edges} edges, not one each {h.Diagnosis()}");
+            }
+        }
+
         public static IEnumerator ExpectOverlaysFlat(this Harness h)
         {
             Image board = null;
