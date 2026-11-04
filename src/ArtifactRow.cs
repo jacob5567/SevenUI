@@ -12,6 +12,10 @@ namespace SevenUI
     // still makes an icon per artifact, loads its picture and shows its tooltip; the icons shrink to share the line as
     // more artifacts are on. The game's panel stays, empty, out of the column's layout. RunInfoStyler shows the row
     // and makes room for it while any artifact is on.
+    //
+    // A pointer reaches a graphic only through a raycaster on its own canvas, and the game gives its artifact panel a
+    // canvas and a raycaster of its own for the icons' tooltips. The difficulty bar is a canvas without one, so the row
+    // gets its own as well.
     internal sealed class ArtifactRow
     {
         public const string RowName = "SevenUIArtifacts";
@@ -44,6 +48,8 @@ namespace SevenUI
             Root.pivot = new Vector2(0.5f, 0.5f);
             Root.offsetMin = new Vector2(inset, -Height / 2f);
             Root.offsetMax = new Vector2(-inset, Height / 2f);
+            Root.gameObject.AddComponent<Canvas>();
+            Root.gameObject.AddComponent<GraphicRaycaster>();
 
             icons = NewObject(IconsName, Root);
             icons.anchorMin = Vector2.zero;

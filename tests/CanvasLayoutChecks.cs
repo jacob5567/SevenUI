@@ -6,6 +6,7 @@ using RoR2;
 using RoR2.UI;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace SevenUI.Tests
@@ -670,9 +671,9 @@ namespace SevenUI.Tests
         }
 
         // The run's artifacts in a row of the run info, in place of the game's panel under it: with any on, the game's
-        // icons, pictures loaded, on one line inside the panel, under the difficulty bar and Karma's row while it shows,
-        // left of the label, none over another, all one size and none taller than the row; the game's panel left out of
-        // the column, which starts below the run info. With none on, the row is hidden. 'turnedOn' is how many the
+        // icons, pictures loaded and each reachable by the pointer for its tooltip, on one line inside the panel, under
+        // the difficulty bar and Karma's row while it shows, left of the label, none over another, all one size and none
+        // taller than the row; the game's panel left out of the column, which starts below the run info. With none on, the row is hidden. 'turnedOn' is how many the
         // test turned on; those the tests leave alone (Rebirth) count too while the run has them on.
         public static IEnumerator ExpectArtifactsShown(this Harness h, int turnedOn)
         {
@@ -712,19 +713,38 @@ namespace SevenUI.Tests
                     bool sameSize = boxes.All(b => Mathf.Abs(b.size.x - size) < BuffTolerance && Mathf.Abs(b.size.y - size) < BuffTolerance);
                     bool overlap = boxes.Select((a, i) => boxes.Skip(i + 1).Any(b => Overlap(a, b))).Any(any => any);
                     bool loaded = icons.All(icon => icon.texture);
+                    bool pointable = icons.All(icon => icon.GetComponent<TooltipProvider>() && Pointable(icon));
                     bool karmaShown = karma.gameObject.activeInHierarchy;
                     float above = karmaShown ? In(space, karma).min.y : barBounds.center.y;
                     look += $", icons {size:0.#} tall at y {middle:0.#} in a row {rowBounds.size.y:0.#} tall from y " +
                             $"{rowBounds.min.y:0.#} to {rowBounds.max.y:0.#}, x {boxes.Min(b => b.min.x):0.#}-{boxes.Max(b => b.max.x):0.#}, " +
                             $"label '{label.text}' from x {labelBounds.min.x:0.#}, one line={oneLine}, same size={sameSize}, " +
-                            $"overlap={overlap}, loaded={loaded}, under y {above:0.#}, panel y {box.min.y:0.#}-{box.max.y:0.#}, " +
+                            $"overlap={overlap}, loaded={loaded}, pointable={pointable}, under y {above:0.#}, panel y {box.min.y:0.#}-{box.max.y:0.#}, " +
                             $"column top {columnBounds.max.y:0.#}";
-                    return oneLine && sameSize && !overlap && loaded && size <= rowBounds.size.y + BuffTolerance &&
+                    return oneLine && sameSize && !overlap && loaded && pointable && size <= rowBounds.size.y + BuffTolerance &&
                            boxes.All(b => Inside(box, b) && Inside(rowBounds, b) && b.max.x <= labelBounds.min.x) &&
                            Inside(box, labelBounds) && rowBounds.max.y <= above + BuffTolerance &&
                            columnBounds.max.y <= box.min.y + BuffTolerance;
                 },
                 () => $"{count} artifacts shown in the run info ({look}) {h.Diagnosis()}");
+        }
+
+        // Whether a pointer over the graphic's middle reaches it, as its tooltip needs: through the raycaster on its own
+        // canvas, which the game's event system asks.
+        private static bool Pointable(Graphic graphic)
+        {
+            Canvas canvas = graphic.canvas;
+            GraphicRaycaster raycaster = canvas ? canvas.GetComponent<GraphicRaycaster>() : null;
+            if (!raycaster || !raycaster.isActiveAndEnabled) return false;
+            RectTransform rect = graphic.rectTransform;
+            Vector3 middle = rect.TransformPoint(rect.rect.center);
+            PointerEventData pointer = new PointerEventData(null)
+            {
+                position = RectTransformUtility.WorldToScreenPoint(raycaster.eventCamera, middle),
+            };
+            List<RaycastResult> hits = new List<RaycastResult>();
+            raycaster.Raycast(pointer, hits);
+            return hits.Any(hit => hit.gameObject == graphic.gameObject);
         }
 
         private static bool Inside(Bounds outer, Bounds inner) =>
