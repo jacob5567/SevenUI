@@ -53,17 +53,18 @@ namespace SevenUI
         private const float PartGap = 12f * Canvas;
         private const float DividerHeight = 1f * Canvas;
         private const float DetailsGap = 10f * Canvas;
-        // The cards: at least 196px wide and 8px apart under the title, with 14px of padding, a 56px slot and 10px
-        // between their parts, and a 3px strip in the tier's color along the top. They widen to keep LookingGlass's
-        // "With this item, you will have:" on one line, as long as the row stays 40px inside the screen's sides.
+        // The cards: at least 196px wide and 8px apart under the title, with 14px of padding and 10px between their
+        // parts. Across each card's top is a 92px band in the slot's grey with the item centered on it at 72px and the
+        // tier's strip along its foot. They widen to keep LookingGlass's "With this item, you will have:" on one line,
+        // as long as the row stays 40px inside the screen's sides.
         public const float CardWidth = 196f * Canvas;
         private const float CardScreenMargin = 40f * Canvas;
         private const float CardGap = 8f * Canvas;
         private const float CardPadding = 14f * Canvas;
-        private const float CardSlotSize = 56f * Canvas;
+        private const float CardBandHeight = 92f * Canvas;
+        private const float CardIconSize = 72f * Canvas;
         private const float CardPartGap = 10f * Canvas;
-        private const float CardStripHeight = 3f * Canvas;
-        // Both: a slot's tier strip, its icon's margin, the hover outline's edge, the item's name and description, the
+        // Both: a slot's or band's tier strip, a slot's icon margin, the hover outline's edge, the item's name and description, the
         // owned count, and the gap between a name and its description in the details.
         private const float TierStripHeight = 3f * Canvas;
         private const float IconInset = 4f * Canvas;
@@ -589,27 +590,25 @@ namespace SevenUI
         private PickerButton StyleCard(MPButton button, PickupDef pickup)
         {
             PickerButton card = StyleButton(button, pickup, Palette.ScoreboardPanel);
-            // Behind the icon: the slot it sits on.
-            RectTransform slot = NewImage(SlotName, button.transform, Palette.ItemSlot);
-            slot.SetAsFirstSibling();
-            TopLeft(slot, CardPadding, CardPadding, CardSlotSize, CardSlotSize);
+            // Behind the icon: the band it sits on, across the card's top.
+            RectTransform band = NewImage(SlotName, button.transform, Palette.ItemSlot);
+            band.SetAsFirstSibling();
+            AcrossTop(band, CardBandHeight);
             if (card.Icon)
             {
-                TopLeft(card.Icon, CardPadding + IconInset, CardPadding + IconInset,
-                    CardSlotSize - 2f * IconInset, CardSlotSize - 2f * IconInset);
+                // Centered on the band above its tier strip.
+                card.Icon.anchorMin = card.Icon.anchorMax = new Vector2(0.5f, 1f);
+                card.Icon.pivot = new Vector2(0.5f, 0.5f);
+                card.Icon.anchoredPosition = new Vector2(0f, -(CardBandHeight - TierStripHeight) / 2f);
+                card.Icon.sizeDelta = new Vector2(CardIconSize, CardIconSize);
             }
             // Over it: the rest of the card.
             RectTransform holder = NewObject(CardName, button.transform);
             Stretch(holder);
-            RectTransform top = NewImage("TierStrip", holder, TierColor(pickup));
-            top.anchorMin = new Vector2(0f, 1f);
-            top.anchorMax = Vector2.one;
-            top.pivot = new Vector2(0.5f, 1f);
-            top.sizeDelta = new Vector2(0f, CardStripHeight);
-            RectTransform slotParts = NewObject("Slot", holder);
-            TopLeft(slotParts, CardPadding, CardPadding, CardSlotSize, CardSlotSize);
-            AddTierStrip(slotParts, pickup);
-            card.Count = AddCount(slotParts);
+            RectTransform bandParts = NewObject("Band", holder);
+            AcrossTop(bandParts, CardBandHeight);
+            AddTierStrip(bandParts, pickup);
+            card.Count = AddCount(bandParts);
             card.Name = AddText("Name", holder, NameSize, Palette.Text);
             card.Name.fontStyle = FontStyles.Bold;
             card.Name.text = pickup != null ? Language.GetString(pickup.nameToken) : "";
@@ -670,7 +669,7 @@ namespace SevenUI
                     nameHeight = Mathf.Max(nameHeight, Measure(card.Name, textWidth));
                     descriptionHeight = Mathf.Max(descriptionHeight, Measure(card.Description, textWidth));
                 }
-                float y = CardPadding + CardSlotSize + CardPartGap;
+                float y = CardBandHeight + CardPartGap;
                 float statsTop = y + nameHeight + CardPartGap + descriptionHeight;
                 float statsHeight = 0f;
                 foreach (PickerButton card in buttons)
@@ -849,6 +848,16 @@ namespace SevenUI
             rect.anchorMax = Vector2.one;
             rect.pivot = new Vector2(0.5f, 0.5f);
             rect.offsetMin = rect.offsetMax = Vector2.zero;
+        }
+
+        // Across the full width of its parent's top, this tall.
+        private static void AcrossTop(RectTransform rect, float height)
+        {
+            rect.anchorMin = new Vector2(0f, 1f);
+            rect.anchorMax = Vector2.one;
+            rect.pivot = new Vector2(0.5f, 1f);
+            rect.anchoredPosition = Vector2.zero;
+            rect.sizeDelta = new Vector2(0f, height);
         }
 
         // Placed from its parent's top left corner, x across and y down.
