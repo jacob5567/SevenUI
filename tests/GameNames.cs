@@ -18,6 +18,9 @@ namespace SevenUI.Tests
         public const string Fruit = "Fruit";
         // Infusion, which turns the health bar red.
         public const string Infusion = "Infusion";
+        // AtG Missile Mk. 1 and Plasma Shrimp, its void form: an uncommon item corrupted into a void one.
+        public const string AtgMissileItem = "Missile";
+        public const string PlasmaShrimpItem = "MissileVoid";
 
         // spawn_interactable and spawn_ai arguments: a small chest, a broken Gunner Drone to buy, and a monster with
         // enough health to take several hits.

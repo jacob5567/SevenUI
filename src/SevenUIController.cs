@@ -50,7 +50,7 @@ namespace SevenUI
             top = new TopStyler(hud, root);
             itemIcons = new ItemIconsStyler(root);
             allyCards = new AllyCardsStyler(root);
-            prompts = new PromptsStyler(root);
+            prompts = new PromptsStyler(hud, root);
             pickers = new PickerStyler(hud, root);
             scoreboard = new ScoreboardStyler(root);
             chat = new ChatStyler(root);

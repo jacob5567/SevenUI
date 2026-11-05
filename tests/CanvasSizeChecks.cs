@@ -61,6 +61,11 @@ namespace SevenUI.Tests
         // Its icon 44px in the middle of a 56px slot.
         private const float NotificationSlotSize = 56f;
         private const float NotificationIconSize = 44f;
+        private const float TransformationSlotWidth = 136f;
+        private const float TransformationIconOffset = 40f;
+        private const float TransformationArrowSize = 28f;
+        // A transformation notification waits behind any pickups still queued, each shown for six seconds.
+        private const float TransformationTimeout = 30f;
         // A slot's stock 4px from its right, and 3px from its bottom in an 18px line box, which puts Barlow's baseline
         // a tenth of the size above the box's bottom.
         private const float StockRightInset = 4f;
@@ -518,6 +523,52 @@ namespace SevenUI.Tests
                 () => $"the {titleToken ?? "pickup"} notification {NotificationWidth}px wide, {NotificationMiddleDown}px down, " +
                       $"with a strip in {strip}, a white title and its icon {NotificationIconSize}px in the middle of its " +
                       $"{NotificationSlotSize}px slot ({look}) {h.Diagnosis()}");
+        }
+
+        // A transformation notification as on the canvas: a 136px slot with the old icon and the new one 44px, one at
+        // each end, the game's arrow hidden, and the mod's arrow between them and strip along the slot's foot, both
+        // blended from the old tier's color to the new one's.
+        public static IEnumerator ExpectTransformationAsCanvas(this Harness h, string titleToken, Color from, Color to)
+        {
+            string look = null;
+            yield return h.Until(
+                () =>
+                {
+                    GenericNotification notification = SevenUIChecks.HudRoot(h).GetComponentsInChildren<GenericNotification>()
+                        .FirstOrDefault(shown => shown.titleText && shown.titleText.token == titleToken);
+                    if (!notification || !notification.canvasGroup || !notification.iconImage || !notification.previousIconImage) return false;
+                    RectTransform iconArea = notification.canvasGroup.transform.Find("IconArea") as RectTransform;
+                    if (!iconArea) return false;
+                    Rect slot = Box(h, iconArea);
+                    Rect previous = Box(h, notification.previousIconImage.rectTransform);
+                    Rect icon = Box(h, notification.iconImage.rectTransform);
+                    Graphic gameArrow = iconArea.Find("Arrow")?.GetComponent<Graphic>();
+                    Transform arrowObject = iconArea.Find(PromptsStyler.TransformationArrowName);
+                    Transform stripObject = iconArea.Find(PromptsStyler.TransformationStripName);
+                    TierBlend arrow = arrowObject ? arrowObject.GetComponent<TierBlend>() : null;
+                    TierBlend strip = stripObject ? stripObject.GetComponent<TierBlend>() : null;
+                    Rect arrowBox = arrow ? Box(h, (RectTransform)arrow.transform) : default;
+                    Rect stripBox = strip ? Box(h, (RectTransform)strip.transform) : default;
+                    look = $"slot {BoxText(slot)}, old {BoxText(previous)}, new {BoxText(icon)}, " +
+                           $"game arrow {(gameArrow ? gameArrow.enabled.ToString() : "none")}, " +
+                           $"arrow {(arrow ? BoxText(arrowBox) + $" {arrow.From}-{arrow.To}" : "none")}, " +
+                           $"strip {(strip ? BoxText(stripBox) + $" {strip.From}-{strip.To}" : "none")}";
+                    bool slotSized = Near(slot.width, TransformationSlotWidth) && Near(slot.height, NotificationSlotSize);
+                    bool iconsPlaced = Near(previous.width, NotificationIconSize) && Near(icon.width, NotificationIconSize) &&
+                                       Near(previous.center.x, slot.center.x - TransformationIconOffset) &&
+                                       Near(icon.center.x, slot.center.x + TransformationIconOffset) &&
+                                       Near(previous.center.y, slot.center.y) && Near(icon.center.y, slot.center.y);
+                    bool arrowPlaced = arrow && Near(arrowBox.width, TransformationArrowSize) &&
+                                       (arrowBox.center - slot.center).magnitude < SizeTolerance;
+                    bool stripPlaced = strip && Near(stripBox.width, slot.width) && Near(stripBox.yMax, slot.yMax);
+                    bool blended = arrow && strip && SevenUIChecks.Near(arrow.From, from) && SevenUIChecks.Near(arrow.To, to) &&
+                                   SevenUIChecks.Near(strip.From, from) && SevenUIChecks.Near(strip.To, to);
+                    return slotSized && iconsPlaced && (!gameArrow || !gameArrow.enabled) && arrowPlaced && stripPlaced && blended;
+                },
+                () => $"the {titleToken} transformation in a {TransformationSlotWidth}px slot, its icons " +
+                      $"{NotificationIconSize}px {TransformationIconOffset}px either side of the middle, a {TransformationArrowSize}px " +
+                      $"arrow between them and a strip along the foot, blended {from} to {to} ({look}) {h.Diagnosis()}",
+                TransformationTimeout);
         }
 
         // The open scoreboard as wide as the canvas's and where the setting puts it, its header strip with each header at

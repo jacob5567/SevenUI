@@ -10,7 +10,9 @@ namespace SevenUI
 {
     // Restyles the interaction prompt ("Open Chest") and the pickup notifications: flat translucent panels in place of
     // the soft gradients, the prompt's laid out by PromptPanel, and the notification smaller and higher, with a strip
-    // along its top in the color of what was picked up and its icon on a dark slot.
+    // along its top in the color of what was picked up and its icon on a dark slot. A transformation notification's slot
+    // is wider, holding the old item and the new one at the same size, with a hairline arrow and a strip along the
+    // slot's foot that both blend from the old item's tier color to the new one's.
     // Found by their components, wherever they sit in the HUD: LookingGlass moves the prompt.
     internal sealed class PromptsStyler
     {
@@ -20,6 +22,9 @@ namespace SevenUI
         private const string NotificationTextAreaName = "TextArea";
         private const string NotificationIconAreaName = "IconArea";
         public const string NotificationStripName = "SevenUINotificationStrip";
+        // Under a transformation notification's icon area, the mod's arrow and strip.
+        public const string TransformationArrowName = "SevenUITransformationArrow";
+        public const string TransformationStripName = "SevenUITransformationStrip";
         // The design canvas's sizes, in its pixels, scaled to the HUD's units, which the notifications' are once they
         // aren't scaled up: a 500px panel with 14px by 10px of padding and a 3px strip, a 56px slot with the
         // icon inside it, 14px from the 402px of text, a 22px title 2px over a 16px description. Its middle is 758px
@@ -36,6 +41,13 @@ namespace SevenUI
         private const float NotificationDescriptionSize = 16f * Canvas;
         private const float NotificationTextGap = 2f * Canvas;
         private const float NotificationMiddleDown = 758f / 1080f;
+        // A transformation's slot: 136px wide, each icon 6px in from its end, a 28px arrow between them.
+        private const float TransformationSlotWidth = 136f * Canvas;
+        private const float TransformationIconOffset = TransformationSlotWidth / 2f - (NotificationSlotSize - NotificationIconSize) / 2f -
+                                                       NotificationIconSize / 2f;
+        private const float TransformationArrowSize = 28f * Canvas;
+
+        private readonly HUD hud;
 
         private readonly Transform root;
         private readonly StyleRecorder recorder = new StyleRecorder();
@@ -43,8 +55,9 @@ namespace SevenUI
         private readonly List<PromptPanel> panels = new List<PromptPanel>();
         private readonly List<GenericNotification> notifications = new List<GenericNotification>();
 
-        public PromptsStyler(Transform root)
+        public PromptsStyler(HUD hud, Transform root)
         {
+            this.hud = hud;
             this.root = root;
         }
 
@@ -191,7 +204,8 @@ namespace SevenUI
             recorder.Record(texts);
             texts.padding = new RectOffset(0, 0, 0, 0);
             texts.spacing = NotificationTextGap;
-            StyleIconArea(iconArea, notification.iconImage);
+            Image tierStrip = backdrop ? backdrop.Find(NotificationStripName)?.GetComponent<Image>() : null;
+            StyleIconArea(iconArea, notification, tierStrip ? tierStrip.color : Palette.Text);
         }
 
         // Equal to the byte, as the game's colors come from Color32s.
@@ -221,8 +235,16 @@ namespace SevenUI
         // slot as they covered the icon. The drone and trial notifications hold their icon in a frame of their own,
         // drawn larger than the slot (the trial's at 1.6 times, its icon at 0.45 inside it); the frame goes, as the
         // generic notification's slot background does, and the icon is centered at the generic one's size.
-        private void StyleIconArea(Transform iconArea, RawImage icon)
+        // A transformation's icon area lays out the old icon, the block arrow and the new icon in a row, the old one
+        // smaller and overlapping the arrow; its row goes, and the mod places both icons at the same size, one at each
+        // end of the wider slot, with the marks over the new one.
+        private void StyleIconArea(Transform iconArea, GenericNotification notification, Color tier)
         {
+            RawImage icon = notification.iconImage;
+            RawImage previous = notification.previousIconImage;
+            bool transformation = previous && previous.transform.parent == iconArea;
+            float slotWidth = transformation ? TransformationSlotWidth : NotificationSlotSize;
+            float newX = transformation ? TransformationIconOffset : 0f;
             LayoutElement element = iconArea.GetComponent<LayoutElement>();
             if (element)
             {
@@ -230,7 +252,7 @@ namespace SevenUI
                 element.minHeight = NotificationSlotSize;
                 element.preferredHeight = NotificationSlotSize;
                 float width = element.preferredWidth;
-                if (!Mathf.Approximately(width, NotificationSlotSize))
+                if (!Mathf.Approximately(width, slotWidth))
                 {
                     recorder.OnRestore(() =>
                     {
@@ -239,7 +261,7 @@ namespace SevenUI
                             element.preferredWidth = width;
                         }
                     });
-                    element.preferredWidth = NotificationSlotSize;
+                    element.preferredWidth = slotWidth;
                 }
             }
             Image slot = iconArea.GetComponent<Image>();
@@ -251,13 +273,21 @@ namespace SevenUI
                 slot.type = Image.Type.Simple;
                 slot.color = Palette.ItemSlot;
             }
+            if (transformation)
+            {
+                recorder.Disable(iconArea.GetComponent<HorizontalLayoutGroup>());
+            }
             foreach (Transform child in iconArea)
             {
                 RectTransform rect = (RectTransform)child;
                 if (recorder.HasRect(rect)) continue;
                 if (icon && child == icon.transform)
                 {
-                    CenterInSlot(rect, NotificationIconSize);
+                    CenterInSlot(rect, NotificationIconSize, newX);
+                }
+                else if (transformation && child == previous.transform)
+                {
+                    CenterInSlot(rect, NotificationIconSize, -TransformationIconOffset);
                 }
                 else if (icon && icon.transform.parent == child)
                 {
@@ -265,18 +295,89 @@ namespace SevenUI
                     recorder.Disable(child.GetComponent<Graphic>());
                     CenterInSlot(icon.rectTransform, NotificationIconSize);
                 }
+                else if (child.name == TransformationArrowName || child.name == TransformationStripName)
+                {
+                    continue;
+                }
+                else if (transformation && child != notification.tempPanel && child != notification.rentalPanel)
+                {
+                    // The game's block arrow, the one other part of a transformation's row.
+                    recorder.RecordRect(rect);
+                    recorder.Disable(child.GetComponent<Graphic>());
+                }
                 else
                 {
-                    CenterInSlot(rect, NotificationSlotSize);
+                    CenterInSlot(rect, NotificationSlotSize, newX);
                 }
+            }
+            if (transformation && !iconArea.Find(TransformationStripName))
+            {
+                AddTransformationParts(iconArea, PreviousTierColor() ?? tier, tier);
             }
         }
 
-        private void CenterInSlot(RectTransform rect, float size)
+        // The strip along the slot's foot and the arrow between the icons, each blended from the old tier's color on
+        // the left to the new one's on the right.
+        private void AddTransformationParts(Transform iconArea, Color from, Color to)
+        {
+            RectTransform strip = AddBlended(iconArea, TransformationStripName, null, from, to);
+            strip.anchorMin = Vector2.zero;
+            strip.anchorMax = new Vector2(1f, 0f);
+            strip.pivot = new Vector2(0.5f, 0f);
+            strip.anchoredPosition = Vector2.zero;
+            strip.sizeDelta = new Vector2(0f, NotificationStripHeight);
+            RectTransform arrow = AddBlended(iconArea, TransformationArrowName, FlatIcons.Arrow, from, to);
+            arrow.anchorMin = arrow.anchorMax = arrow.pivot = new Vector2(0.5f, 0.5f);
+            arrow.anchoredPosition = Vector2.zero;
+            arrow.sizeDelta = new Vector2(TransformationArrowSize, TransformationArrowSize);
+        }
+
+        private RectTransform AddBlended(Transform parent, string name, Sprite sprite, Color from, Color to)
+        {
+            GameObject created = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer));
+            created.layer = parent.gameObject.layer;
+            RectTransform rect = (RectTransform)created.transform;
+            rect.SetParent(parent, false);
+            Image image = created.AddComponent<Image>();
+            image.sprite = sprite;
+            image.color = Color.white;
+            image.raycastTarget = false;
+            created.AddComponent<TierBlend>().SetColors(from, to);
+            recorder.Add(created);
+            return rect;
+        }
+
+        // The old item's tier color, from the notification the HUD's target is shown: the queue's current one, as the
+        // game makes the notification when its queue's current one changes. The canvas's color for it, as the strip's
+        // is. Null when the queue holds no transformation, as when the master has no queue yet.
+        private Color? PreviousTierColor()
+        {
+            CharacterMaster master = hud ? hud.targetMaster : null;
+            // Not CharacterMasterNotificationQueue.GetNotificationQueueForMaster, which adds a queue to a master
+            // without one.
+            CharacterMasterNotificationQueue queue = master ? master.GetComponent<CharacterMasterNotificationQueue>() : null;
+            object previous = queue ? queue.GetCurrentNotification()?.transformation?.previousData : null;
+            ColorCatalog.ColorIndex colorIndex;
+            switch (previous)
+            {
+                case ItemDef item:
+                    colorIndex = ItemTierCatalog.GetItemTierDef(item.tier)?.colorIndex ?? ColorCatalog.ColorIndex.Unaffordable;
+                    break;
+                case EquipmentDef equipment:
+                    colorIndex = equipment.colorIndex;
+                    break;
+                default:
+                    return null;
+            }
+            return GameColors.ToCanvas(ColorCatalog.GetColor(colorIndex));
+        }
+
+        // Centered on the slot, or the given distance right of its middle.
+        private void CenterInSlot(RectTransform rect, float size, float x = 0f)
         {
             recorder.RecordRect(rect);
             rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = Vector2.zero;
+            rect.anchoredPosition = new Vector2(x, 0f);
             rect.sizeDelta = new Vector2(size, size);
             recorder.SetLocalScale(rect, Vector3.one);
             // The trial's frame and icon pop in on a scale curve, which sets their scale from a base scale, theirs in

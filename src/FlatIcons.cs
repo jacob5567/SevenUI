@@ -4,8 +4,9 @@ namespace SevenUI
 {
     // The scoreboard and sprint buttons' icons, drawn in code as flat white strokes to tint: a ranked list (three rows,
     // each with a square marker), a double chevron for sprint, and the same chevrons pointing down for descending,
-    // which the sprint button shows while the player flies a remote-operated drone. Each is a union of square-capped
-    // strokes, so the chevrons' corners come out mitred.
+    // which the sprint button shows while the player flies a remote-operated drone. Also the hairline arrow between the
+    // old and new items of a transformation notification. Each is a union of square-capped strokes, so the chevrons'
+    // corners come out mitred.
     internal static class FlatIcons
     {
         // Each icon is designed on a 30-unit grid, as on the design canvas, and drawn in the middle of a 36-unit
@@ -43,14 +44,23 @@ namespace SevenUI
             new Vector2(8f, 16f), new Vector2(15f, 23f),
             new Vector2(15f, 23f), new Vector2(22f, 16f),
         };
+        // A long arrow pointing right: its shaft, then its head.
+        private static readonly Vector2[] ArrowStrokes =
+        {
+            new Vector2(3f, 15f), new Vector2(26f, 15f),
+            new Vector2(20f, 9f), new Vector2(26f, 15f),
+            new Vector2(26f, 15f), new Vector2(20f, 21f),
+        };
         private const float ChevronHalfWidth = 1.25f;
 
         private static Sprite scoreboard;
         private static Sprite sprint;
         private static Sprite descend;
+        private static Sprite arrow;
         public const string ScoreboardName = "SevenUIScoreboardIcon";
         public const string SprintName = "SevenUISprintIcon";
         public const string DescendName = "SevenUIDescendIcon";
+        public const string ArrowName = "SevenUIArrowIcon";
 
         public static Sprite Scoreboard
         {
@@ -85,6 +95,18 @@ namespace SevenUI
                     descend = Draw(DescendName, point => StrokesDistance(point, DescendStrokes));
                 }
                 return descend;
+            }
+        }
+
+        public static Sprite Arrow
+        {
+            get
+            {
+                if (!arrow)
+                {
+                    arrow = Draw(ArrowName, point => StrokesDistance(point, ArrowStrokes));
+                }
+                return arrow;
             }
         }
 
