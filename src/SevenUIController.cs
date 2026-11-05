@@ -52,7 +52,7 @@ namespace SevenUI
             allyCards = new AllyCardsStyler(root);
             prompts = new PromptsStyler(hud, root);
             pickers = new PickerStyler(hud, root);
-            scoreboard = new ScoreboardStyler(root);
+            scoreboard = new ScoreboardStyler(hud, root);
             chat = new ChatStyler(root);
             tilt = new TiltFlattener(root);
             tooltips = new TooltipStyler(hud, root);
@@ -62,6 +62,7 @@ namespace SevenUI
             SevenUIPlugin.Settings.BarlowFont.SettingChanged += OnSettingChanged;
             SevenUIPlugin.Settings.FlatPanels.SettingChanged += OnSettingChanged;
             SevenUIPlugin.Settings.TightMargins.SettingChanged += OnSettingChanged;
+            SevenUIPlugin.Settings.ScoreboardLayout.SettingChanged += OnScoreboardLayoutChanged;
         }
 
         // LateUpdate, after the game's Updates have added this frame's objects (objective rows are added in
@@ -172,6 +173,15 @@ namespace SevenUI
             Restyle();
         }
 
+        // The scoreboard goes back to the game's look and is restyled in the new layout on the next frame, once the
+        // objects the old one added are gone.
+        private void OnScoreboardLayoutChanged(object sender, EventArgs e)
+        {
+            if (!panelsApplied) return;
+            scoreboard.Restore();
+            lastHierarchyCount = -1;
+        }
+
         public void Describe(StringBuilder output)
         {
             output.AppendLine($"HUD {hud.name} (target {(hud.targetBodyObject ? hud.targetBodyObject.name : "none")})");
@@ -202,6 +212,7 @@ namespace SevenUI
             SevenUIPlugin.Settings.BarlowFont.SettingChanged -= OnSettingChanged;
             SevenUIPlugin.Settings.FlatPanels.SettingChanged -= OnSettingChanged;
             SevenUIPlugin.Settings.TightMargins.SettingChanged -= OnSettingChanged;
+            SevenUIPlugin.Settings.ScoreboardLayout.SettingChanged -= OnScoreboardLayoutChanged;
         }
     }
 }

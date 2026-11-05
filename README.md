@@ -13,7 +13,8 @@ A flat restyle of Risk of Rain 2's HUD: Barlow text, flat translucent panels and
 - **Items, buffs and skills:** dark slots with tier colors, and a cooldown cover that shrinks as a skill recharges.
 - **Prompts and notifications:** keycaps, with a strip in the color of the cost or the item's tier.
 - **Ally cards:** allies of one kind share a card, "Gunner Drone ×8", with a bar segment for each, so a crowd of drones stays clear of the chat.
-- **Scoreboard, tooltips, item pickers and pause menu:** restyled to match, with item counts per tier on the scoreboard.
+- **Scoreboard:** a row or a tab per player, with item counts per tier and the items at full size sorted by tier. The item you point at is described in a panel docked on the board, with who else holds it.
+- **Tooltips, item pickers and pause menu:** restyled to match.
 
 ![The game's HUD and SevenUI side by side](https://raw.githubusercontent.com/jacob5567/SevenUI/main/docs/screenshots/before-after.jpg)
 
@@ -40,6 +41,7 @@ Edit `BepInEx/config/sevenstack.SevenUI.cfg`, or use [Risk Of Options](https://t
 | `FlatPanels` | true | The flat look: panels, bars, slots, scoreboard, tooltips, pickers and the pause menu. Off brings back the game's look. |
 | `TightMargins` | true | Keep the HUD near the screen's edges, as on SevenUI's design. Only with `FlatPanels` on. |
 | `ScoreboardBesideRunInfo` | true | Place the scoreboard near the top of the screen, beside the run info. Only with `FlatPanels` on. |
+| `ScoreboardLayout` | Rows | Rows: a row per player, their items under their name. Tabs: one player at a time, picked from tabs along the top. Only with `FlatPanels` on. |
 | `DebugLogging` | false | Log extra detail, and enable the dump key. |
 | `DebugAlwaysShow` | false | Show the mod's visuals even when they wouldn't normally appear, for testing. |
 | `DumpKey` | F8 | With `DebugLogging` on, log each HUD's fonts and what the mod restyled. |

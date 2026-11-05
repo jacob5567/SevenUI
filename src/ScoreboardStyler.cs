@@ -8,12 +8,17 @@ using UnityEngine.UI;
 
 namespace SevenUI
 {
-    // Restyles the scoreboard (Tab) and its inspect panel as on the design canvas: a dark flat board under a header
-    // strip of grey capitals lined up with the columns (ScoreboardHeaders), and flat rows split by thin lines, the
-    // viewer's tinted in the accent (ScoreboardRow). In each row the portrait sits on a flat square, the name in bold
-    // over the survivor and level and the item counts, the key item on a flat slot, the items without a box in 40px
-    // slots 4px apart, the equipment on a slot with its orange outline, and the money last, in gold at the right. The
-    // game keeps building and filling the rows; its parts are resized and its money moved to the row's end.
+    // Restyles the scoreboard (Tab) and its inspect panel as on the design canvas: a dark flat board, and each player's
+    // row with the portrait on a flat square, the name in bold over the survivor and level and the item counts
+    // (ScoreboardRow), the key item on a flat slot, the equipment on a slot with its orange outline, and the money in
+    // gold. The game keeps building and filling the rows; its parts are resized and moved, and the board's own
+    // component (ScoreboardItemsBoard) lays the items out and describes the one pointed at, in the layout the
+    // ScoreboardLayout setting picks:
+    // - Rows: a header strip of grey capitals lined up with the columns (ScoreboardHeaders), and rows split by thin
+    //   lines, the viewer's tinted in the accent. The key item, the equipment and the money sit at the right of the
+    //   name, and the items under it.
+    // - Tabs: each row is a tab of the portrait, the name block and the money; the shown player's key item,
+    //   equipment and items sit under the tabs. No headers.
     internal sealed class ScoreboardStyler
     {
         // Under the scoreboard panel.
@@ -34,6 +39,7 @@ namespace SevenUI
         private const string KeyItemName = "KeyItemBackground";
         private const string ItemsName = "ItemsBackground";
         private const string EquipmentName = "EquipmentBackground";
+        private const string PlayersName = "PlayersBackground";
         private static readonly (string header, string column, bool right)[] HeaderColumns =
         {
             ("Player Header", ClassName, false),
@@ -47,20 +53,23 @@ namespace SevenUI
         private const string MoneyHeader = "Money";
         private const string English = "en";
         private const string DividerName = "SevenUIRowDivider";
+        private const string SpacerName = "SevenUIRowSpacer";
         private const string RowTextsName = "SevenUIRowTexts";
         private const string OutlineName = "SevenUIEquipmentOutline";
 
         // The design canvas's sizes, in its pixels, which the scoreboard's units match: rows 92px tall with 16px by 20px
         // of padding and 24px between columns; 52px slots; the player's name block 224px wide, its lines 19px, 14px
         // and 13px, 3px apart; the money's column 120px with 20px text; and the headers 12px.
-        private const float RowHeight = 92f;
-        private const int RowPaddingX = 20;
-        private const int RowPaddingY = 16;
+        public const float RowHeight = 92f;
+        public const int RowPaddingX = 20;
+        public const int RowPaddingY = 16;
+        // The row's top line, of the name block and the slots, inside its padding.
+        public const float TopLineHeight = RowHeight - 2 * RowPaddingY;
         private const float ColumnGap = 24f;
         // Between the portrait and the name block; the row lays its columns out ColumnGap apart, so the block's texts
         // reach back into the column gap by the difference.
         private const float NameGap = 12f;
-        private const float SlotSize = 52f;
+        public const float SlotSize = 52f;
         private const float NameWidth = 224f;
         private const float NameFontSize = 19f;
         private const float SurvivorFontSize = 14f;
@@ -68,41 +77,47 @@ namespace SevenUI
         private const float LineGap = 3f;
         private const float LineHeight = 1.2f;
         // The name block's three lines, which the portrait beside it is centered on, as on the canvas.
-        private const float NameBlockHeight = (NameFontSize + SurvivorFontSize + CountsFontSize) * LineHeight + 2f * LineGap;
+        public const float NameBlockHeight = (NameFontSize + SurvivorFontSize + CountsFontSize) * LineHeight + 2f * LineGap;
         private const float MoneyWidth = 120f;
+        // A tab's money, beside a name block that takes the rest of the tab.
+        private const float TabMoneyWidth = 64f;
         private const float MoneyFontSize = 20f;
         private const float HeaderFontSize = 12f;
-        // The canvas's item slots: 40px, 4px apart, wrapping.
+        // The canvas's item slots: 40px, 4px apart, wrapping (ScoreboardItemGrid).
         private const float ItemSlotSize = 40f;
         private const float ItemGap = 4f;
+        // The game's limit on how tall its items may grow before it shrinks them; the board sizes the items instead.
+        private const float UnboundedHeight = 100000f;
         // The canvas's board, rgba(0,0,0,0.62) over its #1a1d24 background: what its header strip and viewer's row tint
         // were chosen over.
         public static readonly Color CanvasBoard = new Color(0.039f, 0.043f, 0.054f, 1f);
         private const string ContainerName = "Container";
-        // Where an icon's place is, on the icon: its top-left corner.
-        private static readonly Vector2 IconTopLeft = new Vector2(0f, 1f);
-        // In the items cell's units.
-        private const float AlignTolerance = 0.01f;
         private const float DividerHeight = 1f;
         private const float OutlineEdge = 2f;
         // The outline sprite's edge, in its pixels (FlatSprite.Outline).
         private const float OutlineEdgePixels = 2f;
 
+        private readonly HUD hud;
         private readonly Transform root;
         private readonly StyleRecorder recorder = new StyleRecorder();
         private readonly List<ScoreboardController> boards = new List<ScoreboardController>();
         private readonly List<ScoreboardStrip> rows = new List<ScoreboardStrip>();
         private readonly HashSet<ScoreboardStrip> styled = new HashSet<ScoreboardStrip>();
-        private readonly List<ItemIcon> icons = new List<ItemIcon>();
         private ScoreboardPlacement placement;
+        private ScoreboardItemsBoard itemsBoard;
+        // The layout the rows are styled in. Changing the setting restores the scoreboard first
+        // (SevenUIController), so it is read afresh only over a board in the game's look.
+        private ScoreboardLayout layout;
 
-        public ScoreboardStyler(Transform root)
+        public ScoreboardStyler(HUD hud, Transform root)
         {
+            this.hud = hud;
             this.root = root;
         }
 
         public void Apply()
         {
+            layout = SevenUIPlugin.Settings.ScoreboardLayout.Value;
             root.GetComponentsInChildren(true, boards);
             foreach (ScoreboardController board in boards)
             {
@@ -113,12 +128,18 @@ namespace SevenUI
 
         public void Restore()
         {
+            // Destroyed only at the frame's end, it would otherwise lay the items out again over the game's.
+            if (itemsBoard)
+            {
+                itemsBoard.enabled = false;
+            }
             recorder.Restore();
             styled.Clear();
             placement = null;
+            itemsBoard = null;
         }
 
-        // While the scoreboard is open: a few reads per icon, and a move for those the game has just placed.
+        // While the scoreboard is open: a few projected points. The items board keeps the items itself.
         public void Update()
         {
             if (placement != null && placement.Alive)
@@ -126,14 +147,6 @@ namespace SevenUI
                 placement.Update(SevenUIPlugin.Settings.ScoreboardBesideRunInfo.Value);
             }
             styled.RemoveWhere(row => !row);
-            foreach (ScoreboardStrip row in styled)
-            {
-                ItemInventoryDisplay display = row.itemInventoryDisplay;
-                if (display && display.isActiveAndEnabled)
-                {
-                    AlignLeft(display);
-                }
-            }
         }
 
         private void StyleBoard(Transform board)
@@ -150,9 +163,20 @@ namespace SevenUI
             }
 
             Transform headers = board.Find(HeadersPath);
-            if (headers && !headers.Find(HeaderStripName))
+            RectTransform strips = board.Find(BoardPath) as RectTransform;
+            if (layout == ScoreboardLayout.Tabs)
             {
-                StyleHeaders(headers, board.Find(BoardPath) as RectTransform);
+                // The tabs say who each player is.
+                recorder.SetActive(headers ? headers.gameObject : null, false);
+            }
+            else if (headers && !headers.Find(HeaderStripName))
+            {
+                StyleHeaders(headers, strips);
+            }
+            // Before the rows, which the tabs layout points at it.
+            if (strips && !strips.GetComponent<ScoreboardItemsBoard>())
+            {
+                AddItemsBoard(board, strips, headers);
             }
 
             board.GetComponentsInChildren(true, rows);
@@ -162,10 +186,23 @@ namespace SevenUI
                 {
                     StyleRow(row);
                 }
-                // The game makes a row's icons as its items arrive.
-                PinIcons(row.itemInventoryDisplay);
             }
             rows.Clear();
+        }
+
+        // The tabs layout places the rows itself, and sizes their container to the tabs and what is under them.
+        private void AddItemsBoard(Transform board, RectTransform strips, Transform headers)
+        {
+            recorder.RecordRect(strips);
+            if (layout == ScoreboardLayout.Tabs)
+            {
+                recorder.Disable(strips.GetComponent<VerticalLayoutGroup>());
+                recorder.Disable(strips.GetComponent<ContentSizeFitter>());
+            }
+            itemsBoard = strips.gameObject.AddComponent<ScoreboardItemsBoard>();
+            recorder.Add(itemsBoard);
+            TMP_Text style = headers ? headers.GetComponentInChildren<TMP_Text>(true) : null;
+            itemsBoard.Init(layout, recorder, styled, hud, (RectTransform)board, style);
         }
 
         // The strip behind the headers joins the board under it; the game's headers become grey capitals, and a money
@@ -193,6 +230,12 @@ namespace SevenUI
             {
                 TMP_Text label = headers.Find(header)?.GetComponent<TMP_Text>();
                 if (!label) continue;
+                if (column == ItemsName)
+                {
+                    // The items sit under the names, where the players' header is.
+                    recorder.Disable(label);
+                    continue;
+                }
                 first = first ? first : label;
                 recorder.Record(label);
                 recorder.RecordRect(label.rectTransform);
@@ -236,39 +279,50 @@ namespace SevenUI
         {
             Transform background = row.transform.Find(RowBackgroundName);
             Image backgroundImage = background ? background.GetComponent<Image>() : null;
-            HorizontalLayoutGroup layout = background ? background.GetComponent<HorizontalLayoutGroup>() : null;
-            if (!backgroundImage || !layout) return;
+            HorizontalLayoutGroup columns = background ? background.GetComponent<HorizontalLayoutGroup>() : null;
+            if (!backgroundImage || !columns) return;
+            bool tabs = layout == ScoreboardLayout.Tabs;
             Fill(backgroundImage, Color.clear);
             // The game's outline around the selected row; the viewer's row is tinted instead.
             recorder.Disable(row.GetComponent<RawImage>());
 
+            // The rows' heights follow their items (ScoreboardItemsBoard); this is a row without any.
+            float height = tabs ? ScoreboardItemsBoard.TabHeight : RowHeight;
             LayoutElement rowElement = row.GetComponent<LayoutElement>();
             if (rowElement)
             {
                 recorder.Record(rowElement);
-                rowElement.minHeight = RowHeight;
-                rowElement.preferredHeight = RowHeight;
+                rowElement.minHeight = height;
+                rowElement.preferredHeight = height;
             }
             RectTransform rowRect = (RectTransform)row.transform;
             recorder.RecordRect(rowRect);
-            rowRect.sizeDelta = new Vector2(rowRect.sizeDelta.x, RowHeight);
+            rowRect.sizeDelta = new Vector2(rowRect.sizeDelta.x, height);
 
-            recorder.Record(layout);
-            bool expandHeight = layout.childForceExpandHeight;
-            TextAnchor alignment = layout.childAlignment;
+            recorder.Record(columns);
+            bool expandWidth = columns.childForceExpandWidth;
+            bool expandHeight = columns.childForceExpandHeight;
+            TextAnchor alignment = columns.childAlignment;
             recorder.OnRestore(() =>
             {
-                if (!layout) return;
-                layout.childForceExpandHeight = expandHeight;
-                layout.childAlignment = alignment;
+                if (!columns) return;
+                columns.childForceExpandWidth = expandWidth;
+                columns.childForceExpandHeight = expandHeight;
+                columns.childAlignment = alignment;
             });
-            layout.padding = new RectOffset(RowPaddingX, RowPaddingX, RowPaddingY, RowPaddingY);
-            layout.spacing = ColumnGap;
-            layout.childForceExpandHeight = false;
-            layout.childAlignment = TextAnchor.UpperLeft;
+            columns.padding = tabs
+                ? new RectOffset(ScoreboardItemsBoard.TabPaddingX, ScoreboardItemsBoard.TabPaddingX,
+                    ScoreboardItemsBoard.TabPaddingTop, ScoreboardItemsBoard.TabPaddingBottom)
+                : new RectOffset(RowPaddingX, RowPaddingX, RowPaddingY, RowPaddingY);
+            columns.spacing = ColumnGap;
+            // The spare width goes to the spacer (rows) or the name block (tabs), not to every column.
+            columns.childForceExpandWidth = false;
+            columns.childForceExpandHeight = false;
+            columns.childAlignment = TextAnchor.UpperLeft;
 
             CenterPortrait(background.Find(ClassName));
-            Slot(background.Find(KeyItemName), Palette.Trough);
+            Transform keyItem = background.Find(KeyItemName);
+            Slot(keyItem, Palette.Trough);
             Transform equipment = background.Find(EquipmentName);
             Slot(equipment, Palette.Trough);
             if (equipment && !equipment.Find(OutlineName))
@@ -278,6 +332,19 @@ namespace SevenUI
             if (row.itemInventoryDisplay)
             {
                 FitItems(row.itemInventoryDisplay);
+                // Placed by the board, under the row's top line or under the tabs.
+                TakeOutOfLayout(row.itemInventoryDisplay.transform);
+            }
+            if (tabs)
+            {
+                TakeOutOfLayout(keyItem);
+                TakeOutOfLayout(equipment);
+                // An empty picture of the game's, which would still take a column gap from the name.
+                Transform players = background.Find(PlayersName);
+                if (players && !players.GetComponent<LayoutIgnorer>())
+                {
+                    recorder.Add(players.gameObject.AddComponent<LayoutIgnorer>());
+                }
             }
             // The items keep their gamepad outline, shown only while lit.
             Image items = row.itemInventoryDisplay ? row.itemInventoryDisplay.GetComponent<Image>() : null;
@@ -296,7 +363,7 @@ namespace SevenUI
                     }
                 });
                 money.SetAsLastSibling();
-                Size(money.GetComponent<LayoutElement>(), MoneyWidth, MoneyFontSize * LineHeight);
+                Size(money.GetComponent<LayoutElement>(), tabs ? TabMoneyWidth : MoneyWidth, MoneyFontSize * LineHeight);
             }
             if (row.moneyText)
             {
@@ -320,20 +387,88 @@ namespace SevenUI
             }
 
             Transform nameObject = background.Find(NameObjectName);
-            Size(nameObject ? nameObject.GetComponent<LayoutElement>() : null, NameWidth,
-                NameBlockHeight);
+            LayoutElement nameElement = nameObject ? nameObject.GetComponent<LayoutElement>() : null;
+            Size(nameElement, tabs ? 0f : NameWidth, NameBlockHeight);
+            if (tabs)
+            {
+                Flexible(nameElement);
+            }
             if (nameObject && row.nameLabel && !nameObject.Find(RowTextsName))
             {
-                StyleName(row, nameObject, backgroundImage, items);
+                StyleName(row, nameObject, backgroundImage, items, tabs);
             }
+            if (tabs)
+            {
+                AddTabBar(background);
+                ScoreboardTab tab = row.gameObject.AddComponent<ScoreboardTab>();
+                tab.Board = itemsBoard;
+                tab.Strip = row;
+                recorder.Add(tab);
+                return;
+            }
+            AddSpacer(background, nameObject);
             if (!background.Find(DividerName))
             {
                 AddDivider(background);
             }
         }
 
+        // Out of the row's columns, for the board to place.
+        private void TakeOutOfLayout(Transform part)
+        {
+            LayoutElement element = part ? part.GetComponent<LayoutElement>() : null;
+            if (!element) return;
+            recorder.RecordRect((RectTransform)part);
+            if (element.ignoreLayout) return;
+            recorder.OnRestore(() =>
+            {
+                if (element) element.ignoreLayout = false;
+            });
+            element.ignoreLayout = true;
+        }
+
+        private void Flexible(LayoutElement element)
+        {
+            if (!element) return;
+            float flexible = element.flexibleWidth;
+            recorder.OnRestore(() =>
+            {
+                if (element) element.flexibleWidth = flexible;
+            });
+            element.flexibleWidth = 1f;
+        }
+
+        // Between the name block and the key item, so the slots and the money sit at the row's right.
+        private void AddSpacer(Transform background, Transform nameObject)
+        {
+            if (!nameObject || background.Find(SpacerName)) return;
+            GameObject spacer = NewUIObject(SpacerName, background);
+            spacer.transform.SetSiblingIndex(nameObject.GetSiblingIndex() + 1);
+            spacer.AddComponent<LayoutElement>().flexibleWidth = 1f;
+            recorder.Add(spacer);
+        }
+
+        // The shown tab's accent line along its foot, which the board turns on.
+        private void AddTabBar(Transform background)
+        {
+            if (background.Find(ScoreboardItemsBoard.TabBarName)) return;
+            GameObject bar = NewUIObject(ScoreboardItemsBoard.TabBarName, background);
+            bar.AddComponent<LayoutIgnorer>();
+            RectTransform rect = (RectTransform)bar.transform;
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = new Vector2(1f, 0f);
+            rect.pivot = new Vector2(0.5f, 0f);
+            rect.anchoredPosition = Vector2.zero;
+            rect.sizeDelta = new Vector2(0f, ScoreboardItemsBoard.TabBarHeight);
+            Image image = bar.AddComponent<Image>();
+            image.color = Palette.Accent;
+            image.raycastTarget = false;
+            bar.SetActive(false);
+            recorder.Add(bar);
+        }
+
         // The name on the first of three lines; the survivor and level, and the counts, on the mod's.
-        private void StyleName(ScoreboardStrip row, Transform nameObject, Image background, Image items)
+        private void StyleName(ScoreboardStrip row, Transform nameObject, Image background, Image items, bool tabs)
         {
             TMP_Text name = row.nameLabel;
             recorder.Record(name);
@@ -358,6 +493,7 @@ namespace SevenUI
             follower.Strip = row;
             follower.Hud = root.GetComponent<HUD>();
             follower.Background = background;
+            follower.TintOwnRow = !tabs;
             follower.Survivor = survivor;
             follower.Counts = counts;
             follower.FocusOutlines = new[] { row.nameFocusHighlight, items };
@@ -398,11 +534,11 @@ namespace SevenUI
             return text;
         }
 
-        // The game steps the scoreboard's items 48 units apart (its itemIconPrefabWidth), but the scoreboard's icon is
-        // 58 across, so neighbors overlap by 10, and rows too. The game sizes the steps to fit the cell: as many rows as
-        // fit its height, as wide as fit its width. Stepping by the icon's own size plus the gap, with the step capped at
-        // the canvas's, draws the icons as the canvas's slots, smaller and in more rows only once a row is full. The
-        // game rounds the step's width to whole units when it scales the icons, so it is set whole.
+        // The game sizes its icons to fit the items cell, shrinking them once they fill its height. The board lays the
+        // icons out itself (ScoreboardItemGrid), so the game's limit is lifted, its icons keep the canvas's size, and
+        // its steps are the icons' own size plus the gap: the game rounds the step's width to whole units when it
+        // scales the icons, so it is set whole. Restoring puts the icons' pivots back, which the board moves to their
+        // corners, before the game lays them out again.
         private void FitItems(ItemInventoryDisplay display)
         {
             RectTransform prefab = display.itemIconPrefab ? display.itemIconPrefab.transform as RectTransform : null;
@@ -411,67 +547,29 @@ namespace SevenUI
             float stepWidth = display.itemIconPrefabWidth;
             float maxWidth = display.maxIconWidth;
             float maxHeight = display.maxHeight;
+            Vector2 pivot = prefab.pivot;
             recorder.OnRestore(() =>
             {
                 if (!display) return;
                 display.itemIconPrefabWidth = stepWidth;
                 display.maxIconWidth = maxWidth;
                 display.maxHeight = maxHeight;
+                foreach (ItemIcon icon in display.itemIcons)
+                {
+                    if (icon && icon.rectTransform)
+                    {
+                        icon.rectTransform.pivot = pivot;
+                    }
+                }
+                // Reads the inventory and draws, then places every icon at the game's size.
                 display.UpdateDisplay();
+                display.LayoutAllIcons();
             });
             float step = ItemSlotSize + ItemGap;
             display.itemIconPrefabWidth = Mathf.Round(iconWidth * step / ItemSlotSize);
             display.maxIconWidth = step;
-            display.maxHeight = RowHeight - 2 * RowPaddingY;
-            // Lays the icons out again, at the new size; it reads the inventory and draws.
+            display.maxHeight = UnboundedHeight;
             display.UpdateDisplay();
-        }
-
-        // The game puts each icon at its place by its pivot, which the scoreboard's icon has outside its picture, a
-        // tenth of its size left of and above it, so the icons start lower and further right than their places. With
-        // the pivot on the icon's corner they start at their places, the first row level with the slots beside it.
-        private void PinIcons(ItemInventoryDisplay display)
-        {
-            if (!display) return;
-            display.GetComponentsInChildren(true, icons);
-            foreach (ItemIcon icon in icons)
-            {
-                RectTransform rect = icon.rectTransform;
-                if (!rect || rect.pivot == IconTopLeft) continue;
-                Vector2 pivot = rect.pivot;
-                recorder.OnRestore(() =>
-                {
-                    if (rect) rect.pivot = pivot;
-                });
-                rect.pivot = IconTopLeft;
-            }
-            icons.Clear();
-        }
-
-        // The game centers each row of icons in the items cell, splitting what is left of its width, less than a
-        // step, around them; the canvas starts them at the cell's left edge, under its header. The game places all the
-        // icons when their size changes, and only a new one when an item arrives, so each icon still at the game's
-        // margin from a step is moved back by it. The margin is the game's (ItemInventoryDisplay.CalculateLayoutValues):
-        // the cell's width less as many whole steps as fit, halved.
-        private void AlignLeft(ItemInventoryDisplay display)
-        {
-            Rect cell = ((RectTransform)display.transform).rect;
-            display.GetComponentsInChildren(false, icons);
-            foreach (ItemIcon icon in icons)
-            {
-                RectTransform rect = icon.rectTransform;
-                float step = display.itemIconPrefabWidth * rect.localScale.x;
-                if ((int)step <= 0) continue;
-                int perRow = Mathf.Max((int)cell.width / (int)step, 1);
-                float margin = (cell.width - perRow * step) * 0.5f;
-                if (margin <= AlignTolerance) continue;
-                float offset = Mathf.Repeat(rect.localPosition.x - cell.xMin, step);
-                if (Mathf.Abs(offset - margin) < AlignTolerance)
-                {
-                    rect.localPosition -= new Vector3(margin, 0f, 0f);
-                }
-            }
-            icons.Clear();
         }
 
         // The row's columns line up at the top, as on the canvas, which centers only the portrait, on the name block
@@ -601,7 +699,8 @@ namespace SevenUI
 
         public void Describe(StringBuilder output)
         {
-            output.AppendLine($"  restyled scoreboard values: {recorder.Count}");
+            output.AppendLine($"  restyled scoreboard values: {recorder.Count}, layout {layout}, " +
+                              $"rows laid out {(itemsBoard ? itemsBoard.Grids.Count : 0)}");
         }
     }
 }

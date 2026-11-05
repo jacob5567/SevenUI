@@ -7,11 +7,11 @@ using UnityEngine.UI;
 
 namespace SevenUI
 {
-    // Keeps one scoreboard row as on the design canvas while it shows: tinted in the accent if it is the viewer's own,
-    // the player's survivor and level ("Commando · Lv 17") under their name, the row's items under that ("40 items ·
-    // 22 9 4 2 1 2", the total in bold, then the common, uncommon, legendary, boss, lunar and void counts in their
-    // tiers' colors), and the gamepad's focus outlines shown only while they are lit. The counts are read again when
-    // the player's inventory changes.
+    // Keeps one scoreboard row as on the design canvas while it shows: tinted in the accent if it is the viewer's own
+    // (in the rows layout), the player's survivor and level ("Commando · Lv 17") under their name, the row's items under
+    // that ("40 items · 22 9 4 2 1 2", the total in bold, then the common, uncommon, legendary, boss, lunar and void
+    // counts in their tiers' colors), and the gamepad's focus outlines shown only while they are lit. The counts are
+    // read again when the player's inventory changes.
     internal sealed class ScoreboardRow : MonoBehaviour
     {
         private const string Separator = " · ";
@@ -19,15 +19,6 @@ namespace SevenUI
         // The canvas's word after the total, which the game has no translation of, so it shows in English only.
         private const string ItemsWord = " items";
         private const string English = "en";
-        private static readonly (ItemTier[] tiers, Color color)[] TierCounts =
-        {
-            (new[] { ItemTier.Tier1 }, Palette.Text),
-            (new[] { ItemTier.Tier2 }, Palette.CountUncommon),
-            (new[] { ItemTier.Tier3 }, Palette.CountLegendary),
-            (new[] { ItemTier.Boss }, Palette.CountBoss),
-            (new[] { ItemTier.Lunar }, Palette.CountLunar),
-            (new[] { ItemTier.VoidTier1, ItemTier.VoidTier2, ItemTier.VoidTier3, ItemTier.VoidBoss }, Palette.CountVoid),
-        };
         private static readonly StringBuilder Text = new StringBuilder();
 
         // The canvas's tint for the viewer's row, over its board, as drawn in the game's light (CanvasBlend).
@@ -39,6 +30,8 @@ namespace SevenUI
         public TMP_Text Survivor;
         public TMP_Text Counts;
         public Image[] FocusOutlines;
+        // Off in the tabs layout, where the board tints the shown player's tab instead.
+        public bool TintOwnRow = true;
 
         private CharacterMaster shownMaster;
         private CharacterMaster shownViewer;
@@ -53,7 +46,7 @@ namespace SevenUI
             if (!Strip) return;
             CharacterMaster master = Strip.master;
             CharacterMaster viewer = Hud && Hud.localUserViewer != null ? Hud.localUserViewer.cachedMaster : null;
-            if (master != shownMaster || viewer != shownViewer)
+            if (TintOwnRow && (master != shownMaster || viewer != shownViewer))
             {
                 shownMaster = master;
                 shownViewer = viewer;
@@ -121,7 +114,7 @@ namespace SevenUI
         {
             int total = 0;
             Text.Clear().Append(Separator);
-            foreach ((ItemTier[] tiers, Color color) in TierCounts)
+            foreach ((ItemTier[] tiers, Color color) in TierGroups.Main)
             {
                 int count = 0;
                 foreach (ItemTier tier in tiers)
