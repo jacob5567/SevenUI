@@ -393,19 +393,30 @@ namespace SevenUI.Tests
                 "the ally cards'");
         }
 
-        // Three Gunner Drones share one card: "×3" after the name, a bar segment per drone, and the other two cards
-        // hidden; with the panels off, three cards again.
+        // Gunner Drones share one card: "×N" after the name, a bar segment per drone, and the other cards hidden; with the
+        // panels off, a card each again. Drones bought by earlier scenarios live on, so N is however many the player has.
         private static IEnumerator AllyCardsGrouped(Harness h)
         {
             yield return Allies.BuyDrones(h, GroupedAllyCount);
             yield return h.Until(() => GroupedLook() == null, () => $"{GroupedLook()} {h.Diagnosis()}");
             yield return h.Screenshot("grouped");
             h.SetConfig(SevenUIPlugin.Settings.FlatPanels, false);
-            yield return h.Until(() => ShownAllyCards().Count() == GroupedAllyCount,
-                () => $"{ShownAllyCards().Count()} ally cards shown with the panels off, not {GroupedAllyCount} {h.Diagnosis()}");
+            yield return h.Until(() => ShownAllyCards().Count() == PlayerDrones(),
+                () => $"{ShownAllyCards().Count()} ally cards shown with the panels off, not {PlayerDrones()} {h.Diagnosis()}");
             h.SetConfig(SevenUIPlugin.Settings.FlatPanels, true);
             yield return h.Until(() => GroupedLook() == null, () => $"{GroupedLook()} {h.Diagnosis()}");
         }
+
+        // The local player's Gunner Drones that have bodies, as the cards show them.
+        private static int PlayerDrones()
+        {
+            CharacterMaster player = Harness.LocalBody ? Harness.LocalBody.master : null;
+            return CharacterMaster.readOnlyInstancesList.Count(master => master && player &&
+                master.minionOwnership && master.minionOwnership.ownerMaster == player &&
+                master.GetBody() && master.GetBody().name.StartsWith(DroneBodyName));
+        }
+
+        private const string DroneBodyName = "Drone1Body";
 
         private static IEnumerable<AllyCardController> ShownAllyCards() =>
             SevenUIChecks.Controller.GetComponentsInChildren<AllyCardController>().Where(card => card.sourceMaster);
@@ -416,7 +427,9 @@ namespace SevenUI.Tests
             if (shown.Count != 1) return $"{shown.Count} ally cards shown, not one for the kind";
             AllyCardController card = shown[0];
             TMP_Text count = card.nameLabel ? card.nameLabel.transform.Find(AllyCardsStyler.CountName)?.GetComponent<TMP_Text>() : null;
-            if (!count || count.text != "×" + GroupedAllyCount) return $"the card's count reads '{(count ? count.text : "")}'";
+            int drones = PlayerDrones();
+            if (drones < GroupedAllyCount) return $"the player has {drones} Gunner Drones";
+            if (!count || count.text != "×" + drones) return $"the card's count reads '{(count ? count.text : "")}', not ×{drones}";
             Transform segments = card.healthBar ? card.healthBar.transform.parent.Find(AllyCardsStyler.SegmentsName) : null;
             int bars = 0;
             if (segments)
@@ -429,7 +442,7 @@ namespace SevenUI.Tests
                     }
                 }
             }
-            if (bars != GroupedAllyCount) return $"the card's bar has {bars} segments";
+            if (bars != drones) return $"the card's bar has {bars} segments, not {drones}";
             if (card.healthBar.gameObject.activeSelf) return "the card still shows the game's health bar";
             return null;
         }
