@@ -52,6 +52,8 @@ namespace SevenUI.Tests
             yield return new Scenario(1, "skill_slots_are_flat", Stages.TitanicPlains, SkillSlotsAreFlat);
             yield return new Scenario(1, "notification_icons_in_slot", Stages.TitanicPlains, NotificationIconsInSlot);
             yield return new Scenario(1, "transformation_notification_blend", Stages.TitanicPlains, TransformationNotificationBlend);
+            yield return new Scenario(1, "void_transformation_notification_blend", Stages.TitanicPlains,
+                VoidTransformationNotificationBlend);
             yield return new Scenario(1, "stocks_in_slot_corners", Stages.TitanicPlains, StocksInSlotCorners);
             yield return new Scenario(1, "ntormat_pages_follow_key_item", Stages.TitanicPlains, NtormatPagesFollowKeyItem);
             yield return new Scenario(1, "top_is_flat", Stages.TitanicPlains, TopIsFlat);
@@ -248,16 +250,30 @@ namespace SevenUI.Tests
             yield return h.ExpectNotificationAsCanvas(GameColors.ToCanvas(ColorCatalog.GetColor(droneDef.color)), droneDef.nameToken);
         }
 
-        // AtG Missile Mk. 1 corrupting into Plasma Shrimp, pushed straight to the local player's queue: green to void.
+        // AtG Missile Mk. 1 turning into Plasma Shrimp, pushed straight to the local player's queue: green to void. Once
+        // as the generic notification, whose old icon sits in the icon area's row, and once as the corruption's, whose
+        // old icon sits in a void frame of its own.
         private static IEnumerator TransformationNotificationBlend(Harness h)
+        {
+            yield return TransformationBlend(h, CharacterMasterNotificationQueue.TransformationType.Default, "transformation");
+        }
+
+        private static IEnumerator VoidTransformationNotificationBlend(Harness h)
+        {
+            yield return TransformationBlend(h, CharacterMasterNotificationQueue.TransformationType.ContagiousVoid,
+                "void_transformation");
+        }
+
+        private static IEnumerator TransformationBlend(Harness h, CharacterMasterNotificationQueue.TransformationType type,
+            string screenshot)
         {
             ItemDef missile = ItemCatalog.GetItemDef(ItemCatalog.FindItemIndex(GameNames.AtgMissileItem));
             ItemDef shrimp = ItemCatalog.GetItemDef(ItemCatalog.FindItemIndex(GameNames.PlasmaShrimpItem));
             if (!missile || !shrimp) throw h.Skip("no AtG Missile Mk. 1 or Plasma Shrimp");
             CharacterMasterNotificationQueue.PushItemTransformNotification(Harness.LocalBody.master, missile.itemIndex,
-                shrimp.itemIndex, CharacterMasterNotificationQueue.TransformationType.ContagiousVoid);
+                shrimp.itemIndex, type);
             yield return h.ExpectTransformationAsCanvas(shrimp.nameToken, Palette.CountUncommon, Palette.CountVoid);
-            yield return h.Screenshot("transformation");
+            yield return h.Screenshot(screenshot);
         }
 
         // Foreign Fruit with a Fuel Cell, so the slot shows its stock, and a Backup Magazine, so the secondary skill

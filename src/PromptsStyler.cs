@@ -237,12 +237,14 @@ namespace SevenUI
         // generic notification's slot background does, and the icon is centered at the generic one's size.
         // A transformation's icon area lays out the old icon, the block arrow and the new icon in a row, the old one
         // smaller and overlapping the arrow; its row goes, and the mod places both icons at the same size, one at each
-        // end of the wider slot, with the marks over the new one.
+        // end of the wider slot, with the marks over the new one. The void ones (corruption, Benthic Bloom) hold the
+        // old icon in a round frame of their own, which goes as the drone's and trial's frames do.
         private void StyleIconArea(Transform iconArea, GenericNotification notification, Color tier)
         {
             RawImage icon = notification.iconImage;
             RawImage previous = notification.previousIconImage;
-            bool transformation = previous && previous.transform.parent == iconArea;
+            Transform previousSlot = previous ? ChildHolding(iconArea, previous.transform) : null;
+            bool transformation = previousSlot;
             float slotWidth = transformation ? TransformationSlotWidth : NotificationSlotSize;
             float newX = transformation ? TransformationIconOffset : 0f;
             LayoutElement element = iconArea.GetComponent<LayoutElement>();
@@ -285,9 +287,14 @@ namespace SevenUI
                 {
                     CenterInSlot(rect, NotificationIconSize, newX);
                 }
-                else if (transformation && child == previous.transform)
+                else if (transformation && child == previousSlot)
                 {
                     CenterInSlot(rect, NotificationIconSize, -TransformationIconOffset);
+                    if (child != previous.transform)
+                    {
+                        recorder.Disable(child.GetComponent<Graphic>());
+                        CenterInSlot(previous.rectTransform, NotificationIconSize);
+                    }
                 }
                 else if (icon && icon.transform.parent == child)
                 {
@@ -314,6 +321,17 @@ namespace SevenUI
             {
                 AddTransformationParts(iconArea, PreviousTierColor() ?? tier, tier);
             }
+        }
+
+        // The child of the icon area that is the given object or holds it, or null when it lies outside the icon area.
+        private static Transform ChildHolding(Transform iconArea, Transform descendant)
+        {
+            Transform current = descendant;
+            while (current && current.parent != iconArea)
+            {
+                current = current.parent;
+            }
+            return current;
         }
 
         // The strip along the slot's foot and the arrow between the icons, each blended from the old tier's color on
