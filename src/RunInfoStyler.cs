@@ -149,7 +149,9 @@ namespace SevenUI
                 artifacts?.Update();
             }
             if (!karmaOn) return;
-            int level = manager.GetEffectiveKarma();
+            // Not GetEffectiveKarma(): its cached value is updated only by SetKarmaServer and the client's SyncKarma
+            // hook, so it can lag the synced field.
+            int level = manager.IsKarmaEnabled() ? (int)manager.NetworkactualKarma : 0;
             foreach ((_, _, KarmaRow karma, _) in styled)
             {
                 karma.Set(level);
