@@ -27,6 +27,8 @@ namespace SevenUI
         public static readonly Color ScoreboardPanel = new Color(0f, 0f, 0f, 0.62f);
         // An outlined button's faint face, such as a picker's cancel button: the stage shows through it.
         public static readonly Color GhostButton = new Color(0f, 0f, 0f, 0.35f);
+        // rgba(184,196,255,0.08), the face of a hovered pause menu button.
+        public static readonly Color HoverFace = new Color(0.722f, 0.769f, 1f, 0.08f);
         // rgba(184,196,255,0.06) and #262a34, the viewer's own row on the scoreboard and the lines between rows.
         public static readonly Color ScoreboardOwnRow = new Color(0.722f, 0.769f, 1f, 0.06f);
         public static readonly Color RowDivider = new Color(0.149f, 0.165f, 0.204f, 1f);

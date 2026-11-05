@@ -27,6 +27,7 @@ namespace SevenUI
         private ChatStyler chat;
         private TiltFlattener tilt;
         private TooltipStyler tooltips;
+        private PauseScreenStyler pause;
         private TopBarsWidth topBars;
         private HudMargins margins;
         private int lastHierarchyCount = -1;
@@ -55,6 +56,7 @@ namespace SevenUI
             chat = new ChatStyler(root);
             tilt = new TiltFlattener(root);
             tooltips = new TooltipStyler(hud, root);
+            pause = new PauseScreenStyler(root);
             topBars = new TopBarsWidth(root);
             margins = new HudMargins(hud, root);
             SevenUIPlugin.Settings.BarlowFont.SettingChanged += OnSettingChanged;
@@ -80,6 +82,8 @@ namespace SevenUI
                 skillSlots.Update();
                 scoreboard.Update();
                 chat.Update();
+                // The pause menu is its own canvas, outside the HUD, made each time it opens.
+                pause.Update(SevenUIPlugin.Settings.BarlowFont.Value);
                 if (marginsApplied)
                 {
                     // After the slots, since the skill row's end is the equipment slot as fitted.
@@ -188,6 +192,7 @@ namespace SevenUI
             output.AppendLine($"  tight margins: {marginsApplied}");
             margins.Describe(output);
             output.AppendLine($"  tooltips restyled: {tooltips.StyledCount}");
+            pause.Describe(output);
             output.AppendLine($"  monospace damage numbers: {DamageNumberFont.Applied}");
         }
 

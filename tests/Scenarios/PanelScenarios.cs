@@ -4,7 +4,9 @@ using System.Linq;
 using ModTestRunner;
 using RoR2;
 using RoR2.UI;
+using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace SevenUI.Tests
 {
@@ -18,6 +20,9 @@ namespace SevenUI.Tests
         private const int ChestMoney = 1000;
         // The game counts the shown amount up over about this long.
         private const float CountUpSeconds = 3f;
+        // Long enough for the pause menu to pan and fade in before its screenshot.
+        private const float PauseSettleSeconds = 0.6f;
+        private const float PauseTolerance = 1f;
         // Long enough for the chat's input to fade in before its screenshot.
         private const float ChatSettleSeconds = 0.3f;
         // The Trial of Infernal Greed's texts.
@@ -56,6 +61,7 @@ namespace SevenUI.Tests
             yield return new Scenario(1, "lunar_coin_flat", Stages.TitanicPlains, LunarCoinFlat);
             yield return new Scenario(1, "scoreboard_and_chat_are_flat", Stages.TitanicPlains, ScoreboardAndChatAreFlat);
             yield return new Scenario(1, "chat_input_outlined", Stages.TitanicPlains, ChatInputOutlined);
+            yield return new Scenario(1, "pause_menu_as_canvas", Stages.TitanicPlains, PauseMenuAsCanvas);
             yield return new Scenario(1, "hud_settles", Stages.TitanicPlains, HudSettles);
             yield return new Scenario(1, "protection_striped_on_player", Stages.TitanicPlains, ProtectionStripedOnPlayer);
             yield return new Scenario(1, "protection_tinted_with_infusion", Stages.TitanicPlains, ProtectionTintedWithInfusion);
@@ -421,6 +427,72 @@ namespace SevenUI.Tests
             chat.SetShowInput(false);
             yield return h.ExpectChatInputOutlined(false);
         }
+
+        // The pause menu, opened as Escape does: the title and the run's line over one centered stack of outlined
+        // buttons, the quits side by side under it; and gone again once it closes.
+        private static IEnumerator PauseMenuAsCanvas(Harness h)
+        {
+            PauseManager.TogglePauseScreen();
+            h.OnCleanup(() =>
+            {
+                if (PauseManager.PauseScreenIsOpen())
+                {
+                    PauseManager.ClosePauseScreen(true);
+                }
+            });
+            string difficulty = RunInfoText.Name(DifficultyCatalog.GetDifficultyDef(Run.instance.selectedDifficulty));
+            yield return h.Until(() => PauseMenuLook(difficulty) == null, () => $"{PauseMenuLook(difficulty)} {h.Diagnosis()}");
+            yield return h.Wait(PauseSettleSeconds);
+            yield return h.Screenshot("paused");
+            PauseManager.ClosePauseScreen(true);
+            yield return h.Until(() => PauseScreenController.instancesList.Count == 0, () => $"the pause menu is still open {h.Diagnosis()}");
+        }
+
+        // Null once the menu is laid out as the design's, otherwise what isn't.
+        private static string PauseMenuLook(string difficulty)
+        {
+            PauseScreenController menu = PauseScreenController.instancesList.Count > 0 ? PauseScreenController.instancesList[0] : null;
+            Transform options = menu && menu.mainPanel ? menu.mainPanel.Find(PauseScreenStyler.OptionsName) : null;
+            if (!options) return "no pause menu is open";
+            TMP_Text title = options.Find(PauseScreenStyler.TitleName)?.GetComponent<TMP_Text>();
+            TMP_Text run = options.Find(PauseScreenStyler.RunLineName)?.GetComponent<TMP_Text>();
+            if (!title || string.IsNullOrEmpty(title.text)) return "the pause menu has no title";
+            if (!run || !run.text.Contains(difficulty)) return $"the pause menu's run line is '{(run ? run.text : "")}', without '{difficulty}'";
+            List<RectTransform> stacked = new List<RectTransform>();
+            List<RectTransform> quits = new List<RectTransform>();
+            foreach (Transform child in options)
+            {
+                HGButton button = child.GetComponent<HGButton>();
+                if (!button || !child.gameObject.activeSelf) continue;
+                Image face = button.image;
+                if (!face || face.sprite || !Near(face.color, Palette.Panel) && !Near(face.color, Palette.HoverFace))
+                    return $"{child.name} keeps the game's face";
+                if (!child.Find("SevenUIPauseOutline")) return $"{child.name} has no outline";
+                LanguageTextMeshController language = child.GetComponent<LanguageTextMeshController>();
+                bool quit = language && System.Array.IndexOf(PauseScreenStyler.QuitTokens, language.token) >= 0;
+                (quit ? quits : stacked).Add((RectTransform)child);
+            }
+            if (stacked.Count == 0) return "the pause menu shows no buttons";
+            for (int i = 0; i < stacked.Count; i++)
+            {
+                RectTransform rect = stacked[i];
+                if (Mathf.Abs(rect.rect.width - PauseScreenStyler.ButtonWidth) > PauseTolerance) return $"{rect.name} is {rect.rect.width:0} wide";
+                if (Mathf.Abs(rect.anchoredPosition.x) > PauseTolerance) return $"{rect.name} isn't centered";
+                if (i > 0 && rect.anchoredPosition.y >= stacked[i - 1].anchoredPosition.y) return $"{rect.name} isn't under {stacked[i - 1].name}";
+            }
+            float lastBottom = stacked[stacked.Count - 1].anchoredPosition.y - stacked[stacked.Count - 1].rect.height;
+            foreach (RectTransform quit in quits)
+            {
+                if (Mathf.Abs(quit.anchoredPosition.y - quits[0].anchoredPosition.y) > PauseTolerance) return "the quits aren't in one row";
+                if (quit.anchoredPosition.y > lastBottom) return $"{quit.name} isn't under the stack";
+            }
+            float titleBottom = title.rectTransform.anchoredPosition.y - title.rectTransform.rect.height;
+            if (titleBottom < run.rectTransform.anchoredPosition.y - PauseTolerance) return "the run line overlaps the title";
+            return null;
+        }
+
+        private static bool Near(Color a, Color b) =>
+            Mathf.Abs(a.r - b.r) < 0.01f && Mathf.Abs(a.g - b.g) < 0.01f && Mathf.Abs(a.b - b.b) < 0.01f && Mathf.Abs(a.a - b.a) < 0.01f;
 
         private static IEnumerator ObjectivePanelIsFlat(Harness h)
         {
