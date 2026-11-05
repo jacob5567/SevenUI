@@ -53,9 +53,11 @@ namespace SevenUI
         private const float PartGap = 12f * Canvas;
         private const float DividerHeight = 1f * Canvas;
         private const float DetailsGap = 10f * Canvas;
-        // The cards: 196px wide and 8px apart under the title, with 14px of padding, a 56px slot and 10px between their
-        // parts, and a 3px strip in the tier's color along the top.
+        // The cards: at least 196px wide and 8px apart under the title, with 14px of padding, a 56px slot and 10px
+        // between their parts, and a 3px strip in the tier's color along the top. They widen to keep LookingGlass's
+        // "With this item, you will have:" on one line, as long as the row stays 40px inside the screen's sides.
         public const float CardWidth = 196f * Canvas;
+        private const float CardScreenMargin = 40f * Canvas;
         private const float CardGap = 8f * Canvas;
         private const float CardPadding = 14f * Canvas;
         private const float CardSlotSize = 56f * Canvas;
@@ -101,6 +103,7 @@ namespace SevenUI
         // A cancel button the game hadn't shown yet when the panel was styled, styled once it is.
         private bool cancelWaiting;
         private int columns;
+        private float cardWidth = CardWidth;
         private bool fullDescriptions;
 
         private PickerPanel(PickupPickerPanel panel, HUD hud, RectTransform mainPanel)
@@ -134,6 +137,12 @@ namespace SevenUI
 
         // The options per row: all of them as cards, the game's columns as a grid.
         public int Columns => columns;
+
+        // Each card's width, as last laid out.
+        public float ShownCardWidth => cardWidth;
+
+        // Whether the screen kept the cards narrower than their captions.
+        public bool CardsNarrowed { get; private set; }
 
         public IReadOnlyList<PickerButton> Buttons => buttons;
 
@@ -639,7 +648,8 @@ namespace SevenUI
             float top;
             if (Cards)
             {
-                float textWidth = CardWidth - 2f * CardPadding;
+                cardWidth = FitCards(count);
+                float textWidth = cardWidth - 2f * CardPadding;
                 float nameHeight = 0f;
                 float descriptionHeight = 0f;
                 foreach (PickerButton card in buttons)
@@ -657,8 +667,8 @@ namespace SevenUI
                     statsHeight = Mathf.Max(statsHeight, card.Stats.Layout(CardPadding, statsTop, textWidth));
                 }
                 float cardHeight = statsTop + statsHeight + CardPadding;
-                float width = count * CardWidth + (count - 1) * CardGap;
-                grid.cellSize = new Vector2(CardWidth, cardHeight);
+                float width = count * cardWidth + (count - 1) * CardGap;
+                grid.cellSize = new Vector2(cardWidth, cardHeight);
                 container.anchoredPosition = new Vector2(0f, -(titleHeight + CardGap));
                 container.sizeDelta = new Vector2(width, cardHeight);
                 if (title)
@@ -711,6 +721,31 @@ namespace SevenUI
             mainPanel.pivot = new Vector2(0.5f, 1f);
             mainPanel.anchoredPosition = new Vector2(0f, top);
             mainPanel.sizeDelta = size;
+        }
+
+        // As wide as the widest caption on one line needs, at least the canvas's width, and no wider than lets the row
+        // fit the screen, measured in the panel's units.
+        private float FitCards(int count)
+        {
+            float caption = 0f;
+            foreach (PickerButton card in buttons)
+            {
+                if (card.Stats != null)
+                {
+                    caption = Mathf.Max(caption, card.Stats.CaptionWidth);
+                }
+            }
+            float wanted = Mathf.Max(CardWidth, Mathf.Ceil(caption) + 2f * CardPadding);
+            float room = float.PositiveInfinity;
+            Canvas canvas = mainPanel.GetComponentInParent<Canvas>();
+            if (canvas && count > 0 && mainPanel.lossyScale.x > 0f)
+            {
+                Transform root = canvas.rootCanvas.transform;
+                float screen = ((RectTransform)root).rect.width * root.lossyScale.x / mainPanel.lossyScale.x;
+                room = (screen - 2f * CardScreenMargin - (count - 1) * CardGap) / count;
+            }
+            CardsNarrowed = wanted > room;
+            return Mathf.Max(CardWidth, Mathf.Min(wanted, room));
         }
 
         private static float Measure(TMP_Text text, float width) => text ? text.GetPreferredValues(text.text, width, 0f).y : 0f;

@@ -635,16 +635,27 @@ namespace SevenUI.Tests
         private static bool DetailsShow(PickerPanel panel, int index) =>
             panel.DetailsNameText && panel.DetailsNameText.text == Language.GetString(panel.Buttons[index].Pickup.nameToken);
 
-        // Each card the canvas's width, side by side without overlapping, with its item's name, inside the screen.
+        // Each card at least the canvas's width and all as wide, side by side without overlapping, with its item's name
+        // and its stats' caption on one line (unless the screen is too narrow for that), inside the screen.
         private static string CardsAsCanvas(PickerPanel panel)
         {
             if (!panel.Alive) return "the panel closed";
+            float width = panel.ShownCardWidth;
+            if (width < PickerPanel.CardWidth - SizeTolerance)
+                return $"the cards are {width:0.#} wide, narrower than the canvas's {PickerPanel.CardWidth:0.#}";
             for (int i = 0; i < panel.Buttons.Count; i++)
             {
                 PickerButton card = panel.Buttons[i];
                 RectTransform rect = (RectTransform)card.Button.transform;
-                if (Mathf.Abs(rect.rect.width - PickerPanel.CardWidth) > SizeTolerance)
-                    return $"card {i} is {rect.rect.width:0.#} wide, not {PickerPanel.CardWidth:0.#}";
+                if (Mathf.Abs(rect.rect.width - width) > SizeTolerance)
+                    return $"card {i} is {rect.rect.width:0.#} wide, not {width:0.#}";
+                TMP_Text caption = card.Stats?.Caption;
+                if (caption && caption.gameObject.activeInHierarchy && !panel.CardsNarrowed)
+                {
+                    caption.ForceMeshUpdate();
+                    if (caption.textInfo.lineCount > 1)
+                        return $"card {i}'s \"{caption.text}\" takes {caption.textInfo.lineCount} lines on a {width:0.#} card";
+                }
                 if (!card.Name || card.Name.text.Length == 0) return $"card {i} has no name";
                 if (!card.Description || card.Description.text.Length == 0) return $"card {i} has no description";
                 if (i > 0)

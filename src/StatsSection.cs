@@ -54,6 +54,13 @@ namespace SevenUI
 
         public bool Shown => rows > 0;
 
+        // Read by the SevenUI.Tests plugin.
+        public TMP_Text Caption => caption;
+
+        // How wide the caption is on one line; 0 without one.
+        public float CaptionWidth => Shown && caption.gameObject.activeSelf
+            ? caption.GetPreferredValues(caption.text, float.PositiveInfinity, float.PositiveInfinity).x : 0f;
+
         public void Set(ItemStatsText.Parts parts)
         {
             rows = parts.Labels.Count;
