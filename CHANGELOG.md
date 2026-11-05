@@ -1,3 +1,9 @@
+## 1.1.1
+
+- An item picker's grid has as many items to a row as the game's own grid, including LookingGlass's larger Command window. Large Command groups no longer run their last row into the item's details.
+- Item picker cards are wider, so LookingGlass's "With this item, you will have:" fits on one line.
+- In Command, items whose stats LookingGlass can't show (such as Cautious Slug and Tougher Times) no longer end with an empty "With this item, you will have:".
+
 ## 1.1.0
 
 - The same as 1.0.1, numbered as a minor release for its new artifacts row.
