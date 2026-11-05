@@ -33,6 +33,9 @@ namespace SevenUI.Tests
         private const int ManyBuffs = 20;
         private const int StackedBuffCount = 3;
         private const int AllyCount = 2;
+        // One, so its card keeps the game's health bar: allies of one kind share a card with a bar split per ally.
+        private const int ProtectionAllyCount = 1;
+        private const int GroupedAllyCount = 3;
         // Barrier decays, so plenty for both looks' checks.
         private const float ProtectionBarrierShare = 0.8f;
 
@@ -66,6 +69,7 @@ namespace SevenUI.Tests
             yield return new Scenario(1, "protection_striped_on_player", Stages.TitanicPlains, ProtectionStripedOnPlayer);
             yield return new Scenario(1, "protection_tinted_with_infusion", Stages.TitanicPlains, ProtectionTintedWithInfusion);
             yield return new Scenario(1, "protection_striped_on_allies", Stages.TitanicPlains, ProtectionStripedOnAllies);
+            yield return new Scenario(1, "ally_cards_grouped", Stages.TitanicPlains, AllyCardsGrouped);
             yield return new Scenario(1, "turning_off_restores_panels", Stages.TitanicPlains, TurningOffRestoresPanels);
             yield return new Scenario(1, "lookingglass_stats_in_columns", Stages.TitanicPlains, LookingGlassStatsInColumns);
         }
@@ -383,10 +387,51 @@ namespace SevenUI.Tests
 
         private static IEnumerator ProtectionStripedOnAllies(Harness h)
         {
-            yield return Allies.BuyDrones(h, AllyCount);
+            yield return Allies.BuyDrones(h, ProtectionAllyCount);
             yield return ProtectionBothLooks(h,
                 () => SevenUIChecks.HudRoot(h).GetComponentsInChildren<AllyCardController>().Select(card => card.healthBar),
                 "the ally cards'");
+        }
+
+        // Three Gunner Drones share one card: "×3" after the name, a bar segment per drone, and the other two cards
+        // hidden; with the panels off, three cards again.
+        private static IEnumerator AllyCardsGrouped(Harness h)
+        {
+            yield return Allies.BuyDrones(h, GroupedAllyCount);
+            yield return h.Until(() => GroupedLook() == null, () => $"{GroupedLook()} {h.Diagnosis()}");
+            yield return h.Screenshot("grouped");
+            h.SetConfig(SevenUIPlugin.Settings.FlatPanels, false);
+            yield return h.Until(() => ShownAllyCards().Count() == GroupedAllyCount,
+                () => $"{ShownAllyCards().Count()} ally cards shown with the panels off, not {GroupedAllyCount} {h.Diagnosis()}");
+            h.SetConfig(SevenUIPlugin.Settings.FlatPanels, true);
+            yield return h.Until(() => GroupedLook() == null, () => $"{GroupedLook()} {h.Diagnosis()}");
+        }
+
+        private static IEnumerable<AllyCardController> ShownAllyCards() =>
+            SevenUIChecks.Controller.GetComponentsInChildren<AllyCardController>().Where(card => card.sourceMaster);
+
+        private static string GroupedLook()
+        {
+            List<AllyCardController> shown = ShownAllyCards().ToList();
+            if (shown.Count != 1) return $"{shown.Count} ally cards shown, not one for the kind";
+            AllyCardController card = shown[0];
+            TMP_Text count = card.nameLabel ? card.nameLabel.transform.Find(AllyCardsStyler.CountName)?.GetComponent<TMP_Text>() : null;
+            if (!count || count.text != "×" + GroupedAllyCount) return $"the card's count reads '{(count ? count.text : "")}'";
+            Transform segments = card.healthBar ? card.healthBar.transform.parent.Find(AllyCardsStyler.SegmentsName) : null;
+            int bars = 0;
+            if (segments)
+            {
+                foreach (Transform segment in segments)
+                {
+                    if (segment.gameObject.activeSelf && ((RectTransform)segment).rect.width > 0f)
+                    {
+                        bars++;
+                    }
+                }
+            }
+            if (bars != GroupedAllyCount) return $"the card's bar has {bars} segments";
+            if (card.healthBar.gameObject.activeSelf) return "the card still shows the game's health bar";
+            return null;
         }
 
         private static IEnumerator ProtectionBothLooks(Harness h, System.Func<IEnumerable<HealthBar>> bars, string whose)

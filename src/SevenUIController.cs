@@ -82,6 +82,7 @@ namespace SevenUI
                 skillSlots.Update();
                 scoreboard.Update();
                 chat.Update();
+                allyCards.Update();
                 // The pause menu is its own canvas, outside the HUD, made each time it opens.
                 pause.Update(SevenUIPlugin.Settings.BarlowFont.Value);
                 if (marginsApplied)
