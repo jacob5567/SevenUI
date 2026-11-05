@@ -212,9 +212,11 @@ namespace SevenUI.Tests
             yield return h.CaptureLooks();
         }
 
-        // The tab screen with that many different items in the player's row, from one line of slots to several.
+        // The tab screen with that many different items in the player's row, from one line of slots to several. In
+        // the rows layout whatever the player's setting, so the screenshots compare from run to run.
         private static IEnumerator WithItems(Harness h, int count)
         {
+            h.SetConfig(SevenUIPlugin.Settings.ScoreboardLayout, ScoreboardLayout.Rows);
             ScoreboardSetUp.GiveDifferentItems(h, count);
             yield return ScoreboardSetUp.Open(h);
             yield return h.ExpectScoreboardAsCanvas();
