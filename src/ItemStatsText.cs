@@ -37,7 +37,7 @@ namespace SevenUI
             MatchCollection lines = StatLine.Matches(inner);
             if (lines.Count == 0)
             {
-                parts.Description = text;
+                parts.Description = wrapper.Success ? WithoutEmptyCaption(text, inner) : text;
                 return parts;
             }
             foreach (Match line in lines)
@@ -58,6 +58,19 @@ namespace SevenUI
             string after = inner.Substring(last.Index + last.Length).Trim();
             parts.Description = after.Length > 0 ? before + ParagraphBreak + after : before;
             return parts;
+        }
+
+        // LookingGlass's Command descriptions are written without the player's master, so the stats it works out from
+        // the master (Cautious Slug's regen, Tougher Times' block chance and a few more) fail, and it leaves the caption
+        // with no stats under it. The caption is dropped then, as it heads nothing.
+        private static string WithoutEmptyCaption(string text, string inner)
+        {
+            string trimmed = inner.TrimEnd();
+            int lastBreak = trimmed.LastIndexOf(ParagraphBreak, System.StringComparison.Ordinal);
+            if (lastBreak < 0) return text;
+            string tail = trimmed.Substring(lastBreak + ParagraphBreak.Length);
+            if (tail.Length == 0 || tail.IndexOf('\n') >= 0 || tail[tail.Length - 1] != CaptionEnd) return text;
+            return trimmed.Substring(0, lastBreak).TrimEnd();
         }
     }
 }

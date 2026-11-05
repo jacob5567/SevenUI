@@ -203,6 +203,14 @@ namespace SevenUI.Tests
             PickupDef shownPickup = grid.Buttons[shown].Pickup;
             string detailsMissing = FullDescriptionMissing(shownPickup, grid.DetailsDescriptionText.text);
             if (detailsMissing != null) throw h.Fail($"the details for {Language.GetString(shownPickup.nameToken)} {detailsMissing}");
+            // LookingGlass fails to work out some items' stats in Command (Tougher Times' block chance among the
+            // white items) and leaves its caption with nothing under it; no description keeps that caption.
+            foreach (PickerButton option in grid.Buttons)
+            {
+                string description = option.Parts.Description.TrimEnd();
+                if (description.EndsWith(":"))
+                    throw h.Fail($"{Language.GetString(option.Pickup.nameToken)}'s description ends in a caption with no stats: \"{description}\"");
+            }
             yield return h.Wait(SettleSeconds);
             yield return h.Screenshot("grid");
 
