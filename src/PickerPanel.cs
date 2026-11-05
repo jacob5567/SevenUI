@@ -416,7 +416,8 @@ namespace SevenUI
             GridLayoutGroup grid = panel.gridlayoutGroup;
             if (!Cards)
             {
-                int game = GameColumns(buttons.Count);
+                // The options, not the buttons, which are styled after the grid.
+                int game = GameColumns(shownOptions.Length);
                 if (game != columns)
                 {
                     columns = game;
