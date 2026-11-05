@@ -24,9 +24,13 @@ namespace SevenUI.Tests
         private const float SizeTolerance = 1.5f;
         // Added to the zone's percentage to write one that doesn't match it.
         private const int MismatchedPercentStep = 7;
-        // The canvas's item slots on the scoreboard, and the items' place: 20px in from the row's or the board's left.
+        // The canvas's item slots on the scoreboard, and the items' place: in the rows layout 16px after the equipment,
+        // at the top of the name block; in the tabs layout 20px in from the board's left.
         private const float ScoreboardItemSlot = 40f;
         private const float ScoreboardItemsInset = 20f;
+        private const float ScoreboardItemsAfterEquipment = 16f;
+        private const string ScoreboardKeyItemName = "KeyItemBackground";
+        private const string ScoreboardMoneyName = "TotalTextContainer";
         // The canvas's board: 1220px wide, 110px from the top; its count line names the total's items.
         private const float ScoreboardWidth = 1220f;
         private const float ScoreboardTop = 110f;
@@ -164,9 +168,9 @@ namespace SevenUI.Tests
         }
 
         // Null when a row's items are drawn as the canvas's grid: slots of one size, at most 40px, none over another,
-        // sorted into tier runs, the first at the items' top left, and no counts among them. In the
-        // rows layout the items sit 20px in from the row's left, under its name block; in the tabs layout, 20px in from
-        // the board's left, under the tabs.
+        // sorted into tier runs, the first at the items' top left, and no counts among them. In the rows layout the
+        // items sit 16px after the equipment, their top at the name block's; in the tabs layout, 20px in from the
+        // board's left, under the tabs.
         private static string GridProblem(Harness h, ScoreboardItemsBoard board, ScoreboardStrip strip, Transform background)
         {
             List<ItemIcon> icons = strip.itemInventoryDisplay.itemIcons.Where(icon => icon && icon.isActiveAndEnabled).ToList();
@@ -190,11 +194,12 @@ namespace SevenUI.Tests
             string place;
             if (board.Layout == ScoreboardLayout.Rows)
             {
-                Rect row = Box(h, (RectTransform)background);
+                Rect equipment = Box(h, (RectTransform)background.Find(ScoreboardEquipmentName));
                 Rect name = Box(h, (RectTransform)background.Find(ScoreboardNamePath));
-                place = Near(cell.xMin - row.xMin, ScoreboardItemsInset) && cell.yMax < name.yMin
+                place = Near(cell.xMin - equipment.xMax, ScoreboardItemsAfterEquipment) && Near(cell.yMax, name.yMax)
                     ? null
-                    : $"cell from x {cell.xMin - row.xMin:0.#} in its row, top {cell.yMax:0.#} under a name block ending at {name.yMin:0.#}";
+                    : $"cell {cell.xMin - equipment.xMax:0.#} after the equipment, top {cell.yMax:0.#} beside a name block " +
+                      $"from {name.yMax:0.#}";
             }
             else
             {
@@ -592,10 +597,11 @@ namespace SevenUI.Tests
                 TransformationTimeout);
         }
 
-        // The open scoreboard as wide as the canvas's and where the setting puts it, and the viewer's row: its money
-        // last, the survivor and level under the name and the item counts under those, the equipment outlined, and its
-        // items as the canvas's grid (GridProblem). In the rows layout, the header strip with each header at its column
-        // and the viewer's row tinted; in the tabs layout, no headers, and the viewer's tab shown, tinted and underlined.
+        // The open scoreboard as wide as the canvas's and where the setting puts it, without the game's headers, and the
+        // viewer's row: the survivor and level under the name and the item counts under those, the equipment outlined,
+        // and its items as the canvas's grid (GridProblem). In the rows layout, the viewer's row tinted, the money at the
+        // right of the name's line and the key item slot before the equipment; in the tabs layout, the money last, and
+        // the viewer's tab shown, tinted and underlined.
         public static IEnumerator ExpectScoreboardAsCanvas(this Harness h)
         {
             string look = null;
@@ -611,55 +617,68 @@ namespace SevenUI.Tests
                     if (!items || !row || items.Layout != SevenUIPlugin.Settings.ScoreboardLayout.Value) return false;
                     bool tabs = items.Layout == ScoreboardLayout.Tabs;
                     Transform background = row.Strip.transform.Find(ScoreboardStyler.RowBackgroundName);
-                    List<string> misplaced = new List<string>();
-                    string headed;
+                    Transform headerGroup = board.transform.Find(ScoreboardHeadersPath);
+                    Transform money = background.Find(ScoreboardMoneyName);
+                    Transform equipment = background.Find(ScoreboardEquipmentName);
+                    string headed = headerGroup && headerGroup.gameObject.activeInHierarchy ? "headers shown" : null;
+                    string parts;
                     if (tabs)
                     {
-                        Transform headerGroup = board.transform.Find(ScoreboardHeadersPath);
                         Transform bar = background.Find(ScoreboardItemsBoard.TabBarName);
-                        headed = headerGroup && headerGroup.gameObject.activeInHierarchy ? "headers shown" :
-                            items.ShownStrip != row.Strip ? "another tab shown" :
-                            !bar || !bar.gameObject.activeSelf ? "no line under the tab" : null;
+                        bool moneyLast = money && equipment && money.GetSiblingIndex() > equipment.GetSiblingIndex();
+                        parts = items.ShownStrip != row.Strip ? "another tab shown" :
+                            !bar || !bar.gameObject.activeSelf ? "no line under the tab" :
+                            !moneyLast ? "the money not last" : null;
                     }
                     else
                     {
-                        ScoreboardHeaders headers = board.GetComponentInChildren<ScoreboardHeaders>();
-                        if (!headers) return false;
-                        for (int i = 0; i < headers.Headers.Length; i++)
-                        {
-                            RectTransform column = background.Find(headers.Columns[i]) as RectTransform;
-                            if (!column || !column.gameObject.activeSelf) continue;
-                            Rect columnBox = Box(h, column);
-                            Rect headerBox = Box(h, headers.Headers[i].rectTransform);
-                            float gap = headers.RightAligned[i] ? headerBox.xMax - columnBox.xMax : headerBox.xMin - columnBox.xMin;
-                            if (!Near(gap, 0f))
-                            {
-                                misplaced.Add($"{headers.Columns[i]} {gap:0.#}");
-                            }
-                        }
-                        headed = !headers.transform.Find(ScoreboardStyler.HeaderStripName) ? "no header strip" :
-                            misplaced.Count > 0 ? $"misplaced headers [{string.Join(", ", misplaced)}]" : null;
+                        parts = RowPartsProblem(h, row, background);
                     }
-                    Transform money = background.Find("TotalTextContainer");
-                    Transform equipment = background.Find("EquipmentBackground");
-                    bool moneyLast = money && equipment && money.GetSiblingIndex() > equipment.GetSiblingIndex();
                     string grid = GridProblem(h, items, row.Strip, background);
                     string placed = PlacementProblem(h, board);
                     string portrait = PortraitProblem(h, background);
-                    look = $"{items.Layout}, {headed ?? "headed"}, row color {row.Background.color}, " +
-                           $"survivor '{row.Survivor.text}', counts '{row.Counts.text}', money after the equipment {moneyLast}, " +
+                    look = $"{items.Layout}, {headed ?? "no headers"}, row color {row.Background.color}, " +
+                           $"survivor '{row.Survivor.text}', counts '{row.Counts.text}', parts {parts ?? "in place"}, " +
                            $"items {grid ?? "as the grid"}, board {placed ?? "in place"}, portrait {portrait ?? "centered"}";
-                    return headed == null && grid == null && placed == null && portrait == null &&
+                    return headed == null && parts == null && grid == null && placed == null && portrait == null &&
                            row.Counts.text.Contains(ScoreboardCountsWord) &&
                            SevenUIChecks.Near(row.Background.color, ScoreboardRow.OwnRowColor) && row.Survivor.text.Contains(" · ") &&
-                           moneyLast && equipment.Find("SevenUIEquipmentOutline");
+                           equipment && equipment.Find("SevenUIEquipmentOutline");
                 },
                 () => $"the scoreboard laid out as on the canvas ({look}) {h.Diagnosis()}");
         }
 
+        // Null when a row of the rows layout has its money at the right of the name's line, the name's text ending
+        // before it, and the key item's slot shown just before the equipment's, both at the top of the name block.
+        private static string RowPartsProblem(Harness h, ScoreboardRow row, Transform background)
+        {
+            RectTransform nameObject = background.Find(ScoreboardNamePath) as RectTransform;
+            RectTransform keyItem = background.Find(ScoreboardKeyItemName) as RectTransform;
+            RectTransform equipment = background.Find(ScoreboardEquipmentName) as RectTransform;
+            TMP_Text money = row.Strip.moneyText;
+            TMP_Text name = row.Strip.nameLabel;
+            if (!nameObject || !keyItem || !equipment || !money || !name) return "parts missing";
+            Rect block = Box(h, nameObject);
+            Rect moneyBox = Box(h, money.rectTransform);
+            Rect nameBox = Box(h, name.rectTransform);
+            Rect keyBox = Box(h, keyItem);
+            Rect equipmentBox = Box(h, equipment);
+            float moneyText = money.textBounds.size.x;
+            bool moneyPlaced = money.isActiveAndEnabled && money.alpha > 0f && Near(moneyBox.xMax, block.xMax) &&
+                               Near(moneyBox.yMax, block.yMax) && money.text.Length > 0;
+            bool nameBefore = nameBox.xMax - name.margin.z <= moneyBox.xMax - moneyText + SizeTolerance;
+            bool keyShown = keyItem.gameObject.activeInHierarchy && keyBox.xMax < equipmentBox.xMin && keyBox.xMin > block.xMax &&
+                            Near(keyBox.yMax, block.yMax) && Near(equipmentBox.yMax, block.yMax);
+            return moneyPlaced && nameBefore && keyShown
+                ? null
+                : $"money '{money.text}' {BoxText(moneyBox)} in a name block {BoxText(block)}, name to " +
+                  $"{nameBox.xMax - name.margin.z:0.#}, key item {BoxText(keyBox)} shown {keyItem.gameObject.activeInHierarchy}, " +
+                  $"equipment {BoxText(equipmentBox)}";
+        }
+
         // With the pointer on the icon: the pane describing its item under its name, with the viewer among its holders
-        // at the icon's stack, the item's tooltip hidden, the icon outlined, and in the rows layout every other item
-        // dimmed.
+        // at the icon's stack, the item's tooltip hidden, and the icon outlined. In the rows layout every other item
+        // dimmed, and the pane at the rows' right, inside the board.
         public static IEnumerator ExpectItemPane(this Harness h, ItemIcon icon)
         {
             string look = null;
@@ -683,16 +702,29 @@ namespace SevenUI.Tests
                     string stack = "×" + icon.itemCount;
                     string holders = string.Join(", ", Enumerable.Range(0, pane.HolderCount).Select(pane.HolderText));
                     string title = icon.tooltipProvider ? icon.tooltipProvider.titleText : "";
+                    string beside = board.Layout == ScoreboardLayout.Rows ? PaneBesideRows(h, board, pane) : null;
                     look = $"pane on {(pane.Shown ? pane.Title : "nothing")} held by [{holders}], tooltip " +
                            $"{(tooltip ? (tooltip.enabled ? "shown" : "hidden") : "none")}, outlined {outlined}, " +
-                           $"{others.Count} others dimmed {dimmed}, this one undimmed {undimmed}";
+                           $"{others.Count} others dimmed {dimmed}, this one undimmed {undimmed}, {beside ?? "placed"}";
                     return pane.Shown && pane.Item == icon.itemIndex && pane.Title == title && pane.Root.gameObject.activeInHierarchy &&
                            Enumerable.Range(0, pane.HolderCount).Any(i => pane.HolderText(i).Contains(stack)) &&
-                           (!tooltip || !tooltip.enabled) && outlined && undimmed &&
+                           (!tooltip || !tooltip.enabled) && outlined && undimmed && beside == null &&
                            (board.Layout == ScoreboardLayout.Tabs || dimmed);
                 },
                 () => $"the item described in the scoreboard's pane, {icon.tooltipProvider?.titleText} at its stack ({look}) " +
                       $"{h.Diagnosis()}");
+        }
+
+        // Null when the rows layout's pane is right of every row and inside the board, top and bottom.
+        private static string PaneBesideRows(Harness h, ScoreboardItemsBoard board, ScoreboardDetailPane pane)
+        {
+            Rect paneBox = Box(h, pane.Root);
+            Rect boardBox = Box(h, (RectTransform)board.transform);
+            float rowsRight = board.Grids.Count > 0 ? board.Grids.Max(grid => Box(h, (RectTransform)grid.Strip.transform).xMax) : 0f;
+            return paneBox.xMin > rowsRight && paneBox.xMax < boardBox.xMax && paneBox.yMin > boardBox.yMin - SizeTolerance &&
+                   paneBox.yMax < boardBox.yMax + SizeTolerance
+                ? null
+                : $"pane {BoxText(paneBox)}, rows to x {rowsRight:0.#}, board {BoxText(boardBox)}";
         }
     }
 }

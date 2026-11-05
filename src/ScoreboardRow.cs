@@ -10,8 +10,9 @@ namespace SevenUI
     // Keeps one scoreboard row as on the design canvas while it shows: tinted in the accent if it is the viewer's own
     // (in the rows layout), the player's survivor and level ("Commando · Lv 17") under their name, the row's items under
     // that ("40 items · 22 9 4 2 1 2", the total in bold, then the common, uncommon, legendary, boss, lunar and void
-    // counts in their tiers' colors), and the gamepad's focus outlines shown only while they are lit. The counts are
-    // read again when the player's inventory changes.
+    // counts in their tiers' colors), the name cut short before the money when the money shares its line, and the
+    // gamepad's focus outlines shown only while they are lit. The counts are read again when the player's inventory
+    // changes, and the name's room when the money's text does.
     internal sealed class ScoreboardRow : MonoBehaviour
     {
         private const string Separator = " · ";
@@ -19,6 +20,8 @@ namespace SevenUI
         // The canvas's word after the total, which the game has no translation of, so it shows in English only.
         private const string ItemsWord = " items";
         private const string English = "en";
+        // Between the name and the money on its line.
+        private const float MoneyGap = 8f;
         private static readonly StringBuilder Text = new StringBuilder();
 
         // The canvas's tint for the viewer's row, over its board, as drawn in the game's light (CanvasBlend).
@@ -29,6 +32,9 @@ namespace SevenUI
         public Image Background;
         public TMP_Text Survivor;
         public TMP_Text Counts;
+        public TMP_Text Name;
+        // The money at the right of the name's line, in the rows layout; null in the tabs layout, where it has a column.
+        public TMP_Text Money;
         public Image[] FocusOutlines;
         // Off in the tabs layout, where the board tints the shown player's tab instead.
         public bool TintOwnRow = true;
@@ -39,6 +45,8 @@ namespace SevenUI
         private int shownLevel = -1;
         private Inventory countedInventory;
         private bool countsStale = true;
+        private string shownMoney;
+        private TMP_FontAsset shownMoneyFont;
 
         // A few reads and compares when nothing changed.
         private void LateUpdate()
@@ -71,6 +79,14 @@ namespace SevenUI
             {
                 countsStale = false;
                 Counts.text = inventory ? CountsText(inventory) : "";
+            }
+
+            if (Money && Name && (!ReferenceEquals(Money.text, shownMoney) || Money.font != shownMoneyFont))
+            {
+                shownMoney = Money.text;
+                shownMoneyFont = Money.font;
+                Vector4 margin = Name.margin;
+                Name.margin = new Vector4(margin.x, margin.y, Money.preferredWidth + MoneyGap, margin.w);
             }
 
             // The game lights an outline yellow while the gamepad focuses its part, and darkens it after.

@@ -33,7 +33,7 @@ namespace SevenUI
                 "Place the scoreboard as on SevenUI's design: near the top of the screen, centered between its left edge " +
                 "and the run info. Off centers it on the screen, where the game puts it. Only with FlatPanels on.");
             ScoreboardLayout = config.Bind("Panels", "ScoreboardLayout", SevenUI.ScoreboardLayout.Rows,
-                "How the scoreboard shows items. Rows: a row per player, with their items under their name, grouped by " +
+                "How the scoreboard shows items. Rows: a row per player, with their items after their equipment, grouped by " +
                 "tier. Tabs: one player at a time, picked from tabs along the top. Either way, the item you point at is " +
                 "described in a panel on the scoreboard, with who holds it. Only with FlatPanels on.");
 

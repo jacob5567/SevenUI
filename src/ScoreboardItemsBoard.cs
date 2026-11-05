@@ -11,23 +11,23 @@ namespace SevenUI
     // chosen layout, and keeps the docked item pane (ScoreboardDetailPane) on the item the pointer is on, hiding the
     // tooltip that would cover the items.
     //
-    // Rows: each row's items under its name, across the row's width, the row as tall as they need; the item pointed at
-    // lit in every row that holds it and the rest dimmed, and described under the rows. Tabs: the rows become tabs
+    // Rows: each row's items after its equipment, wrapping under themselves, the row as tall as they need; the item
+    // pointed at lit in every row that holds it and the rest dimmed, and described in a column at the rows' right, the
+    // board growing to hold it. Tabs: the rows become tabs
     // along the board's top, and the shown player's key item, equipment and items sit under them, described in a pane
     // at their right. Pointing at a tab, or selecting anything in it with a gamepad, shows that player; the board opens
     // on the viewer's own. Either way, if the board would run past the bottom of the scoreboard's panel, every grid's
     // slots shrink together, down to 24px.
     internal sealed class ScoreboardItemsBoard : MonoBehaviour
     {
-        public const string PaneHolderName = "SevenUIItemPaneHolder";
+        public const string PaneColumnName = "SevenUIItemPaneColumn";
         public const string TabsDividerName = "SevenUITabsDivider";
         public const string TabBarName = "SevenUITabBar";
 
-        // In the scoreboard's units, the design canvas's pixels. Rows: the items 12px under the line of the name.
-        private const float ItemsGap = 12f;
-        public const float ItemsTop = ScoreboardStyler.RowPaddingY + ScoreboardStyler.TopLineHeight + ItemsGap;
-        private const float PaneTop = 16f;
-        private const float PaneBottom = 20f;
+        // In the scoreboard's units, the design canvas's pixels. Rows: the pane's column 340px wide, a line at its left
+        // and the pane 16px in from its edges.
+        public const float PaneColumnWidth = 340f;
+        private const float PaneInset = 16f;
         // Tabs: up to 380px each, 8px apart, 14px under the board's top; under them, 18px down, the key item and the
         // equipment, then the items, and the pane 24px to their right, 356px wide.
         public const int TabPaddingX = 14;
@@ -58,8 +58,9 @@ namespace SevenUI
         private RectTransform panel;
         private TMP_Text style;
         private RectTransform strips;
-        private RectTransform paneHolder;
-        private LayoutElement paneHolderElement;
+        private VerticalLayoutGroup rowsGroup;
+        private RectOffset rowsPadding;
+        private float rowsHeight;
         private LayoutElement stripsElement;
         private RectTransform tabsDivider;
         private ScoreboardDetailPane pane;
@@ -72,7 +73,6 @@ namespace SevenUI
         private float itemsWidth;
         private float bodyHeight;
         private float containerHeight = -1f;
-        private float holderHeight = -1f;
         private TooltipProvider seenProvider;
         private TooltipController hiddenTooltip;
         private GameObject seenSelection;
@@ -101,19 +101,34 @@ namespace SevenUI
             strips = (RectTransform)transform;
             if (layout == ScoreboardLayout.Rows)
             {
-                paneHolder = NewObject(PaneHolderName, strips);
-                recorder.Add(paneHolder.gameObject);
-                paneHolderElement = paneHolder.gameObject.AddComponent<LayoutElement>();
-                RectTransform line = NewObject("Divider", paneHolder);
-                line.anchorMin = new Vector2(0f, 1f);
-                line.anchorMax = Vector2.one;
-                line.offsetMin = new Vector2(0f, -DividerHeight);
-                line.offsetMax = Vector2.zero;
+                // The rows' container keeps laying the rows out, narrower by the column, which takes its right.
+                rowsGroup = GetComponent<VerticalLayoutGroup>();
+                RectOffset padding = rowsGroup ? rowsGroup.padding : new RectOffset();
+                rowsPadding = new RectOffset(padding.left, padding.right + Mathf.RoundToInt(PaneColumnWidth), padding.top,
+                    padding.bottom);
+                if (rowsGroup)
+                {
+                    recorder.Record(rowsGroup);
+                    rowsGroup.padding = new RectOffset(rowsPadding.left, rowsPadding.right, rowsPadding.top, rowsPadding.bottom);
+                }
+                RectTransform column = NewObject(PaneColumnName, strips);
+                recorder.Add(column.gameObject);
+                column.gameObject.AddComponent<LayoutIgnorer>();
+                column.anchorMin = new Vector2(1f, 0f);
+                column.anchorMax = Vector2.one;
+                column.pivot = Vector2.one;
+                column.anchoredPosition = Vector2.zero;
+                column.sizeDelta = new Vector2(PaneColumnWidth + padding.right, 0f);
+                RectTransform line = NewObject("Divider", column);
+                line.anchorMin = Vector2.zero;
+                line.anchorMax = new Vector2(0f, 1f);
+                line.pivot = new Vector2(0f, 0.5f);
+                line.offsetMin = Vector2.zero;
+                line.offsetMax = new Vector2(DividerHeight, 0f);
                 Image lineImage = line.gameObject.AddComponent<Image>();
                 lineImage.color = Palette.RowDivider;
                 lineImage.raycastTarget = false;
-                pane = new ScoreboardDetailPane(paneHolder, style, recorder);
-                paneHolder.gameObject.SetActive(false);
+                pane = new ScoreboardDetailPane(column, style, recorder);
             }
             else
             {
@@ -232,8 +247,8 @@ namespace SevenUI
             return top.y - panel.rect.yMin;
         }
 
-        // What the layout is as wide as: the board for the tabs, a row for the rows, which their container pads a little
-        // narrower than the board.
+        // What the layout is as wide as: the board for the tabs, a row for the rows, which their container pads
+        // narrower than the board, by the pane's column and a little more.
         private float Width() =>
             layout == ScoreboardLayout.Rows && grids.Count > 0
                 ? ((RectTransform)grids[0].Strip.transform).rect.width
@@ -241,7 +256,8 @@ namespace SevenUI
 
         private void LayOutRows(float width, float limit)
         {
-            float across = Mathf.Max(ScoreboardItemGrid.FullSlot, width - 2f * ScoreboardStyler.RowPaddingX);
+            float across = Mathf.Max(ScoreboardItemGrid.FullSlot,
+                width - ScoreboardStyler.RowItemsLeft - ScoreboardStyler.RowPaddingX);
             float size = SlotSizes[SlotSizes.Length - 1];
             foreach (float candidate in SlotSizes)
             {
@@ -256,25 +272,37 @@ namespace SevenUI
                     break;
                 }
             }
-            foreach (ScoreboardItemGrid grid in grids)
+            rowsHeight = 0f;
+            for (int i = 0; i < grids.Count; i++)
             {
+                ScoreboardItemGrid grid = grids[i];
                 grid.SetLayout(size, across);
                 float items = grid.HeightAt(size, across);
-                SetRowHeight(grid.Strip, RowHeight(grid, size, across));
+                float height = RowHeight(grid, size, across);
+                rowsHeight += height;
+                SetRowHeight(grid.Strip, height);
                 RectTransform cell = grid.Cell;
                 cell.anchorMin = new Vector2(0f, 1f);
                 cell.anchorMax = Vector2.one;
                 cell.pivot = new Vector2(0f, 1f);
-                cell.offsetMin = new Vector2(ScoreboardStyler.RowPaddingX, -(ItemsTop + items));
-                cell.offsetMax = new Vector2(-ScoreboardStyler.RowPaddingX, -ItemsTop);
+                cell.offsetMin = new Vector2(ScoreboardStyler.RowItemsLeft, -(ScoreboardStyler.RowPaddingY + items));
+                cell.offsetMax = new Vector2(-ScoreboardStyler.RowPaddingX, -ScoreboardStyler.RowPaddingY);
+                // The line between rows, none over the first.
+                Transform divider = grid.Background ? grid.Background.transform.Find(ScoreboardStyler.DividerName) : null;
+                if (divider && divider.gameObject.activeSelf != i > 0)
+                {
+                    divider.gameObject.SetActive(i > 0);
+                }
+            }
+            if (rowsGroup)
+            {
+                rowsHeight += Mathf.Max(0, grids.Count - 1) * rowsGroup.spacing;
             }
         }
 
-        // A row without items keeps the plain row's height.
+        // The items from the row's top line down, the row at least the plain row's height.
         private static float RowHeight(ScoreboardItemGrid grid, float size, float across) =>
-            grid.Slots == 0
-                ? ScoreboardStyler.RowHeight
-                : ItemsTop + grid.HeightAt(size, across) + ScoreboardStyler.RowPaddingY;
+            Mathf.Max(ScoreboardStyler.RowHeight, 2f * ScoreboardStyler.RowPaddingY + grid.HeightAt(size, across));
 
         private static void SetRowHeight(ScoreboardStrip strip, float height)
         {
@@ -479,25 +507,18 @@ namespace SevenUI
         {
             if (layout == ScoreboardLayout.Rows)
             {
-                if (paneHolder.gameObject.activeSelf != pane.Shown)
+                float paneHeight = 0f;
+                if (pane.Shown)
                 {
-                    paneHolder.gameObject.SetActive(pane.Shown);
+                    pane.Place(DividerHeight + PaneInset, PaneInset, PaneColumnWidth - DividerHeight - 2f * PaneInset);
+                    paneHeight = 2f * PaneInset + pane.Height;
                 }
-                if (!pane.Shown) return;
-                // The game adds rows at the container's end, so the pane holder is moved back after them.
-                if (paneHolder.GetSiblingIndex() != strips.childCount - 1)
+                // The board grows under the rows to hold a pane taller than them.
+                int bottom = rowsPadding.bottom + Mathf.CeilToInt(Mathf.Max(0f,
+                    paneHeight - rowsPadding.top - rowsHeight - rowsPadding.bottom));
+                if (rowsGroup && rowsGroup.padding.bottom != bottom)
                 {
-                    paneHolder.SetAsLastSibling();
-                }
-                float width = Width();
-                pane.Place(ScoreboardStyler.RowPaddingX, PaneTop, width - 2f * ScoreboardStyler.RowPaddingX);
-                float height = PaneTop + pane.Height + PaneBottom;
-                if (!Mathf.Approximately(height, holderHeight) || !Mathf.Approximately(paneHolder.sizeDelta.x, width))
-                {
-                    holderHeight = height;
-                    paneHolderElement.minHeight = height;
-                    paneHolderElement.preferredHeight = height;
-                    paneHolder.sizeDelta = new Vector2(width, height);
+                    rowsGroup.padding = new RectOffset(rowsPadding.left, rowsPadding.right, rowsPadding.top, bottom);
                 }
                 return;
             }

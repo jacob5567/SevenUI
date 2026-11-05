@@ -8,21 +8,21 @@ using UnityEngine.UI;
 
 namespace SevenUI
 {
-    // Restyles the scoreboard (Tab) and its inspect panel as on the design canvas: a dark flat board, and each player's
-    // row with the portrait on a flat square, the name in bold over the survivor and level and the item counts
-    // (ScoreboardRow), the key item on a flat slot, the equipment on a slot with its orange outline, and the money in
-    // gold. The game keeps building and filling the rows; its parts are resized and moved, and the board's own
-    // component (ScoreboardItemsBoard) lays the items out and describes the one pointed at, in the layout the
-    // ScoreboardLayout setting picks:
-    // - Rows: a header strip of grey capitals lined up with the columns (ScoreboardHeaders), and rows split by thin
-    //   lines, the viewer's tinted in the accent. The key item, the equipment and the money sit at the right of the
-    //   name, and the items under it.
+    // Restyles the scoreboard (Tab) and its inspect panel as on the design canvas: a dark flat board without the
+    // game's headers, and each player's row with the portrait on a flat square, the name in bold over the survivor and
+    // level and the item counts (ScoreboardRow), the key item on a flat slot, the equipment on a slot with its orange
+    // outline, and the money in gold. The game keeps building and filling the rows; its parts are resized and moved,
+    // and the board's own component (ScoreboardItemsBoard) lays the items out and describes the one pointed at, in the
+    // layout the ScoreboardLayout setting picks:
+    // - Rows: one line per player, split by thin lines, the viewer's tinted in the accent: the portrait, the name block
+    //   with the money at the right of the name, the key item, the equipment, then the items.
     // - Tabs: each row is a tab of the portrait, the name block and the money; the shown player's key item,
-    //   equipment and items sit under the tabs. No headers.
+    //   equipment and items sit under the tabs.
     internal sealed class ScoreboardStyler
     {
         // Under the scoreboard panel.
         private const string BoardPath = "Container/StripContainer";
+        // The game's column headers, which the rows' columns no longer line up with.
         private const string HeadersPath = "Container/HeaderGroup";
         private const string InspectPanelPath = "Container/InspectPanel/InspectPanelArea/InspectionPanel";
         private const string InspectVisualPath = InspectPanelPath + "/HorizontalBox/InspectIconContainer/InspectVisualBackground";
@@ -37,40 +37,25 @@ namespace SevenUI
         private const string NameObjectName = "NameObject";
         private const string MoneyName = "TotalTextContainer";
         private const string KeyItemName = "KeyItemBackground";
-        private const string ItemsName = "ItemsBackground";
         private const string EquipmentName = "EquipmentBackground";
         private const string PlayersName = "PlayersBackground";
-        private static readonly (string header, string column, bool right)[] HeaderColumns =
-        {
-            ("Player Header", ClassName, false),
-            ("Key Item Header", KeyItemName, false),
-            ("Item Header", ItemsName, false),
-            ("Equipment Header", EquipmentName, false),
-        };
-        public const string HeaderStripName = "SevenUIScoreboardHeader";
-        private const string MoneyHeaderName = "SevenUIMoneyHeader";
-        // The game has no word for its money to translate, so the money's header shows in English only.
-        private const string MoneyHeader = "Money";
-        private const string English = "en";
-        private const string DividerName = "SevenUIRowDivider";
-        private const string SpacerName = "SevenUIRowSpacer";
+        public const string DividerName = "SevenUIRowDivider";
         private const string RowTextsName = "SevenUIRowTexts";
         private const string OutlineName = "SevenUIEquipmentOutline";
 
-        // The design canvas's sizes, in its pixels, which the scoreboard's units match: rows 92px tall with 16px by 20px
-        // of padding and 24px between columns; 52px slots; the player's name block 224px wide, its lines 19px, 14px
-        // and 13px, 3px apart; the money's column 120px with 20px text; and the headers 12px.
+        // The design canvas's sizes, in its pixels, which the scoreboard's units match: rows at least 92px tall with
+        // 16px by 20px of padding and 16px between columns (a tab's 24px); 52px slots; the player's name block 176px
+        // wide, its lines 19px, 14px and 13px, 3px apart; and the money's text 20px.
         public const float RowHeight = 92f;
         public const int RowPaddingX = 20;
         public const int RowPaddingY = 16;
-        // The row's top line, of the name block and the slots, inside its padding.
-        public const float TopLineHeight = RowHeight - 2 * RowPaddingY;
+        private const float RowColumnGap = 16f;
         private const float ColumnGap = 24f;
-        // Between the portrait and the name block; the row lays its columns out ColumnGap apart, so the block's texts
-        // reach back into the column gap by the difference.
+        // Between the portrait and the name block; the row lays its columns out a column gap apart, so the block's
+        // texts reach back into the gap by the difference.
         private const float NameGap = 12f;
         public const float SlotSize = 52f;
-        private const float NameWidth = 224f;
+        private const float NameWidth = 176f;
         private const float NameFontSize = 19f;
         private const float SurvivorFontSize = 14f;
         private const float CountsFontSize = 13f;
@@ -78,11 +63,13 @@ namespace SevenUI
         private const float LineHeight = 1.2f;
         // The name block's three lines, which the portrait beside it is centered on, as on the canvas.
         public const float NameBlockHeight = (NameFontSize + SurvivorFontSize + CountsFontSize) * LineHeight + 2f * LineGap;
-        private const float MoneyWidth = 120f;
         // A tab's money, beside a name block that takes the rest of the tab.
         private const float TabMoneyWidth = 64f;
         private const float MoneyFontSize = 20f;
-        private const float HeaderFontSize = 12f;
+        // In a row, where the items start: after the portrait, the name block, the key item and the equipment.
+        public const float RowItemsLeft = RowPaddingX + SlotSize + RowColumnGap + NameWidth + RowColumnGap + SlotSize +
+                                          RowColumnGap + SlotSize + RowColumnGap;
+        private const float RowNameLeft = RowPaddingX + SlotSize + RowColumnGap;
         // The canvas's item slots: 40px, 4px apart, wrapping (ScoreboardItemGrid).
         private const float ItemSlotSize = 40f;
         private const float ItemGap = 4f;
@@ -164,14 +151,9 @@ namespace SevenUI
 
             Transform headers = board.Find(HeadersPath);
             RectTransform strips = board.Find(BoardPath) as RectTransform;
-            if (layout == ScoreboardLayout.Tabs)
+            if (headers && headers.gameObject.activeSelf)
             {
-                // The tabs say who each player is.
-                recorder.SetActive(headers ? headers.gameObject : null, false);
-            }
-            else if (headers && !headers.Find(HeaderStripName))
-            {
-                StyleHeaders(headers, strips);
+                recorder.SetActive(headers.gameObject, false);
             }
             // Before the rows, which the tabs layout points at it.
             if (strips && !strips.GetComponent<ScoreboardItemsBoard>())
@@ -190,7 +172,8 @@ namespace SevenUI
             rows.Clear();
         }
 
-        // The tabs layout places the rows itself, and sizes their container to the tabs and what is under them.
+        // The tabs layout places the rows itself, and sizes their container to the tabs and what is under them. The
+        // headers' first text is the style of the board's own texts.
         private void AddItemsBoard(Transform board, RectTransform strips, Transform headers)
         {
             recorder.RecordRect(strips);
@@ -203,76 +186,6 @@ namespace SevenUI
             recorder.Add(itemsBoard);
             TMP_Text style = headers ? headers.GetComponentInChildren<TMP_Text>(true) : null;
             itemsBoard.Init(layout, recorder, styled, hud, (RectTransform)board, style);
-        }
-
-        // The strip behind the headers joins the board under it; the game's headers become grey capitals, and a money
-        // header is added for the money's column.
-        private void StyleHeaders(Transform headers, RectTransform board)
-        {
-            GameObject strip = NewUIObject(HeaderStripName, headers);
-            strip.transform.SetAsFirstSibling();
-            Stretch((RectTransform)strip.transform);
-            Image panel = strip.AddComponent<Image>();
-            panel.color = Palette.ScoreboardPanel;
-            panel.raycastTarget = false;
-            GameObject tint = NewUIObject("Tint", strip.transform);
-            Stretch((RectTransform)tint.transform);
-            Image tintImage = tint.AddComponent<Image>();
-            tintImage.color = CanvasBlend.Over(Palette.HeaderStrip, CanvasBoard);
-            tintImage.raycastTarget = false;
-            recorder.Add(strip);
-
-            List<TMP_Text> labels = new List<TMP_Text>();
-            List<string> columns = new List<string>();
-            List<bool> right = new List<bool>();
-            TMP_Text first = null;
-            foreach ((string header, string column, bool rightAligned) in HeaderColumns)
-            {
-                TMP_Text label = headers.Find(header)?.GetComponent<TMP_Text>();
-                if (!label) continue;
-                if (column == ItemsName)
-                {
-                    // The items sit under the names, where the players' header is.
-                    recorder.Disable(label);
-                    continue;
-                }
-                first = first ? first : label;
-                recorder.Record(label);
-                recorder.RecordRect(label.rectTransform);
-                StyleHeader(label, rightAligned);
-                labels.Add(label);
-                columns.Add(column);
-                right.Add(rightAligned);
-            }
-            if (first)
-            {
-                GameObject money = NewUIObject(MoneyHeaderName, headers);
-                TextMeshProUGUI label = money.AddComponent<TextMeshProUGUI>();
-                label.font = first.font;
-                label.fontSharedMaterial = first.fontSharedMaterial;
-                label.text = Language.currentLanguageName == English ? MoneyHeader : "";
-                label.enableWordWrapping = false;
-                label.raycastTarget = false;
-                label.rectTransform.sizeDelta = first.rectTransform.sizeDelta;
-                StyleHeader(label, true);
-                recorder.Add(money);
-                labels.Add(label);
-                columns.Add(MoneyName);
-                right.Add(true);
-            }
-            ScoreboardHeaders follower = headers.gameObject.AddComponent<ScoreboardHeaders>();
-            follower.Rows = board;
-            follower.Headers = labels.ToArray();
-            follower.Columns = columns.ToArray();
-            follower.RightAligned = right.ToArray();
-            recorder.Add(follower);
-        }
-
-        private static void StyleHeader(TMP_Text label, bool right)
-        {
-            HeaderStyle.Apply(label);
-            label.fontSize = HeaderFontSize;
-            label.alignment = right ? TextAlignmentOptions.MidlineRight : TextAlignmentOptions.MidlineLeft;
         }
 
         private void StyleRow(ScoreboardStrip row)
@@ -288,6 +201,7 @@ namespace SevenUI
 
             // The rows' heights follow their items (ScoreboardItemsBoard); this is a row without any.
             float height = tabs ? ScoreboardItemsBoard.TabHeight : RowHeight;
+            float gap = tabs ? ColumnGap : RowColumnGap;
             LayoutElement rowElement = row.GetComponent<LayoutElement>();
             if (rowElement)
             {
@@ -314,8 +228,8 @@ namespace SevenUI
                 ? new RectOffset(ScoreboardItemsBoard.TabPaddingX, ScoreboardItemsBoard.TabPaddingX,
                     ScoreboardItemsBoard.TabPaddingTop, ScoreboardItemsBoard.TabPaddingBottom)
                 : new RectOffset(RowPaddingX, RowPaddingX, RowPaddingY, RowPaddingY);
-            columns.spacing = ColumnGap;
-            // The spare width goes to the spacer (rows) or the name block (tabs), not to every column.
+            columns.spacing = gap;
+            // The spare width goes to the name block in a tab, and is left at a row's right, not given to every column.
             columns.childForceExpandWidth = false;
             columns.childForceExpandHeight = false;
             columns.childAlignment = TextAnchor.UpperLeft;
@@ -339,12 +253,12 @@ namespace SevenUI
             {
                 TakeOutOfLayout(keyItem);
                 TakeOutOfLayout(equipment);
-                // An empty picture of the game's, which would still take a column gap from the name.
-                Transform players = background.Find(PlayersName);
-                if (players && !players.GetComponent<LayoutIgnorer>())
-                {
-                    recorder.Add(players.gameObject.AddComponent<LayoutIgnorer>());
-                }
+            }
+            // An empty picture of the game's, which would still take a column gap from the name.
+            Transform players = background.Find(PlayersName);
+            if (players && !players.GetComponent<LayoutIgnorer>())
+            {
+                recorder.Add(players.gameObject.AddComponent<LayoutIgnorer>());
             }
             // The items keep their gamepad outline, shown only while lit.
             Image items = row.itemInventoryDisplay ? row.itemInventoryDisplay.GetComponent<Image>() : null;
@@ -352,7 +266,7 @@ namespace SevenUI
             Outline(row.nameFocusHighlight);
 
             Transform money = background.Find(MoneyName);
-            if (money)
+            if (money && tabs)
             {
                 int index = money.GetSiblingIndex();
                 recorder.OnRestore(() =>
@@ -363,7 +277,13 @@ namespace SevenUI
                     }
                 });
                 money.SetAsLastSibling();
-                Size(money.GetComponent<LayoutElement>(), tabs ? TabMoneyWidth : MoneyWidth, MoneyFontSize * LineHeight);
+                Size(money.GetComponent<LayoutElement>(), TabMoneyWidth, MoneyFontSize * LineHeight);
+            }
+            else if (money)
+            {
+                // At the right of the name's line, the name cut short before it (ScoreboardRow).
+                TakeOutOfLayout(money);
+                StatsSection.TopLeft((RectTransform)money, RowNameLeft, RowPaddingY, NameWidth, MoneyFontSize * LineHeight);
             }
             if (row.moneyText)
             {
@@ -395,7 +315,7 @@ namespace SevenUI
             }
             if (nameObject && row.nameLabel && !nameObject.Find(RowTextsName))
             {
-                StyleName(row, nameObject, backgroundImage, items, tabs);
+                StyleName(row, nameObject, backgroundImage, items, tabs, gap);
             }
             if (tabs)
             {
@@ -406,7 +326,6 @@ namespace SevenUI
                 recorder.Add(tab);
                 return;
             }
-            AddSpacer(background, nameObject);
             if (!background.Find(DividerName))
             {
                 AddDivider(background);
@@ -438,16 +357,6 @@ namespace SevenUI
             element.flexibleWidth = 1f;
         }
 
-        // Between the name block and the key item, so the slots and the money sit at the row's right.
-        private void AddSpacer(Transform background, Transform nameObject)
-        {
-            if (!nameObject || background.Find(SpacerName)) return;
-            GameObject spacer = NewUIObject(SpacerName, background);
-            spacer.transform.SetSiblingIndex(nameObject.GetSiblingIndex() + 1);
-            spacer.AddComponent<LayoutElement>().flexibleWidth = 1f;
-            recorder.Add(spacer);
-        }
-
         // The shown tab's accent line along its foot, which the board turns on.
         private void AddTabBar(Transform background)
         {
@@ -468,7 +377,7 @@ namespace SevenUI
         }
 
         // The name on the first of three lines; the survivor and level, and the counts, on the mod's.
-        private void StyleName(ScoreboardStrip row, Transform nameObject, Image background, Image items, bool tabs)
+        private void StyleName(ScoreboardStrip row, Transform nameObject, Image background, Image items, bool tabs, float gap)
         {
             TMP_Text name = row.nameLabel;
             recorder.Record(name);
@@ -481,9 +390,9 @@ namespace SevenUI
 
             GameObject holder = NewUIObject(RowTextsName, nameObject);
             Stretch((RectTransform)holder.transform);
-            ((RectTransform)holder.transform).offsetMin = new Vector2(NameGap - ColumnGap, 0f);
+            ((RectTransform)holder.transform).offsetMin = new Vector2(NameGap - gap, 0f);
             Vector2 nameOffset = name.rectTransform.offsetMin;
-            name.rectTransform.offsetMin = new Vector2(NameGap - ColumnGap, nameOffset.y);
+            name.rectTransform.offsetMin = new Vector2(NameGap - gap, nameOffset.y);
             TMP_Text survivor = AddText("Survivor", holder.transform, name, SurvivorFontSize, Palette.HeaderText);
             Line(survivor.rectTransform, ref y, SurvivorFontSize);
             TMP_Text counts = AddText("Counts", holder.transform, name, CountsFontSize, Palette.HeaderText);
@@ -494,6 +403,8 @@ namespace SevenUI
             follower.Hud = root.GetComponent<HUD>();
             follower.Background = background;
             follower.TintOwnRow = !tabs;
+            follower.Name = name;
+            follower.Money = tabs ? null : row.moneyText;
             follower.Survivor = survivor;
             follower.Counts = counts;
             follower.FocusOutlines = new[] { row.nameFocusHighlight, items };
