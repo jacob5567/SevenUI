@@ -610,6 +610,8 @@ namespace SevenUI.Tests
                     ScoreboardItemsBoard items = board ? board.GetComponentInChildren<ScoreboardItemsBoard>() : null;
                     ScoreboardRow row = board ? board.GetComponentsInChildren<ScoreboardRow>()
                         .FirstOrDefault(r => r.Strip && r.Strip.master == Harness.LocalBody.master) : null;
+                    look = $"board {(bool)board}, items board {(items ? items.Layout.ToString() : "none")}, " +
+                           $"viewer's row {(bool)row}";
                     if (!items || !row || items.Layout != SevenUIPlugin.Settings.ScoreboardLayout.Value) return false;
                     bool tabs = items.Layout == ScoreboardLayout.Tabs;
                     Transform background = row.Strip.transform.Find(ScoreboardStyler.RowBackgroundName);
