@@ -217,7 +217,7 @@ namespace SevenUI
             foreach (ScoreboardStrip strip in found)
             {
                 ScoreboardItemGrid grid = previous.Find(each => each.Strip == strip) ??
-                                          new ScoreboardItemGrid(strip, recorder, style);
+                                          new ScoreboardItemGrid(strip, recorder);
                 grids.Add(grid);
             }
             previous.Clear();

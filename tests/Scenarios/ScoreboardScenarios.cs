@@ -151,7 +151,7 @@ namespace SevenUI.Tests
         }
 
         // Switched while the scoreboard is open, the layout changes in place: rows, tabs, and rows again. Then, with the
-        // flat look off, the game's layout is back: no items board, no tier tiles, the icons' pivots the game's, the
+        // flat look off, the game's layout is back: no items board, the icons' pivots the game's, the
         // rows' container laying them out, and the headers shown.
         private static IEnumerator LayoutSwitch(Harness h)
         {
@@ -178,11 +178,10 @@ namespace SevenUI.Tests
                     ItemInventoryDisplay display = strip ? strip.itemInventoryDisplay : null;
                     Vector2 pivot = display && display.itemIconPrefab ? ((RectTransform)display.itemIconPrefab.transform).pivot : Vector2.zero;
                     bool pivots = display && display.itemIcons.All(icon => !icon || icon.rectTransform.pivot == pivot);
-                    bool tiles = board.GetComponentsInChildren<Transform>(true).Any(each => each.name == ScoreboardItemGrid.TileName);
                     bool laidOut = strips && strips.GetComponent<VerticalLayoutGroup>().enabled;
-                    look = $"items board {(bool)board.GetComponentInChildren<ScoreboardItemsBoard>(true)}, tiles {tiles}, " +
+                    look = $"items board {(bool)board.GetComponentInChildren<ScoreboardItemsBoard>(true)}, " +
                            $"game's pivots {pivots}, container laying out {laidOut}, headers shown {headers && headers.gameObject.activeSelf}";
-                    return !board.GetComponentInChildren<ScoreboardItemsBoard>(true) && !tiles && pivots && laidOut &&
+                    return !board.GetComponentInChildren<ScoreboardItemsBoard>(true) && pivots && laidOut &&
                            headers && headers.gameObject.activeSelf;
                 },
                 () => $"the scoreboard back in the game's layout ({look}) {h.Diagnosis()}");

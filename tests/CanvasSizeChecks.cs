@@ -164,7 +164,7 @@ namespace SevenUI.Tests
         }
 
         // Null when a row's items are drawn as the canvas's grid: slots of one size, at most 40px, none over another,
-        // sorted into tier runs that each start with a tile of the run's count, the first at the items' top left. In the
+        // sorted into tier runs, the first at the items' top left, and no counts among them. In the
         // rows layout the items sit 20px in from the row's left, under its name block; in the tabs layout, 20px in from
         // the board's left, under the tabs.
         private static string GridProblem(Harness h, ScoreboardItemsBoard board, ScoreboardStrip strip, Transform background)
@@ -182,15 +182,11 @@ namespace SevenUI.Tests
             List<int> groups = slots.OrderByDescending(slot => Mathf.Round(slot.box.yMax)).ThenBy(slot => slot.box.xMin)
                 .Select(slot => TierGroups.Of(slot.icon.itemIndex)).ToList();
             bool sorted = groups.Zip(groups.Skip(1), (a, b) => a <= b).All(inOrder => inOrder);
-            List<TMP_Text> tiles = cellRect.Cast<Transform>()
-                .Where(child => child.name == ScoreboardItemGrid.TileName && child.gameObject.activeSelf)
-                .Select(child => child.GetComponentInChildren<TMP_Text>()).ToList();
-            List<string> wanted = groups.GroupBy(group => group).OrderBy(run => run.Key).Select(run => run.Count().ToString()).ToList();
-            List<string> shown = tiles.Select(tile => tile ? tile.text : "?").OrderBy(text => text).ToList();
-            bool counted = wanted.OrderBy(text => text).SequenceEqual(shown);
-            Rect first = tiles.Count > 0 && tiles[0] ? Box(h, (RectTransform)tiles[0].transform.parent) : default;
-            bool tileFirst = tiles.Count > 0 && tiles.Any(tile => tile && Near(Box(h, (RectTransform)tile.transform.parent).xMin, cell.xMin) &&
-                                                             Near(Box(h, (RectTransform)tile.transform.parent).yMax, cell.yMax));
+            List<string> texts = cellRect.GetComponentsInChildren<TMP_Text>()
+                .Where(text => text.isActiveAndEnabled && !text.GetComponentInParent<ItemIcon>() && text.text.Length > 0)
+                .Select(text => text.text).ToList();
+            Rect first = slots.OrderByDescending(slot => Mathf.Round(slot.box.yMax)).ThenBy(slot => slot.box.xMin).First().box;
+            bool cornered = Near(first.xMin, cell.xMin) && Near(first.yMax, cell.yMax);
             string place;
             if (board.Layout == ScoreboardLayout.Rows)
             {
@@ -208,11 +204,11 @@ namespace SevenUI.Tests
                     ? null
                     : $"cell from x {cell.xMin - strips.xMin:0.#} in the board, top {cell.yMax:0.#} under a tab ending at {tab.yMin:0.#}";
             }
-            if (!sameSize || size > ScoreboardItemSlot + SizeTolerance || overlap || !sorted || !counted || !tileFirst || place != null)
+            if (!sameSize || size > ScoreboardItemSlot + SizeTolerance || overlap || !sorted || texts.Count > 0 || !cornered || place != null)
             {
                 return $"{icons.Count} icons {size:0.#} wide, all one size {sameSize}, overlapping {overlap}, tier order " +
-                       $"[{string.Join(" ", groups)}], tiles [{string.Join(" ", shown)}] for runs [{string.Join(" ", wanted)}], " +
-                       $"a tile first {tileFirst} (first at {BoxText(first)}, cell {BoxText(cell)}), {place ?? "in place"}";
+                       $"[{string.Join(" ", groups)}], texts among them [{string.Join(" ", texts)}], " +
+                       $"first item at the corner {cornered} (first at {BoxText(first)}, cell {BoxText(cell)}), {place ?? "in place"}";
             }
             return null;
         }
