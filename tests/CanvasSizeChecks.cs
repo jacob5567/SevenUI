@@ -581,7 +581,7 @@ namespace SevenUI.Tests
                                        Near(previous.center.y, slot.center.y) && Near(icon.center.y, slot.center.y);
                     bool arrowPlaced = arrow && Near(arrowBox.width, TransformationArrowSize) &&
                                        (arrowBox.center - slot.center).magnitude < SizeTolerance;
-                    bool stripPlaced = strip && Near(stripBox.width, slot.width) && Near(stripBox.yMax, slot.yMax);
+                    bool stripPlaced = strip && Near(stripBox.width, slot.width) && Near(stripBox.yMin, slot.yMin);
                     bool blended = arrow && strip && SevenUIChecks.Near(arrow.From, from) && SevenUIChecks.Near(arrow.To, to) &&
                                    SevenUIChecks.Near(strip.From, from) && SevenUIChecks.Near(strip.To, to);
                     return slotSized && iconsPlaced && (!gameArrow || !gameArrow.enabled) && arrowPlaced && stripPlaced && blended;

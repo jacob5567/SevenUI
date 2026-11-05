@@ -179,6 +179,8 @@ namespace SevenUI
                 Vector3 scale = content.localScale;
                 bool expand = texts.childForceExpandHeight;
                 TextAnchor alignment = texts.childAlignment;
+                bool rowExpand = row.childForceExpandHeight;
+                TextAnchor rowAlignment = row.childAlignment;
                 recorder.OnRestore(() =>
                 {
                     if (content)
@@ -190,10 +192,19 @@ namespace SevenUI
                         texts.childForceExpandHeight = expand;
                         texts.childAlignment = alignment;
                     }
+                    if (row)
+                    {
+                        row.childForceExpandHeight = rowExpand;
+                        row.childAlignment = rowAlignment;
+                    }
                 });
                 content.localScale = Vector3.one;
                 texts.childForceExpandHeight = false;
                 texts.childAlignment = TextAnchor.MiddleLeft;
+                // The game stretches the icon's slot to the texts' height, which a transformation's longer
+                // description makes taller than the slot; it keeps its size, in the middle.
+                row.childForceExpandHeight = false;
+                row.childAlignment = TextAnchor.MiddleLeft;
                 Place((RectTransform)notification.transform);
             }
             recorder.Record(row);

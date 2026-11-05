@@ -25,6 +25,9 @@ namespace SevenUI.Tests
         private const float PauseTolerance = 1f;
         // Long enough for the chat's input to fade in before its screenshot.
         private const float ChatSettleSeconds = 0.3f;
+        // How long a pushed notification can wait behind others in the queue, and how long it takes to fade in.
+        private const float NotificationShownTimeout = 30f;
+        private const float NotificationFadeInSeconds = 0.5f;
         // The Trial of Infernal Greed's texts.
         private const string TrialNameToken = "QUEST_TRIAL_SADISMMONEY_NAME";
         private const string TrialDescriptionToken = "QUEST_TRIAL_SADISMMONEY_DESC";
@@ -252,7 +255,7 @@ namespace SevenUI.Tests
 
         // AtG Missile Mk. 1 turning into Plasma Shrimp, pushed straight to the local player's queue: green to void. Once
         // as the generic notification, whose old icon sits in the icon area's row, and once as the corruption's, whose
-        // old icon sits in a void frame of its own.
+        // old icon sits in a void frame of its own. The screenshot is taken before the check, so a failure has one.
         private static IEnumerator TransformationNotificationBlend(Harness h)
         {
             yield return TransformationBlend(h, CharacterMasterNotificationQueue.TransformationType.Default, "transformation");
@@ -272,8 +275,12 @@ namespace SevenUI.Tests
             if (!missile || !shrimp) throw h.Skip("no AtG Missile Mk. 1 or Plasma Shrimp");
             CharacterMasterNotificationQueue.PushItemTransformNotification(Harness.LocalBody.master, missile.itemIndex,
                 shrimp.itemIndex, type);
-            yield return h.ExpectTransformationAsCanvas(shrimp.nameToken, Palette.CountUncommon, Palette.CountVoid);
+            yield return h.Until(() => SevenUIChecks.HudRoot(h).GetComponentsInChildren<GenericNotification>()
+                    .Any(shown => shown.titleText && shown.titleText.token == shrimp.nameToken),
+                $"the {shrimp.nameToken} transformation showing", NotificationShownTimeout);
+            yield return h.Wait(NotificationFadeInSeconds);
             yield return h.Screenshot(screenshot);
+            yield return h.ExpectTransformationAsCanvas(shrimp.nameToken, Palette.CountUncommon, Palette.CountVoid);
         }
 
         // Foreign Fruit with a Fuel Cell, so the slot shows its stock, and a Backup Magazine, so the secondary skill
