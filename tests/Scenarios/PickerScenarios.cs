@@ -670,18 +670,22 @@ namespace SevenUI.Tests
             return OnScreen(panel);
         }
 
-        // Each slot the canvas's size on the flat panel, with the game's frame gone, in rows of the game's columns (the
-        // panel's maxColumnCount, which LookingGlass sets along with the grid's when it resizes Command's), the grid's
-        // own count left as the game set it, all within the grid's area so none run into the details under it.
+        // Each slot the canvas's size on the flat panel, with the game's frame gone, the grid's own count left as the
+        // game set it (at the panel's maxColumnCount, as columns, or as rows in LookingGlass's larger Command window),
+        // the panel sized for the columns the grid actually lays the slots out in, all within the grid's area so none
+        // run into the details under it.
         private static string GridAsCanvas(PickerPanel panel)
         {
             if (!panel.Alive) return "the panel closed";
             if (!panel.MainPanel.Find("Juice/" + PickerPanel.BackdropName)) return "the panel has no backdrop";
-            int gameColumns = panel.Panel.maxColumnCount;
-            int columns = Mathf.Min(panel.Buttons.Count, gameColumns);
             GridLayoutGroup grid = panel.Panel.gridlayoutGroup;
-            if (panel.Columns != columns || grid.constraintCount != gameColumns)
-                return $"laid out in {panel.Columns} columns with the grid's count at {grid.constraintCount}, not the game's {gameColumns}";
+            if (grid.constraintCount != panel.Panel.maxColumnCount)
+                return $"the grid's count is {grid.constraintCount}, not the game's {panel.Panel.maxColumnCount}";
+            float firstRow = ((RectTransform)panel.Buttons[0].Button.transform).anchoredPosition.y;
+            int columns = panel.Buttons.TakeWhile(option =>
+                Mathf.Abs(((RectTransform)option.Button.transform).anchoredPosition.y - firstRow) <= SizeTolerance).Count();
+            if (panel.Columns != columns)
+                return $"sized for {panel.Columns} columns, but the grid ({grid.constraint} {grid.constraintCount}) lays out {columns}";
             Rect area = panel.Panel.buttonContainer.rect;
             for (int i = 0; i < panel.Buttons.Count; i++)
             {

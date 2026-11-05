@@ -231,7 +231,7 @@ namespace SevenUI
             shownOptions = options;
             shownButtonCount = elements.Count;
             Cards = options.Length <= CardLimit;
-            columns = Cards ? options.Length : Mathf.Min(options.Length, GameColumns());
+            columns = Cards ? options.Length : GameColumns(options.Length);
             fullDescriptions = PickupDescriptions.Full();
             recorder.RecordRect(mainPanel);
 
@@ -416,8 +416,8 @@ namespace SevenUI
             GridLayoutGroup grid = panel.gridlayoutGroup;
             if (!Cards)
             {
-                int game = Mathf.Min(buttons.Count, GameColumns());
-                if (game != columns && game > 0)
+                int game = GameColumns(buttons.Count);
+                if (game != columns)
                 {
                     columns = game;
                     Layout();
@@ -434,15 +434,27 @@ namespace SevenUI
             }
         }
 
-        // The columns the game lays the grid out in (PickupPickerPanel sets them from maxColumnCount as it wakes), or
-        // another mod's count if it set its own.
-        private int GameColumns()
+        // The columns the game's grid lays this many options out in. PickupPickerPanel fixes the columns at
+        // maxColumnCount as it wakes, but LookingGlass's larger Command window fixes the rows instead (and sets
+        // maxColumnCount to the same number), so there the columns are the options over the rows.
+        private int GameColumns(int options)
         {
             GridLayoutGroup grid = panel.gridlayoutGroup;
-            int count = grid.constraint == GridLayoutGroup.Constraint.FixedColumnCount && grid.constraintCount > 0
-                ? grid.constraintCount
-                : panel.maxColumnCount;
-            return Mathf.Max(1, count);
+            int count = grid.constraintCount;
+            int game;
+            if (grid.constraint == GridLayoutGroup.Constraint.FixedColumnCount && count > 0)
+            {
+                game = count;
+            }
+            else if (grid.constraint == GridLayoutGroup.Constraint.FixedRowCount && count > 0)
+            {
+                game = (options + count - 1) / count;
+            }
+            else
+            {
+                game = panel.maxColumnCount;
+            }
+            return Mathf.Clamp(game, 1, Mathf.Max(1, options));
         }
 
         // The game's explicit gamepad navigation (PickupPickerPanel.SetPickupOptions) for the cards' one row, so up,
