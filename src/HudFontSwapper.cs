@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Text;
+using RoR2;
 using RoR2.UI;
 using TMPro;
 using UnityEngine;
@@ -34,9 +35,15 @@ namespace SevenUI
         {
             TMP_FontAsset languageFont = HGTextMeshProUGUI.defaultLanguageFont;
             bool languageUsesGameFont = !languageFont || languageFont.name.StartsWith(GameFontPrefix);
+            TMP_Text keptText = GameFontText();
             root.GetComponentsInChildren(true, scratch);
             foreach (TMP_Text text in scratch)
             {
+                if (keptText && text == keptText)
+                {
+                    RestoreOne(text);
+                    continue;
+                }
                 TMP_FontAsset font = text.font;
                 if (!font || !font.name.StartsWith(GameFontPrefix)) continue;
 
@@ -97,6 +104,28 @@ namespace SevenUI
             if (currency && currency.targetText != text) return true;
             HUDBossHealthBarController boss = text.GetComponentInParent<HUDBossHealthBarController>();
             return boss && boss.bossNameLabel == text;
+        }
+
+        // Void Fiend's corruption percentage stays in the game's font, as the game draws it. The game keeps the text
+        // on the controller of the body this HUD shows (its meter is made when that body gets the overlay).
+        private TMP_Text GameFontText()
+        {
+            HUD hud = root.GetComponent<HUD>();
+            if (!hud || !hud.targetBodyObject) return null;
+            VoidSurvivorController controller = hud.targetBodyObject.GetComponent<VoidSurvivorController>();
+            return controller ? controller.uiCorruptionText : null;
+        }
+
+        // Puts one text back as it was, if it was swapped before it was known to stay in the game's font.
+        private void RestoreOne(TMP_Text text)
+        {
+            if (!originals.TryGetValue(text, out (TMP_FontAsset font, Material material) original)) return;
+            text.font = original.font;
+            if (original.material)
+            {
+                text.fontSharedMaterial = original.material;
+            }
+            originals.Remove(text);
         }
 
         public void Restore()
