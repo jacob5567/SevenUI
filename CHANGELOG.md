@@ -1,3 +1,11 @@
+## 1.2.0
+
+- The pause menu is restyled: "PAUSED" over a line with the run's time, stage and difficulty, and the buttons as outlined buttons in one centered stack.
+- Allies of one kind share a card, such as "Gunner Drone ×8", with a bar segment for each ally's health, so a crowd of drones no longer covers the chat.
+- Item picker cards show the item centered on a band across the card's top.
+- Void Fiend's corruption percentage keeps the game's font.
+- The Karma row reads the run's synced karma, so a player who joins mid-run sees the right level instead of none.
+
 ## 1.1.1
 
 - An item picker's grid has as many items to a row as the game's own grid, including LookingGlass's larger Command window. Large Command groups no longer run their last row into the item's details.

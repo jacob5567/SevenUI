@@ -1,6 +1,6 @@
 # SevenUI
 
-A flat restyle of Risk of Rain 2's HUD: Barlow text, flat translucent panels and bars, and a matching scoreboard, tooltips and item pickers. The game's layout stays the same, so other HUD mods keep working.
+A flat restyle of Risk of Rain 2's HUD: Barlow text, flat translucent panels and bars, and a matching scoreboard, tooltips, item pickers and pause menu. The game's layout stays the same, so other HUD mods keep working.
 
 ![The HUD in a run with SevenUI](https://raw.githubusercontent.com/jacob5567/SevenUI/main/docs/screenshots/hud.jpg)
 
@@ -12,7 +12,8 @@ A flat restyle of Risk of Rain 2's HUD: Barlow text, flat translucent panels and
 - **Run info:** the timer, difficulty or Eclipse level, stage, Karma and artifacts in one panel.
 - **Items, buffs and skills:** dark slots with tier colors, and a cooldown cover that shrinks as a skill recharges.
 - **Prompts and notifications:** keycaps, with a strip in the color of the cost or the item's tier.
-- **Scoreboard, tooltips and item pickers:** restyled to match, with item counts per tier on the scoreboard.
+- **Ally cards:** allies of one kind share a card, "Gunner Drone ×8", with a bar segment for each, so a crowd of drones stays clear of the chat.
+- **Scoreboard, tooltips, item pickers and pause menu:** restyled to match, with item counts per tier on the scoreboard.
 
 ![The game's HUD and SevenUI side by side](https://raw.githubusercontent.com/jacob5567/SevenUI/main/docs/screenshots/before-after.jpg)
 
@@ -36,7 +37,7 @@ Edit `BepInEx/config/sevenstack.SevenUI.cfg`, or use [Risk Of Options](https://t
 |---|---|---|
 | `BarlowFont` | true | Draw HUD text in Barlow. |
 | `MonospaceDamageNumbers` | true | Draw damage numbers in JetBrains Mono. |
-| `FlatPanels` | true | The flat look: panels, bars, slots, scoreboard, tooltips and pickers. Off brings back the game's look. |
+| `FlatPanels` | true | The flat look: panels, bars, slots, scoreboard, tooltips, pickers and the pause menu. Off brings back the game's look. |
 | `TightMargins` | true | Keep the HUD near the screen's edges, as on SevenUI's design. Only with `FlatPanels` on. |
 | `ScoreboardBesideRunInfo` | true | Place the scoreboard near the top of the screen, beside the run info. Only with `FlatPanels` on. |
 | `DebugLogging` | false | Log extra detail, and enable the dump key. |
