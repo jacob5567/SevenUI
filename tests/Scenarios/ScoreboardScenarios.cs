@@ -102,6 +102,8 @@ namespace SevenUI.Tests
         private static IEnumerator LoadoutPane(Harness h, ScoreboardLayout layout, bool keyItem)
         {
             h.SetConfig(SevenUIPlugin.Settings.ScoreboardLayout, layout);
+            // A few items too, which the scoreboard's checks look at.
+            ScoreboardSetUp.GiveDifferentItems(h, TooltipItems);
             if (keyItem)
             {
                 yield return h.GiveNtormat();
