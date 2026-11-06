@@ -178,13 +178,6 @@ namespace SevenUI
             foreach (ScoreboardItemGrid grid in grids)
             {
                 if (grid.Refresh()) changed = true;
-                // At full scale, as the styler set it, should anything scale the row again.
-                Transform row = grid.Strip.transform;
-                if (row.localScale != Vector3.one)
-                {
-                    row.localScale = Vector3.one;
-                    changed = true;
-                }
             }
             if (layout == ScoreboardLayout.Tabs)
             {
