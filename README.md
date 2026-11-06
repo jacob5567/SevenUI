@@ -13,7 +13,7 @@ A flat restyle of Risk of Rain 2's HUD: Barlow text, flat translucent panels and
 - **Items, buffs and skills:** dark slots with tier colors, and a cooldown cover that shrinks as a skill recharges.
 - **Prompts and notifications:** keycaps, with a strip in the color of the cost or the item's tier.
 - **Ally cards:** allies of one kind share a card, "Gunner Drone ×8", with a bar segment for each, so a crowd of drones stays clear of the chat.
-- **Scoreboard:** a row or a tab per player, with item counts per tier and the items at full size sorted by tier. The item you point at is described in a panel docked on the board, with who else holds it.
+- **Scoreboard:** a row or a tab per player, with item counts per tier and the items at full size sorted by tier. The item or equipment you point at is described in a panel docked on the board, with who else holds it.
 - **Tooltips, item pickers and pause menu:** restyled to match.
 
 ![The game's HUD and SevenUI side by side](https://raw.githubusercontent.com/jacob5567/SevenUI/main/docs/screenshots/before-after.jpg)

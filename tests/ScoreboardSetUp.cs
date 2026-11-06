@@ -57,6 +57,19 @@ namespace SevenUI.Tests
             }
         }
 
+        // The equipment in the player's active slot, and the one before it back at cleanup.
+        public static void GiveEquipment(Harness h, EquipmentDef equipment)
+        {
+            Inventory inventory = Harness.LocalBody.inventory;
+            EquipmentLocation slot = inventory.activeEquipmentLocation;
+            EquipmentIndex before = inventory.currentEquipmentIndex;
+            h.OnCleanup(() =>
+            {
+                if (inventory) inventory.SetEquipmentIndex(before, in slot);
+            });
+            inventory.SetEquipmentIndex(equipment.equipmentIndex, in slot);
+        }
+
         // The HUD closes the scoreboard every frame unless the info key is held or it was opened as a toggle, as the
         // pause menu's button opens it; closing it ends the toggle.
         public static IEnumerator Open(Harness h)

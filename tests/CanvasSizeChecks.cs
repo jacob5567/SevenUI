@@ -732,6 +732,41 @@ namespace SevenUI.Tests
                       $"{h.Diagnosis()}");
         }
 
+        // With the pointer on a row's equipment, or key item: the pane describing it under its tooltip's title, with
+        // that row's player among its holders, the tooltip hidden, no item lit, and the pane right of the players and
+        // the items, inside the board.
+        public static IEnumerator ExpectLoadoutPane(this Harness h, ScoreboardStrip strip, bool keyItem)
+        {
+            string what = keyItem ? "key item" : "equipment";
+            string look = null;
+            yield return h.Until(
+                () =>
+                {
+                    ScoreboardItemsBoard board = strip ? strip.GetComponentInParent<ScoreboardItemsBoard>() : null;
+                    ScoreboardDetailPane pane = board ? board.Pane : null;
+                    Inventory inventory = strip && strip.master ? strip.master.inventory : null;
+                    TooltipProvider provider = !strip ? null :
+                        keyItem ? (strip.keyItemIcon ? strip.keyItemIcon.tooltipProvider : null) :
+                        strip.equipmentIcon ? strip.equipmentIcon.tooltipProvider : null;
+                    if (pane == null || !inventory || !provider) return false;
+                    MPEventSystem events = EventSystem.current as MPEventSystem;
+                    Canvas tooltip = events && events.currentTooltip ? events.currentTooltip.GetComponent<Canvas>() : null;
+                    bool describes = keyItem
+                        ? pane.KeyItem != KeyItemIndex.None && pane.KeyItem == inventory.keyItemIndex
+                        : pane.Equipment != EquipmentIndex.None && pane.Equipment == inventory.currentEquipmentIndex;
+                    string name = strip.nameLabel ? strip.nameLabel.text : "";
+                    string holders = string.Join(", ", Enumerable.Range(0, pane.HolderCount).Select(pane.HolderText));
+                    string beside = PaneBesideRows(h, board, pane);
+                    look = $"pane on {(pane.Shown ? pane.Title : "nothing")} (item {pane.Item}, equipment {pane.Equipment}, " +
+                           $"key item {pane.KeyItem}) held by [{holders}], tooltip " +
+                           $"{(tooltip ? (tooltip.enabled ? "shown" : "hidden") : "none")}, lit {board.Highlighted}, {beside ?? "placed"}";
+                    return pane.Shown && describes && pane.Item == ItemIndex.None && pane.Title == provider.titleText &&
+                           pane.Root.gameObject.activeInHierarchy && Enumerable.Range(0, pane.HolderCount).Any(i => pane.HolderText(i) == name) &&
+                           (!tooltip || !tooltip.enabled) && board.Highlighted == ItemIndex.None && beside == null;
+                },
+                () => $"the {what} described in the scoreboard's pane ({look}) {h.Diagnosis()}");
+        }
+
         // Null when the pane is right of every row and of the shown items, and inside the board, top and bottom.
         private static string PaneBesideRows(Harness h, ScoreboardItemsBoard board, ScoreboardDetailPane pane)
         {

@@ -7,12 +7,13 @@ using UnityEngine.UI;
 
 namespace SevenUI
 {
-    // The scoreboard's docked description of the item the pointer is on, or was last on, in place of the tooltip that
-    // would cover the items: a dark panel with the tier's color along its top, the item on a slot beside its name in
-    // that color, its description, LookingGlass's stats apart under a line when it adds them, and under another line
-    // each player holding the item, by portrait and name, with their stack. The text is what the game gave the item's
-    // tooltip when something (LookingGlass) replaced it, and otherwise the item's full description, which says more
-    // than the tooltip's pickup line. Laid out by hand from its top left.
+    // The scoreboard's docked description of the item, equipment or key item the pointer is on, or was last on, in
+    // place of the tooltip that would cover the items: a dark panel with its color (the item's tier, the equipment's
+    // orange, or the game's for lunar and boss equipment and key items) along its top, the icon on a slot beside its
+    // name in that color, its description, LookingGlass's stats apart under a line when it adds them, and under another
+    // line each player holding it, by portrait and name, with their stack of an item. The text is what the game gave
+    // the tooltip when something (LookingGlass) replaced it, and otherwise the full description, which says more than
+    // the tooltip's pickup line. Laid out by hand from its top left.
     internal sealed class ScoreboardDetailPane
     {
         public const string PaneName = "SevenUIItemPane";
@@ -106,9 +107,12 @@ namespace SevenUI
             Root.gameObject.SetActive(false);
         }
 
+        // What it describes: one of these, the others None, or nothing while hidden.
         public ItemIndex Item { get; private set; } = ItemIndex.None;
+        public EquipmentIndex Equipment { get; private set; } = EquipmentIndex.None;
+        public KeyItemIndex KeyItem { get; private set; } = KeyItemIndex.None;
 
-        public bool Shown => Item != ItemIndex.None;
+        public bool Shown { get; private set; }
 
         // Its height at the width it was last placed at.
         public float Height { get; private set; }
@@ -123,47 +127,107 @@ namespace SevenUI
         {
             ItemDef item = ItemCatalog.GetItemDef(shown.itemIndex);
             if (!item) return;
-            Item = shown.itemIndex;
-            Color color = TierGroups.ColorOf(TierGroups.Of(Item));
-            strip.color = color;
-            iconStrip.color = color;
-            icon.texture = shown.image ? shown.image.texture : null;
-            TooltipProvider provider = shown.tooltipProvider;
-            title.text = provider ? provider.titleText : Language.GetString(item.nameToken);
-            title.color = color;
-            string body = provider && !string.IsNullOrEmpty(provider.overrideBodyText)
-                ? provider.overrideBodyText
-                : Language.GetString(item.descriptionToken);
-            ItemStatsText.Parts parts = ItemStatsText.Split(body);
-            description.text = parts.Description;
-            stats.Set(parts);
-
+            Describe(TierGroups.ColorOf(TierGroups.Of(shown.itemIndex)), shown.image ? shown.image.texture : null,
+                shown.tooltipProvider, item.nameToken, item.descriptionToken);
+            Item = item.itemIndex;
             holderCount = 0;
             foreach (ScoreboardItemGrid grid in grids)
             {
                 ItemIcon held = grid.Alive ? grid.Find(Item) : null;
-                if (!held) continue;
-                if (holderCount == holders.Count)
+                if (held)
                 {
-                    holders.Add(NewHolder());
+                    AddHolder(grid.Strip, " <b>" + Times + held.itemCount + "</b>");
                 }
-                Holder holder = holders[holderCount++];
-                holder.Portrait.texture = grid.Strip.classIcon ? grid.Strip.classIcon.texture : null;
-                string name = grid.Strip.nameLabel ? grid.Strip.nameLabel.text : "";
-                holder.Label.text = name + " <b>" + Times + held.itemCount + "</b>";
             }
+            Finish();
+        }
+
+        // Describes a row's equipment, with every row holding the same. Reads only.
+        public void Show(EquipmentDef equipment, EquipmentIcon shown, IReadOnlyList<ScoreboardItemGrid> grids)
+        {
+            Color color = equipment.isLunar ? Palette.CountLunar : equipment.isBoss ? Palette.CountBoss : Palette.Equipment;
+            Texture texture = shown.iconImage && shown.iconImage.texture ? shown.iconImage.texture : AsyncTexture(shown.asyncIconImage);
+            Describe(color, texture, shown.tooltipProvider, equipment.nameToken, equipment.descriptionToken);
+            Equipment = equipment.equipmentIndex;
+            holderCount = 0;
+            foreach (ScoreboardItemGrid grid in grids)
+            {
+                Inventory inventory = grid.Alive && grid.Strip.master ? grid.Strip.master.inventory : null;
+                if (inventory && inventory.currentEquipmentIndex == Equipment)
+                {
+                    AddHolder(grid.Strip, "");
+                }
+            }
+            Finish();
+        }
+
+        // Describes a row's key item, with every row holding the same. Reads only.
+        public void Show(KeyItemDef keyItem, KeyItemIcon shown, IReadOnlyList<ScoreboardItemGrid> grids)
+        {
+            Describe(ColorCatalog.GetColor(keyItem.colorIndex), AsyncTexture(shown.asyncIconImage), shown.tooltipProvider,
+                keyItem.nameToken, keyItem.descriptionToken);
+            KeyItem = keyItem.keyItemIndex;
+            holderCount = 0;
+            foreach (ScoreboardItemGrid grid in grids)
+            {
+                Inventory inventory = grid.Alive && grid.Strip.master ? grid.Strip.master.inventory : null;
+                if (inventory && inventory.keyItemIndex == KeyItem)
+                {
+                    AddHolder(grid.Strip, "");
+                }
+            }
+            Finish();
+        }
+
+        private static Texture AsyncTexture(AsyncRawImage image) => image && image.renderer ? image.renderer.texture : null;
+
+        private void Describe(Color color, Texture texture, TooltipProvider provider, string nameToken, string descriptionToken)
+        {
+            Item = ItemIndex.None;
+            Equipment = EquipmentIndex.None;
+            KeyItem = KeyItemIndex.None;
+            strip.color = color;
+            iconStrip.color = color;
+            icon.texture = texture;
+            title.text = provider ? provider.titleText : Language.GetString(nameToken);
+            title.color = color;
+            string body = provider && !string.IsNullOrEmpty(provider.overrideBodyText)
+                ? provider.overrideBodyText
+                : Language.GetString(descriptionToken);
+            ItemStatsText.Parts parts = ItemStatsText.Split(body);
+            description.text = parts.Description;
+            stats.Set(parts);
+        }
+
+        private void AddHolder(ScoreboardStrip row, string suffix)
+        {
+            if (holderCount == holders.Count)
+            {
+                holders.Add(NewHolder());
+            }
+            Holder holder = holders[holderCount++];
+            holder.Portrait.texture = row.classIcon ? row.classIcon.texture : null;
+            holder.Label.text = (row.nameLabel ? row.nameLabel.text : "") + suffix;
+        }
+
+        private void Finish()
+        {
             for (int i = 0; i < holders.Count; i++)
             {
                 holders[i].Rect.gameObject.SetActive(i < holderCount);
             }
             divider.gameObject.SetActive(holderCount > 0);
             Root.gameObject.SetActive(true);
+            Shown = true;
             stale = true;
         }
 
         public void Hide()
         {
             Item = ItemIndex.None;
+            Equipment = EquipmentIndex.None;
+            KeyItem = KeyItemIndex.None;
+            Shown = false;
             Root.gameObject.SetActive(false);
         }
 

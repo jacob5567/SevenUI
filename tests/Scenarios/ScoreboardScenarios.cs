@@ -11,7 +11,7 @@ using UnityEngine.UI;
 namespace SevenUI.Tests
 {
     // The scoreboard: checks that a row's items are laid out as the canvas's grid in each layout, that pointing at an
-    // item describes it in the scoreboard's pane, and that the layout can be switched while the scoreboard is open, and
+    // item, the equipment or the key item describes it in the scoreboard's pane, and that the layout can be switched while the scoreboard is open, and
     // screenshots of the scoreboard in SevenUI's look and the game's, with a spread of items and with from a few to a
     // hundred different items. Together they make the scoreboard suite (SevenUITests.Suites); the checks are also among
     // the panels' checks, and the spread's screenshot among the screenshots.
@@ -38,6 +38,14 @@ namespace SevenUI.Tests
             yield return new Scenario(1, "scoreboard_layout_switch", Stages.TitanicPlains, LayoutSwitch);
             yield return new Scenario(1, "scoreboard_item_pane", Stages.TitanicPlains, h => ItemPane(h, ScoreboardLayout.Rows));
             yield return new Scenario(1, "scoreboard_tabs_item_pane", Stages.TitanicPlains, h => ItemPane(h, ScoreboardLayout.Tabs));
+            yield return new Scenario(1, "scoreboard_equipment_pane", Stages.TitanicPlains,
+                h => LoadoutPane(h, ScoreboardLayout.Rows, false));
+            yield return new Scenario(1, "scoreboard_tabs_equipment_pane", Stages.TitanicPlains,
+                h => LoadoutPane(h, ScoreboardLayout.Tabs, false));
+            yield return new Scenario(1, "scoreboard_key_item_pane", Stages.TitanicPlains,
+                h => LoadoutPane(h, ScoreboardLayout.Rows, true));
+            yield return new Scenario(1, "scoreboard_tabs_key_item_pane", Stages.TitanicPlains,
+                h => LoadoutPane(h, ScoreboardLayout.Tabs, true));
             yield return new Scenario(1, "item_bar_item_tooltip", Stages.TitanicPlains, ItemBarTooltip);
         }
 
@@ -51,7 +59,7 @@ namespace SevenUI.Tests
             ItemIcon icon = null;
             yield return h.Until(() => (icon = FirstIcon(hud.itemInventoryDisplay.transform)) != null, "an item in the item bar");
             yield return h.Wait(SettleSeconds);
-            MPEventSystem events = PointAt(h, icon, "the item bar");
+            MPEventSystem events = PointAt(h, icon.rectTransform, "an item in the item bar");
             yield return h.Until(() => events.currentTooltipProvider == icon.tooltipProvider && events.currentTooltip,
                 () => $"the pointer on an item in the item bar opened " +
                       $"{(events.currentTooltipProvider ? events.currentTooltipProvider.name + "'s tooltip" : "no tooltip")}");
@@ -75,7 +83,7 @@ namespace SevenUI.Tests
             if (!icon) throw h.Fail("no item in the viewer's row of the scoreboard");
             yield return h.Wait(SettleSeconds);
             PointerEventData pointer = null;
-            PointAt(h, icon, "the scoreboard", made => pointer = made);
+            PointAt(h, icon.rectTransform, "an item in the scoreboard", made => pointer = made);
             yield return h.ExpectItemPane(icon);
             yield return h.Wait(SettleSeconds);
             yield return h.Screenshot(layout == ScoreboardLayout.Rows ? "scoreboard_pane" : "scoreboard_tabs_pane");
@@ -89,34 +97,65 @@ namespace SevenUI.Tests
                       $"{(board ? board.Highlighted.ToString() : "no board")}, pane on {(board && board.Pane.Shown ? board.Pane.Title : "nothing")})");
         }
 
+        // In each layout, the pointer on the viewer's equipment (Foreign Fruit), or key item (the N'tormat), describes it
+        // in the pane instead of a tooltip, and lights no item. The key item is skipped without Hallowed Concepts.
+        private static IEnumerator LoadoutPane(Harness h, ScoreboardLayout layout, bool keyItem)
+        {
+            h.SetConfig(SevenUIPlugin.Settings.ScoreboardLayout, layout);
+            if (keyItem)
+            {
+                yield return h.GiveNtormat();
+            }
+            else
+            {
+                ScoreboardSetUp.GiveEquipment(h, RoR2Content.Equipment.Fruit);
+            }
+            yield return ScoreboardSetUp.Open(h);
+            yield return h.ExpectScoreboardAsCanvas();
+            ScoreboardRow row = SevenUIChecks.HudRoot(h).GetComponentsInChildren<ScoreboardRow>()
+                .FirstOrDefault(each => each.Strip && each.Strip.master == Harness.LocalBody.master);
+            ScoreboardStrip strip = row ? row.Strip : null;
+            TooltipProvider provider = !strip ? null :
+                keyItem ? (strip.keyItemIcon ? strip.keyItemIcon.tooltipProvider : null) :
+                strip.equipmentIcon ? strip.equipmentIcon.tooltipProvider : null;
+            string what = keyItem ? "key item" : "equipment";
+            if (!provider) throw h.Fail($"no {what} tooltip in the viewer's row of the scoreboard");
+            yield return h.Wait(SettleSeconds);
+            PointAt(h, (RectTransform)provider.transform, $"the {what} in the scoreboard");
+            yield return h.ExpectLoadoutPane(strip, keyItem);
+            yield return h.Wait(SettleSeconds);
+            string tabs = layout == ScoreboardLayout.Tabs ? "_tabs" : "";
+            yield return h.Screenshot($"scoreboard{tabs}_{(keyItem ? "key_item" : "equipment")}_pane");
+        }
+
         // The first item shown under the given part of the HUD.
         private static ItemIcon FirstIcon(Transform under) =>
             under.GetComponentsInChildren<ItemIcon>().FirstOrDefault(each => each.isActiveAndEnabled);
 
-        // The pointer can't be moved, so the game's raycast is made at the item's middle: it must hit the item rather
-        // than anything drawn over it, and the hover goes to what it hit. The pointer leaves the item at cleanup.
-        private static MPEventSystem PointAt(Harness h, ItemIcon icon, string where, System.Action<PointerEventData> made = null)
+        // The pointer can't be moved, so the game's raycast is made at the target's middle: it must hit the target
+        // rather than anything drawn over it, and the hover goes to what it hit. The pointer leaves it at cleanup.
+        private static MPEventSystem PointAt(Harness h, RectTransform target, string what, System.Action<PointerEventData> made = null)
         {
             MPEventSystem events = EventSystem.current as MPEventSystem;
             if (!events) throw h.Fail("there is no event system to send the pointer's events with");
-            Canvas canvas = icon.GetComponentInParent<Canvas>().rootCanvas;
+            Canvas canvas = target.GetComponentInParent<Canvas>().rootCanvas;
             Camera camera = canvas.renderMode != RenderMode.ScreenSpaceOverlay ? canvas.worldCamera : null;
-            Vector2 middle = RectTransformUtility.WorldToScreenPoint(camera, icon.rectTransform.TransformPoint(icon.rectTransform.rect.center));
+            Vector2 middle = RectTransformUtility.WorldToScreenPoint(camera, target.TransformPoint(target.rect.center));
             PointerEventData pointer = new PointerEventData(events) { position = middle };
             List<RaycastResult> hits = new List<RaycastResult>();
             events.RaycastAll(pointer, hits);
             GameObject hit = hits.Count > 0 ? hits[0].gameObject : null;
-            if (!hit || !hit.transform.IsChildOf(icon.transform))
+            if (!hit || !hit.transform.IsChildOf(target))
             {
-                throw h.Fail($"the pointer on an item in {where} reaches {(hit ? hit.name : "nothing")}, not the item");
+                throw h.Fail($"the pointer on {what} reaches {(hit ? hit.name : "nothing")}, not {target.name}");
             }
             pointer.pointerCurrentRaycast = hits[0];
             ExecuteEvents.ExecuteHierarchy(hit, pointer, ExecuteEvents.pointerEnterHandler);
             h.OnCleanup(() =>
             {
-                if (icon)
+                if (target)
                 {
-                    ExecuteEvents.ExecuteHierarchy(icon.gameObject, pointer, ExecuteEvents.pointerExitHandler);
+                    ExecuteEvents.ExecuteHierarchy(target.gameObject, pointer, ExecuteEvents.pointerExitHandler);
                 }
             });
             made?.Invoke(pointer);

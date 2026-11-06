@@ -8,8 +8,8 @@ using UnityEngine.UI;
 namespace SevenUI
 {
     // One per scoreboard, on its rows' container: lays every row's items out as a grid (ScoreboardItemGrid) in the
-    // chosen layout, and keeps the docked item pane (ScoreboardDetailPane) on the item the pointer is on, hiding the
-    // tooltip that would cover the items. The pane is in a column at the board's right, which the board
+    // chosen layout, and keeps the docked pane (ScoreboardDetailPane) on the item, equipment or key item the pointer is
+    // on, hiding the tooltip that would cover the items. The pane is in a column at the board's right, which the board
     // grows to hold.
     //
     // Rows: each row's items after its equipment, wrapping under themselves, the row as tall as they need; the item
@@ -70,6 +70,9 @@ namespace SevenUI
         private TooltipController hiddenTooltip;
         private GameObject seenSelection;
         private ItemIcon pointed;
+        // The row whose equipment, or key item, the pointer is on.
+        private ScoreboardStrip pointedLoadout;
+        private bool pointedKeyItem;
         private ItemIcon described;
         private float holdUntil;
         private ItemIndex highlighted = ItemIndex.None;
@@ -152,6 +155,7 @@ namespace SevenUI
             stale = true;
             seenProvider = null;
             pointed = null;
+            pointedLoadout = null;
             described = null;
             highlighted = ItemIndex.None;
             pane?.Hide();
@@ -427,8 +431,8 @@ namespace SevenUI
             }
         }
 
-        // The item the pointer (or a gamepad's selection) is on, from the tooltip it opened: lit and described, and
-        // the tooltip itself hidden, the pane saying what it would.
+        // The item, equipment or key item the pointer (or a gamepad's selection) is on, from the tooltip it opened:
+        // described, an item also lit, and the tooltip itself hidden, the pane saying what it would.
         private void Point(bool changed)
         {
             MPEventSystem events = Events();
@@ -436,8 +440,7 @@ namespace SevenUI
             if (provider != seenProvider)
             {
                 seenProvider = provider;
-                ItemIcon icon = provider ? provider.GetComponent<ItemIcon>() : null;
-                pointed = icon && icon.transform.IsChildOf(strips) ? icon : null;
+                Resolve(provider);
             }
             if (pointed)
             {
@@ -451,14 +454,74 @@ namespace SevenUI
                 HideTooltip(events);
                 return;
             }
+            if (pointedLoadout && DescribeLoadout(changed))
+            {
+                highlighted = ItemIndex.None;
+                HideTooltip(events);
+                return;
+            }
             if (Time.unscaledTime > holdUntil)
             {
                 highlighted = ItemIndex.None;
             }
-            if (changed && pane.Shown)
+            if (changed && pane.Item != ItemIndex.None)
             {
                 Redescribe();
             }
+        }
+
+        // What the tooltip's provider is: an item in a row, or a row's equipment or key item.
+        private void Resolve(TooltipProvider provider)
+        {
+            pointed = null;
+            pointedLoadout = null;
+            if (!provider || !provider.transform.IsChildOf(strips)) return;
+            pointed = provider.GetComponent<ItemIcon>();
+            if (pointed) return;
+            foreach (ScoreboardItemGrid grid in grids)
+            {
+                ScoreboardStrip strip = grid.Strip;
+                if (strip.equipmentIcon && strip.equipmentIcon.tooltipProvider == provider)
+                {
+                    pointedLoadout = strip;
+                    pointedKeyItem = false;
+                    return;
+                }
+                if (strip.keyItemIcon && strip.keyItemIcon.tooltipProvider == provider)
+                {
+                    pointedLoadout = strip;
+                    pointedKeyItem = true;
+                    return;
+                }
+            }
+        }
+
+        // The pointed row's equipment or key item in the pane, again when it or the rows changed; false when the slot
+        // is empty. Reads only.
+        private bool DescribeLoadout(bool changed)
+        {
+            Inventory inventory = pointedLoadout.master ? pointedLoadout.master.inventory : null;
+            if (!inventory) return false;
+            if (pointedKeyItem)
+            {
+                KeyItemDef keyItem = inventory.keyItem;
+                if (!keyItem || !pointedLoadout.keyItemIcon) return false;
+                if (changed || pane.KeyItem != keyItem.keyItemIndex)
+                {
+                    pane.Show(keyItem, pointedLoadout.keyItemIcon, grids);
+                }
+            }
+            else
+            {
+                EquipmentDef equipment = EquipmentCatalog.GetEquipmentDef(inventory.currentEquipmentIndex);
+                if (!equipment || !pointedLoadout.equipmentIcon) return false;
+                if (changed || pane.Equipment != equipment.equipmentIndex)
+                {
+                    pane.Show(equipment, pointedLoadout.equipmentIcon, grids);
+                }
+            }
+            described = null;
+            return true;
         }
 
         // After the items changed, the described item again, from any row still holding it.
