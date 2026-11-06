@@ -39,6 +39,8 @@ namespace SevenUI
         public static readonly Color CountBoss = new Color(0.890f, 0.827f, 0.353f, 1f);
         public static readonly Color CountLunar = new Color(0.478f, 0.659f, 1f, 1f);
         public static readonly Color CountVoid = new Color(0.753f, 0.478f, 0.847f, 1f);
+        // #89e331, a Winnowing trial's lime as its icon draws it, greener than the game's #d0ff00 for trials.
+        public static readonly Color Trial = new Color(0.537f, 0.890f, 0.192f, 1f);
         // Karma, a lunar mechanic, in the lunar items' blue, apart from the run info's accent.
         public static readonly Color Karma = CountLunar;
         // Pickup notifications sit on a slightly darker panel, since they appear over the middle of the screen.

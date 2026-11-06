@@ -28,7 +28,7 @@ namespace SevenUI
             (ColorCatalog.ColorIndex.Combat, Palette.Debuff),
             (ColorCatalog.ColorIndex.Healing, Palette.Health),
             (ColorCatalog.ColorIndex.Utility, Palette.CountVoid),
-            (ColorCatalog.ColorIndex.Trial, Palette.CountUncommon),
+            (ColorCatalog.ColorIndex.Trial, Palette.Trial),
         };
         private static readonly Regex ColorTag = new Regex("<color=#(?<hex>[0-9A-Fa-f]{6})>");
         private static Dictionary<Color32, Color> canvasColors;
