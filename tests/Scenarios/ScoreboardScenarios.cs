@@ -34,7 +34,10 @@ namespace SevenUI.Tests
             yield return new Scenario(1, "scoreboard_items_in_slots", Stages.TitanicPlains, ItemsInSlots);
             yield return new Scenario(1, "scoreboard_tabs_items_in_slots", Stages.TitanicPlains,
                 h => ItemsInSlots(h, ScoreboardLayout.Tabs));
-            yield return new Scenario(1, "scoreboard_centered_without_setting", Stages.TitanicPlains, CenteredWithoutSetting);
+            yield return new Scenario(1, "scoreboard_centered_without_setting", Stages.TitanicPlains,
+                h => CenteredWithoutSetting(h, ScoreboardLayout.Rows));
+            yield return new Scenario(1, "scoreboard_tabs_centered_without_setting", Stages.TitanicPlains,
+                h => CenteredWithoutSetting(h, ScoreboardLayout.Tabs));
             yield return new Scenario(1, "scoreboard_layout_switch", Stages.TitanicPlains, LayoutSwitch);
             yield return new Scenario(1, "scoreboard_item_pane", Stages.TitanicPlains, h => ItemPane(h, ScoreboardLayout.Rows));
             yield return new Scenario(1, "scoreboard_tabs_item_pane", Stages.TitanicPlains, h => ItemPane(h, ScoreboardLayout.Tabs));
@@ -46,13 +49,16 @@ namespace SevenUI.Tests
                 h => LoadoutPane(h, ScoreboardLayout.Rows, true));
             yield return new Scenario(1, "scoreboard_tabs_key_item_pane", Stages.TitanicPlains,
                 h => LoadoutPane(h, ScoreboardLayout.Tabs, true));
-            yield return new Scenario(1, "item_bar_item_tooltip", Stages.TitanicPlains, ItemBarTooltip);
+            yield return new Scenario(1, "item_bar_item_tooltip", Stages.TitanicPlains, h => ItemBarTooltip(h, ScoreboardLayout.Rows));
+            yield return new Scenario(1, "item_bar_item_tooltip_over_tabs", Stages.TitanicPlains,
+                h => ItemBarTooltip(h, ScoreboardLayout.Tabs));
         }
 
-        // With the scoreboard open, the pointer on an item in the item bar over it opens the item's tooltip, in the flat
-        // look.
-        private static IEnumerator ItemBarTooltip(Harness h)
+        // With the scoreboard open in each layout, the pointer on an item in the item bar over it opens the item's
+        // tooltip, in the flat look: the board's pane doesn't take it.
+        private static IEnumerator ItemBarTooltip(Harness h, ScoreboardLayout layout)
         {
+            h.SetConfig(SevenUIPlugin.Settings.ScoreboardLayout, layout);
             ScoreboardSetUp.GiveDifferentItems(h, TooltipItems);
             yield return ScoreboardSetUp.Open(h);
             HUD hud = SevenUIChecks.HudRoot(h).GetComponent<HUD>();
@@ -66,7 +72,7 @@ namespace SevenUI.Tests
             yield return h.Until(() => events.currentTooltip && events.currentTooltip.transform.Find(TooltipBandPath),
                 $"the item's tooltip in the flat look");
             yield return h.Wait(SettleSeconds);
-            yield return h.Screenshot("tooltip");
+            yield return h.Screenshot(layout == ScoreboardLayout.Rows ? "tooltip" : "tooltip_over_tabs");
         }
 
         // In each layout, the pointer on an item in the scoreboard describes it in the pane instead of a tooltip, lights
@@ -172,7 +178,11 @@ namespace SevenUI.Tests
             yield return Shot("scoreboard_tabs", h => Spread(h, ScoreboardLayout.Tabs));
             foreach (int count in ItemCounts)
             {
-                yield return Shot($"scoreboard_items_{count}", h => WithItems(h, count));
+                yield return Shot($"scoreboard_items_{count}", h => WithItems(h, count, ScoreboardLayout.Rows));
+            }
+            foreach (int count in ItemCounts)
+            {
+                yield return Shot($"scoreboard_tabs_items_{count}", h => WithItems(h, count, ScoreboardLayout.Tabs));
             }
         }
 
@@ -228,10 +238,11 @@ namespace SevenUI.Tests
                 () => $"the scoreboard back in the game's layout ({look}) {h.Diagnosis()}");
         }
 
-        // ScoreboardBesideRunInfo moves the board beside the run info; off, it is centered on the screen, as the game
-        // centers it, still the canvas's width.
-        private static IEnumerator CenteredWithoutSetting(Harness h)
+        // In each layout, ScoreboardBesideRunInfo moves the board beside the run info; off, it is centered on the screen,
+        // as the game centers it, still the canvas's width.
+        private static IEnumerator CenteredWithoutSetting(Harness h, ScoreboardLayout layout)
         {
+            h.SetConfig(SevenUIPlugin.Settings.ScoreboardLayout, layout);
             ScreenshotScenarios.GiveItemSpread(h);
             yield return ScoreboardSetUp.Open(h);
             yield return h.ExpectScoreboardAsCanvas();
@@ -239,7 +250,8 @@ namespace SevenUI.Tests
             yield return h.ExpectScoreboardAsCanvas();
         }
 
-        // The tab screen with one item of each main tier and the equipment.
+        // The tab screen with one item of each main tier and the equipment, in the given layout whatever the player's
+        // setting.
         private static IEnumerator Spread(Harness h) => Spread(h, ScoreboardLayout.Rows);
 
         private static IEnumerator Spread(Harness h, ScoreboardLayout layout)
@@ -253,11 +265,11 @@ namespace SevenUI.Tests
             yield return h.CaptureLooks();
         }
 
-        // The tab screen with that many different items in the player's row, from one line of slots to several. In
-        // the rows layout whatever the player's setting, so the screenshots compare from run to run.
-        private static IEnumerator WithItems(Harness h, int count)
+        // The tab screen with that many different items in the player's row, from one line of slots to several, in the
+        // given layout whatever the player's setting, so the screenshots compare from run to run.
+        private static IEnumerator WithItems(Harness h, int count, ScoreboardLayout layout)
         {
-            h.SetConfig(SevenUIPlugin.Settings.ScoreboardLayout, ScoreboardLayout.Rows);
+            h.SetConfig(SevenUIPlugin.Settings.ScoreboardLayout, layout);
             ScoreboardSetUp.GiveDifferentItems(h, count);
             yield return ScoreboardSetUp.Open(h);
             yield return h.ExpectScoreboardAsCanvas();
