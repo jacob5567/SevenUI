@@ -4,8 +4,8 @@ using UnityEngine.EventSystems;
 
 namespace SevenUI
 {
-    // On each scoreboard row in the tabs layout. The pointer entering anything in the row, its tab or the items shown
-    // under it, reaches the row too, and shows that player.
+    // On each scoreboard row in the tabs layout. The pointer entering anything in the row, its line in the list or the
+    // items shown for it, reaches the row too, and shows that player.
     internal sealed class ScoreboardTab : MonoBehaviour, IPointerEnterHandler
     {
         public ScoreboardItemsBoard Board;

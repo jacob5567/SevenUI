@@ -5,7 +5,7 @@ namespace SevenUI
     {
         // A row per player, their items after their equipment, wrapping under themselves.
         Rows,
-        // One player at a time, picked from tabs along the board's top.
+        // One player's items at a time, picked from a list of the players down the board's left.
         Tabs,
     }
 }

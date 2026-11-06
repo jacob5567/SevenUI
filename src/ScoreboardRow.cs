@@ -10,7 +10,7 @@ namespace SevenUI
     // Keeps one scoreboard row as on the design canvas while it shows: tinted in the accent if it is the viewer's own
     // (in the rows layout), the player's survivor and level ("Commando · Lv 17") under their name, the row's items under
     // that ("40 items · 22 9 4 2 1 2", the total in bold, then the common, uncommon, legendary, boss, lunar and void
-    // counts in their tiers' colors), the name cut short before the money when the money shares its line, and the
+    // counts in their tiers' colors), the name cut short before the money at the right of its line, and the
     // gamepad's focus outlines shown only while they are lit. The counts are read again when the player's inventory
     // changes, and the name's room when the money's text does.
     internal sealed class ScoreboardRow : MonoBehaviour
@@ -33,7 +33,7 @@ namespace SevenUI
         public TMP_Text Survivor;
         public TMP_Text Counts;
         public TMP_Text Name;
-        // The money at the right of the name's line, in the rows layout; null in the tabs layout, where it has a column.
+        // The money at the right of the name's line.
         public TMP_Text Money;
         public Image[] FocusOutlines;
         // Off in the tabs layout, where the board tints the shown player's tab instead.

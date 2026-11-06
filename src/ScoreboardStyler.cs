@@ -16,8 +16,9 @@ namespace SevenUI
     // layout the ScoreboardLayout setting picks:
     // - Rows: one line per player, split by thin lines, the viewer's tinted in the accent: the portrait, the name block
     //   with the money at the right of the name, the key item, the equipment, then the items.
-    // - Tabs: each row is a tab of the portrait, the name block and the money; the shown player's key item,
-    //   equipment and items sit under the tabs.
+    // - Tabs: each row is a line in a list of the players down the board's left: the portrait, the name block with the
+    //   money at the right of the name, then the key item and the equipment, smaller; the shown player's items sit in
+    //   the board's middle.
     internal sealed class ScoreboardStyler
     {
         // Under the scoreboard panel.
@@ -44,13 +45,12 @@ namespace SevenUI
         private const string OutlineName = "SevenUIEquipmentOutline";
 
         // The design canvas's sizes, in its pixels, which the scoreboard's units match: rows at least 92px tall with
-        // 16px by 20px of padding and 16px between columns (a tab's 24px); 52px slots; the player's name block 176px
-        // wide, its lines 19px, 14px and 13px, 3px apart; and the money's text 20px.
+        // 16px by 20px of padding and 16px between columns; 52px slots; the player's name block 176px wide, its lines
+        // 19px, 14px and 13px, 3px apart; and the money's text 20px.
         public const float RowHeight = 92f;
         public const int RowPaddingX = 20;
         public const int RowPaddingY = 16;
         private const float RowColumnGap = 16f;
-        private const float ColumnGap = 24f;
         // Between the portrait and the name block; the row lays its columns out a column gap apart, so the block's
         // texts reach back into the gap by the difference.
         private const float NameGap = 12f;
@@ -63,13 +63,27 @@ namespace SevenUI
         private const float LineHeight = 1.2f;
         // The name block's three lines, which the portrait beside it is centered on, as on the canvas.
         public const float NameBlockHeight = (NameFontSize + SurvivorFontSize + CountsFontSize) * LineHeight + 2f * LineGap;
-        // A tab's money, beside a name block that takes the rest of the tab.
-        private const float TabMoneyWidth = 64f;
         private const float MoneyFontSize = 20f;
         // In a row, where the items start: after the portrait, the name block, the key item and the equipment.
         public const float RowItemsLeft = RowPaddingX + SlotSize + RowColumnGap + NameWidth + RowColumnGap + SlotSize +
                                           RowColumnGap + SlotSize + RowColumnGap;
         private const float RowNameLeft = RowPaddingX + SlotSize + RowColumnGap;
+        // A line in the tabs layout's list: 10px by 14px of padding, after the shown line's 3px bar; a 40px portrait,
+        // 10px to the name block, and 10px after it the key item and the equipment, 36px, 6px apart, centered on it.
+        // The slots are the rows' drawn smaller, so their insides keep the rows' proportions.
+        private const int ListPaddingLeft = 17;
+        private const int ListPaddingRight = 14;
+        private const int ListPaddingY = 10;
+        public const float ListRowHeight = 2f * ListPaddingY + NameBlockHeight;
+        private const float ListPortraitSize = 40f;
+        private const float ListGap = 10f;
+        private const float ListSlotSize = 36f;
+        private const float ListSlotGap = 6f;
+        private const float ListSlotScale = ListSlotSize / SlotSize;
+        private const float ListSlotsLeft = ScoreboardItemsBoard.ListWidth - ListPaddingRight - 2f * ListSlotSize - ListSlotGap;
+        private const float ListSlotTop = ListPaddingY + (NameBlockHeight - ListSlotSize) / 2f;
+        private const float ListNameLeft = ListPaddingLeft + ListPortraitSize + ListGap;
+        private const float ListNameWidth = ListSlotsLeft - ListGap - ListNameLeft;
         // The canvas's item slots: 40px, 4px apart, wrapping (ScoreboardItemGrid).
         private const float ItemSlotSize = 40f;
         private const float ItemGap = 4f;
@@ -200,8 +214,8 @@ namespace SevenUI
             recorder.Disable(row.GetComponent<RawImage>());
 
             // The rows' heights follow their items (ScoreboardItemsBoard); this is a row without any.
-            float height = tabs ? ScoreboardItemsBoard.TabHeight : RowHeight;
-            float gap = tabs ? ColumnGap : RowColumnGap;
+            float height = tabs ? ListRowHeight : RowHeight;
+            float gap = tabs ? ListGap : RowColumnGap;
             LayoutElement rowElement = row.GetComponent<LayoutElement>();
             if (rowElement)
             {
@@ -225,23 +239,23 @@ namespace SevenUI
                 columns.childAlignment = alignment;
             });
             columns.padding = tabs
-                ? new RectOffset(ScoreboardItemsBoard.TabPaddingX, ScoreboardItemsBoard.TabPaddingX,
-                    ScoreboardItemsBoard.TabPaddingTop, ScoreboardItemsBoard.TabPaddingBottom)
+                ? new RectOffset(ListPaddingLeft, ListPaddingRight, ListPaddingY, ListPaddingY)
                 : new RectOffset(RowPaddingX, RowPaddingX, RowPaddingY, RowPaddingY);
             columns.spacing = gap;
-            // The spare width goes to the name block in a tab, and is left at a row's right, not given to every column.
+            // The spare width is left at a row's right, not given to every column.
             columns.childForceExpandWidth = false;
             columns.childForceExpandHeight = false;
             columns.childAlignment = TextAnchor.UpperLeft;
 
-            CenterPortrait(background.Find(ClassName));
+            CenterPortrait(background.Find(ClassName), tabs ? ListPortraitSize : SlotSize);
             Transform keyItem = background.Find(KeyItemName);
             Slot(keyItem, Palette.Trough);
             Transform equipment = background.Find(EquipmentName);
             Slot(equipment, Palette.Trough);
             if (equipment && !equipment.Find(OutlineName))
             {
-                AddEquipmentOutline(equipment);
+                // Its edge drawn wider in the list, where the slot is drawn smaller, so it shows as wide.
+                AddEquipmentOutline(equipment, tabs ? OutlineEdge / ListSlotScale : OutlineEdge);
             }
             if (row.itemInventoryDisplay)
             {
@@ -253,6 +267,8 @@ namespace SevenUI
             {
                 TakeOutOfLayout(keyItem);
                 TakeOutOfLayout(equipment);
+                PlaceListSlot(keyItem, ListSlotsLeft);
+                PlaceListSlot(equipment, ListSlotsLeft + ListSlotSize + ListSlotGap);
             }
             // An empty picture of the game's, which would still take a column gap from the name.
             Transform players = background.Find(PlayersName);
@@ -266,24 +282,12 @@ namespace SevenUI
             Outline(row.nameFocusHighlight);
 
             Transform money = background.Find(MoneyName);
-            if (money && tabs)
-            {
-                int index = money.GetSiblingIndex();
-                recorder.OnRestore(() =>
-                {
-                    if (money)
-                    {
-                        money.SetSiblingIndex(index);
-                    }
-                });
-                money.SetAsLastSibling();
-                Size(money.GetComponent<LayoutElement>(), TabMoneyWidth, MoneyFontSize * LineHeight);
-            }
-            else if (money)
+            if (money)
             {
                 // At the right of the name's line, the name cut short before it (ScoreboardRow).
                 TakeOutOfLayout(money);
-                StatsSection.TopLeft((RectTransform)money, RowNameLeft, RowPaddingY, NameWidth, MoneyFontSize * LineHeight);
+                StatsSection.TopLeft((RectTransform)money, tabs ? ListNameLeft : RowNameLeft, tabs ? ListPaddingY : RowPaddingY,
+                    tabs ? ListNameWidth : NameWidth, MoneyFontSize * LineHeight);
             }
             if (row.moneyText)
             {
@@ -308,14 +312,10 @@ namespace SevenUI
 
             Transform nameObject = background.Find(NameObjectName);
             LayoutElement nameElement = nameObject ? nameObject.GetComponent<LayoutElement>() : null;
-            Size(nameElement, tabs ? 0f : NameWidth, NameBlockHeight);
-            if (tabs)
-            {
-                Flexible(nameElement);
-            }
+            Size(nameElement, tabs ? ListNameWidth : NameWidth, NameBlockHeight);
             if (nameObject && row.nameLabel && !nameObject.Find(RowTextsName))
             {
-                StyleName(row, nameObject, backgroundImage, items, tabs, gap);
+                StyleName(row, nameObject, backgroundImage, items, tabs, (tabs ? ListGap : NameGap) - gap);
             }
             if (tabs)
             {
@@ -346,18 +346,21 @@ namespace SevenUI
             element.ignoreLayout = true;
         }
 
-        private void Flexible(LayoutElement element)
+        // In the list, at x from the row's left, centered on the name block, drawn smaller. Its size stays the rows' slot.
+        private void PlaceListSlot(Transform slot, float x)
         {
-            if (!element) return;
-            float flexible = element.flexibleWidth;
+            if (!slot) return;
+            RectTransform rect = (RectTransform)slot;
+            Vector3 scale = rect.localScale;
             recorder.OnRestore(() =>
             {
-                if (element) element.flexibleWidth = flexible;
+                if (rect) rect.localScale = scale;
             });
-            element.flexibleWidth = 1f;
+            StatsSection.TopLeft(rect, x, ListSlotTop, SlotSize, SlotSize);
+            rect.localScale = new Vector3(ListSlotScale, ListSlotScale, 1f);
         }
 
-        // The shown tab's accent line along its foot, which the board turns on.
+        // The shown player's accent line down the left of their line in the list, which the board turns on.
         private void AddTabBar(Transform background)
         {
             if (background.Find(ScoreboardItemsBoard.TabBarName)) return;
@@ -365,10 +368,10 @@ namespace SevenUI
             bar.AddComponent<LayoutIgnorer>();
             RectTransform rect = (RectTransform)bar.transform;
             rect.anchorMin = Vector2.zero;
-            rect.anchorMax = new Vector2(1f, 0f);
-            rect.pivot = new Vector2(0.5f, 0f);
+            rect.anchorMax = new Vector2(0f, 1f);
+            rect.pivot = new Vector2(0f, 0.5f);
             rect.anchoredPosition = Vector2.zero;
-            rect.sizeDelta = new Vector2(0f, ScoreboardItemsBoard.TabBarHeight);
+            rect.sizeDelta = new Vector2(ScoreboardItemsBoard.TabBarWidth, 0f);
             Image image = bar.AddComponent<Image>();
             image.color = Palette.Accent;
             image.raycastTarget = false;
@@ -376,8 +379,9 @@ namespace SevenUI
             recorder.Add(bar);
         }
 
-        // The name on the first of three lines; the survivor and level, and the counts, on the mod's.
-        private void StyleName(ScoreboardStrip row, Transform nameObject, Image background, Image items, bool tabs, float gap)
+        // The name on the first of three lines; the survivor and level, and the counts, on the mod's. The texts start
+        // inset into the block, or reach back out of it when negative.
+        private void StyleName(ScoreboardStrip row, Transform nameObject, Image background, Image items, bool tabs, float inset)
         {
             TMP_Text name = row.nameLabel;
             recorder.Record(name);
@@ -390,9 +394,9 @@ namespace SevenUI
 
             GameObject holder = NewUIObject(RowTextsName, nameObject);
             Stretch((RectTransform)holder.transform);
-            ((RectTransform)holder.transform).offsetMin = new Vector2(NameGap - gap, 0f);
+            ((RectTransform)holder.transform).offsetMin = new Vector2(inset, 0f);
             Vector2 nameOffset = name.rectTransform.offsetMin;
-            name.rectTransform.offsetMin = new Vector2(NameGap - gap, nameOffset.y);
+            name.rectTransform.offsetMin = new Vector2(inset, nameOffset.y);
             TMP_Text survivor = AddText("Survivor", holder.transform, name, SurvivorFontSize, Palette.HeaderText);
             Line(survivor.rectTransform, ref y, SurvivorFontSize);
             TMP_Text counts = AddText("Counts", holder.transform, name, CountsFontSize, Palette.HeaderText);
@@ -404,7 +408,7 @@ namespace SevenUI
             follower.Background = background;
             follower.TintOwnRow = !tabs;
             follower.Name = name;
-            follower.Money = tabs ? null : row.moneyText;
+            follower.Money = row.moneyText;
             follower.Survivor = survivor;
             follower.Counts = counts;
             follower.FocusOutlines = new[] { row.nameFocusHighlight, items };
@@ -486,14 +490,14 @@ namespace SevenUI
         // The row's columns line up at the top, as on the canvas, which centers only the portrait, on the name block
         // beside it. The portrait's cell stays the row's slot at the top, and its square and picture are drawn lower in
         // it by half the name block's extra height.
-        private void CenterPortrait(Transform portrait)
+        private void CenterPortrait(Transform portrait, float size)
         {
             if (!portrait) return;
             Image cell = portrait.GetComponent<Image>();
             Fill(cell, Color.clear);
-            Size(portrait.GetComponent<LayoutElement>(), SlotSize, SlotSize);
+            Size(portrait.GetComponent<LayoutElement>(), size, size);
             if (portrait.Find(PortraitSquareName)) return;
-            float down = (NameBlockHeight - SlotSize) / 2f;
+            float down = (NameBlockHeight - size) / 2f;
             GameObject square = NewUIObject(PortraitSquareName, portrait);
             square.transform.SetAsFirstSibling();
             RectTransform squareRect = (RectTransform)square.transform;
@@ -539,14 +543,14 @@ namespace SevenUI
             element.preferredHeight = height;
         }
 
-        private void AddEquipmentOutline(Transform equipment)
+        private void AddEquipmentOutline(Transform equipment, float edge)
         {
             GameObject outline = NewUIObject(OutlineName, equipment);
             Stretch((RectTransform)outline.transform);
             Image image = outline.AddComponent<Image>();
             image.sprite = FlatSprite.Outline;
             image.type = Image.Type.Sliced;
-            image.pixelsPerUnitMultiplier = OutlineEdgePixels / OutlineEdge;
+            image.pixelsPerUnitMultiplier = OutlineEdgePixels / edge;
             image.color = Palette.Equipment;
             image.raycastTarget = false;
             recorder.Add(outline);
