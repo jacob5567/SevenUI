@@ -44,26 +44,29 @@ namespace SevenUI
         private const string RowTextsName = "SevenUIRowTexts";
         private const string OutlineName = "SevenUIEquipmentOutline";
 
-        // The design canvas's sizes, in its pixels, which the scoreboard's units match: rows at least 92px tall with
+        private const float Canvas = HudUnits.PerCanvasPixel;
+
+        // The design canvas's sizes, in its pixels, scaled to the HUD's units (HudUnits), the layout groups' paddings
+        // rounded to whole units: rows at least 92px tall with
         // 16px by 20px of padding and 16px between columns; 52px slots; the player's name block 176px wide, its lines
         // 19px, 14px and 13px, 3px apart; and the money's text 20px.
-        public const float RowHeight = 92f;
-        public const int RowPaddingX = 20;
-        public const int RowPaddingY = 16;
-        private const float RowColumnGap = 16f;
+        public const float RowHeight = 92f * Canvas;
+        public const int RowPaddingX = (int)(20f * Canvas + 0.5f);
+        public const int RowPaddingY = (int)(16f * Canvas + 0.5f);
+        private const float RowColumnGap = 16f * Canvas;
         // Between the portrait and the name block; the row lays its columns out a column gap apart, so the block's
         // texts reach back into the gap by the difference.
-        private const float NameGap = 12f;
-        public const float SlotSize = 52f;
-        private const float NameWidth = 176f;
-        private const float NameFontSize = 19f;
-        private const float SurvivorFontSize = 14f;
-        private const float CountsFontSize = 13f;
-        private const float LineGap = 3f;
+        private const float NameGap = 12f * Canvas;
+        public const float SlotSize = 52f * Canvas;
+        private const float NameWidth = 176f * Canvas;
+        private const float NameFontSize = 19f * Canvas;
+        private const float SurvivorFontSize = 14f * Canvas;
+        private const float CountsFontSize = 13f * Canvas;
+        private const float LineGap = 3f * Canvas;
         private const float LineHeight = 1.2f;
         // The name block's three lines, which the portrait beside it is centered on, as on the canvas.
         public const float NameBlockHeight = (NameFontSize + SurvivorFontSize + CountsFontSize) * LineHeight + 2f * LineGap;
-        private const float MoneyFontSize = 20f;
+        private const float MoneyFontSize = 20f * Canvas;
         // In a row, where the items start: after the portrait, the name block, the key item and the equipment.
         public const float RowItemsLeft = RowPaddingX + SlotSize + RowColumnGap + NameWidth + RowColumnGap + SlotSize +
                                           RowColumnGap + SlotSize + RowColumnGap;
@@ -71,14 +74,14 @@ namespace SevenUI
         // A line in the tabs layout's list: 10px by 14px of padding, after the shown line's 3px bar; a 40px portrait,
         // 10px to the name block, and 10px after it the key item and the equipment, 36px, 6px apart, centered on it.
         // The slots are the rows' drawn smaller, so their insides keep the rows' proportions.
-        private const int ListPaddingLeft = 17;
-        private const int ListPaddingRight = 14;
-        private const int ListPaddingY = 10;
+        private const int ListPaddingLeft = (int)(17f * Canvas + 0.5f);
+        private const int ListPaddingRight = (int)(14f * Canvas + 0.5f);
+        private const int ListPaddingY = (int)(10f * Canvas + 0.5f);
         public const float ListRowHeight = 2f * ListPaddingY + NameBlockHeight;
-        private const float ListPortraitSize = 40f;
-        private const float ListGap = 10f;
-        private const float ListSlotSize = 36f;
-        private const float ListSlotGap = 6f;
+        private const float ListPortraitSize = 40f * Canvas;
+        private const float ListGap = 10f * Canvas;
+        private const float ListSlotSize = 36f * Canvas;
+        private const float ListSlotGap = 6f * Canvas;
         private const float ListSlotScale = ListSlotSize / SlotSize;
         private const float ListSlotsLeft = ScoreboardItemsBoard.ListWidth - ListPaddingRight - 2f * ListSlotSize - ListSlotGap;
         private const float ListSlotTop = ListPaddingY + (NameBlockHeight - ListSlotSize) / 2f;
@@ -93,8 +96,8 @@ namespace SevenUI
         // were chosen over.
         public static readonly Color CanvasBoard = new Color(0.039f, 0.043f, 0.054f, 1f);
         private const string ContainerName = "Container";
-        private const float DividerHeight = 1f;
-        private const float OutlineEdge = 2f;
+        private const float DividerHeight = 1f * Canvas;
+        private const float OutlineEdge = 2f * Canvas;
         // The outline sprite's edge, in its pixels (FlatSprite.Outline).
         private const float OutlineEdgePixels = 2f;
 

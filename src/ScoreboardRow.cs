@@ -20,8 +20,9 @@ namespace SevenUI
         // The canvas's word after the total, which the game has no translation of, so it shows in English only.
         private const string ItemsWord = " items";
         private const string English = "en";
+        private const float Canvas = HudUnits.PerCanvasPixel;
         // Between the name and the money on its line.
-        private const float MoneyGap = 8f;
+        private const float MoneyGap = 8f * Canvas;
         private static readonly StringBuilder Text = new StringBuilder();
 
         // The canvas's tint for the viewer's row, over its board, as drawn in the game's light (CanvasBlend).

@@ -19,27 +19,29 @@ namespace SevenUI
         public const string PaneName = "SevenUIItemPane";
         public const string HolderName = "SevenUIItemHolder";
 
-        // The canvas's sizes, in its pixels, which the scoreboard's units match.
-        private const float StripHeight = 3f;
-        private const float PaddingX = 16f;
-        private const float PaddingY = 14f;
-        private const float IconSlot = 48f;
-        private const float IconInset = 4f;
-        private const float IconStripHeight = 3f;
-        private const float TitleGap = 12f;
-        private const float TitleSize = 20f;
-        private const float DescriptionGap = 10f;
-        private const float DescriptionSize = 15f;
-        private const float StatsSize = 14f;
-        private const float HoldersGap = 12f;
-        private const float DividerHeight = 1f;
-        private const float HoldersBelowDivider = 10f;
-        private const float PortraitSize = 22f;
-        private const float PortraitGap = 6f;
-        private const float HolderSize = 14f;
-        private const float HolderGap = 14f;
-        private const float HolderLineGap = 6f;
-        private const float StatsUnit = 1f;
+        private const float Canvas = HudUnits.PerCanvasPixel;
+
+        // The canvas's sizes, in its pixels, scaled to the HUD's units (HudUnits).
+        private const float StripHeight = 3f * Canvas;
+        private const float PaddingX = 16f * Canvas;
+        private const float PaddingY = 14f * Canvas;
+        private const float IconSlot = 48f * Canvas;
+        private const float IconInset = 4f * Canvas;
+        private const float IconStripHeight = 3f * Canvas;
+        private const float TitleGap = 12f * Canvas;
+        private const float TitleSize = 20f * Canvas;
+        private const float DescriptionGap = 10f * Canvas;
+        private const float DescriptionSize = 15f * Canvas;
+        private const float StatsSize = 14f * Canvas;
+        private const float HoldersGap = 12f * Canvas;
+        private const float DividerHeight = 1f * Canvas;
+        private const float HoldersBelowDivider = 10f * Canvas;
+        private const float PortraitSize = 22f * Canvas;
+        private const float PortraitGap = 6f * Canvas;
+        private const float HolderSize = 14f * Canvas;
+        private const float HolderGap = 14f * Canvas;
+        private const float HolderLineGap = 6f * Canvas;
+        private const float StatsUnit = Canvas;
         private const string Times = "×";
 
         private sealed class Holder

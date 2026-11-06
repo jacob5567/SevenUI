@@ -14,13 +14,14 @@ namespace SevenUI
     internal sealed class ScoreboardItemGrid
     {
         public const string HighlightName = "SevenUIItemHighlight";
+        private const float Canvas = HudUnits.PerCanvasPixel;
         // The canvas's sizes at its 40px slot, which scale with the slot.
-        public const float FullSlot = 40f;
-        private const float FullGap = 4f;
+        public const float FullSlot = 40f * Canvas;
+        private const float FullGap = 4f * Canvas;
         private const float DimmedAlpha = 0.35f;
         // The highlight: a 2px accent outline, 1px clear of the slot.
-        private const float HighlightEdge = 2f;
-        private const float HighlightOutset = 3f;
+        private const float HighlightEdge = 2f * Canvas;
+        private const float HighlightOutset = 3f * Canvas;
         // The outline sprite's edge, in its pixels (FlatSprite.Outline).
         private const float OutlineEdgePixels = 2f;
         // Where an icon's place is, on the icon: its top-left corner. The game's scoreboard icon has its pivot outside

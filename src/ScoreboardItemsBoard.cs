@@ -24,22 +24,24 @@ namespace SevenUI
         public const string ListDividerName = "SevenUIListDivider";
         public const string TabBarName = "SevenUITabBar";
 
-        // In the scoreboard's units, the design canvas's pixels. The pane's column 340px wide, a line at its left and
+        private const float Canvas = HudUnits.PerCanvasPixel;
+
+        // The design canvas's pixels, scaled to the HUD's units (HudUnits). The pane's column 340px wide, a line at its left and
         // the pane 16px in from its edges.
-        public const float PaneColumnWidth = 340f;
-        private const float PaneInset = 16f;
+        public const float PaneColumnWidth = 340f * Canvas;
+        private const float PaneInset = 16f * Canvas;
         // Tabs: the list 330px wide, its lines 10px under the board's top and over its bottom, a line at its right; the
         // items 20px in from the lines either side and 16px under the board's top and over its bottom.
-        public const float ListWidth = 330f;
-        public const float TabBarWidth = 3f;
-        private const float ListPaddingY = 10f;
-        private const float BodyPaddingX = 20f;
-        private const float BodyPaddingY = 16f;
+        public const float ListWidth = 330f * Canvas;
+        public const float TabBarWidth = 3f * Canvas;
+        private const float ListPaddingY = 10f * Canvas;
+        private const float BodyPaddingX = 20f * Canvas;
+        private const float BodyPaddingY = 16f * Canvas;
         public const float TabItemsLeft = ListWidth + DividerHeight + BodyPaddingX;
-        private const float DividerHeight = 1f;
-        private static readonly float[] SlotSizes = { 40f, 36f, 32f, 28f, 24f };
+        private const float DividerHeight = 1f * Canvas;
+        private static readonly float[] SlotSizes = { 40f * Canvas, 36f * Canvas, 32f * Canvas, 28f * Canvas, 24f * Canvas };
         // Tabs: while the items fit this many lines of a larger size, they take it.
-        private static readonly float[] LargeSlotSizes = { 52f, 48f, 44f };
+        private static readonly float[] LargeSlotSizes = { 52f * Canvas, 48f * Canvas, 44f * Canvas };
         private const int LargeSlotLines = 2;
         // Moving between two slots, the pointer leaves one before it reaches the next; the light holds over the gap.
         private const float HoldSeconds = 0.15f;
