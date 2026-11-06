@@ -14,10 +14,10 @@ namespace SevenUI
     //
     // Rows: each row's items after its equipment, wrapping under themselves, the row as tall as they need; the item
     // pointed at lit in every row that holds it and the rest dimmed. Tabs: the rows become a list of the players down
-    // the board's left, each with their key item and equipment, and the shown player's items fill the middle, larger
-    // while few enough fit two lines. Pointing at a player's line, or selecting anything in it with a gamepad, shows
-    // that player; the board opens on the viewer's own. Either way, if the board would run past the bottom of the
-    // scoreboard's panel, the slots shrink, down to 24px.
+    // the board's left, each drawn as in the rows layout up to its equipment and spaced as the rows are, and the shown
+    // player's items fill the middle, from the same top as a row's. Pointing at a player's line, or selecting anything
+    // in it with a gamepad, shows that player; the board opens on the viewer's own. Either way, if the board would run
+    // past the bottom of the scoreboard's panel, the slots shrink, down to 24px.
     internal sealed class ScoreboardItemsBoard : MonoBehaviour
     {
         public const string PaneColumnName = "SevenUIItemPaneColumn";
@@ -30,19 +30,13 @@ namespace SevenUI
         // the pane 16px in from its edges.
         public const float PaneColumnWidth = 340f * Canvas;
         private const float PaneInset = 16f * Canvas;
-        // Tabs: the list 330px wide, its lines 10px under the board's top and over its bottom, a line at its right; the
-        // items 20px in from the lines either side and 16px under the board's top and over its bottom.
-        public const float ListWidth = 330f * Canvas;
+        // Tabs: the list as wide as a row up to its equipment, with a line at its right and the shown player's line
+        // marked by a 3px accent line at its left; the items a row's padding in from the lines either side.
+        public const float ListWidth = ScoreboardStyler.ListLineWidth;
         public const float TabBarWidth = 3f * Canvas;
-        private const float ListPaddingY = 10f * Canvas;
-        private const float BodyPaddingX = 20f * Canvas;
-        private const float BodyPaddingY = 16f * Canvas;
-        public const float TabItemsLeft = ListWidth + DividerHeight + BodyPaddingX;
+        public const float TabItemsLeft = ListWidth + DividerHeight + ScoreboardStyler.RowPaddingX;
         private const float DividerHeight = 1f * Canvas;
         private static readonly float[] SlotSizes = { 40f * Canvas, 36f * Canvas, 32f * Canvas, 28f * Canvas, 24f * Canvas };
-        // Tabs: while the items fit this many lines of a larger size, they take it.
-        private static readonly float[] LargeSlotSizes = { 52f * Canvas, 48f * Canvas, 44f * Canvas };
-        private const int LargeSlotLines = 2;
         // Moving between two slots, the pointer leaves one before it reaches the next; the light holds over the gap.
         private const float HoldSeconds = 0.15f;
 
@@ -58,6 +52,9 @@ namespace SevenUI
         private RectTransform strips;
         private VerticalLayoutGroup rowsGroup;
         private RectOffset rowsPadding;
+        // Tabs: the rows' container's padding and spacing, which the list keeps.
+        private RectOffset listPadding = new RectOffset();
+        private float listSpacing;
         private float rowsHeight;
         private LayoutElement stripsElement;
         private ScoreboardDetailPane pane;
@@ -97,12 +94,13 @@ namespace SevenUI
             this.panel = panel;
             this.style = style;
             strips = (RectTransform)transform;
-            RectOffset padding = new RectOffset();
+            // Turned off in the tabs layout (ScoreboardStyler), its padding and spacing still read.
+            VerticalLayoutGroup group = GetComponent<VerticalLayoutGroup>();
+            RectOffset padding = group ? group.padding : new RectOffset();
             if (layout == ScoreboardLayout.Rows)
             {
                 // The rows' container keeps laying the rows out, narrower by the column, which takes its right.
-                rowsGroup = GetComponent<VerticalLayoutGroup>();
-                padding = rowsGroup ? rowsGroup.padding : padding;
+                rowsGroup = group;
                 rowsPadding = new RectOffset(padding.left, padding.right + Mathf.RoundToInt(PaneColumnWidth), padding.top,
                     padding.bottom);
                 if (rowsGroup)
@@ -113,15 +111,17 @@ namespace SevenUI
             }
             else
             {
-                // The board places the players' lines itself, so the container's padding isn't kept.
+                // The board places the players' lines itself, where the container would have.
+                listPadding = new RectOffset(padding.left, padding.right, padding.top, padding.bottom);
+                listSpacing = group ? group.spacing : 0f;
                 stripsElement = gameObject.AddComponent<LayoutElement>();
                 recorder.Add(stripsElement);
                 RectTransform listDivider = NewLine(ListDividerName, strips);
                 recorder.Add(listDivider.gameObject);
                 listDivider.anchorMin = new Vector2(0f, 0f);
                 listDivider.anchorMax = new Vector2(0f, 1f);
-                listDivider.offsetMin = new Vector2(ListWidth, 0f);
-                listDivider.offsetMax = new Vector2(ListWidth + DividerHeight, 0f);
+                listDivider.offsetMin = new Vector2(padding.left + ListWidth, 0f);
+                listDivider.offsetMax = new Vector2(padding.left + ListWidth + DividerHeight, 0f);
             }
             RectTransform column = NewObject(PaneColumnName, strips);
             recorder.Add(column.gameObject);
@@ -294,16 +294,21 @@ namespace SevenUI
                 cell.pivot = new Vector2(0f, 1f);
                 cell.offsetMin = new Vector2(ScoreboardStyler.RowItemsLeft, -(ScoreboardStyler.RowPaddingY + items));
                 cell.offsetMax = new Vector2(-ScoreboardStyler.RowPaddingX, -ScoreboardStyler.RowPaddingY);
-                // The line between rows, none over the first.
-                Transform divider = grid.Background ? grid.Background.transform.Find(ScoreboardStyler.DividerName) : null;
-                if (divider && divider.gameObject.activeSelf != i > 0)
-                {
-                    divider.gameObject.SetActive(i > 0);
-                }
+                ShowDivider(grid, i > 0);
             }
             if (rowsGroup)
             {
                 rowsHeight += Mathf.Max(0, grids.Count - 1) * rowsGroup.spacing;
+            }
+        }
+
+        // The line between rows, none over the first.
+        private static void ShowDivider(ScoreboardItemGrid grid, bool show)
+        {
+            Transform divider = grid.Background ? grid.Background.transform.Find(ScoreboardStyler.DividerName) : null;
+            if (divider && divider.gameObject.activeSelf != show)
+            {
+                divider.gameObject.SetActive(show);
             }
         }
 
@@ -340,18 +345,19 @@ namespace SevenUI
             }
             if (shownGrid == null) return;
 
-            float across = Mathf.Max(ScoreboardItemGrid.FullSlot, width - TabItemsLeft - PaneColumnWidth - BodyPaddingX);
-            float size = TabSlotSize(shownGrid, across, limit - 2f * BodyPaddingY);
+            float across = Mathf.Max(ScoreboardItemGrid.FullSlot, width - listPadding.left - listPadding.right -
+                PaneColumnWidth - TabItemsLeft - ScoreboardStyler.RowPaddingX);
+            float rowPaddings = 2f * ScoreboardStyler.RowPaddingY;
+            float size = TabSlotSize(shownGrid, across, limit - listPadding.vertical - rowPaddings);
+            float top = listPadding.top;
             for (int i = 0; i < grids.Count; i++)
             {
                 ScoreboardItemGrid grid = grids[i];
-                float y = ListPaddingY + i * ScoreboardStyler.ListRowHeight;
-                StatsSection.TopLeft((RectTransform)grid.Strip.transform, 0f, y, ListWidth, ScoreboardStyler.ListRowHeight);
+                float y = top + i * (ScoreboardStyler.RowHeight + listSpacing);
+                StatsSection.TopLeft((RectTransform)grid.Strip.transform, listPadding.left, y, ListWidth,
+                    ScoreboardStyler.RowHeight);
+                ShowDivider(grid, i > 0);
                 bool isShown = grid == shownGrid;
-                if (grid.Background)
-                {
-                    grid.Background.color = isShown ? ScoreboardRow.OwnRowColor : Color.clear;
-                }
                 Transform bar = grid.Background ? grid.Background.transform.Find(TabBarName) : null;
                 if (bar && bar.gameObject.activeSelf != isShown)
                 {
@@ -361,25 +367,18 @@ namespace SevenUI
                 grid.SetLayout(size, across);
                 if (isShown)
                 {
-                    // From the row's own top left, which is its line in the list.
-                    StatsSection.TopLeft(grid.Cell, TabItemsLeft, BodyPaddingY - y, across, grid.HeightAt(size, across));
+                    // From the row's own top left, which is its line in the list; level with the first row's items.
+                    StatsSection.TopLeft(grid.Cell, TabItemsLeft, top + ScoreboardStyler.RowPaddingY - y, across,
+                        grid.HeightAt(size, across));
                 }
             }
-            tabsHeight = Mathf.Max(2f * ListPaddingY + grids.Count * ScoreboardStyler.ListRowHeight,
-                2f * BodyPaddingY + shownGrid.HeightAt(size, across));
+            float list = grids.Count * ScoreboardStyler.RowHeight + Mathf.Max(0, grids.Count - 1) * listSpacing;
+            tabsHeight = listPadding.vertical + Mathf.Max(list, rowPaddings + shownGrid.HeightAt(size, across));
         }
 
-        // The largest slot the shown player's items fit two lines of, or else the largest that keeps the board on the
-        // panel.
+        // The largest of the rows' slots that keeps the board on the panel.
         private static float TabSlotSize(ScoreboardItemGrid grid, float across, float room)
         {
-            foreach (float candidate in LargeSlotSizes)
-            {
-                if (grid.LinesAt(candidate, across) <= LargeSlotLines && grid.HeightAt(candidate, across) <= room)
-                {
-                    return candidate;
-                }
-            }
             foreach (float candidate in SlotSizes)
             {
                 if (grid.HeightAt(candidate, across) <= room) return candidate;

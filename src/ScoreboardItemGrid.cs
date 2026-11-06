@@ -134,13 +134,6 @@ namespace SevenUI
             return lines * Step(size) - Gap(size);
         }
 
-        // How many lines the items take with slots this size in a cell this wide.
-        public int LinesAt(float size, float width)
-        {
-            int perLine = PerLine(size, width);
-            return (slots + perLine - 1) / perLine;
-        }
-
         public void SetLayout(float size, float width)
         {
             if (Mathf.Approximately(size, slot) && Mathf.Approximately(width, across)) return;
