@@ -36,6 +36,11 @@ namespace SevenUI
         public readonly Image Background;
 
         private readonly StyleRecorder recorder;
+        // The background's right edge as the game made it, and whether it is cut short.
+        private readonly RectTransform backgroundRect;
+        private readonly Vector2 backgroundAnchorMax;
+        private readonly Vector2 backgroundOffsetMax;
+        private bool backgroundCut;
         // The items the icons showed when last sorted, in the game's order, and the slot each icon goes to.
         private readonly List<ItemIndex> sorted = new List<ItemIndex>();
         private readonly List<int> slotOf = new List<int>();
@@ -58,6 +63,13 @@ namespace SevenUI
             Transform background = strip.transform.Find(ScoreboardStyler.RowBackgroundName);
             Background = background ? background.GetComponent<Image>() : null;
             this.recorder = recorder;
+            backgroundRect = background as RectTransform;
+            if (backgroundRect)
+            {
+                recorder.RecordRect(backgroundRect);
+                backgroundAnchorMax = backgroundRect.anchorMax;
+                backgroundOffsetMax = backgroundRect.offsetMax;
+            }
         }
 
         public bool Alive => Strip && Display;
@@ -66,6 +78,23 @@ namespace SevenUI
         public int Slots => slots;
 
         public float SlotSize => slot;
+
+        // The row's background (its tint and the line over it) that wide from its left, or across the row with null.
+        public void FitBackground(float? width)
+        {
+            if (!backgroundRect || !width.HasValue && !backgroundCut) return;
+            backgroundCut = width.HasValue;
+            if (width.HasValue)
+            {
+                backgroundRect.anchorMax = new Vector2(backgroundRect.anchorMin.x, backgroundAnchorMax.y);
+                backgroundRect.offsetMax = new Vector2(backgroundRect.offsetMin.x + width.Value, backgroundOffsetMax.y);
+            }
+            else
+            {
+                backgroundRect.anchorMax = backgroundAnchorMax;
+                backgroundRect.offsetMax = backgroundOffsetMax;
+            }
+        }
 
         // Sorts the icons again if the game changed what they show; true if it did.
         public bool Refresh()

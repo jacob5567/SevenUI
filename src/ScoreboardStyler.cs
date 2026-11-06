@@ -16,8 +16,8 @@ namespace SevenUI
     // layout the ScoreboardLayout setting picks:
     // - Rows: one line per player, split by thin lines, the viewer's tinted in the accent: the portrait, the name block
     //   with the money at the right of the name, the key item, the equipment, then the items.
-    // - Tabs: each row is a line in a list of the players down the board's left, drawn as in the rows layout up to its
-    //   equipment, with an accent line down the shown player's; the shown player's items sit in the board's middle.
+    // - Tabs: the rows, until their items would be too small; then the same rows collapse to their top lines, and
+    //   only the shown player's items show, marked by an accent line down the left of their row.
     internal sealed class ScoreboardStyler
     {
         // Under the scoreboard panel.
@@ -70,8 +70,6 @@ namespace SevenUI
         public const float RowItemsLeft = RowPaddingX + SlotSize + RowColumnGap + NameWidth + RowColumnGap + SlotSize +
                                           RowColumnGap + SlotSize + RowColumnGap;
         private const float RowNameLeft = RowPaddingX + SlotSize + RowColumnGap;
-        // In the tabs layout, a player's line in the list: a row up to its equipment, with the row's padding after it.
-        public const float ListLineWidth = RowItemsLeft - RowColumnGap + RowPaddingX;
         // The canvas's item slots: 40px, 4px apart, wrapping (ScoreboardItemGrid).
         private const float ItemSlotSize = 40f;
         private const float ItemGap = 4f;
@@ -174,16 +172,10 @@ namespace SevenUI
             rows.Clear();
         }
 
-        // The tabs layout places the rows itself, and sizes their container to the tabs and what is under them. The
-        // headers' first text is the style of the board's own texts.
+        // The board lays the rows' items out. The headers' first text is the style of the board's own texts.
         private void AddItemsBoard(Transform board, RectTransform strips, Transform headers)
         {
             recorder.RecordRect(strips);
-            if (layout == ScoreboardLayout.Tabs)
-            {
-                recorder.Disable(strips.GetComponent<VerticalLayoutGroup>());
-                recorder.Disable(strips.GetComponent<ContentSizeFitter>());
-            }
             itemsBoard = strips.gameObject.AddComponent<ScoreboardItemsBoard>();
             recorder.Add(itemsBoard);
             TMP_Text style = headers ? headers.GetComponentInChildren<TMP_Text>(true) : null;
@@ -244,7 +236,7 @@ namespace SevenUI
             if (row.itemInventoryDisplay)
             {
                 FitItems(row.itemInventoryDisplay);
-                // Placed by the board, after the equipment or right of the tabs layout's list.
+                // Placed by the board, after the equipment.
                 TakeOutOfLayout(row.itemInventoryDisplay.transform);
             }
             // An empty picture of the game's, which would still take a column gap from the name.

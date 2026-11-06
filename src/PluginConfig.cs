@@ -34,7 +34,8 @@ namespace SevenUI
                 "and the run info. Off centers it on the screen, where the game puts it. Only with FlatPanels on.");
             ScoreboardLayout = config.Bind("Panels", "ScoreboardLayout", SevenUI.ScoreboardLayout.Rows,
                 "How the scoreboard shows items. Rows: a row per player, with their items after their equipment, grouped by " +
-                "tier. Tabs: one player's items at a time, picked from a list of the players at the left. Either way, the " +
+                "tier. Tabs: the rows while their items fit at 32 pixels or larger; past that, the rows collapse to show one " +
+                "player's items at a time, the player you point at. Either way, the " +
                 "item or equipment you point at is described in a panel on the scoreboard, with who holds it. Only with " +
                 "FlatPanels on.");
 
