@@ -226,6 +226,14 @@ namespace SevenUI
             RectTransform rowRect = (RectTransform)row.transform;
             recorder.RecordRect(rowRect);
             rowRect.sizeDelta = new Vector2(rowRect.sizeDelta.x, height);
+            // The rows reach the board slightly scaled down (0.976 in game, not by the game's code), which would shrink
+            // everything placed in them off the canvas's sizes; the board keeps them at full scale (ScoreboardItemsBoard).
+            Vector3 scale = rowRect.localScale;
+            recorder.OnRestore(() =>
+            {
+                if (rowRect) rowRect.localScale = scale;
+            });
+            rowRect.localScale = Vector3.one;
 
             recorder.Record(columns);
             bool expandWidth = columns.childForceExpandWidth;
