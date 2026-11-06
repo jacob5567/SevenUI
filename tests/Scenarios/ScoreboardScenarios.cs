@@ -13,8 +13,9 @@ namespace SevenUI.Tests
     // The scoreboard: checks that a row's items are laid out as the canvas's grid in each layout, that pointing at an
     // item, the equipment or the key item describes it in the scoreboard's pane, and that the layout can be switched while the scoreboard is open, and
     // screenshots of the scoreboard in SevenUI's look and the game's, with a spread of items and with from a few to a
-    // hundred different items. Together they make the scoreboard suite (SevenUITests.Suites); the checks are also among
-    // the panels' checks, and the spread's screenshot among the screenshots.
+    // hundred different items, each in both layouts. Together they make the scoreboard suite, and each layout's its own
+    // suite (SevenUITests.Suites); the checks are also among the panels' checks, and the spread's screenshot among the
+    // screenshots.
     internal static class ScoreboardScenarios
     {
         // A few items to hover, and the header band the flat look adds to an item's tooltip (TooltipStyler).
@@ -29,30 +30,32 @@ namespace SevenUI.Tests
 
         public static IEnumerable<Scenario> All() => Checks().Concat(Screenshots());
 
-        public static IEnumerable<Scenario> Checks()
+        // One layout's checks and screenshots, and the switch between the layouts, which both suites share.
+        public static IEnumerable<Scenario> All(ScoreboardLayout layout) =>
+            Checks(layout).Append(LayoutSwitchScenario()).Concat(Screenshots(layout));
+
+        public static IEnumerable<Scenario> Checks() =>
+            Checks(ScoreboardLayout.Rows).Concat(Checks(ScoreboardLayout.Tabs)).Append(LayoutSwitchScenario());
+
+        // Each layout's checks, named "scoreboard_..." in the rows layout and "scoreboard_tabs_..." in the tabs layout.
+        public static IEnumerable<Scenario> Checks(ScoreboardLayout layout)
         {
-            yield return new Scenario(1, "scoreboard_items_in_slots", Stages.TitanicPlains, ItemsInSlots);
-            yield return new Scenario(1, "scoreboard_tabs_items_in_slots", Stages.TitanicPlains,
-                h => ItemsInSlots(h, ScoreboardLayout.Tabs));
-            yield return new Scenario(1, "scoreboard_centered_without_setting", Stages.TitanicPlains,
-                h => CenteredWithoutSetting(h, ScoreboardLayout.Rows));
-            yield return new Scenario(1, "scoreboard_tabs_centered_without_setting", Stages.TitanicPlains,
-                h => CenteredWithoutSetting(h, ScoreboardLayout.Tabs));
-            yield return new Scenario(1, "scoreboard_layout_switch", Stages.TitanicPlains, LayoutSwitch);
-            yield return new Scenario(1, "scoreboard_item_pane", Stages.TitanicPlains, h => ItemPane(h, ScoreboardLayout.Rows));
-            yield return new Scenario(1, "scoreboard_tabs_item_pane", Stages.TitanicPlains, h => ItemPane(h, ScoreboardLayout.Tabs));
-            yield return new Scenario(1, "scoreboard_equipment_pane", Stages.TitanicPlains,
-                h => LoadoutPane(h, ScoreboardLayout.Rows, false));
-            yield return new Scenario(1, "scoreboard_tabs_equipment_pane", Stages.TitanicPlains,
-                h => LoadoutPane(h, ScoreboardLayout.Tabs, false));
-            yield return new Scenario(1, "scoreboard_key_item_pane", Stages.TitanicPlains,
-                h => LoadoutPane(h, ScoreboardLayout.Rows, true));
-            yield return new Scenario(1, "scoreboard_tabs_key_item_pane", Stages.TitanicPlains,
-                h => LoadoutPane(h, ScoreboardLayout.Tabs, true));
-            yield return new Scenario(1, "item_bar_item_tooltip", Stages.TitanicPlains, h => ItemBarTooltip(h, ScoreboardLayout.Rows));
-            yield return new Scenario(1, "item_bar_item_tooltip_over_tabs", Stages.TitanicPlains,
-                h => ItemBarTooltip(h, ScoreboardLayout.Tabs));
+            string prefix = Prefix(layout);
+            yield return new Scenario(1, prefix + "items_in_slots", Stages.TitanicPlains, h => ItemsInSlots(h, layout));
+            yield return new Scenario(1, prefix + "centered_without_setting", Stages.TitanicPlains,
+                h => CenteredWithoutSetting(h, layout));
+            yield return new Scenario(1, prefix + "item_pane", Stages.TitanicPlains, h => ItemPane(h, layout));
+            yield return new Scenario(1, prefix + "equipment_pane", Stages.TitanicPlains, h => LoadoutPane(h, layout, false));
+            yield return new Scenario(1, prefix + "key_item_pane", Stages.TitanicPlains, h => LoadoutPane(h, layout, true));
+            yield return new Scenario(1, layout == ScoreboardLayout.Rows ? "item_bar_item_tooltip" : "item_bar_item_tooltip_over_tabs",
+                Stages.TitanicPlains, h => ItemBarTooltip(h, layout));
         }
+
+        private static Scenario LayoutSwitchScenario() =>
+            new Scenario(1, "scoreboard_layout_switch", Stages.TitanicPlains, LayoutSwitch);
+
+        private static string Prefix(ScoreboardLayout layout) =>
+            layout == ScoreboardLayout.Rows ? "scoreboard_" : "scoreboard_tabs_";
 
         // With the scoreboard open in each layout, the pointer on an item in the item bar over it opens the item's
         // tooltip, in the flat look: the board's pane doesn't take it.
@@ -170,19 +173,17 @@ namespace SevenUI.Tests
             return events;
         }
 
-        public static Scenario SpreadScreenshot() => Shot("scoreboard", Spread);
+        public static Scenario SpreadScreenshot() => Shot("scoreboard", h => Spread(h, ScoreboardLayout.Rows));
 
-        public static IEnumerable<Scenario> Screenshots()
+        public static IEnumerable<Scenario> Screenshots() =>
+            Screenshots(ScoreboardLayout.Rows).Concat(Screenshots(ScoreboardLayout.Tabs));
+
+        public static IEnumerable<Scenario> Screenshots(ScoreboardLayout layout)
         {
-            yield return SpreadScreenshot();
-            yield return Shot("scoreboard_tabs", h => Spread(h, ScoreboardLayout.Tabs));
+            yield return layout == ScoreboardLayout.Rows ? SpreadScreenshot() : Shot("scoreboard_tabs", h => Spread(h, layout));
             foreach (int count in ItemCounts)
             {
-                yield return Shot($"scoreboard_items_{count}", h => WithItems(h, count, ScoreboardLayout.Rows));
-            }
-            foreach (int count in ItemCounts)
-            {
-                yield return Shot($"scoreboard_tabs_items_{count}", h => WithItems(h, count, ScoreboardLayout.Tabs));
+                yield return Shot($"{Prefix(layout)}items_{count}", h => WithItems(h, count, layout));
             }
         }
 
@@ -191,8 +192,6 @@ namespace SevenUI.Tests
 
         // Many different items in the viewer's row, more than fit one line: the game would shrink them to fit its cell,
         // and lay them out in the order they were picked up.
-        private static IEnumerator ItemsInSlots(Harness h) => ItemsInSlots(h, ScoreboardLayout.Rows);
-
         private static IEnumerator ItemsInSlots(Harness h, ScoreboardLayout layout)
         {
             h.SetConfig(SevenUIPlugin.Settings.ScoreboardLayout, layout);
@@ -252,8 +251,6 @@ namespace SevenUI.Tests
 
         // The tab screen with one item of each main tier and the equipment, in the given layout whatever the player's
         // setting.
-        private static IEnumerator Spread(Harness h) => Spread(h, ScoreboardLayout.Rows);
-
         private static IEnumerator Spread(Harness h, ScoreboardLayout layout)
         {
             h.SetConfig(SevenUIPlugin.Settings.ScoreboardLayout, layout);
