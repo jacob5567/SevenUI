@@ -17,7 +17,7 @@ namespace SevenUI
     // - Rows: one line per player, split by thin lines, the viewer's tinted in the accent: the portrait, the name block
     //   with the money at the right of the name, the key item, the equipment, then the items.
     // - Tabs: the rows, until their items would be too small; then the same rows collapse to their top lines, and
-    //   only the shown player's items show, marked by an accent line down the left of their row.
+    //   only the shown player's items show, their row and items outlined together as one tab (ScoreboardTabShape).
     internal sealed class ScoreboardStyler
     {
         // Under the scoreboard panel.
@@ -291,7 +291,6 @@ namespace SevenUI
             }
             if (layout == ScoreboardLayout.Tabs)
             {
-                AddTabBar(background);
                 ScoreboardTab tab = row.gameObject.AddComponent<ScoreboardTab>();
                 tab.Board = itemsBoard;
                 tab.Strip = row;
@@ -311,25 +310,6 @@ namespace SevenUI
                 if (element) element.ignoreLayout = false;
             });
             element.ignoreLayout = true;
-        }
-
-        // The shown player's accent line down the left of their line in the list, which the board turns on.
-        private void AddTabBar(Transform background)
-        {
-            if (background.Find(ScoreboardItemsBoard.TabBarName)) return;
-            GameObject bar = NewUIObject(ScoreboardItemsBoard.TabBarName, background);
-            bar.AddComponent<LayoutIgnorer>();
-            RectTransform rect = (RectTransform)bar.transform;
-            rect.anchorMin = Vector2.zero;
-            rect.anchorMax = new Vector2(0f, 1f);
-            rect.pivot = new Vector2(0f, 0.5f);
-            rect.anchoredPosition = Vector2.zero;
-            rect.sizeDelta = new Vector2(ScoreboardItemsBoard.TabBarWidth, 0f);
-            Image image = bar.AddComponent<Image>();
-            image.color = Palette.Accent;
-            image.raycastTarget = false;
-            bar.SetActive(false);
-            recorder.Add(bar);
         }
 
         // The name on the first of three lines; the survivor and level, and the counts, on the mod's. The texts start

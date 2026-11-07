@@ -107,27 +107,24 @@ namespace SevenUI.Tests
             yield return h.ExpectScoreboardAsCanvas(false);
         }
 
-        // With the rows collapsed, the pointer on another player's row shows their items in place of the viewer's,
-        // and moves the accent line to their row.
+        // With the rows collapsed, the pointer on another player's row shows their items in place of the viewer's, and
+        // moves the tab to their row. The last row's: its hundred items run past the rows' bottom, so the tab reaches
+        // up from it.
         private static IEnumerator ShowsPointedPlayer(Harness h)
         {
             yield return UseLayout(h, ScoreboardLayout.Tabs);
             yield return ScoreboardSetUp.Open(h);
             yield return h.ExpectScoreboardAsCanvas(true);
             ScoreboardItemsBoard board = SevenUIChecks.HudRoot(h).GetComponentInChildren<ScoreboardItemsBoard>();
-            ScoreboardItemGrid other = board.Grids.FirstOrDefault(grid => grid.Strip.master != Harness.LocalBody.master);
+            ScoreboardItemGrid other = board.Grids.LastOrDefault(grid => grid.Strip.master != Harness.LocalBody.master);
             if (other == null) throw h.Fail("no other player's row on the scoreboard");
             Transform background = other.Strip.transform.Find(ScoreboardStyler.RowBackgroundName);
             yield return h.Wait(SettleSeconds);
             PointAt(h, (RectTransform)background.Find("NameObject"), "another player's name", owner: other.Strip.transform);
-            yield return h.Until(() =>
-                {
-                    Transform bar = background.Find(ScoreboardItemsBoard.TabBarName);
-                    return board.ShownStrip == other.Strip && bar && bar.gameObject.activeSelf &&
-                           board.Grids.All(grid => (grid == other) == Shown(grid.Cell));
-                },
+            yield return h.Until(() => board.ShownStrip == other.Strip && board.Grids.All(grid => (grid == other) == Shown(grid.Cell)),
                 () => $"the other player's items shown (shown {(board.ShownStrip ? board.ShownStrip.name : "none")}, " +
                       $"items showing in {board.Grids.Count(grid => Shown(grid.Cell))} rows)");
+            yield return h.ExpectScoreboardTab(other.Strip);
             yield return h.Wait(SettleSeconds);
             yield return h.Screenshot("scoreboard_tabs_other_player");
         }

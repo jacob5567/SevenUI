@@ -25,10 +25,12 @@ namespace SevenUI.Tests
         // Added to the zone's percentage to write one that doesn't match it.
         private const int MismatchedPercentStep = 7;
         // The canvas's item slots on the scoreboard, at most 40px, and the items' place, 16px after the equipment, their
-        // top at the name block's (the first row's, with the rows collapsed). The key item and equipment slots are 52px,
-        // and a collapsed row 92px tall.
+        // top at the name block's. With the rows collapsed, the shown items are 16px in from every side of their part
+        // of the tab, which starts 16px after the equipment. The key item and equipment slots are 52px, and a collapsed
+        // row 92px tall.
         private const float ScoreboardItemSlot = 40f;
         private const float ScoreboardItemsAfterEquipment = 16f;
+        private const float ScoreboardTabInset = 16f;
         private const float ScoreboardLoadoutSlot = 52f;
         private const float ScoreboardCollapsedRow = 92f;
         private const string ScoreboardKeyItemName = "KeyItemBackground";
@@ -170,7 +172,8 @@ namespace SevenUI.Tests
 
         // Null when a row's items are drawn as the canvas's grid: slots of one size, at most 40px, none over another,
         // sorted into tier runs, the first at the items' top left, and no counts among them, 16px after the equipment,
-        // their top at the name block's, or with the rows collapsed at the first row's.
+        // their top at the name block's. With the rows collapsed, inset into the tab, their top at the name block's or
+        // above it (TabProblem checks where).
         private static string GridProblem(Harness h, ScoreboardItemsBoard board, ScoreboardStrip strip, Transform background)
         {
             List<ItemIcon> icons = strip.itemInventoryDisplay.itemIcons.Where(icon => icon && icon.isActiveAndEnabled).ToList();
@@ -192,10 +195,11 @@ namespace SevenUI.Tests
             Rect first = slots.OrderByDescending(slot => Mathf.Round(slot.box.yMax)).ThenBy(slot => slot.box.xMin).First().box;
             bool cornered = Near(first.xMin, cell.xMin) && Near(first.yMax, cell.yMax);
             if (board.Grids.Count == 0) return "no rows laid out yet";
-            Transform top = board.Collapsed ? board.Grids[0].Strip.transform.Find(ScoreboardStyler.RowBackgroundName) : background;
             Rect equipment = Box(h, (RectTransform)background.Find(ScoreboardEquipmentName));
-            Rect name = Box(h, (RectTransform)top.Find(ScoreboardNamePath));
-            string place = Near(cell.xMin - equipment.xMax, ScoreboardItemsAfterEquipment) && Near(cell.yMax, name.yMax)
+            Rect name = Box(h, (RectTransform)background.Find(ScoreboardNamePath));
+            float after = ScoreboardItemsAfterEquipment + (board.Collapsed ? ScoreboardTabInset : 0f);
+            bool top = Near(cell.yMax, name.yMax) || board.Collapsed && cell.yMax > name.yMax;
+            string place = Near(cell.xMin - equipment.xMax, after) && top
                 ? null
                 : $"cell {cell.xMin - equipment.xMax:0.#} after the equipment, top {cell.yMax:0.#} beside a name block " +
                   $"from {name.yMax:0.#}";
@@ -590,8 +594,9 @@ namespace SevenUI.Tests
         // The open scoreboard as wide as the canvas's and where the setting puts it, without the game's headers, and the
         // viewer's row: the survivor and level under the name and the item counts under those, the equipment outlined,
         // and its items as the canvas's grid (GridProblem). The viewer's row tinted, the money at the right of the name's
-        // line, and the key item slot before the equipment; with the rows collapsed, the viewer's shown, with its accent
-        // line (CollapsedProblem). Given whether the rows should be collapsed, they must be.
+        // line, and the key item slot before the equipment; with the rows collapsed, the viewer's shown in the tab, which
+        // has its own tint in place of the viewer's (CollapsedProblem, TabProblem). Given whether the rows should be
+        // collapsed, they must be.
         public static IEnumerator ExpectScoreboardAsCanvas(this Harness h, bool? collapse = null)
         {
             string look = null;
@@ -616,11 +621,10 @@ namespace SevenUI.Tests
                     string parts = RowPartsProblem(h, row, background);
                     if (collapsed)
                     {
-                        Transform bar = background.Find(ScoreboardItemsBoard.TabBarName);
                         parts = items.ShownStrip != row.Strip ? "another player shown" :
-                            !bar || !bar.gameObject.activeSelf ? "no accent line on the player's row" :
-                            parts ?? CollapsedProblem(h, items);
+                            parts ?? CollapsedProblem(h, items) ?? TabProblem(h, items, row.Strip);
                     }
+                    Color tint = collapsed ? Color.clear : ScoreboardRow.OwnRowColor;
                     string grid = GridProblem(h, items, row.Strip, background);
                     string placed = PlacementProblem(h, board);
                     string portrait = PortraitProblem(h, background);
@@ -629,7 +633,7 @@ namespace SevenUI.Tests
                            $"items {grid ?? "as the grid"}, board {placed ?? "in place"}, portrait {portrait ?? "centered"}";
                     return folded == null && headed == null && parts == null && grid == null && placed == null && portrait == null &&
                            row.Counts.text.Contains(ScoreboardCountsWord) &&
-                           SevenUIChecks.Near(row.Background.color, ScoreboardRow.OwnRowColor) && row.Survivor.text.Contains(" · ") &&
+                           SevenUIChecks.Near(row.Background.color, tint) && row.Survivor.text.Contains(" · ") &&
                            equipment && equipment.Find("SevenUIEquipmentOutline");
                 },
                 () => $"the scoreboard laid out as on the canvas ({look}) {h.Diagnosis()}");
@@ -686,6 +690,69 @@ namespace SevenUI.Tests
                 ? null
                 : $"rows [{string.Join(", ", rows.Select(BoxText))}], backgrounds to [{string.Join(", ", backgrounds.Select(box => box.xMax.ToString("0.#")))}], " +
                   $"shown items {BoxText(items)}, others hidden {hidden}, board {BoxText(boardBox)}, {spacing:0.#} apart";
+        }
+
+        // With the rows collapsed, the given player shown in the tab (TabProblem).
+        public static IEnumerator ExpectScoreboardTab(this Harness h, ScoreboardStrip strip)
+        {
+            string look = null;
+            yield return h.Until(
+                () =>
+                {
+                    ScoreboardItemsBoard board = strip ? strip.GetComponentInParent<ScoreboardItemsBoard>() : null;
+                    look = !board ? "no board" : !board.Collapsed ? "rows not collapsed" :
+                        board.ShownStrip != strip ? "another player shown" : TabProblem(h, board, strip);
+                    return look == null;
+                },
+                () => $"the player's row and items as the tab ({look}) {h.Diagnosis()}");
+        }
+
+        // Null when the shown player's row and items are drawn as one tab: the tab's row part on the row and the rest
+        // from the row's right to the rows' right edge, the items 16px in from that part's edges, which reach no further
+        // than the row does at its top and bottom. It follows the row down from its top, or, if the items would run past
+        // the rows' bottom, sits on that bottom, or on the first row's top when it is taller than the rows. The row's
+        // own tint is cleared for the tab's.
+        private static string TabProblem(Harness h, ScoreboardItemsBoard board, ScoreboardStrip strip)
+        {
+            ScoreboardTabShape tab = board.Tab;
+            ScoreboardItemGrid shown = board.Grids.FirstOrDefault(grid => grid.Strip == strip);
+            if (!tab || !tab.isActiveAndEnabled) return "no tab drawn";
+            if (shown == null) return "the player's row isn't laid out";
+            Rect row = Box(h, (RectTransform)strip.transform);
+            Rect cell = Box(h, shown.Cell);
+            Rect rowPart = TabBox(h, tab, tab.RowArea);
+            Rect itemsPart = TabBox(h, tab, tab.ItemsArea);
+            List<Rect> rows = board.Grids.Select(grid => Box(h, (RectTransform)grid.Strip.transform)).ToList();
+            float rowsTop = rows.Max(box => box.yMax);
+            float rowsBottom = rows.Min(box => box.yMin);
+            bool onRow = Near(rowPart.xMin, row.xMin) && Near(rowPart.yMin, row.yMin) && Near(rowPart.yMax, row.yMax) &&
+                         Near(itemsPart.xMin, rowPart.xMax) && Near(itemsPart.xMax, row.xMax);
+            bool inset = Near(cell.xMin - itemsPart.xMin, ScoreboardTabInset) && Near(itemsPart.xMax - cell.xMax, ScoreboardTabInset) &&
+                         Near(itemsPart.yMax - cell.yMax, ScoreboardTabInset) &&
+                         Near(itemsPart.yMin, Mathf.Min(cell.yMin - ScoreboardTabInset, row.yMin));
+            bool placed = Near(itemsPart.yMax, row.yMax) ||
+                          Near(itemsPart.yMin, rowsBottom) && itemsPart.yMax > row.yMax ||
+                          Near(itemsPart.yMax, rowsTop) && itemsPart.yMin < rowsBottom;
+            bool untinted = !shown.Row || SevenUIChecks.Near(shown.Row.Background.color, Color.clear);
+            return onRow && inset && placed && untinted
+                ? null
+                : $"row {BoxText(row)}, tab on the row {BoxText(rowPart)} and by the items {BoxText(itemsPart)}, items " +
+                  $"{BoxText(cell)}, rows {rowsBottom:0.#}-{rowsTop:0.#}, on the row {onRow}, inset {inset}, placed {placed}, " +
+                  $"row tint cleared {untinted}";
+        }
+
+        // A part of the tab, given across and down from its rect's top left, as a box on screen in canvas pixels.
+        private static Rect TabBox(Harness h, ScoreboardTabShape tab, Rect area)
+        {
+            (Camera camera, float unit) = Screen(h);
+            RectTransform rect = tab.rectTransform;
+            Rect local = rect.rect;
+            Vector2 a = RectTransformUtility.WorldToScreenPoint(camera,
+                rect.TransformPoint(new Vector3(local.xMin + area.xMin, local.yMax - area.yMin, 0f)));
+            Vector2 b = RectTransformUtility.WorldToScreenPoint(camera,
+                rect.TransformPoint(new Vector3(local.xMin + area.xMax, local.yMax - area.yMax, 0f)));
+            return Rect.MinMaxRect(Mathf.Min(a.x, b.x) / unit, Mathf.Min(a.y, b.y) / unit, Mathf.Max(a.x, b.x) / unit,
+                Mathf.Max(a.y, b.y) / unit);
         }
 
         // With the pointer on the icon: the pane describing its item under its name, with the viewer among its holders

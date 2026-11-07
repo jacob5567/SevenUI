@@ -29,9 +29,12 @@ namespace SevenUI
         public static readonly Color GhostButton = new Color(0f, 0f, 0f, 0.35f);
         // rgba(184,196,255,0.08), the face of a hovered pause menu button.
         public static readonly Color HoverFace = new Color(0.722f, 0.769f, 1f, 0.08f);
-        // rgba(184,196,255,0.06) and #262a34, the viewer's own row on the scoreboard and the lines between rows.
+        // rgba(184,196,255,0.06) and #3b4150, the viewer's own row on the scoreboard and the lines between rows.
         public static readonly Color ScoreboardOwnRow = new Color(0.722f, 0.769f, 1f, 0.06f);
-        public static readonly Color RowDivider = new Color(0.149f, 0.165f, 0.204f, 1f);
+        public static readonly Color RowDivider = new Color(0.231f, 0.255f, 0.314f, 1f);
+        // rgba(184,196,255,0.2) and #9aa6e0, the collapsed scoreboard's tab (ScoreboardTabShape) and its outline.
+        public static readonly Color ScoreboardTab = new Color(0.722f, 0.769f, 1f, 0.2f);
+        public static readonly Color ScoreboardTabLine = new Color(0.604f, 0.651f, 0.878f, 1f);
         // The scoreboard's count of items per tier: #7fd07f, #e06a5f, #e3d35a, #7aa8ff and #c07ad8 for uncommon,
         // legendary, boss, lunar and void items; common ones in Text.
         public static readonly Color CountUncommon = new Color(0.498f, 0.816f, 0.498f, 1f);

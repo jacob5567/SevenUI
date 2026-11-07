@@ -34,6 +34,7 @@ namespace SevenUI
         public readonly ItemInventoryDisplay Display;
         public readonly RectTransform Cell;
         public readonly Image Background;
+        public readonly ScoreboardRow Row;
 
         private readonly StyleRecorder recorder;
         // The background's right edge as the game made it, and whether it is cut short.
@@ -62,6 +63,7 @@ namespace SevenUI
             Cell = (RectTransform)Display.transform;
             Transform background = strip.transform.Find(ScoreboardStyler.RowBackgroundName);
             Background = background ? background.GetComponent<Image>() : null;
+            Row = strip.GetComponentInChildren<ScoreboardRow>(true);
             this.recorder = recorder;
             backgroundRect = background as RectTransform;
             if (backgroundRect)

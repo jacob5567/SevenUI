@@ -7,7 +7,8 @@ using UnityEngine.UI;
 
 namespace SevenUI
 {
-    // Keeps one scoreboard row as on the design canvas while it shows: tinted in the accent if it is the viewer's own,
+    // Keeps one scoreboard row as on the design canvas while it shows: tinted in the accent if it is the viewer's own
+    // (not while the collapsed board's tab, which has its own tint, takes it in),
     // the player's survivor and level ("Commando · Lv 17") under their name, the row's items under
     // that ("40 items · 22 9 4 2 1 2", the total in bold, then the common, uncommon, legendary, boss, lunar and void
     // counts in their tiers' colors), the name cut short before the money at the right of its line, and the
@@ -37,9 +38,12 @@ namespace SevenUI
         // The money at the right of the name's line.
         public TMP_Text Money;
         public Image[] FocusOutlines;
+        // Set by the board while the row is in the collapsed board's tab (ScoreboardTabShape).
+        public bool InTab;
 
         private CharacterMaster shownMaster;
         private CharacterMaster shownViewer;
+        private bool tintedInTab;
         private CharacterBody shownBody;
         private int shownLevel = -1;
         private Inventory countedInventory;
@@ -53,11 +57,12 @@ namespace SevenUI
             if (!Strip) return;
             CharacterMaster master = Strip.master;
             CharacterMaster viewer = Hud && Hud.localUserViewer != null ? Hud.localUserViewer.cachedMaster : null;
-            if (master != shownMaster || viewer != shownViewer)
+            if (master != shownMaster || viewer != shownViewer || InTab != tintedInTab)
             {
                 shownMaster = master;
                 shownViewer = viewer;
-                Background.color = master && master == viewer ? OwnRowColor : Color.clear;
+                tintedInTab = InTab;
+                Background.color = master && master == viewer && !InTab ? OwnRowColor : Color.clear;
             }
 
             CharacterBody body = master ? master.GetBody() : null;
