@@ -113,6 +113,8 @@ namespace SevenUI.Tests
         private static IEnumerator ShowsPointedPlayer(Harness h)
         {
             yield return UseLayout(h, ScoreboardLayout.Tabs);
+            // A few items of the viewer's too, which the scoreboard's checks look at.
+            ScoreboardSetUp.GiveDifferentItems(h, TooltipItems);
             yield return ScoreboardSetUp.Open(h);
             yield return h.ExpectScoreboardAsCanvas(true);
             ScoreboardItemsBoard board = SevenUIChecks.HudRoot(h).GetComponentInChildren<ScoreboardItemsBoard>();
@@ -145,6 +147,8 @@ namespace SevenUI.Tests
             yield return UseLayout(h, layout);
             ScoreboardSetUp.GiveDifferentItems(h, TooltipItems);
             yield return ScoreboardSetUp.Open(h);
+            // The scoreboard under the item bar as the layout draws it, its rows collapsed in the tabs setting.
+            yield return h.ExpectScoreboardAsCanvas(Collapses(layout));
             HUD hud = SevenUIChecks.HudRoot(h).GetComponent<HUD>();
             ItemIcon icon = null;
             yield return h.Until(() => (icon = FirstIcon(hud.itemInventoryDisplay.transform)) != null, "an item in the item bar");
