@@ -12,12 +12,11 @@ namespace SevenUI
     // game's headers, and each player's row with the portrait on a flat square, the name in bold over the survivor and
     // level and the item counts (ScoreboardRow), the key item on a flat slot, the equipment on a slot with its orange
     // outline, and the money in gold. The game keeps building and filling the rows; its parts are resized and moved,
-    // and the board's own component (ScoreboardItemsBoard) lays the items out and describes the one pointed at, in the
-    // layout the ScoreboardLayout setting picks:
-    // - Rows: one line per player, split by thin lines, the viewer's tinted in the accent: the portrait, the name block
-    //   with the money at the right of the name, the key item, the equipment, then the items.
-    // - Tabs: the rows, until their items would be too small; then the same rows collapse to their top lines, and
-    //   only the shown player's items show, their row and items outlined together as one tab (ScoreboardTabShape).
+    // and the board's own component (ScoreboardItemsBoard) lays the items out and describes the one pointed at. Each
+    // player has a line, split from the others by thin lines, the viewer's tinted in the accent: the portrait, the name
+    // block with the money at the right of the name, the key item, the equipment, then the items. When several players'
+    // items would be too small, the rows collapse to their top lines, and only the shown player's items show, their row
+    // and items outlined together as one tab (ScoreboardTabShape).
     internal sealed class ScoreboardStyler
     {
         // Under the scoreboard panel.
@@ -92,9 +91,6 @@ namespace SevenUI
         private readonly HashSet<ScoreboardStrip> styled = new HashSet<ScoreboardStrip>();
         private ScoreboardPlacement placement;
         private ScoreboardItemsBoard itemsBoard;
-        // The layout the rows are styled in. Changing the setting restores the scoreboard first
-        // (SevenUIController), so it is read afresh only over a board in the game's look.
-        private ScoreboardLayout layout;
 
         public ScoreboardStyler(HUD hud, Transform root)
         {
@@ -104,7 +100,6 @@ namespace SevenUI
 
         public void Apply()
         {
-            layout = SevenUIPlugin.Settings.ScoreboardLayout.Value;
             root.GetComponentsInChildren(true, boards);
             foreach (ScoreboardController board in boards)
             {
@@ -155,7 +150,7 @@ namespace SevenUI
             {
                 recorder.SetActive(headers.gameObject, false);
             }
-            // Before the rows, which the tabs layout points at it.
+            // Before the rows, which point at it.
             if (strips && !strips.GetComponent<ScoreboardItemsBoard>())
             {
                 AddItemsBoard(board, strips, headers);
@@ -179,7 +174,7 @@ namespace SevenUI
             itemsBoard = strips.gameObject.AddComponent<ScoreboardItemsBoard>();
             recorder.Add(itemsBoard);
             TMP_Text style = headers ? headers.GetComponentInChildren<TMP_Text>(true) : null;
-            itemsBoard.Init(layout, recorder, styled, hud, (RectTransform)board, style);
+            itemsBoard.Init(recorder, styled, hud, (RectTransform)board, style);
         }
 
         private void StyleRow(ScoreboardStrip row)
@@ -289,13 +284,10 @@ namespace SevenUI
             {
                 AddDivider(background);
             }
-            if (layout == ScoreboardLayout.Tabs)
-            {
-                ScoreboardTab tab = row.gameObject.AddComponent<ScoreboardTab>();
-                tab.Board = itemsBoard;
-                tab.Strip = row;
-                recorder.Add(tab);
-            }
+            ScoreboardTab tab = row.gameObject.AddComponent<ScoreboardTab>();
+            tab.Board = itemsBoard;
+            tab.Strip = row;
+            recorder.Add(tab);
         }
 
         // Out of the row's columns, for the board to place.
@@ -546,7 +538,7 @@ namespace SevenUI
 
         public void Describe(StringBuilder output)
         {
-            output.AppendLine($"  restyled scoreboard values: {recorder.Count}, layout {layout}, " +
+            output.AppendLine($"  restyled scoreboard values: {recorder.Count}, " +
                               $"rows laid out {(itemsBoard ? itemsBoard.Grids.Count : 0)}");
         }
     }

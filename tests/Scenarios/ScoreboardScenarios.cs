@@ -10,14 +10,14 @@ using UnityEngine.UI;
 
 namespace SevenUI.Tests
 {
-    // The scoreboard: checks that a row's items are laid out as the canvas's grid in each layout, that pointing at an
-    // item, the equipment or the key item describes it in the scoreboard's pane, that the tabs setting keeps the rows
-    // while there is room and collapses them when crowded, and that the layout can be switched while the scoreboard is
-    // open, and screenshots of the scoreboard in SevenUI's look and the game's, with a spread of items and with from a
-    // few to a hundred different items, each in both layouts. In the tabs setting the board is crowded with stand-in
-    // players (ScoreboardSetUp.AddPlayers), so its rows collapse. Together they make the scoreboard suite, and each
-    // layout's its own suite (SevenUITests.Suites); the checks are also among the panels' checks, and the spread's
-    // screenshot among the screenshots.
+    // The scoreboard: checks that a row's items are laid out as the canvas's grid, that pointing at an item, the
+    // equipment or the key item describes it in the scoreboard's pane, that several players' rows stay rows while
+    // there is room and collapse into tabs when crowded, also while the scoreboard is open, and screenshots of the
+    // scoreboard in SevenUI's look and the game's, with a spread of items and with from a few to a hundred different
+    // items. Each runs on both boards: as rows, the viewer alone, and as tabs, the board crowded with stand-in players
+    // (ScoreboardSetUp.AddPlayers) so its rows collapse. Together they make the scoreboard suite, and each board's its
+    // own suite (SevenUITests.Suites); the checks are also among the panels' checks, and the spread's screenshot among
+    // the screenshots.
     internal static class ScoreboardScenarios
     {
         // A few items to hover, and the header band the flat look adds to an item's tooltip (TooltipStyler).
@@ -29,82 +29,77 @@ namespace SevenUI.Tests
         private static readonly int[] ItemCounts = { 3, 10, 20, 30, 45, 50, 70, 75, 100 };
         // Long enough for the switch between looks to settle.
         private const float SettleSeconds = 0.5f;
-        // Other players, each with this many different items: more than the rows fit at 32px slots, so in the tabs
-        // setting they collapse.
+        // Other players, each with this many different items: more than the rows fit at 32px slots, so they collapse.
+        // With the fewer, the rows have room at full size.
         private const int CrowdPlayers = 3;
         private const int CrowdItems = 100;
-        // The size the rows keep before the tabs setting collapses them.
-        private const float SmallestRowsSlot = 32f * HudUnits.PerCanvasPixel;
+        private const int RoomyItems = 10;
+
+        // The two boards the scenarios run on, set up from the players and their items alone.
+        internal enum Board
+        {
+            // The viewer alone, whose row never collapses.
+            Rows,
+            // The viewer and a crowd of stand-in players with many items, so the rows collapse.
+            Tabs,
+        }
 
         public static IEnumerable<Scenario> All() => Checks().Concat(Screenshots());
 
-        // One layout's checks and screenshots, and the switch between the layouts, which both suites share.
-        public static IEnumerable<Scenario> All(ScoreboardLayout layout) =>
-            Checks(layout).Append(LayoutSwitchScenario()).Concat(Screenshots(layout));
+        // One board's checks and screenshots, and the collapse while open, which both suites share.
+        public static IEnumerable<Scenario> All(Board board) =>
+            Checks(board).Append(CollapseWhileOpenScenario()).Concat(Screenshots(board));
 
         public static IEnumerable<Scenario> Checks() =>
-            Checks(ScoreboardLayout.Rows).Concat(Checks(ScoreboardLayout.Tabs)).Append(LayoutSwitchScenario());
+            Checks(Board.Rows).Concat(Checks(Board.Tabs)).Append(CollapseWhileOpenScenario());
 
-        // Each layout's checks, named "scoreboard_..." in the rows layout and "scoreboard_tabs_..." in the tabs layout.
-        public static IEnumerable<Scenario> Checks(ScoreboardLayout layout)
+        // Each board's checks, named "scoreboard_..." on the rows and "scoreboard_tabs_..." on the tabs.
+        public static IEnumerable<Scenario> Checks(Board board)
         {
-            string prefix = Prefix(layout);
-            yield return new Scenario(1, prefix + "items_in_slots", Stages.TitanicPlains, h => ItemsInSlots(h, layout));
+            string prefix = Prefix(board);
+            yield return new Scenario(1, prefix + "items_in_slots", Stages.TitanicPlains, h => ItemsInSlots(h, board));
             yield return new Scenario(1, prefix + "centered_without_setting", Stages.TitanicPlains,
-                h => CenteredWithoutSetting(h, layout));
-            yield return new Scenario(1, prefix + "item_pane", Stages.TitanicPlains, h => ItemPane(h, layout));
-            yield return new Scenario(1, prefix + "equipment_pane", Stages.TitanicPlains, h => LoadoutPane(h, layout, false));
-            yield return new Scenario(1, prefix + "key_item_pane", Stages.TitanicPlains, h => LoadoutPane(h, layout, true));
-            yield return new Scenario(1, layout == ScoreboardLayout.Rows ? "item_bar_item_tooltip" : "item_bar_item_tooltip_over_tabs",
-                Stages.TitanicPlains, h => ItemBarTooltip(h, layout));
-            if (layout == ScoreboardLayout.Rows)
+                h => CenteredWithoutSetting(h, board));
+            yield return new Scenario(1, prefix + "item_pane", Stages.TitanicPlains, h => ItemPane(h, board));
+            yield return new Scenario(1, prefix + "equipment_pane", Stages.TitanicPlains, h => LoadoutPane(h, board, false));
+            yield return new Scenario(1, prefix + "key_item_pane", Stages.TitanicPlains, h => LoadoutPane(h, board, true));
+            yield return new Scenario(1, board == Board.Rows ? "item_bar_item_tooltip" : "item_bar_item_tooltip_over_tabs",
+                Stages.TitanicPlains, h => ItemBarTooltip(h, board));
+            if (board == Board.Rows)
             {
-                yield return new Scenario(1, "scoreboard_shrinks_when_crowded", Stages.TitanicPlains, ShrinksWhenCrowded);
+                yield return new Scenario(1, "scoreboard_players_rows_while_roomy", Stages.TitanicPlains, RowsWhileRoomy);
             }
             else
             {
-                yield return new Scenario(1, "scoreboard_tabs_rows_while_roomy", Stages.TitanicPlains, RowsWhileRoomy);
                 yield return new Scenario(1, "scoreboard_tabs_shows_pointed_player", Stages.TitanicPlains, ShowsPointedPlayer);
             }
         }
 
-        // The layout, and in the tabs setting the board crowded with other players so its rows collapse.
-        private static IEnumerator UseLayout(Harness h, ScoreboardLayout layout)
+        // On the tabs board, a crowd of other players with many items, so the rows collapse.
+        private static IEnumerator UseBoard(Harness h, Board board)
         {
-            h.SetConfig(SevenUIPlugin.Settings.ScoreboardLayout, layout);
-            if (layout == ScoreboardLayout.Tabs)
+            if (board == Board.Tabs)
             {
                 yield return ScoreboardSetUp.AddPlayers(h, CrowdPlayers, CrowdItems);
             }
         }
 
-        private static bool Collapses(ScoreboardLayout layout) => layout == ScoreboardLayout.Tabs;
+        private static bool Collapses(Board board) => board == Board.Tabs;
 
-        // In the rows setting, the crowded board keeps its rows, their slots shrunk below the size the tabs setting
-        // keeps: the same crowd collapses the tabs setting's rows.
-        private static IEnumerator ShrinksWhenCrowded(Harness h)
+        // Several players whose items have room at full size keep their rows, every row's slots full size.
+        private static IEnumerator RowsWhileRoomy(Harness h)
         {
-            h.SetConfig(SevenUIPlugin.Settings.ScoreboardLayout, ScoreboardLayout.Rows);
-            yield return ScoreboardSetUp.AddPlayers(h, CrowdPlayers, CrowdItems);
+            yield return ScoreboardSetUp.AddPlayers(h, CrowdPlayers, RoomyItems);
             ScoreboardSetUp.GiveDifferentItems(h, ManyItems);
             yield return ScoreboardSetUp.Open(h);
             yield return h.ExpectScoreboardAsCanvas(false);
             ScoreboardItemsBoard board = SevenUIChecks.HudRoot(h).GetComponentInChildren<ScoreboardItemsBoard>();
             yield return h.Until(() => board && board.Grids.Count > CrowdPlayers &&
-                                       board.Grids.All(grid => grid.SlotSize < SmallestRowsSlot),
-                () => $"every row's slots under {SmallestRowsSlot:0.#} units (" +
+                                       board.Grids.All(grid => Mathf.Approximately(grid.SlotSize, ScoreboardItemGrid.FullSlot)),
+                () => $"{CrowdPlayers + 1} rows, every row's slots full size (" +
                       $"{(board ? string.Join(", ", board.Grids.Select(grid => grid.SlotSize.ToString("0.#"))) : "no board")})");
             yield return h.Wait(SettleSeconds);
-            yield return h.Screenshot("scoreboard_crowded");
-        }
-
-        // In the tabs setting, a board with room for the rows keeps them, at full size.
-        private static IEnumerator RowsWhileRoomy(Harness h)
-        {
-            h.SetConfig(SevenUIPlugin.Settings.ScoreboardLayout, ScoreboardLayout.Tabs);
-            ScoreboardSetUp.GiveDifferentItems(h, ManyItems);
-            yield return ScoreboardSetUp.Open(h);
-            yield return h.ExpectScoreboardAsCanvas(false);
+            yield return h.Screenshot("scoreboard_players");
         }
 
         // With the rows collapsed, the pointer on another player's row shows their items in place of the viewer's, and
@@ -112,7 +107,7 @@ namespace SevenUI.Tests
         // up from it.
         private static IEnumerator ShowsPointedPlayer(Harness h)
         {
-            yield return UseLayout(h, ScoreboardLayout.Tabs);
+            yield return UseBoard(h, Board.Tabs);
             // A few items of the viewer's too, which the scoreboard's checks look at.
             ScoreboardSetUp.GiveDifferentItems(h, TooltipItems);
             yield return ScoreboardSetUp.Open(h);
@@ -134,21 +129,21 @@ namespace SevenUI.Tests
         private static bool Shown(Transform part) =>
             !part.GetComponent<CanvasGroup>() || part.GetComponent<CanvasGroup>().alpha > 0f;
 
-        private static Scenario LayoutSwitchScenario() =>
-            new Scenario(1, "scoreboard_layout_switch", Stages.TitanicPlains, LayoutSwitch);
+        private static Scenario CollapseWhileOpenScenario() =>
+            new Scenario(1, "scoreboard_collapse_while_open", Stages.TitanicPlains, CollapseWhileOpen);
 
-        private static string Prefix(ScoreboardLayout layout) =>
-            layout == ScoreboardLayout.Rows ? "scoreboard_" : "scoreboard_tabs_";
+        private static string Prefix(Board board) =>
+            board == Board.Rows ? "scoreboard_" : "scoreboard_tabs_";
 
-        // With the scoreboard open in each layout, the pointer on an item in the item bar over it opens the item's
+        // With the scoreboard open on each board, the pointer on an item in the item bar over it opens the item's
         // tooltip, in the flat look: the board's pane doesn't take it.
-        private static IEnumerator ItemBarTooltip(Harness h, ScoreboardLayout layout)
+        private static IEnumerator ItemBarTooltip(Harness h, Board board)
         {
-            yield return UseLayout(h, layout);
+            yield return UseBoard(h, board);
             ScoreboardSetUp.GiveDifferentItems(h, TooltipItems);
             yield return ScoreboardSetUp.Open(h);
-            // The scoreboard under the item bar as the layout draws it, its rows collapsed in the tabs setting.
-            yield return h.ExpectScoreboardAsCanvas(Collapses(layout));
+            // The scoreboard under the item bar as the board draws it, its rows collapsed on the tabs.
+            yield return h.ExpectScoreboardAsCanvas(Collapses(board));
             HUD hud = SevenUIChecks.HudRoot(h).GetComponent<HUD>();
             ItemIcon icon = null;
             yield return h.Until(() => (icon = FirstIcon(hud.itemInventoryDisplay.transform)) != null, "an item in the item bar");
@@ -160,17 +155,17 @@ namespace SevenUI.Tests
             yield return h.Until(() => events.currentTooltip && events.currentTooltip.transform.Find(TooltipBandPath),
                 $"the item's tooltip in the flat look");
             yield return h.Wait(SettleSeconds);
-            yield return h.Screenshot(layout == ScoreboardLayout.Rows ? "tooltip" : "tooltip_over_tabs");
+            yield return h.Screenshot(board == Board.Rows ? "tooltip" : "tooltip_over_tabs");
         }
 
-        // In each layout, the pointer on an item in the scoreboard describes it in the pane instead of a tooltip, lights
-        // it, and in the rows layout dims the rest; moved off, the light goes out and the pane stays on the item.
-        private static IEnumerator ItemPane(Harness h, ScoreboardLayout layout)
+        // On each board, the pointer on an item in the scoreboard describes it in the pane instead of a tooltip, lights
+        // it, and on the rows dims the rest; moved off, the light goes out and the pane stays on the item.
+        private static IEnumerator ItemPane(Harness h, Board board)
         {
-            yield return UseLayout(h, layout);
+            yield return UseBoard(h, board);
             ScoreboardSetUp.GiveDifferentItems(h, TooltipItems);
             yield return ScoreboardSetUp.Open(h);
-            yield return h.ExpectScoreboardAsCanvas(Collapses(layout));
+            yield return h.ExpectScoreboardAsCanvas(Collapses(board));
             ScoreboardRow row = SevenUIChecks.HudRoot(h).GetComponentsInChildren<ScoreboardRow>()
                 .FirstOrDefault(each => each.Strip && each.Strip.master == Harness.LocalBody.master);
             ItemIcon icon = row ? FirstIcon(row.Strip.itemInventoryDisplay.transform) : null;
@@ -180,22 +175,22 @@ namespace SevenUI.Tests
             PointAt(h, icon.rectTransform, "an item in the scoreboard", made => pointer = made);
             yield return h.ExpectItemPane(icon);
             yield return h.Wait(SettleSeconds);
-            yield return h.Screenshot(layout == ScoreboardLayout.Rows ? "scoreboard_pane" : "scoreboard_tabs_pane");
+            yield return h.Screenshot(board == Board.Rows ? "scoreboard_pane" : "scoreboard_tabs_pane");
 
             ExecuteEvents.ExecuteHierarchy(icon.gameObject, pointer, ExecuteEvents.pointerExitHandler);
-            ScoreboardItemsBoard board = icon.GetComponentInParent<ScoreboardItemsBoard>();
-            yield return h.Until(() => board && board.Highlighted == ItemIndex.None && board.Pane.Shown &&
+            ScoreboardItemsBoard itemsBoard = icon.GetComponentInParent<ScoreboardItemsBoard>();
+            yield return h.Until(() => itemsBoard && itemsBoard.Highlighted == ItemIndex.None && itemsBoard.Pane.Shown &&
                                        icon.transform.parent.GetComponentsInChildren<ItemIcon>()
                                            .All(each => !each.GetComponent<CanvasGroup>() || each.GetComponent<CanvasGroup>().alpha >= 1f),
                 () => $"the light off and the pane still on the item once the pointer left it (lit " +
-                      $"{(board ? board.Highlighted.ToString() : "no board")}, pane on {(board && board.Pane.Shown ? board.Pane.Title : "nothing")})");
+                      $"{(itemsBoard ? itemsBoard.Highlighted.ToString() : "no board")}, pane on {(itemsBoard && itemsBoard.Pane.Shown ? itemsBoard.Pane.Title : "nothing")})");
         }
 
-        // In each layout, the pointer on the viewer's equipment (Foreign Fruit), or key item (the N'tormat), describes it
+        // On each board, the pointer on the viewer's equipment (Foreign Fruit), or key item (the N'tormat), describes it
         // in the pane instead of a tooltip, and lights no item. The key item is skipped without Hallowed Concepts.
-        private static IEnumerator LoadoutPane(Harness h, ScoreboardLayout layout, bool keyItem)
+        private static IEnumerator LoadoutPane(Harness h, Board board, bool keyItem)
         {
-            yield return UseLayout(h, layout);
+            yield return UseBoard(h, board);
             // A few items too, which the scoreboard's checks look at.
             ScoreboardSetUp.GiveDifferentItems(h, TooltipItems);
             if (keyItem)
@@ -207,7 +202,7 @@ namespace SevenUI.Tests
                 ScoreboardSetUp.GiveEquipment(h, RoR2Content.Equipment.Fruit);
             }
             yield return ScoreboardSetUp.Open(h);
-            yield return h.ExpectScoreboardAsCanvas(Collapses(layout));
+            yield return h.ExpectScoreboardAsCanvas(Collapses(board));
             ScoreboardRow row = SevenUIChecks.HudRoot(h).GetComponentsInChildren<ScoreboardRow>()
                 .FirstOrDefault(each => each.Strip && each.Strip.master == Harness.LocalBody.master);
             ScoreboardStrip strip = row ? row.Strip : null;
@@ -220,7 +215,7 @@ namespace SevenUI.Tests
             PointAt(h, (RectTransform)provider.transform, $"the {what} in the scoreboard");
             yield return h.ExpectLoadoutPane(strip, keyItem);
             yield return h.Wait(SettleSeconds);
-            string tabs = layout == ScoreboardLayout.Tabs ? "_tabs" : "";
+            string tabs = board == Board.Tabs ? "_tabs" : "";
             yield return h.Screenshot($"scoreboard{tabs}_{(keyItem ? "key_item" : "equipment")}_pane");
         }
 
@@ -260,17 +255,17 @@ namespace SevenUI.Tests
             return events;
         }
 
-        public static Scenario SpreadScreenshot() => Shot("scoreboard", h => Spread(h, ScoreboardLayout.Rows));
+        public static Scenario SpreadScreenshot() => Shot("scoreboard", h => Spread(h, Board.Rows));
 
         public static IEnumerable<Scenario> Screenshots() =>
-            Screenshots(ScoreboardLayout.Rows).Concat(Screenshots(ScoreboardLayout.Tabs));
+            Screenshots(Board.Rows).Concat(Screenshots(Board.Tabs));
 
-        public static IEnumerable<Scenario> Screenshots(ScoreboardLayout layout)
+        public static IEnumerable<Scenario> Screenshots(Board board)
         {
-            yield return layout == ScoreboardLayout.Rows ? SpreadScreenshot() : Shot("scoreboard_tabs", h => Spread(h, layout));
+            yield return board == Board.Rows ? SpreadScreenshot() : Shot("scoreboard_tabs", h => Spread(h, board));
             foreach (int count in ItemCounts)
             {
-                yield return Shot($"{Prefix(layout)}items_{count}", h => WithItems(h, count, layout));
+                yield return Shot($"{Prefix(board)}items_{count}", h => WithItems(h, count, board));
             }
         }
 
@@ -279,30 +274,38 @@ namespace SevenUI.Tests
 
         // Many different items in the viewer's row, more than fit one line: the game would shrink them to fit its cell,
         // and lay them out in the order they were picked up.
-        private static IEnumerator ItemsInSlots(Harness h, ScoreboardLayout layout)
+        private static IEnumerator ItemsInSlots(Harness h, Board board)
         {
-            yield return UseLayout(h, layout);
+            yield return UseBoard(h, board);
             ScoreboardSetUp.GiveDifferentItems(h, ManyItems);
             yield return ScoreboardSetUp.Open(h);
-            yield return h.ExpectScoreboardAsCanvas(Collapses(layout));
+            yield return h.ExpectScoreboardAsCanvas(Collapses(board));
         }
 
-        // On a crowded board, switched while the scoreboard is open, the layout changes in place: rows, collapsed tabs,
-        // and rows again. Then, with the flat look off from the collapsed tabs, the game's layout is back: no items
-        // board, the icons' pivots the game's, the rows' container laying them out, and the headers shown.
-        private static IEnumerator LayoutSwitch(Harness h)
+        // With the scoreboard open, the rows collapse in place as the other players pick up many items, and come back
+        // as rows once they drop them, then collapse again. Then, with the flat look off from the collapsed rows, the
+        // game's layout is back: no items board, the icons' pivots the game's, the rows' container laying them out, and
+        // the headers shown.
+        private static IEnumerator CollapseWhileOpen(Harness h)
         {
-            h.SetConfig(SevenUIPlugin.Settings.ScoreboardLayout, ScoreboardLayout.Rows);
-            yield return ScoreboardSetUp.AddPlayers(h, CrowdPlayers, CrowdItems);
+            List<CharacterMaster> players = new List<CharacterMaster>();
+            yield return ScoreboardSetUp.AddPlayers(h, CrowdPlayers, RoomyItems, players);
             ScoreboardSetUp.GiveDifferentItems(h, ManyItems);
             yield return ScoreboardSetUp.Open(h);
             yield return h.ExpectScoreboardAsCanvas(false);
-            h.SetConfig(SevenUIPlugin.Settings.ScoreboardLayout, ScoreboardLayout.Tabs);
+            List<(Inventory inventory, List<ItemDef> items)> picked = players
+                .Select(player => (player.inventory, ScoreboardSetUp.GiveDifferentItems(h, CrowdItems - RoomyItems, player.inventory)))
+                .ToList();
             yield return h.ExpectScoreboardAsCanvas(true);
-            h.SetConfig(SevenUIPlugin.Settings.ScoreboardLayout, ScoreboardLayout.Rows);
+            foreach ((Inventory inventory, List<ItemDef> items) in picked)
+            {
+                ScoreboardSetUp.TakeItems(inventory, items);
+            }
             yield return h.ExpectScoreboardAsCanvas(false);
-
-            h.SetConfig(SevenUIPlugin.Settings.ScoreboardLayout, ScoreboardLayout.Tabs);
+            foreach ((Inventory inventory, List<ItemDef> items) in picked)
+            {
+                ScoreboardSetUp.GiveItems(inventory, items);
+            }
             yield return h.ExpectScoreboardAsCanvas(true);
             h.SetConfig(SevenUIPlugin.Settings.FlatPanels, false);
             string look = null;
@@ -325,39 +328,38 @@ namespace SevenUI.Tests
                 () => $"the scoreboard back in the game's layout ({look}) {h.Diagnosis()}");
         }
 
-        // In each layout, ScoreboardBesideRunInfo moves the board beside the run info; off, it is centered on the screen,
+        // On each board, ScoreboardBesideRunInfo moves the board beside the run info; off, it is centered on the screen,
         // as the game centers it, still the canvas's width.
-        private static IEnumerator CenteredWithoutSetting(Harness h, ScoreboardLayout layout)
+        private static IEnumerator CenteredWithoutSetting(Harness h, Board board)
         {
-            yield return UseLayout(h, layout);
+            yield return UseBoard(h, board);
             ScreenshotScenarios.GiveItemSpread(h);
             yield return ScoreboardSetUp.Open(h);
-            yield return h.ExpectScoreboardAsCanvas(Collapses(layout));
+            yield return h.ExpectScoreboardAsCanvas(Collapses(board));
             h.SetConfig(SevenUIPlugin.Settings.ScoreboardBesideRunInfo, false);
-            yield return h.ExpectScoreboardAsCanvas(Collapses(layout));
+            yield return h.ExpectScoreboardAsCanvas(Collapses(board));
         }
 
-        // The tab screen with one item of each main tier and the equipment, in the given layout whatever the player's
-        // setting.
-        private static IEnumerator Spread(Harness h, ScoreboardLayout layout)
+        // The tab screen with one item of each main tier and the equipment, on the given board.
+        private static IEnumerator Spread(Harness h, Board board)
         {
-            yield return UseLayout(h, layout);
+            yield return UseBoard(h, board);
             ScreenshotScenarios.GiveItemSpread(h);
             h.Cmd($"{Commands.GiveEquipment} {GameNames.Fruit}");
             yield return ScoreboardSetUp.Open(h);
-            yield return h.ExpectScoreboardAsCanvas(Collapses(layout));
+            yield return h.ExpectScoreboardAsCanvas(Collapses(board));
             yield return h.Wait(SettleSeconds);
             yield return h.CaptureLooks();
         }
 
-        // The tab screen with that many different items in the player's row, from one line of slots to several, in the
-        // given layout whatever the player's setting, so the screenshots compare from run to run.
-        private static IEnumerator WithItems(Harness h, int count, ScoreboardLayout layout)
+        // The tab screen with that many different items in the player's row, from one line of slots to several, on the
+        // given board, so the screenshots compare from run to run.
+        private static IEnumerator WithItems(Harness h, int count, Board board)
         {
-            yield return UseLayout(h, layout);
+            yield return UseBoard(h, board);
             ScoreboardSetUp.GiveDifferentItems(h, count);
             yield return ScoreboardSetUp.Open(h);
-            yield return h.ExpectScoreboardAsCanvas(Collapses(layout));
+            yield return h.ExpectScoreboardAsCanvas(Collapses(board));
             yield return h.Wait(SettleSeconds);
             yield return h.CaptureLooks();
         }

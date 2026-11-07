@@ -31,8 +31,6 @@ namespace SevenUI
         private TopBarsWidth topBars;
         private HudMargins margins;
         private int lastHierarchyCount = -1;
-        // The frame the scoreboard went back to the game's look for a new layout; it is restyled only after it.
-        private int scoreboardRestoredFrame = -1;
         private bool fontApplied;
         private bool panelsApplied;
         private bool marginsApplied;
@@ -64,7 +62,6 @@ namespace SevenUI
             SevenUIPlugin.Settings.BarlowFont.SettingChanged += OnSettingChanged;
             SevenUIPlugin.Settings.FlatPanels.SettingChanged += OnSettingChanged;
             SevenUIPlugin.Settings.TightMargins.SettingChanged += OnSettingChanged;
-            SevenUIPlugin.Settings.ScoreboardLayout.SettingChanged += OnScoreboardLayoutChanged;
         }
 
         // LateUpdate, after the game's Updates have added this frame's objects (objective rows are added in
@@ -98,9 +95,6 @@ namespace SevenUI
 
             // Any object added under the HUD changes this count, and reading it is cheap, so it is the signal to
             // restyle new objects without walking the hierarchy every frame.
-            // The objects the old layout added are destroyed only at the frame's end, and until then the styler would
-            // take them for its own and not add the new layout's.
-            if (Time.frameCount == scoreboardRestoredFrame) return;
             int hierarchyCount = root.hierarchyCount;
             if (hierarchyCount == lastHierarchyCount) return;
             lastHierarchyCount = hierarchyCount;
@@ -178,17 +172,6 @@ namespace SevenUI
             Restyle();
         }
 
-        // The scoreboard goes back to the game's look and is restyled in the new layout on the next frame, once the
-        // objects the old one added are gone. A setting changed from a coroutine changes before this frame's
-        // LateUpdate, so that one is skipped.
-        private void OnScoreboardLayoutChanged(object sender, EventArgs e)
-        {
-            if (!panelsApplied) return;
-            scoreboard.Restore();
-            scoreboardRestoredFrame = Time.frameCount;
-            lastHierarchyCount = -1;
-        }
-
         public void Describe(StringBuilder output)
         {
             output.AppendLine($"HUD {hud.name} (target {(hud.targetBodyObject ? hud.targetBodyObject.name : "none")})");
@@ -219,7 +202,6 @@ namespace SevenUI
             SevenUIPlugin.Settings.BarlowFont.SettingChanged -= OnSettingChanged;
             SevenUIPlugin.Settings.FlatPanels.SettingChanged -= OnSettingChanged;
             SevenUIPlugin.Settings.TightMargins.SettingChanged -= OnSettingChanged;
-            SevenUIPlugin.Settings.ScoreboardLayout.SettingChanged -= OnScoreboardLayoutChanged;
         }
     }
 }

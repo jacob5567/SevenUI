@@ -13,8 +13,8 @@ namespace SevenUI
     //
     // Each row's items sit after its equipment, wrapping under themselves, the row as tall as they need; the item
     // pointed at lit in every row that holds it and the rest dimmed. If the board would run past the bottom of the
-    // scoreboard's panel, the slots shrink, down to 24px. In the tabs setting, once the rows' slots would have to be
-    // smaller than 32px, the same rows collapse instead: each row is its plain height without its items, but for the
+    // scoreboard's panel, the slots shrink, down to 24px. With more than one player, once the rows' slots would have to
+    // be smaller than 32px, the same rows collapse instead: each row is its plain height without its items, but for the
     // shown player's, whose items stay after the equipment, from their row's top down past the collapsed rows (or up
     // from the board's bottom, if they would run past it). That row and its items are one tab (ScoreboardTabShape),
     // the items padded inside it. Pointing at a player's row, or selecting anything in it with a gamepad, shows that
@@ -33,7 +33,7 @@ namespace SevenUI
         // Collapsed, the shown items 16px in from every side of their part of the tab, which ends at the rows' right.
         public const float TabInset = ScoreboardStyler.RowPaddingY;
         private const float DividerHeight = 1f * Canvas;
-        // In the tabs setting, the smallest slot the rows keep before they collapse.
+        // With more than one player, the smallest slot the rows keep before they collapse.
         private const float SmallestRowsSlot = 32f * Canvas;
         private static readonly float[] SlotSizes = { 40f * Canvas, 36f * Canvas, SmallestRowsSlot, 28f * Canvas, 24f * Canvas };
         // Moving between two slots, the pointer leaves one before it reaches the next; the light holds over the gap.
@@ -42,7 +42,6 @@ namespace SevenUI
         private readonly List<ScoreboardItemGrid> grids = new List<ScoreboardItemGrid>();
         private readonly List<ScoreboardItemGrid> previous = new List<ScoreboardItemGrid>();
         private readonly List<ScoreboardStrip> found = new List<ScoreboardStrip>();
-        private ScoreboardLayout layout;
         private StyleRecorder recorder;
         private HashSet<ScoreboardStrip> styled;
         private HUD hud;
@@ -73,7 +72,6 @@ namespace SevenUI
         private ItemIndex highlighted = ItemIndex.None;
 
         // Read by the SevenUI.Tests plugin.
-        public ScoreboardLayout Layout => layout;
         public bool Collapsed => collapsed;
         public ScoreboardDetailPane Pane => pane;
         public ScoreboardTabShape Tab => tab;
@@ -82,10 +80,9 @@ namespace SevenUI
         public ItemIndex Highlighted => highlighted;
 
         // 'styled' holds the rows the styler has restyled for this layout, the only ones laid out.
-        public void Init(ScoreboardLayout layout, StyleRecorder recorder, HashSet<ScoreboardStrip> styled, HUD hud,
+        public void Init(StyleRecorder recorder, HashSet<ScoreboardStrip> styled, HUD hud,
             RectTransform panel, TMP_Text style)
         {
-            this.layout = layout;
             this.recorder = recorder;
             this.styled = styled;
             this.hud = hud;
@@ -241,7 +238,8 @@ namespace SevenUI
             float tabAcross = Mathf.Max(ScoreboardItemGrid.FullSlot, rowWidth - ScoreboardStyler.RowItemsLeft - 2f * TabInset);
             float spacing = rowsGroup ? rowsGroup.spacing : 0f;
             float size = SlotSize(candidate => ExpandedHeight(candidate, across), limit);
-            bool collapse = layout == ScoreboardLayout.Tabs && size < SmallestRowsSlot;
+            // A lone player's row has nothing to collapse to, so it shrinks on.
+            bool collapse = grids.Count > 1 && size < SmallestRowsSlot;
             if (collapse != collapsed)
             {
                 collapsed = collapse;

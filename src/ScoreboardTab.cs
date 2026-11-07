@@ -4,7 +4,7 @@ using UnityEngine.EventSystems;
 
 namespace SevenUI
 {
-    // On each scoreboard row in the tabs layout. The pointer entering anything in the row, its line in the list or the
+    // On each scoreboard row. While the rows are collapsed, the pointer entering anything in the row, its line or the
     // items shown for it, reaches the row too, and shows that player.
     internal sealed class ScoreboardTab : MonoBehaviour, IPointerEnterHandler
     {

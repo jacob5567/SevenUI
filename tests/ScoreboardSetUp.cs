@@ -27,9 +27,9 @@ namespace SevenUI.Tests
         private const float StandInSpacing = 3f;
 
         // One each of that many items the player (the viewer, or the given inventory's) doesn't have yet, taken in turn
-        // from each tier, none that changes the player or the others (TestItems). Skips when the catalog has too few, as
-        // without the expansions.
-        public static void GiveDifferentItems(Harness h, int count, Inventory inventory = null)
+        // from each tier, none that changes the player or the others (TestItems), which are returned. Skips when the
+        // catalog has too few, as without the expansions. Any still held go at cleanup.
+        public static List<ItemDef> GiveDifferentItems(Harness h, int count, Inventory inventory = null)
         {
             inventory = inventory ? inventory : Harness.LocalBody.inventory;
             List<Queue<ItemDef>> byTier = Tiers.Select(tier => new Queue<ItemDef>(ItemCatalog.allItemDefs.Where(item =>
@@ -53,15 +53,30 @@ namespace SevenUI.Tests
             if (items.Count < count) throw h.Skip($"only {items.Count} different items to give, not {count}");
             h.OnCleanup(() =>
             {
-                if (!inventory) return;
-                foreach (ItemDef item in items)
-                {
-                    inventory.RemoveItemPermanent(item);
-                }
+                if (inventory) TakeItems(inventory, items);
             });
+            GiveItems(inventory, items);
+            return items;
+        }
+
+        // One each of the items.
+        public static void GiveItems(Inventory inventory, List<ItemDef> items)
+        {
             foreach (ItemDef item in items)
             {
                 inventory.GiveItemPermanent(item);
+            }
+        }
+
+        // The items back out of the inventory, those it holds.
+        public static void TakeItems(Inventory inventory, List<ItemDef> items)
+        {
+            foreach (ItemDef item in items)
+            {
+                if (inventory.GetItemCountPermanent(item) > 0)
+                {
+                    inventory.RemoveItemPermanent(item);
+                }
             }
         }
 
@@ -69,8 +84,8 @@ namespace SevenUI.Tests
         // no command for another player, and DebugToolkit's allies (spawn_ai) are AI, which the scoreboard doesn't list:
         // it lists masters with a player's controller and a body. So each is Commando's AI master on the player's team,
         // its AI off so it stands still, given a player's controller without a network user, which the scoreboard names
-        // by the survivor.
-        public static IEnumerator AddPlayers(Harness h, int count, int items)
+        // by the survivor. The players made are added to the list, if one is given.
+        public static IEnumerator AddPlayers(Harness h, int count, int items, List<CharacterMaster> made = null)
         {
             GameObject prefab = MasterCatalog.GetMasterPrefab(
                 MasterCatalog.FindAiMasterIndexForBody(BodyCatalog.FindBodyIndex(StandInBody)));
@@ -98,6 +113,7 @@ namespace SevenUI.Tests
                 }.Perform();
                 if (!player) throw h.Fail("the stand-in player wasn't made");
                 players.Add(player);
+                made?.Add(player);
                 GiveDifferentItems(h, items, player.inventory);
             }
             yield return h.Until(() => players.All(player => player && player.GetBody()) &&

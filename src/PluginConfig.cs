@@ -11,7 +11,6 @@ namespace SevenUI
         public readonly ConfigEntry<bool> FlatPanels;
         public readonly ConfigEntry<bool> TightMargins;
         public readonly ConfigEntry<bool> ScoreboardBesideRunInfo;
-        public readonly ConfigEntry<ScoreboardLayout> ScoreboardLayout;
 
         public readonly ConfigEntry<bool> DebugLogging;
         public readonly ConfigEntry<bool> DebugAlwaysShow;
@@ -32,12 +31,6 @@ namespace SevenUI
             ScoreboardBesideRunInfo = config.Bind("Panels", "ScoreboardBesideRunInfo", true,
                 "Place the scoreboard as on SevenUI's design: near the top of the screen, centered between its left edge " +
                 "and the run info. Off centers it on the screen, where the game puts it. Only with FlatPanels on.");
-            ScoreboardLayout = config.Bind("Panels", "ScoreboardLayout", SevenUI.ScoreboardLayout.Rows,
-                "How the scoreboard shows items. Rows: a row per player, with their items after their equipment, grouped by " +
-                "tier. Tabs: the rows while their items fit at 32 pixels or larger; past that, the rows collapse to show one " +
-                "player's items at a time, the player you point at. Either way, the " +
-                "item or equipment you point at is described in a panel on the scoreboard, with who holds it. Only with " +
-                "FlatPanels on.");
 
             // Risk Of Options uses the section name as the menu header, so keep it exactly "Debug".
             DebugLogging = config.Bind("Debug", "DebugLogging", false,

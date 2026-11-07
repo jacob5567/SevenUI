@@ -607,9 +607,8 @@ namespace SevenUI.Tests
                     ScoreboardItemsBoard items = board ? board.GetComponentInChildren<ScoreboardItemsBoard>() : null;
                     ScoreboardRow row = board ? board.GetComponentsInChildren<ScoreboardRow>()
                         .FirstOrDefault(r => r.Strip && r.Strip.master == Harness.LocalBody.master) : null;
-                    look = $"board {(bool)board}, items board {(items ? items.Layout.ToString() : "none")}, " +
-                           $"viewer's row {(bool)row}";
-                    if (!items || !row || items.Layout != SevenUIPlugin.Settings.ScoreboardLayout.Value) return false;
+                    look = $"board {(bool)board}, items board {(bool)items}, viewer's row {(bool)row}";
+                    if (!items || !row) return false;
                     bool collapsed = items.Collapsed;
                     string folded = collapse.HasValue && collapsed != collapse.Value
                         ? $"rows {(collapsed ? "collapsed" : "not collapsed")}, wanted {(collapse.Value ? "collapsed" : "not")}"
@@ -628,7 +627,7 @@ namespace SevenUI.Tests
                     string grid = GridProblem(h, items, row.Strip, background);
                     string placed = PlacementProblem(h, board);
                     string portrait = PortraitProblem(h, background);
-                    look = $"{items.Layout}{(collapsed ? " collapsed" : "")}, {folded ?? "folded as wanted"}, {headed ?? "no headers"}, row color {row.Background.color}, " +
+                    look = $"{(collapsed ? "collapsed" : "rows")}, {folded ?? "folded as wanted"}, {headed ?? "no headers"}, row color {row.Background.color}, " +
                            $"survivor '{row.Survivor.text}', counts '{row.Counts.text}', parts {parts ?? "in place"}, " +
                            $"items {grid ?? "as the grid"}, board {placed ?? "in place"}, portrait {portrait ?? "centered"}";
                     return folded == null && headed == null && parts == null && grid == null && placed == null && portrait == null &&
@@ -640,7 +639,7 @@ namespace SevenUI.Tests
         }
 
         // Null when a row has its money at the right of the name's line, the name's text ending before it, and the key
-        // item's slot shown just before the equipment's, both 52px and at the top of the name block, in either layout.
+        // item's slot shown just before the equipment's, both 52px and at the top of the name block, collapsed or not.
         private static string RowPartsProblem(Harness h, ScoreboardRow row, Transform background)
         {
             RectTransform nameObject = background.Find(ScoreboardNamePath) as RectTransform;
@@ -757,7 +756,7 @@ namespace SevenUI.Tests
 
         // With the pointer on the icon: the pane describing its item under its name, with the viewer among its holders
         // at the icon's stack, the item's tooltip hidden, and the icon outlined, the pane right of the players and the
-        // items, inside the board. In the rows layout every other item dimmed.
+        // items, inside the board. Unless the rows are collapsed, every other item dimmed.
         public static IEnumerator ExpectItemPane(this Harness h, ItemIcon icon)
         {
             string look = null;

@@ -31,7 +31,6 @@ namespace SevenUI
             ModSettingsManager.AddOption(new CheckBoxOption(settings.FlatPanels));
             ModSettingsManager.AddOption(new CheckBoxOption(settings.TightMargins));
             ModSettingsManager.AddOption(new CheckBoxOption(settings.ScoreboardBesideRunInfo));
-            ModSettingsManager.AddOption(new ChoiceOption(settings.ScoreboardLayout));
 
             // The options menu groups these under a "Debug" header, named after their config section.
             ModSettingsManager.AddOption(new CheckBoxOption(settings.DebugLogging));
