@@ -38,6 +38,11 @@ namespace SevenUI.Tests
         private const int AllyCount = 2;
         // One, so its card keeps the game's health bar: allies of one kind share a card with a bar split per ally.
         private const int ProtectionAllyCount = 1;
+        // Long enough for the Functional Coupler to add its equipment set.
+        private const float BadgeSettleSeconds = 0.5f;
+        // In the design canvas's pixels on its 1080-pixel-high screen.
+        private const float BadgeTolerance = 2f;
+        private const float BadgeCanvasHeight = 1080f;
         // Healing Drones among the last allies, so the more row has two kinds to show.
         private const int OverflowHealingDrones = 2;
         // Barrier decays, so plenty for both looks' checks.
@@ -59,6 +64,7 @@ namespace SevenUI.Tests
             yield return new Scenario(1, "void_transformation_notification_blend", Stages.TitanicPlains,
                 VoidTransformationNotificationBlend);
             yield return new Scenario(1, "stocks_in_slot_corners", Stages.TitanicPlains, StocksInSlotCorners);
+            yield return new Scenario(1, "next_equipment_badge_swaps", Stages.TitanicPlains, NextEquipmentBadgeSwaps);
             yield return new Scenario(1, "ntormat_pages_follow_key_item", Stages.TitanicPlains, NtormatPagesFollowKeyItem);
             yield return new Scenario(1, "top_is_flat", Stages.TitanicPlains, TopIsFlat);
             yield return new Scenario(1, "item_icons_are_flat", Stages.TitanicPlains, ItemIconsAreFlat);
@@ -286,6 +292,92 @@ namespace SevenUI.Tests
 
         // Foreign Fruit with a Fuel Cell, so the slot shows its stock, and a Backup Magazine, so the secondary skill
         // shows its own, taken away at cleanup. Server methods; the runner is the host.
+        // With a Functional Coupler and an equipment in each set, the next one shows as a badge centered on the
+        // equipment slot's top-left corner, on the screen, copying the game's own (hidden) alternate slot. Swapping
+        // plays the trade and leaves the badge on the equipment that was in use; with the panels off the game's slot
+        // shows again and the badge is gone.
+        private static IEnumerator NextEquipmentBadgeSwaps(Harness h)
+        {
+            Inventory inventory = Harness.LocalBody.inventory;
+            ItemDef coupler = DLC3Content.Items.ExtraEquipment;
+            h.OnCleanup(() =>
+            {
+                if (inventory && inventory.GetItemCountPermanent(coupler) > 0)
+                {
+                    inventory.RemoveItemPermanent(coupler);
+                }
+            });
+            inventory.GiveItemPermanent(coupler);
+            yield return h.Wait(BadgeSettleSeconds);
+            if (inventory.accessibleEquipmentSetCount < 2) throw h.Skip("the Functional Coupler needs Alloyed Collective");
+            EquipmentLocation active = inventory.activeEquipmentLocation;
+            EquipmentLocation other = active;
+            other.set = (active.set + 1) % inventory.accessibleEquipmentSetCount;
+            EquipmentIndex activeBefore = inventory.GetEquipment(in active).equipmentIndex;
+            EquipmentIndex otherBefore = inventory.GetEquipment(in other).equipmentIndex;
+            h.OnCleanup(() =>
+            {
+                if (!inventory) return;
+                inventory.SetEquipmentIndex(activeBefore, in active);
+                inventory.SetEquipmentIndex(otherBefore, in other);
+            });
+            inventory.SetEquipmentIndex(RoR2Content.Equipment.Fruit.equipmentIndex, in active);
+            inventory.SetEquipmentIndex(RoR2Content.Equipment.Blackhole.equipmentIndex, in other);
+
+            HUD hud = SevenUIChecks.HudRoot(h).GetComponent<HUD>();
+            EquipmentIcon main = hud.equipmentIcons.FirstOrDefault(icon => icon && !icon.displayAlternateEquipment);
+            EquipmentIcon alternate = hud.equipmentIcons.FirstOrDefault(icon => icon && icon.displayAlternateEquipment);
+            if (!main || !alternate) throw h.Fail("the HUD has no alternate equipment slot");
+            yield return h.Until(() => BadgeProblem(h, main, alternate) == null, () => $"{BadgeProblem(h, main, alternate)} {h.Diagnosis()}");
+            yield return h.Screenshot("badge");
+
+            Texture inUse = main.iconImage.texture;
+            inventory.DispatchSwitchToNextEquipmentInSet();
+            yield return h.Until(() => h.FindUnderHud(EquipmentBadge.SwapName) is Transform swap && swap.gameObject.activeSelf,
+                "the swap playing");
+            yield return h.Wait(EquipmentBadge.SwapSeconds / 2f);
+            yield return h.Screenshot("swapping");
+            yield return h.Until(() => BadgeProblem(h, main, alternate) == null && BadgeIcon(h).texture == inUse &&
+                                       !h.FindUnderHud(EquipmentBadge.SwapName).gameObject.activeSelf,
+                () => $"after the swap, {BadgeProblem(h, main, alternate) ?? "the badge doesn't show the equipment swapped out"} " +
+                      h.Diagnosis());
+
+            h.SetConfig(SevenUIPlugin.Settings.FlatPanels, false);
+            yield return h.Until(() => !h.FindUnderHud(EquipmentBadge.Name) && !alternate.GetComponent<CanvasGroup>(),
+                () => $"with the panels off, the badge is still there or the game's slot hidden {h.Diagnosis()}");
+            h.SetConfig(SevenUIPlugin.Settings.FlatPanels, true);
+            yield return h.Until(() => BadgeProblem(h, main, alternate) == null,
+                () => $"with the panels back on, {BadgeProblem(h, main, alternate)} {h.Diagnosis()}");
+        }
+
+        private static RawImage BadgeIcon(Harness h)
+        {
+            Transform badge = h.FindUnderHud(EquipmentBadge.Name);
+            return badge ? badge.GetComponentInChildren<RawImage>(true) : null;
+        }
+
+        // Null when the badge shows the game's alternate slot's icon, centered on the main slot's top-left corner,
+        // all of it on the screen.
+        private static string BadgeProblem(Harness h, EquipmentIcon main, EquipmentIcon alternate)
+        {
+            Transform badge = h.FindUnderHud(EquipmentBadge.Name);
+            if (!badge || !badge.gameObject.activeInHierarchy) return "no badge shows";
+            RawImage icon = BadgeIcon(h);
+            if (!alternate.iconImage.texture) return "the game's alternate slot has no icon yet";
+            if (!icon || icon.texture != alternate.iconImage.texture) return "the badge's icon isn't the alternate slot's";
+            Camera camera = CanvasLayoutChecks.HudCamera(SevenUIChecks.HudRoot(h));
+            Rect screen = CanvasLayoutChecks.ScreenOf(camera);
+            Rect box = CanvasLayoutChecks.OnScreen(camera, (RectTransform)badge);
+            Rect slot = CanvasLayoutChecks.OnScreen(camera, (RectTransform)main.displayRoot.transform);
+            Vector2 corner = new Vector2(slot.xMin, slot.yMax);
+            if (Vector2.Distance(box.center, corner) > BadgeTolerance * screen.height / BadgeCanvasHeight)
+            {
+                return $"the badge's middle is at {box.center}, not the slot's top-left corner {corner}";
+            }
+            if (!screen.Contains(box.min) || !screen.Contains(box.max)) return $"the badge {box} runs off the screen {screen}";
+            return null;
+        }
+
         private static IEnumerator StocksInSlotCorners(Harness h)
         {
             Inventory inventory = Harness.LocalBody.inventory;
