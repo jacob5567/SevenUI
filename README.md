@@ -12,7 +12,7 @@ A flat restyle of Risk of Rain 2's HUD: Barlow text, flat translucent panels and
 - **Run info:** the timer, difficulty or Eclipse level, stage, Karma and artifacts in one panel.
 - **Items, buffs and skills:** dark slots with tier colors, and a cooldown cover that shrinks as a skill recharges.
 - **Prompts and notifications:** keycaps, with a strip in the color of the cost or the item's tier.
-- **Ally cards:** allies of one kind share a card, "Gunner Drone ×8", with a bar segment for each, so a crowd of drones stays clear of the chat.
+- **Ally cards:** stay clear of the chat. When the cards would reach it, they shrink to one-line rows. If even the rows would reach it, the last ones fold into a "+N more" row with an icon for each kind of ally it holds.
 - **Scoreboard:** a row or a tab per player, with item counts per tier and the items at full size sorted by tier. The item or equipment you point at is described in a panel docked on the board, with who else holds it.
 - **Tooltips, item pickers and pause menu:** restyled to match.
 
