@@ -52,6 +52,8 @@ namespace SevenUI.Tests
                                Vector3.up * DroneHeight,
                     rotation = player.transform.rotation,
                     summonerBodyObject = (leader ? leader : player).gameObject,
+                    // By default a minion's minion is handed up to its owner's owner; a given leader keeps it.
+                    propogateMinionOwnership = !leader,
                     teamIndexOverride = TeamIndex.Player,
                     ignoreTeamMemberLimit = true,
                     preSpawnSetupCallback = StandStill,
