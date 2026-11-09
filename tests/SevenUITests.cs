@@ -22,6 +22,8 @@ namespace SevenUI.Tests
             yield return new Suite("scoreboard_tabs", ScoreboardScenarios.All(ScoreboardScenarios.Board.Tabs));
             yield return new Suite("pickers", PickerScenarios.All());
             yield return new Suite("screenshots", ScreenshotScenarios.All().Append(ScoreboardScenarios.SpreadScreenshot()));
+            // Changes the run for good, so only when named.
+            yield return new Suite("store", true, StoreScenarios.All());
         }
 
         public override string Precondition(Scenario scenario)

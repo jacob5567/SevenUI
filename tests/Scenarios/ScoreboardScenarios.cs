@@ -258,13 +258,13 @@ namespace SevenUI.Tests
         }
 
         // The first item shown under the given part of the HUD.
-        private static ItemIcon FirstIcon(Transform under) =>
+        internal static ItemIcon FirstIcon(Transform under) =>
             under.GetComponentsInChildren<ItemIcon>().FirstOrDefault(each => each.isActiveAndEnabled);
 
         // The pointer can't be moved, so the game's raycast is made at the target's middle: it must hit the target (or
         // the given part it is in) rather than anything drawn over it, and the hover goes to what it hit. The pointer
         // leaves it at cleanup.
-        private static MPEventSystem PointAt(Harness h, RectTransform target, string what, System.Action<PointerEventData> made = null,
+        internal static MPEventSystem PointAt(Harness h, RectTransform target, string what, System.Action<PointerEventData> made = null,
             Transform owner = null)
         {
             MPEventSystem events = EventSystem.current as MPEventSystem;
