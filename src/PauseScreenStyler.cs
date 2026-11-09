@@ -42,8 +42,6 @@ namespace SevenUI
         private const float QuitHeight = 42f;
         private const float QuitTextSize = 17f;
         private const float OutlineEdge = 1f;
-        // The outline sprite's edge, in its pixels (FlatSprite.Outline).
-        private const float OutlineEdgePixels = 2f;
         // The share of its color a label keeps while its button can't be pressed (Resume, for a second after a
         // multiplayer pause), as in the item pickers.
         private const float UnavailableAlpha = 0.4f;
@@ -64,8 +62,8 @@ namespace SevenUI
             public HGButton Button;
             public Image Face;
             public TMP_Text Label;
-            public Image Rest;
-            public Image Hover;
+            public PixelOutline Rest;
+            public PixelOutline Hover;
             public bool Quit;
             public bool ShownHover;
             public bool ShownAvailable = true;
@@ -341,24 +339,8 @@ namespace SevenUI
             return text;
         }
 
-        private static Image AddOutline(Transform button, Color color)
-        {
-            GameObject created = new GameObject("SevenUIPauseOutline", typeof(RectTransform), typeof(CanvasRenderer));
-            created.layer = button.gameObject.layer;
-            created.transform.SetParent(button, false);
-            RectTransform rect = (RectTransform)created.transform;
-            rect.anchorMin = Vector2.zero;
-            rect.anchorMax = Vector2.one;
-            rect.offsetMin = rect.offsetMax = Vector2.zero;
-            Image outline = created.AddComponent<Image>();
-            outline.sprite = FlatSprite.Outline;
-            outline.type = Image.Type.Sliced;
-            outline.pixelsPerUnitMultiplier = OutlineEdgePixels / OutlineEdge;
-            outline.color = color;
-            outline.raycastTarget = false;
-            outline.enabled = false;
-            return outline;
-        }
+        private static PixelOutline AddOutline(Transform button, Color color) =>
+            PixelOutline.Add(button, "SevenUIPauseOutline", color, OutlineEdge);
 
         private static void DisableImage(Transform holder)
         {

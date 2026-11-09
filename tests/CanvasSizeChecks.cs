@@ -355,7 +355,7 @@ namespace SevenUI.Tests
                       $"hundredths ({look}) {h.Diagnosis()}");
         }
 
-        // Each open objective's box drawn as the mod's outline, and a done one's as the game's check.
+        // Each open objective's box drawn as the mod's outline, on whole screen pixels, and a done one's as the game's check.
         public static IEnumerator ExpectObjectiveBoxesFlat(this Harness h)
         {
             string look = null;
@@ -365,9 +365,11 @@ namespace SevenUI.Tests
                     List<ObjectiveCheckbox> boxes = SevenUIChecks.HudRoot(h).GetComponentsInChildren<ObjectiveCheckbox>()
                         .Where(box => box.Checkbox && box.Checkbox.gameObject.activeInHierarchy).ToList();
                     look = string.Join(", ", boxes.Select(box =>
-                        $"open={box.Checkbox.sprite == box.OpenSprite} outline={box.Box.enabled} game={box.Checkbox.enabled}"));
+                        $"open={box.Checkbox.sprite == box.OpenSprite} outline={box.Box.enabled} game={box.Checkbox.enabled}" +
+                        (box.Box.enabled ? $" {CanvasLayoutChecks.PixelOutlineProblem(box.Box) ?? "on whole pixels"}" : "")));
                     return boxes.Count > 0 && boxes.All(box =>
-                        (box.Checkbox.sprite == box.OpenSprite) == (box.Box.enabled && !box.Checkbox.enabled));
+                        (box.Checkbox.sprite == box.OpenSprite) == (box.Box.enabled && !box.Checkbox.enabled) &&
+                        (!box.Box.enabled || CanvasLayoutChecks.PixelOutlineProblem(box.Box) == null));
                 },
                 () => $"the open objectives' boxes as flat outlines ({look}) {h.Diagnosis()}");
         }

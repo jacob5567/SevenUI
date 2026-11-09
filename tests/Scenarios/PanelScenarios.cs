@@ -642,6 +642,7 @@ namespace SevenUI.Tests
             if (!title || string.IsNullOrEmpty(title.text)) return "the pause menu has no title";
             if (!run || !run.text.Contains(difficulty)) return $"the pause menu's run line is '{(run ? run.text : "")}', without '{difficulty}'";
             List<RectTransform> stacked = new List<RectTransform>();
+            HashSet<float> widths = new HashSet<float>();
             List<RectTransform> quits = new List<RectTransform>();
             foreach (Transform child in options)
             {
@@ -651,11 +652,18 @@ namespace SevenUI.Tests
                 if (!face || face.sprite || !Near(face.color, Palette.Panel) && !Near(face.color, Palette.HoverFace))
                     return $"{child.name} keeps the game's face";
                 if (!child.Find("SevenUIPauseOutline")) return $"{child.name} has no outline";
+                foreach (PixelOutline outline in child.GetComponentsInChildren<PixelOutline>().Where(outline => outline.enabled))
+                {
+                    string uneven = CanvasLayoutChecks.PixelOutlineProblem(outline);
+                    if (uneven != null) return $"{child.name}'s outline: {uneven}";
+                    widths.Add(outline.DrawnWidth);
+                }
                 LanguageTextMeshController language = child.GetComponent<LanguageTextMeshController>();
                 bool quit = language && System.Array.IndexOf(PauseScreenStyler.QuitTokens, language.token) >= 0;
                 (quit ? quits : stacked).Add((RectTransform)child);
             }
             if (stacked.Count == 0) return "the pause menu shows no buttons";
+            if (widths.Count > 1) return $"the buttons' outlines are {string.Join(", ", widths)} pixels wide, not all one width";
             for (int i = 0; i < stacked.Count; i++)
             {
                 RectTransform rect = stacked[i];

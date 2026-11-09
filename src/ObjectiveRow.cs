@@ -39,8 +39,6 @@ namespace SevenUI
         private const float ChargeBarHeight = 4f * Canvas;
         private const float ChargeBarGap = 6f * Canvas;
         private const float PercentWidth = 44f * Canvas;
-        // The outline sprite's edge, in its pixels (FlatSprite.Outline).
-        private const float OutlineEdgePixels = 2f;
 
         // False for a strip without the game's label, layout group and layout element. The panel, when given, names
         // the strip's objective.
@@ -154,15 +152,8 @@ namespace SevenUI
 
         private static void AddBox(RectTransform checkbox, Image image, Sprite openSprite, StyleRecorder recorder)
         {
-            GameObject created = NewUIObject(BoxName, checkbox);
-            Stretch((RectTransform)created.transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-            Image outline = created.AddComponent<Image>();
-            outline.sprite = FlatSprite.Outline;
-            outline.type = Image.Type.Sliced;
-            outline.pixelsPerUnitMultiplier = OutlineEdgePixels / BoxEdge;
-            outline.color = Palette.HeaderText;
-            outline.raycastTarget = false;
-            outline.enabled = false;
+            PixelOutline outline = PixelOutline.Add(checkbox, BoxName, Palette.HeaderText, BoxEdge);
+            GameObject created = outline.gameObject;
             ObjectiveCheckbox follower = created.AddComponent<ObjectiveCheckbox>();
             follower.Checkbox = image;
             follower.OpenSprite = openSprite;

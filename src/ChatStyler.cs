@@ -20,14 +20,12 @@ namespace SevenUI
         private const float Canvas = HudUnits.PerCanvasPixel;
         private const float OutlineEdge = 1f * Canvas;
         private const float EdgeWidth = 2f * Canvas;
-        // The outline sprite's edge, in its pixels (FlatSprite.Outline).
-        private const float OutlineEdgePixels = 2f;
 
         private readonly Transform root;
         private readonly StyleRecorder recorder = new StyleRecorder();
         private readonly List<ChatBox> chats = new List<ChatBox>();
         // Each field's image and the mod's parts over it, which follow the image on and off.
-        private readonly List<(Image Field, Image[] Parts)> fields = new List<(Image, Image[])>();
+        private readonly List<(Image Field, Graphic[] Parts)> fields = new List<(Image, Graphic[])>();
 
         public ChatStyler(Transform root)
         {
@@ -50,10 +48,8 @@ namespace SevenUI
                 // the next frame, so adding them on every pass would restyle it every frame as it grows.
                 if (field.Find(OutlineName)) continue;
 
-                Image outline = NewImage(OutlineName, field, Palette.Divider);
-                outline.sprite = FlatSprite.Outline;
-                outline.type = Image.Type.Sliced;
-                outline.pixelsPerUnitMultiplier = OutlineEdgePixels / OutlineEdge;
+                PixelOutline outline = PixelOutline.Add(field, OutlineName, Palette.Divider, OutlineEdge);
+                recorder.Add(outline.gameObject);
                 RectTransform edge = (RectTransform)NewImage(EdgeName, field, Palette.Accent).transform;
                 edge.anchorMax = new Vector2(0f, 1f);
                 edge.pivot = new Vector2(0f, 0.5f);
@@ -61,7 +57,7 @@ namespace SevenUI
                 // Under the typed text.
                 edge.SetAsFirstSibling();
                 outline.transform.SetAsFirstSibling();
-                fields.Add((image, new[] { outline, edge.GetComponent<Image>() }));
+                fields.Add((image, new Graphic[] { outline, edge.GetComponent<Image>() }));
             }
             chats.Clear();
             Update();
@@ -71,10 +67,10 @@ namespace SevenUI
         // always its object, so the outline and the strip follow the image. A read and a compare per field.
         public void Update()
         {
-            foreach ((Image field, Image[] parts) in fields)
+            foreach ((Image field, Graphic[] parts) in fields)
             {
                 bool shown = field && field.enabled;
-                foreach (Image part in parts)
+                foreach (Graphic part in parts)
                 {
                     if (part && part.enabled != shown)
                     {

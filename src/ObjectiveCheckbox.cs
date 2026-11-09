@@ -11,7 +11,7 @@ namespace SevenUI
     {
         public Image Checkbox;
         public Sprite OpenSprite;
-        public Image Box;
+        public PixelOutline Box;
 
         // A sprite compare when nothing changed.
         private void LateUpdate()

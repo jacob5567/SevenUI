@@ -941,7 +941,7 @@ namespace SevenUI.Tests
 
         private static string ChatInputLook(Image input)
         {
-            Image outline = input ? input.transform.Find(ChatStyler.OutlineName)?.GetComponent<Image>() : null;
+            PixelOutline outline = input ? input.transform.Find(ChatStyler.OutlineName)?.GetComponent<PixelOutline>() : null;
             Image edge = input ? input.transform.Find(ChatStyler.EdgeName)?.GetComponent<Image>() : null;
             return $"field {(input ? (input.enabled ? "shown" : "hidden") : "-")}, " +
                    $"outline {(outline ? (outline.enabled ? "on " : "off ") + outline.color : "missing")}, " +
@@ -957,20 +957,27 @@ namespace SevenUI.Tests
                 () =>
                 {
                     input = ChatInput(h);
-                    Image outline = input ? input.transform.Find(ChatStyler.OutlineName)?.GetComponent<Image>() : null;
+                    PixelOutline outline = input ? input.transform.Find(ChatStyler.OutlineName)?.GetComponent<PixelOutline>() : null;
                     Image edge = input ? input.transform.Find(ChatStyler.EdgeName)?.GetComponent<Image>() : null;
                     if (!outline || !edge) return false;
                     bool shown = input.enabled && input.gameObject.activeInHierarchy;
                     if (!typing) return !shown || (!outline.enabled && !edge.enabled);
-                    return shown && outline.enabled && edge.enabled && Near(outline.color, Palette.Divider) && outline.sprite &&
+                    return shown && outline.enabled && edge.enabled && Near(outline.color, Palette.Divider) &&
+                           CanvasLayoutChecks.PixelOutlineProblem(outline) == null &&
                            Near(edge.color, Palette.Accent) &&
                            Mathf.Abs(edge.rectTransform.rect.width - 2f * HudUnits.PerCanvasPixel) < ChatEdgeTolerance;
                 },
                 () => $"the chat input {(typing ? "outlined while typing" : "hidden with its outline once closed")} " +
-                      $"({ChatInputLook(input)}) {h.Diagnosis()}");
+                      $"({ChatInputLook(input)}, {PixelLook(input)}) {h.Diagnosis()}");
         }
 
         private const float ChatEdgeTolerance = 0.1f;
+
+        private static string PixelLook(Image input)
+        {
+            PixelOutline outline = input ? input.transform.Find(ChatStyler.OutlineName)?.GetComponent<PixelOutline>() : null;
+            return outline ? CanvasLayoutChecks.PixelOutlineProblem(outline) ?? "drawn on whole pixels" : "no outline";
+        }
 
         // Long enough for a restyle that adds objects on every pass to add them dozens of times: each one changes the
         // HUD's object count, which restyles the HUD on the next frame. A stray buff or notification adds far fewer.

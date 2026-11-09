@@ -85,6 +85,26 @@ namespace SevenUI.Tests
         internal static Rect ScreenOf(Camera camera) =>
             camera ? camera.pixelRect : new Rect(0f, 0f, Screen.width, Screen.height);
 
+        // Null when the mod's outline is drawn on whole screen pixels, its sides a whole number of pixels wide, and its
+        // edges within half a pixel of where its rect falls on the screen through its canvas's camera.
+        internal static string PixelOutlineProblem(PixelOutline outline)
+        {
+            Canvas root = outline.canvas ? outline.canvas.rootCanvas : null;
+            if (!root) return "the outline has no canvas";
+            Rect drawn = outline.DrawnPixels;
+            float width = outline.DrawnWidth;
+            if (width < 1f || !Whole(width)) return $"its sides are {width} pixels wide";
+            if (!Whole(drawn.xMin) || !Whole(drawn.xMax) || !Whole(drawn.yMin) || !Whole(drawn.yMax)) return $"it is drawn at {drawn}, between pixels";
+            Rect box = OnScreen(root.renderMode == RenderMode.ScreenSpaceOverlay ? null : root.worldCamera, outline.rectTransform);
+            bool placed = Mathf.Abs(drawn.xMin - box.xMin) <= PixelSnap && Mathf.Abs(drawn.xMax - box.xMax) <= PixelSnap &&
+                          Mathf.Abs(drawn.yMin - box.yMin) <= PixelSnap && Mathf.Abs(drawn.yMax - box.yMax) <= PixelSnap;
+            return placed ? null : $"it is drawn at {drawn}, not on its rect at {box}";
+        }
+
+        private const float PixelSnap = 0.5f + 0.01f;
+
+        private static bool Whole(float value) => Mathf.Abs(value - Mathf.Round(value)) < 0.001f;
+
         // Through the HUD's camera, which draws the HUD's main area in perspective.
         internal static Rect OnScreen(Camera camera, RectTransform rect)
         {

@@ -81,8 +81,6 @@ namespace SevenUI
         private const float CancelHeight = 28f * Canvas;
         private const float CancelTextSize = 13f * Canvas;
         private const float RestOutlineEdge = 1f * Canvas;
-        // The outline sprite's edge, in its pixels (FlatSprite.Outline).
-        private const float OutlineEdgePixels = 2f;
 
         private readonly PickupPickerPanel panel;
         private readonly HUD hud;
@@ -785,18 +783,13 @@ namespace SevenUI
             return count;
         }
 
-        private Image AddOutline(RectTransform holder) => AddOutline(holder, Palette.Accent, OutlineEdge);
+        private PixelOutline AddOutline(RectTransform holder) => AddOutline(holder, Palette.Accent, OutlineEdge);
 
         // An outline of this color and edge width over the holder, hidden until shown.
-        private Image AddOutline(RectTransform holder, Color color, float edge)
+        private PixelOutline AddOutline(RectTransform holder, Color color, float edge)
         {
-            RectTransform rect = NewImage("Outline", holder, color);
-            Stretch(rect);
-            Image outline = rect.GetComponent<Image>();
-            outline.sprite = FlatSprite.Outline;
-            outline.type = Image.Type.Sliced;
-            outline.pixelsPerUnitMultiplier = OutlineEdgePixels / edge;
-            outline.enabled = false;
+            PixelOutline outline = PixelOutline.Add(holder, "Outline", color, edge);
+            recorder.Add(outline.gameObject);
             return outline;
         }
 

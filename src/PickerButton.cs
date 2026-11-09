@@ -23,9 +23,9 @@ namespace SevenUI
         public ItemStatsText.Parts Parts = new ItemStatsText.Parts();
         public StatsSection Stats;
         public RectTransform Icon;
-        public Image Outline;
+        public PixelOutline Outline;
         // An outlined button's resting outline and label, which the hover outline replaces and lights.
-        public Image RestOutline;
+        public PixelOutline RestOutline;
         public TMP_Text Label;
         public TMP_Text Count;
         public TMP_Text Name;
