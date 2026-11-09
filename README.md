@@ -2,6 +2,8 @@
 
 A flat restyle of Risk of Rain 2's HUD: Barlow text, flat translucent panels and bars, and a matching scoreboard, tooltips, item pickers and pause menu. The game's layout stays the same, so other HUD mods keep working.
 
+Found a bug or have an idea? Open an issue on [GitHub](https://github.com/jacob5567/SevenUI/issues).
+
 ![The HUD in a run with SevenUI](https://raw.githubusercontent.com/jacob5567/SevenUI/main/docs/screenshots/hud.jpg)
 
 ## What it changes
