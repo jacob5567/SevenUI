@@ -50,9 +50,9 @@ namespace SevenUI
         private CanvasGroup hider;
         // How far the container's bottom is pulled down past its own (see Stretch).
         private float stretch;
-        // The game indents a minion's card under its leader by this much; zero while the cards are restyled, so every
-        // card starts at the same edge.
-        private float? savedIndent;
+        // The game indents a minion's card under its leader by its manager's indentWidth; zero while the cards are
+        // restyled, so every card starts at the same edge. The values are kept for Restore, per manager touched.
+        private readonly Dictionary<AllyCardManager, float> savedIndents = new Dictionary<AllyCardManager, float>();
 
         private sealed class Kind
         {
@@ -90,16 +90,6 @@ namespace SevenUI
                 container = manager ? (RectTransform)manager.transform : null;
                 stretch = 0f;
             }
-            if (container && savedIndent == null)
-            {
-                AllyCardManager manager = container.GetComponent<AllyCardManager>();
-                if (manager)
-                {
-                    savedIndent = manager.indentWidth;
-                    manager.indentWidth = 0f;
-                    LayoutRebuilder.MarkLayoutForRebuild(container);
-                }
-            }
             // Kept when the look is turned off, only shown again, as a new group couldn't be added while an old one
             // waited to be destroyed at the frame's end.
             if (container && !hider)
@@ -133,16 +123,15 @@ namespace SevenUI
             looks.Clear();
             more?.Destroy();
             more = null;
-            if (container && savedIndent != null)
+            foreach (KeyValuePair<AllyCardManager, float> entry in savedIndents)
             {
-                AllyCardManager manager = container.GetComponent<AllyCardManager>();
-                if (manager)
+                if (entry.Key)
                 {
-                    manager.indentWidth = savedIndent.Value;
-                    LayoutRebuilder.MarkLayoutForRebuild(container);
+                    entry.Key.indentWidth = entry.Value;
+                    LayoutRebuilder.MarkLayoutForRebuild((RectTransform)entry.Key.transform);
                 }
             }
-            savedIndent = null;
+            savedIndents.Clear();
             Stretch(0f);
             if (hider)
             {
@@ -230,9 +219,9 @@ namespace SevenUI
             {
                 if (more == null || !more.Alive)
                 {
-                    more = new AllyMoreRow(container, cards[0].nameLabel);
+                    more = new AllyMoreRow(container, cards[0].nameLabel, PaddingLeft(kinds[0].Lead));
                 }
-                more.Show(used, overflow, hiddenAllies);
+                more.Show(used, overflow, hiddenAllies, PaddingLeft(kinds[0].Lead));
             }
             else
             {
@@ -245,10 +234,40 @@ namespace SevenUI
         private float Height(Kind kind, bool compact) =>
             compact && !kind.Shared ? AllyCompactCard.RowHeight : LookOf(kind.Lead).FullHeight;
 
+        // The left padding of a card's row, where its portrait starts inside it.
+        private static int PaddingLeft(AllyCardController card)
+        {
+            HorizontalLayoutGroup row = card ? card.GetComponent<HorizontalLayoutGroup>() : null;
+            return row ? row.padding.left : 0;
+        }
+
+        // The game indents a minion's card under its leader by its manager's indentWidth, writing the card's offsets
+        // only when it lays the cards out. The manager that holds the card may not be the one found first, so each
+        // card's own parent is zeroed, and the card's offsets are put right whenever they differ.
+        private void Unindent(AllyCardController card)
+        {
+            AllyCardManager manager = card.transform.parent ? card.transform.parent.GetComponent<AllyCardManager>() : null;
+            if (manager && manager.indentWidth != 0f)
+            {
+                if (!savedIndents.ContainsKey(manager))
+                {
+                    savedIndents.Add(manager, manager.indentWidth);
+                }
+                manager.indentWidth = 0f;
+            }
+            RectTransform rect = card.rectTransform;
+            if (rect.offsetMin.x != 0f || rect.offsetMax.x != 0f)
+            {
+                rect.offsetMin = new Vector2(0f, rect.offsetMin.y);
+                rect.offsetMax = new Vector2(0f, rect.offsetMax.y);
+            }
+        }
+
         private void ShowKind(Kind kind, bool compact, bool fits)
         {
             foreach (AllyCardController card in kind.Cards)
             {
+                Unindent(card);
                 AllyCompactCard look = LookOf(card);
                 if (card != kind.Lead)
                 {

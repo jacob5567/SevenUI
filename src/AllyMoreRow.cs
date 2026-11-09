@@ -18,13 +18,13 @@ namespace SevenUI
         private const float Canvas = HudUnits.PerCanvasPixel;
         private const float IconSize = 22f * Canvas;
         private const float IconGap = 4f * Canvas;
-        private const int PaddingLeft = 4;
         private const int PaddingRight = 8;
         private const float FontSize = 15f * Canvas;
         // Enough to fill the row's left beside the longest count.
         public const int MaxIcons = 5;
 
         private readonly RectTransform rect;
+        private readonly HorizontalLayoutGroup layout;
         private readonly TextMeshProUGUI label;
         private readonly List<RawImage> icons = new List<RawImage>();
         private readonly List<Texture> kinds = new List<Texture>();
@@ -32,7 +32,7 @@ namespace SevenUI
 
         // In the font and material of a card's name, so the font swap gives it Barlow if the name is still in the
         // game's font.
-        public AllyMoreRow(RectTransform container, TMP_Text style)
+        public AllyMoreRow(RectTransform container, TMP_Text style, int paddingLeft)
         {
             rect = NewObject(Name, container);
             // Pinned to the container's top across its width, like the cards the game places.
@@ -43,8 +43,8 @@ namespace SevenUI
             Image panel = rect.gameObject.AddComponent<Image>();
             panel.color = Palette.Panel;
             panel.raycastTarget = false;
-            HorizontalLayoutGroup layout = rect.gameObject.AddComponent<HorizontalLayoutGroup>();
-            layout.padding = new RectOffset(Mathf.RoundToInt(PaddingLeft * Canvas), Mathf.RoundToInt(PaddingRight * Canvas), 0, 0);
+            layout = rect.gameObject.AddComponent<HorizontalLayoutGroup>();
+            layout.padding = new RectOffset(paddingLeft, Mathf.RoundToInt(PaddingRight * Canvas), 0, 0);
             layout.spacing = IconGap;
             layout.childAlignment = TextAnchor.MiddleLeft;
             layout.childControlWidth = layout.childControlHeight = true;
@@ -80,11 +80,23 @@ namespace SevenUI
         public bool Alive => rect;
 
         // Under the cards shown, standing in for the cards given, which hold that many allies. Only what changed is set.
-        public void Show(float top, List<AllyCardController> hidden, int allies)
+        // The row's icons start where the cards' content does, so the row takes the cards' left padding.
+        public void Show(float top, List<AllyCardController> hidden, int allies, int paddingLeft)
         {
             if (!rect.gameObject.activeSelf)
             {
                 rect.gameObject.SetActive(true);
+            }
+            if (layout.padding.left != paddingLeft)
+            {
+                // Assigned whole, as that is what marks the layout for a rebuild.
+                layout.padding = new RectOffset(paddingLeft, layout.padding.right, 0, 0);
+            }
+            // No card indent: the row stands at the container's left edge, like the cards.
+            if (rect.offsetMin.x != 0f || rect.offsetMax.x != 0f)
+            {
+                rect.offsetMin = new Vector2(0f, rect.offsetMin.y);
+                rect.offsetMax = new Vector2(0f, rect.offsetMax.y);
             }
             if (rect.anchoredPosition.y != -top)
             {
