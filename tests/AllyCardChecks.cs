@@ -115,22 +115,8 @@ namespace SevenUI.Tests
             {
                 if (card.gameObject.activeSelf) return $"a second {Name(card)} has a card of its own";
             }
-            float? left = null;
-            foreach (AllyCardController card in cards)
-            {
-                if (!card.gameObject.activeSelf) continue;
-                // The portrait shows where the card's content starts; the card's own rect can differ from it.
-                RectTransform edge = card.portraitIconImage ? card.portraitIconImage.rectTransform : card.rectTransform;
-                edge.GetWorldCorners(Corners);
-                float x = cluster.InverseTransformPoint(Corners[0]).x;
-                left = left ?? x;
-                if (Mathf.Abs(x - left.Value) > Tolerance)
-                {
-                    bool isShared = kinds.Any(kind => kind.Lead == card && kind.Allies > 1);
-                    string look = isShared ? "shared" : compact ? "compact" : "full";
-                    return $"{Name(card)}'s {look} card has its portrait {x:0.#} units across, not {left.Value:0.#} like the first";
-                }
-            }
+            string edges = CompareEdges(cluster, kinds, compact, cards, More(h));
+            if (edges != null) return edges;
             for (int i = 0; i < kinds.Count; i++)
             {
                 Kind kind = kinds[i];
@@ -182,6 +168,57 @@ namespace SevenUI.Tests
                 .Where(icon => icon.name == AllyMoreRow.IconName).Select(icon => icon.texture).ToList();
             if (!icons.SequenceEqual(portraits)) return $"the more row shows {icons.Count} portraits, not the {portraits.Count} kinds hidden";
             return null;
+        }
+
+        // Every row drawn (the first card shown, the other cards, the more row) must start at the first's backdrop
+        // edge, with its icon the same distance in. Measured from the world corners, as drawn: the game indents a
+        // minion's card under its leader by moving the card's rect, which a portrait's edge alone would hide.
+        private static string CompareEdges(RectTransform cluster, List<Kind> kinds, bool compact, List<AllyCardController> cards,
+            RectTransform more)
+        {
+            float? backdrop = null;
+            float? inset = null;
+            foreach (AllyCardController card in cards)
+            {
+                if (!card.gameObject.activeSelf) continue;
+                float back = LeftEdge(cluster, card.rectTransform);
+                // Without a portrait the card's own edge stands in for the icon.
+                float icon = LeftEdge(cluster, card.portraitIconImage ? card.portraitIconImage.rectTransform : card.rectTransform);
+                bool isShared = kinds.Any(kind => kind.Lead == card && kind.Allies > 1);
+                string look = isShared ? "shared" : compact ? "compact" : "full";
+                string problem = CompareRow($"{Name(card)}'s {look} card", back, icon, ref backdrop, ref inset);
+                if (problem != null) return problem;
+            }
+            if (more && more.gameObject.activeSelf)
+            {
+                RectTransform slot = more.Cast<Transform>()
+                    .FirstOrDefault(child => child.name == AllyMoreRow.IconName && child.gameObject.activeSelf) as RectTransform;
+                float back = LeftEdge(cluster, more);
+                float icon = LeftEdge(cluster, slot ? slot : more);
+                return CompareRow("the more row", back, icon, ref backdrop, ref inset);
+            }
+            return null;
+        }
+
+        private static string CompareRow(string row, float back, float icon, ref float? backdrop, ref float? inset)
+        {
+            backdrop = backdrop ?? back;
+            inset = inset ?? icon - back;
+            if (Mathf.Abs(back - backdrop.Value) > Tolerance)
+            {
+                return $"{row} has its backdrop {back:0.#} units across, not {backdrop.Value:0.#} like the first";
+            }
+            if (Mathf.Abs(icon - back - inset.Value) > Tolerance)
+            {
+                return $"{row} has its icon {icon - back:0.#} units in from its backdrop (icon at {icon:0.#}, backdrop at {back:0.#}), not {inset.Value:0.#} like the first";
+            }
+            return null;
+        }
+
+        private static float LeftEdge(RectTransform cluster, RectTransform rect)
+        {
+            rect.GetWorldCorners(Corners);
+            return cluster.InverseTransformPoint(Corners[0]).x;
         }
 
         // Null when every card shows at the game's height with the game's bar again, and the mod's rows and counts
