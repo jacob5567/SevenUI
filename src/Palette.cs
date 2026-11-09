@@ -53,8 +53,6 @@ namespace SevenUI
         // #1a1c22 and 8% white, a prompt key's lower lip and the light along its top edge, on an ItemSlot face.
         public static readonly Color KeyLip = new Color(0.102f, 0.110f, 0.133f, 1f);
         public static readonly Color KeyHighlight = new Color(1f, 1f, 1f, 0.08f);
-        // #121318, the dark rim that sets the next equipment's badge off the equipment slot it overlaps.
-        public static readonly Color BadgeRim = new Color(0.071f, 0.075f, 0.094f, 1f);
         // #3a3f4c, the empty part of a bar.
         public static readonly Color Trough = new Color(0.227f, 0.247f, 0.298f, 1f);
         // #e9d27a and #8fd0e8, the money and lunar coin amounts in the top left.

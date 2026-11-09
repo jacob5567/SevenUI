@@ -39,10 +39,12 @@ namespace SevenUI.Tests
         // One, so its card keeps the game's health bar: allies of one kind share a card with a bar split per ally.
         private const int ProtectionAllyCount = 1;
         // Long enough for the Functional Coupler to add its equipment set.
-        private const float BadgeSettleSeconds = 0.5f;
+        private const float DeckSettleSeconds = 0.5f;
+        // Two Couplers: three equipment, the one in use and two in the deck.
+        private const int DeckCouplers = 2;
         // In the design canvas's pixels on its 1080-pixel-high screen.
-        private const float BadgeTolerance = 2f;
-        private const float BadgeCanvasHeight = 1080f;
+        private const float DeckTolerance = 2f;
+        private const float DeckCanvasHeight = 1080f;
         // Healing Drones among the last allies, so the more row has two kinds to show.
         private const int OverflowHealingDrones = 2;
         // Barrier decays, so plenty for both looks' checks.
@@ -64,7 +66,7 @@ namespace SevenUI.Tests
             yield return new Scenario(1, "void_transformation_notification_blend", Stages.TitanicPlains,
                 VoidTransformationNotificationBlend);
             yield return new Scenario(1, "stocks_in_slot_corners", Stages.TitanicPlains, StocksInSlotCorners);
-            yield return new Scenario(1, "next_equipment_badge_swaps", Stages.TitanicPlains, NextEquipmentBadgeSwaps);
+            yield return new Scenario(1, "next_equipment_deck_swaps", Stages.TitanicPlains, NextEquipmentDeckSwaps);
             yield return new Scenario(1, "ntormat_pages_follow_key_item", Stages.TitanicPlains, NtormatPagesFollowKeyItem);
             yield return new Scenario(1, "top_is_flat", Stages.TitanicPlains, TopIsFlat);
             yield return new Scenario(1, "item_icons_are_flat", Stages.TitanicPlains, ItemIconsAreFlat);
@@ -293,11 +295,12 @@ namespace SevenUI.Tests
 
         // Foreign Fruit with a Fuel Cell, so the slot shows its stock, and a Backup Magazine, so the secondary skill
         // shows its own, taken away at cleanup. Server methods; the runner is the host.
-        // With a Functional Coupler and an equipment in each set, the next one shows as a badge centered on the
-        // equipment slot's top-left corner, on the screen, copying the game's own (hidden) alternate slot. Swapping
-        // plays the trade and leaves the badge on the equipment that was in use; with the panels off the game's slot
-        // shows again and the badge is gone.
-        private static IEnumerator NextEquipmentBadgeSwaps(Harness h)
+        // With two Functional Couplers and an equipment in each of the three sets, the deck above the equipment slot
+        // shows the next one as the game's own (hidden) alternate slot does and the one after it fainter and higher,
+        // right-aligned over the slot and on the screen, with the chevron between the next icon and the slot and the
+        // player's Interact and Equipment keys to its left. Swapping plays the trade and moves the deck down a place,
+        // the equipment that was in use going to the back; with the panels off the game's slot shows again.
+        private static IEnumerator NextEquipmentDeckSwaps(Harness h)
         {
             Inventory inventory = Harness.LocalBody.inventory;
             ItemDef coupler = DLC3Content.Items.ExtraEquipment;
@@ -305,77 +308,102 @@ namespace SevenUI.Tests
             {
                 if (inventory && inventory.GetItemCountPermanent(coupler) > 0)
                 {
-                    inventory.RemoveItemPermanent(coupler);
+                    inventory.RemoveItemPermanent(coupler, inventory.GetItemCountPermanent(coupler));
                 }
             });
-            inventory.GiveItemPermanent(coupler);
-            yield return h.Wait(BadgeSettleSeconds);
-            if (inventory.accessibleEquipmentSetCount < 2) throw h.Skip("the Functional Coupler needs Alloyed Collective");
+            inventory.GiveItemPermanent(coupler, DeckCouplers);
+            yield return h.Wait(DeckSettleSeconds);
+            if (inventory.accessibleEquipmentSetCount < DeckCouplers + 1) throw h.Skip("the Functional Coupler needs Alloyed Collective");
+            EquipmentDef[] held = { RoR2Content.Equipment.Fruit, RoR2Content.Equipment.Blackhole, RoR2Content.Equipment.CommandMissile };
             EquipmentLocation active = inventory.activeEquipmentLocation;
-            EquipmentLocation other = active;
-            other.set = (active.set + 1) % inventory.accessibleEquipmentSetCount;
-            EquipmentIndex activeBefore = inventory.GetEquipment(in active).equipmentIndex;
-            EquipmentIndex otherBefore = inventory.GetEquipment(in other).equipmentIndex;
+            EquipmentLocation[] places = new EquipmentLocation[held.Length];
+            EquipmentIndex[] before = new EquipmentIndex[held.Length];
+            for (int i = 0; i < held.Length; i++)
+            {
+                places[i] = active;
+                places[i].set = (uint)((active.set + i) % inventory.accessibleEquipmentSetCount);
+                before[i] = inventory.GetEquipment(in places[i]).equipmentIndex;
+            }
             h.OnCleanup(() =>
             {
                 if (!inventory) return;
-                inventory.SetEquipmentIndex(activeBefore, in active);
-                inventory.SetEquipmentIndex(otherBefore, in other);
+                for (int i = 0; i < held.Length; i++)
+                {
+                    inventory.SetEquipmentIndex(before[i], in places[i]);
+                }
             });
-            inventory.SetEquipmentIndex(RoR2Content.Equipment.Fruit.equipmentIndex, in active);
-            inventory.SetEquipmentIndex(RoR2Content.Equipment.Blackhole.equipmentIndex, in other);
+            for (int i = 0; i < held.Length; i++)
+            {
+                inventory.SetEquipmentIndex(held[i].equipmentIndex, in places[i]);
+            }
 
             HUD hud = SevenUIChecks.HudRoot(h).GetComponent<HUD>();
             EquipmentIcon main = hud.equipmentIcons.FirstOrDefault(icon => icon && !icon.displayAlternateEquipment);
             EquipmentIcon alternate = hud.equipmentIcons.FirstOrDefault(icon => icon && icon.displayAlternateEquipment);
             if (!main || !alternate) throw h.Fail("the HUD has no alternate equipment slot");
-            yield return h.Until(() => BadgeProblem(h, main, alternate) == null, () => $"{BadgeProblem(h, main, alternate)} {h.Diagnosis()}");
-            yield return h.Screenshot("badge");
+            // Fruit in use; the Cube next, then the Missile Launcher.
+            yield return h.Until(() => DeckProblem(h, main, alternate, held[2]) == null,
+                () => $"{DeckProblem(h, main, alternate, held[2])} {h.Diagnosis()}");
+            yield return h.Screenshot("deck");
 
-            Texture inUse = main.iconImage.texture;
             inventory.DispatchSwitchToNextEquipmentInSet();
-            yield return h.Until(() => h.FindUnderHud(EquipmentBadge.SwapName) is Transform swap && swap.gameObject.activeSelf,
+            yield return h.Until(() => h.FindUnderHud(EquipmentDeck.SwapName) is Transform swap && swap.gameObject.activeSelf,
                 "the swap playing");
-            yield return h.Wait(EquipmentBadge.SwapSeconds / 2f);
             yield return h.Screenshot("swapping");
-            yield return h.Until(() => BadgeProblem(h, main, alternate) == null && BadgeIcon(h).texture == inUse &&
-                                       !h.FindUnderHud(EquipmentBadge.SwapName).gameObject.activeSelf,
-                () => $"after the swap, {BadgeProblem(h, main, alternate) ?? "the badge doesn't show the equipment swapped out"} " +
-                      h.Diagnosis());
+            // The Cube in use; the Missile Launcher next, then the Fruit.
+            yield return h.Until(() => DeckProblem(h, main, alternate, held[0]) == null &&
+                                       !h.FindUnderHud(EquipmentDeck.SwapName).gameObject.activeSelf,
+                () => $"after the swap, {DeckProblem(h, main, alternate, held[0]) ?? "the swap still plays"} {h.Diagnosis()}");
 
             h.SetConfig(SevenUIPlugin.Settings.FlatPanels, false);
-            yield return h.Until(() => !h.FindUnderHud(EquipmentBadge.Name) && !alternate.GetComponent<CanvasGroup>(),
-                () => $"with the panels off, the badge is still there or the game's slot hidden {h.Diagnosis()}");
+            yield return h.Until(() => !h.FindUnderHud(EquipmentDeck.Name) && !alternate.GetComponent<CanvasGroup>(),
+                () => $"with the panels off, the deck is still there or the game's slot hidden {h.Diagnosis()}");
             h.SetConfig(SevenUIPlugin.Settings.FlatPanels, true);
-            yield return h.Until(() => BadgeProblem(h, main, alternate) == null,
-                () => $"with the panels back on, {BadgeProblem(h, main, alternate)} {h.Diagnosis()}");
+            yield return h.Until(() => DeckProblem(h, main, alternate, held[0]) == null,
+                () => $"with the panels back on, {DeckProblem(h, main, alternate, held[0])} {h.Diagnosis()}");
         }
 
-        private static RawImage BadgeIcon(Harness h)
+        // Null when the deck shows the alternate slot's icon next and the given equipment fainter behind it, both
+        // right-aligned over the main slot, rising, and on the screen, with the chevron in the gap under the next icon
+        // and three key labels ("Interact", "+", "Equipment") ending left of it.
+        private static string DeckProblem(Harness h, EquipmentIcon main, EquipmentIcon alternate, EquipmentDef behind)
         {
-            Transform badge = h.FindUnderHud(EquipmentBadge.Name);
-            return badge ? badge.GetComponentInChildren<RawImage>(true) : null;
-        }
-
-        // Null when the badge shows the game's alternate slot's icon, centered on the main slot's top-left corner,
-        // all of it on the screen.
-        private static string BadgeProblem(Harness h, EquipmentIcon main, EquipmentIcon alternate)
-        {
-            Transform badge = h.FindUnderHud(EquipmentBadge.Name);
-            if (!badge || !badge.gameObject.activeInHierarchy) return "no badge shows";
-            RawImage icon = BadgeIcon(h);
+            Transform deck = h.FindUnderHud(EquipmentDeck.Name);
+            if (!deck || !deck.gameObject.activeInHierarchy) return "no deck shows";
+            RawImage next = deck.Find(EquipmentDeck.IconName + 0)?.GetComponent<RawImage>();
+            RawImage after = deck.Find(EquipmentDeck.IconName + 1)?.GetComponent<RawImage>();
             if (!alternate.iconImage.texture) return "the game's alternate slot has no icon yet";
-            if (!icon || icon.texture != alternate.iconImage.texture) return "the badge's icon isn't the alternate slot's";
+            if (!next || next.texture != alternate.iconImage.texture) return "the next icon isn't the alternate slot's";
+            Texture expected = EquipmentIcons.Get(behind.equipmentIndex);
+            if (!after || !expected || after.texture != expected) return $"the icon behind isn't {behind.name}'s";
+            if (after.color.a >= next.color.a) return $"the icon behind ({after.color.a:0.##}) isn't fainter than the next ({next.color.a:0.##})";
+
             Camera camera = CanvasLayoutChecks.HudCamera(SevenUIChecks.HudRoot(h));
             Rect screen = CanvasLayoutChecks.ScreenOf(camera);
-            Rect box = CanvasLayoutChecks.OnScreen(camera, (RectTransform)badge);
+            float tolerance = DeckTolerance * screen.height / DeckCanvasHeight;
             Rect slot = CanvasLayoutChecks.OnScreen(camera, (RectTransform)main.displayRoot.transform);
-            Vector2 corner = new Vector2(slot.xMin, slot.yMax);
-            if (Vector2.Distance(box.center, corner) > BadgeTolerance * screen.height / BadgeCanvasHeight)
+            Rect nextBox = CanvasLayoutChecks.OnScreen(camera, next.rectTransform);
+            Rect afterBox = CanvasLayoutChecks.OnScreen(camera, after.rectTransform);
+            if (Mathf.Abs(nextBox.xMax - slot.xMax) > tolerance) return $"the next icon ends at {nextBox.xMax:0}, not the slot's right edge {slot.xMax:0}";
+            if (nextBox.yMin <= slot.yMax) return $"the next icon {nextBox} isn't above the slot {slot}";
+            if (afterBox.yMin <= nextBox.yMin || Mathf.Abs(afterBox.xMax - nextBox.xMax) > tolerance) return $"the icon behind {afterBox} doesn't rise over the next {nextBox}";
+            if (!screen.Contains(afterBox.max) || !screen.Contains(nextBox.min)) return $"the deck runs off the screen {screen}";
+
+            RectTransform arrow = deck.Find(EquipmentDeck.ArrowName) as RectTransform;
+            if (!arrow || !arrow.gameObject.activeInHierarchy) return "no chevron";
+            Rect arrowBox = CanvasLayoutChecks.OnScreen(camera, arrow);
+            if (arrowBox.center.x < nextBox.xMin || arrowBox.center.x > nextBox.xMax || arrowBox.center.y < slot.yMax || arrowBox.center.y > nextBox.yMin)
             {
-                return $"the badge's middle is at {box.center}, not the slot's top-left corner {corner}";
+                return $"the chevron's middle {arrowBox.center} isn't in the gap between the slot {slot} and the next icon {nextBox}";
             }
-            if (!screen.Contains(box.min) || !screen.Contains(box.max)) return $"the badge {box} runs off the screen {screen}";
+            RectTransform keys = deck.Find(EquipmentDeck.KeysName) as RectTransform;
+            TMP_Text[] labels = keys ? keys.GetComponentsInChildren<TMP_Text>() : new TMP_Text[0];
+            if (labels.Length != 3 || labels.Any(label => string.IsNullOrEmpty(label.text)) || labels[1].text != "+")
+            {
+                return $"the keys read '{string.Join("', '", labels.Select(label => label.text))}'";
+            }
+            Rect keysBox = CanvasLayoutChecks.OnScreen(camera, labels[2].rectTransform);
+            if (keysBox.xMax > nextBox.xMin) return $"the keys end at {keysBox.xMax:0}, over the next icon from {nextBox.xMin:0}";
             return null;
         }
 

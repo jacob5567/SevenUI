@@ -14,8 +14,8 @@ namespace SevenUI
     // Barlow Condensed with the stocks in their slots' bottom-right corners (CornerStock), and the key labels (the
     // slots' and the inventory and sprint buttons') as small grey capitals without their dark plates, and the
     // scoreboard and sprint (or descend) buttons' icons as flat strokes (FlatIcons), with the tutorial popups above
-    // them as dark panels (TutorialPopups). The next equipment (a Functional Coupler's or MUL-T's second) is a badge
-    // on the equipment slot's corner (EquipmentBadge). The game keeps running the slots.
+    // them as dark panels (TutorialPopups). The equipment a Functional Coupler's swap or MUL-T's Retool switches to is
+    // a deck of icons above the equipment slot (EquipmentDeck). The game keeps running the slots.
     internal sealed class SkillSlotsStyler
     {
         private const string ClusterPath = "MainContainer/MainUIArea/SpringCanvas/BottomRightCluster";
@@ -52,7 +52,7 @@ namespace SevenUI
         private SlotFitter equipmentFit;
         private EquipmentIcon mainEquipment;
         private EquipmentIcon alternateEquipment;
-        private EquipmentBadge badge;
+        private EquipmentDeck deck;
         private SlotFitter keyItemFit;
         private RectTransform extraButtons;
         private Vector2 extraButtonsPosition;
@@ -91,7 +91,7 @@ namespace SevenUI
                 StyleEquipment(slot);
             }
             equipment.Clear();
-            AddBadge();
+            AddDeck();
             // Before the key item, which is among the extra buttons and whose key is then sized to the skills'.
             Transform extraButtons = cluster.Find(ExtraButtonsPath);
             if (extraButtons)
@@ -120,7 +120,7 @@ namespace SevenUI
             equipmentFit = null;
             mainEquipment = null;
             alternateEquipment = null;
-            badge = null;
+            deck = null;
             keyItemFit = null;
             extraButtons = null;
             keyItemSlot = null;
@@ -135,7 +135,7 @@ namespace SevenUI
         public void Update()
         {
             equipmentFit?.Update();
-            badge?.Update();
+            deck?.Update();
             stocks.RemoveAll(stock => !stock.Alive);
             foreach (CornerStock stock in stocks)
             {
@@ -179,7 +179,7 @@ namespace SevenUI
             }
             StyleNumbers(slot.cooldownText, slot.stockText);
             StyleKeys(slot.transform);
-            // The main slot; the alternate one, which shows the next equipment, is drawn as a badge on its corner.
+            // The main slot; the alternate one, which shows the next equipment, is drawn as a deck above it.
             if (slot.displayAlternateEquipment)
             {
                 alternateEquipment = slot;
@@ -199,10 +199,10 @@ namespace SevenUI
         }
 
         // On the main slot as fitted, once both slots are found.
-        private void AddBadge()
+        private void AddDeck()
         {
-            if (badge != null && badge.Alive || equipmentFit == null || !equipmentFit.Alive || !mainEquipment || !alternateEquipment) return;
-            badge = new EquipmentBadge(mainEquipment, alternateEquipment, equipmentFit.Display, row, recorder);
+            if (deck != null && deck.Alive || equipmentFit == null || !equipmentFit.Alive || !mainEquipment || !alternateEquipment) return;
+            deck = new EquipmentDeck(mainEquipment, alternateEquipment, equipmentFit.Display, row, recorder);
         }
 
         // The equipment and key item slots are drawn at a larger scale than the skills, with their key plates further
