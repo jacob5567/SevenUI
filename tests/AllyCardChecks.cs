@@ -9,16 +9,38 @@ using UnityEngine.UI;
 
 namespace SevenUI.Tests
 {
-    // The ally cards' stack against the chat, measured from the game's own objects in the cards' cluster's units: the
-    // room runs from the cluster's top down to the chat's message area, less the mod's gap, and never past the
-    // cluster's bottom, where the game would start squeezing the cards together.
+    // The ally cards' stack against the chat, worked out from the game's own objects and compared with what shows. The
+    // room runs from the cards' cluster's top down to the chat's message area, less the mod's gap, and never past the
+    // cluster's bottom. Allies of one name following one leader share a card (players and allies between bodies keep
+    // their own); while every card at the game's height doesn't fit, the cards of a single ally are compact rows; if
+    // that still doesn't fit, the cards that don't go under a "+N more" row.
     internal static class AllyCardChecks
     {
         private const string ClusterPath = "MainContainer/MainUIArea/SpringCanvas/LeftCluster";
+        // The game's ally card (Prefabs/UI/AllyCard) asks for this height.
+        public const float GameHeight = 48f;
         // As the mod keeps it, in the HUD's units.
         private const float ChatGap = 8f * HudUnits.PerCanvasPixel;
         private const float Tolerance = 0.5f;
         private static readonly Vector3[] Corners = new Vector3[4];
+
+        // What the cards show, and the first difference from what they should, if any.
+        internal sealed class Layout
+        {
+            public string Problem;
+            public int Cards;
+            public int Kinds;
+            public bool Compact;
+            public int HiddenAllies;
+        }
+
+        private sealed class Kind
+        {
+            public AllyCardController Lead;
+            public string Name;
+            public CharacterMaster Leader;
+            public int Allies;
+        }
 
         public static RectTransform Cluster(Harness h) => SevenUIChecks.HudRoot(h).Find(ClusterPath) as RectTransform;
 
@@ -27,13 +49,6 @@ namespace SevenUI.Tests
         {
             RectTransform cluster = Cluster(h);
             return cluster ? cluster.GetComponentsInChildren<AllyCardController>(true).ToList() : new List<AllyCardController>();
-        }
-
-        // A card's height at the game's size, from the first card, while there are few enough to show at it.
-        public static float FullHeight(Harness h)
-        {
-            AllyCardController card = Cards(h).FirstOrDefault();
-            return card && card.layoutElement ? card.layoutElement.preferredHeight : 0f;
         }
 
         public static float Room(Harness h)
@@ -47,79 +62,115 @@ namespace SevenUI.Tests
             return Mathf.Min(cluster.rect.height, cluster.rect.yMax - chatTop - ChatGap);
         }
 
-        // How many cards of that height fit in the room.
-        public static int Fitting(Harness h, float height) => Mathf.FloorToInt(Room(h) / height + 0.01f);
-
-        // Null when every card shows at that height, none reaching past the room, and the more row doesn't show.
-        public static string AllShown(Harness h, float height, int count)
+        public static Layout Measure(Harness h)
         {
             List<AllyCardController> cards = Cards(h);
-            if (cards.Count != count) return $"{cards.Count} ally cards, not {count}";
-            RectTransform cluster = Cluster(h);
-            float room = Room(h);
-            foreach (AllyCardController card in cards)
-            {
-                if (!card.gameObject.activeSelf) return $"{Name(card)}'s card is hidden";
-                float tall = card.rectTransform.rect.height;
-                if (Mathf.Abs(tall - height) > Tolerance) return $"{Name(card)}'s card is {tall:0.#} units tall, not {height:0.#}";
-                float depth = Depth(cluster, card.rectTransform);
-                if (depth > room + Tolerance)
-                {
-                    return $"{Name(card)}'s card reaches {depth:0.#} units down, past the {room:0.#} above the chat";
-                }
-            }
-            RectTransform more = More(h);
-            if (more && more.gameObject.activeSelf) return "the more row shows";
-            return null;
-        }
-
-        // Null when the compact rows that fit above the chat show, with the more row under them standing in for the
-        // rest: "+N more" and a portrait for each kind hidden, in the order they come.
-        public static string Overflowing(Harness h, int count)
-        {
-            List<AllyCardController> cards = Cards(h);
-            if (cards.Count != count) return $"{cards.Count} ally cards, not {count}";
+            Layout layout = new Layout { Cards = cards.Count };
             RectTransform cluster = Cluster(h);
             float room = Room(h);
             float row = AllyCompactCard.RowHeight;
-            int shown = Mathf.Max(0, Mathf.FloorToInt((room - row) / row + 0.01f));
-            int hidden = cards.Count - shown;
-            if (hidden <= 0) return $"all {cards.Count} cards fit as rows in {room:0.#} units";
-            for (int i = 0; i < cards.Count; i++)
+            List<Kind> kinds = new List<Kind>();
+            HashSet<AllyCardController> sharing = new HashSet<AllyCardController>();
+            foreach (AllyCardController card in cards)
             {
-                AllyCardController card = cards[i];
-                bool expected = i < shown;
-                if (card.gameObject.activeSelf != expected) return $"card {i + 1} of {cards.Count} is {(expected ? "hidden" : "shown")}";
-                if (!expected) continue;
-                float tall = card.rectTransform.rect.height;
-                if (Mathf.Abs(tall - row) > Tolerance) return $"{Name(card)}'s row is {tall:0.#} units tall, not {row:0.#}";
+                CharacterMaster master = card.sourceMaster;
+                CharacterBody body = master ? master.GetBody() : null;
+                string name = body && !master.playerCharacterMasterController ? Util.GetBestBodyName(body.gameObject) : null;
+                CharacterMaster leader = master && master.minionOwnership ? master.minionOwnership.ownerMaster : null;
+                Kind kind = name == null ? null : kinds.FirstOrDefault(found => found.Name == name && found.Leader == leader);
+                if (kind == null)
+                {
+                    kinds.Add(new Kind { Lead = card, Name = name, Leader = leader, Allies = master ? 1 : 0 });
+                }
+                else
+                {
+                    kind.Allies++;
+                    sharing.Add(card);
+                }
             }
+            layout.Kinds = kinds.Count;
+            bool compact = kinds.Count * GameHeight > room + Tolerance;
+            float Height(Kind kind) => compact && kind.Allies <= 1 ? row : GameHeight;
+            int shown = kinds.Count;
+            float used = kinds.Sum(Height);
+            if (used > room + Tolerance)
+            {
+                shown = 0;
+                used = 0f;
+                while (shown < kinds.Count && used + Height(kinds[shown]) + row <= room + Tolerance)
+                {
+                    used += Height(kinds[shown++]);
+                }
+            }
+            layout.Compact = compact;
+            layout.HiddenAllies = kinds.Skip(shown).Sum(kind => Mathf.Max(1, kind.Allies));
+            layout.Problem = Compare(cluster, room, kinds, sharing, shown, used, compact, cards, h);
+            return layout;
+        }
+
+        private static string Compare(RectTransform cluster, float room, List<Kind> kinds, HashSet<AllyCardController> sharing,
+            int shown, float used, bool compact, List<AllyCardController> cards, Harness h)
+        {
+            foreach (AllyCardController card in sharing)
+            {
+                if (card.gameObject.activeSelf) return $"a second {Name(card)} has a card of its own";
+            }
+            for (int i = 0; i < kinds.Count; i++)
+            {
+                Kind kind = kinds[i];
+                AllyCardController card = kind.Lead;
+                bool fits = i < shown;
+                if (card.gameObject.activeSelf != fits) return $"{Name(card)}'s card is {(fits ? "hidden" : "shown")} (kind {i + 1} of {kinds.Count}, {shown} fit)";
+                if (!fits) continue;
+                float height = compact && kind.Allies <= 1 ? AllyCompactCard.RowHeight : GameHeight;
+                float tall = card.rectTransform.rect.height;
+                if (Mathf.Abs(tall - height) > Tolerance) return $"{Name(card)}'s card is {tall:0.#} units tall, not {height:0.#}";
+                float depth = Depth(cluster, card.rectTransform);
+                if (depth > room + Tolerance) return $"{Name(card)}'s card reaches {depth:0.#} units down, past the {room:0.#} above the chat";
+                TMP_Text count = card.nameLabel ? card.nameLabel.transform.Find(AllyKindParts.CountName)?.GetComponent<TMP_Text>() : null;
+                if (kind.Allies > 1)
+                {
+                    if (!count || count.text != "×" + kind.Allies) return $"{Name(card)}'s card reads '{(count ? count.text : "")}', not ×{kind.Allies}";
+                    Transform segments = card.healthBar ? card.healthBar.transform.parent.Find(AllyKindParts.SegmentsName) : null;
+                    int bars = segments ? segments.Cast<Transform>().Count(segment => segment.gameObject.activeSelf) : 0;
+                    if (bars != kind.Allies) return $"{Name(card)}'s card has {bars} bar segments, not {kind.Allies}";
+                    if (card.healthBar.gameObject.activeSelf) return $"{Name(card)}'s card still shows the game's bar";
+                }
+                else if (count && count.gameObject.activeInHierarchy)
+                {
+                    return $"{Name(card)}'s card of one ally shows a count";
+                }
+            }
+
             RectTransform more = More(h);
-            if (!more || !more.gameObject.activeSelf) return $"no more row for the {hidden} cards hidden";
+            if (shown == kinds.Count) return more && more.gameObject.activeSelf ? "the more row shows with every card shown" : null;
+            int hidden = kinds.Skip(shown).Sum(kind => Mathf.Max(1, kind.Allies));
+            if (!more || !more.gameObject.activeSelf) return $"no more row for the {hidden} allies hidden";
             float moreTop = Depth(cluster, more) - more.rect.height;
-            if (Mathf.Abs(moreTop - shown * row) > Tolerance) return $"the more row starts {moreTop:0.#} units down, not {shown * row:0.#}";
+            if (Mathf.Abs(moreTop - used) > Tolerance) return $"the more row starts {moreTop:0.#} units down, not {used:0.#}";
             float moreDepth = Depth(cluster, more);
             if (moreDepth > room + Tolerance) return $"the more row reaches {moreDepth:0.#} units down, past the {room:0.#} above the chat";
             TMP_Text label = more.GetComponentInChildren<TMP_Text>(true);
             string text = $"+{hidden} more";
             if (!label || label.text != text) return $"the more row reads '{(label ? label.text : "")}', not '{text}'";
-            List<Texture> kinds = new List<Texture>();
-            foreach (AllyCardController card in cards.Skip(shown))
+            List<Texture> portraits = new List<Texture>();
+            foreach (Kind kind in kinds.Skip(shown))
             {
-                CharacterBody body = card.sourceMaster ? card.sourceMaster.GetBody() : null;
-                if (body && body.portraitIcon && !kinds.Contains(body.portraitIcon) && kinds.Count < AllyMoreRow.MaxIcons)
+                CharacterBody body = kind.Lead.sourceMaster ? kind.Lead.sourceMaster.GetBody() : null;
+                if (body && body.portraitIcon && !portraits.Contains(body.portraitIcon) && portraits.Count < AllyMoreRow.MaxIcons)
                 {
-                    kinds.Add(body.portraitIcon);
+                    portraits.Add(body.portraitIcon);
                 }
             }
             List<Texture> icons = more.GetComponentsInChildren<RawImage>()
                 .Where(icon => icon.name == AllyMoreRow.IconName).Select(icon => icon.texture).ToList();
-            if (!icons.SequenceEqual(kinds)) return $"the more row shows {icons.Count} portraits, not the {kinds.Count} kinds hidden";
+            if (!icons.SequenceEqual(portraits)) return $"the more row shows {icons.Count} portraits, not the {portraits.Count} kinds hidden";
             return null;
         }
 
-        // Null when every card shows at the game's size again and the mod's more row is gone.
-        public static string GameLook(Harness h, int count, float full)
+        // Null when every card shows at the game's height with the game's bar again, and the mod's rows and counts
+        // are gone.
+        public static string GameLook(Harness h, int count)
         {
             List<AllyCardController> cards = Cards(h);
             if (cards.Count != count) return $"{cards.Count} ally cards, not {count}";
@@ -127,7 +178,9 @@ namespace SevenUI.Tests
             {
                 if (!card.gameObject.activeSelf) return $"{Name(card)}'s card is hidden";
                 float tall = card.layoutElement ? card.layoutElement.preferredHeight : 0f;
-                if (Mathf.Abs(tall - full) > Tolerance) return $"{Name(card)}'s card asks for {tall:0.#} units, not {full:0.#}";
+                if (Mathf.Abs(tall - GameHeight) > Tolerance) return $"{Name(card)}'s card asks for {tall:0.#} units, not {GameHeight:0.#}";
+                if (card.nameLabel && card.nameLabel.transform.Find(AllyKindParts.CountName)) return $"{Name(card)}'s card still has a count";
+                if (card.healthBar && !card.healthBar.gameObject.activeSelf) return $"{Name(card)}'s card has no bar";
             }
             return More(h) ? "the more row is still there" : null;
         }

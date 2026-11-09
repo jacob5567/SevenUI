@@ -7,9 +7,9 @@ using UnityEngine.UI;
 
 namespace SevenUI
 {
-    // The row under the compact ally rows that stands in for the cards hidden because they would reach the chat: a
-    // small portrait for each kind of ally hidden, up to a few, and "+N more" at its right. As tall as a compact row,
-    // on the cards' flat panel; placed by AllyCardsStyler under the last row shown.
+    // The row under the ally cards that stands in for the cards hidden because they would reach the chat: a small
+    // portrait for each kind of ally hidden, up to a few, and "+N more" at its right, N the allies those cards hold.
+    // As tall as a compact row, on the cards' flat panel; placed by AllyCardsStyler under the last card shown.
     internal sealed class AllyMoreRow
     {
         public const string Name = "SevenUIAllyMore";
@@ -79,8 +79,8 @@ namespace SevenUI
 
         public bool Alive => rect;
 
-        // Under the rows shown, standing in for the cards from the first hidden on. Only what changed is set.
-        public void Show(float top, List<AllyCardController> cards, int firstHidden)
+        // Under the cards shown, standing in for the cards given, which hold that many allies. Only what changed is set.
+        public void Show(float top, List<AllyCardController> hidden, int allies)
         {
             if (!rect.gameObject.activeSelf)
             {
@@ -90,17 +90,16 @@ namespace SevenUI
             {
                 rect.anchoredPosition = new Vector2(0f, -top);
             }
-            int count = cards.Count - firstHidden;
-            if (count != shownCount)
+            if (allies != shownCount)
             {
-                shownCount = count;
-                label.text = "+" + count + " more";
+                shownCount = allies;
+                label.text = "+" + allies + " more";
             }
             // A hidden card stops updating its own portrait, so each kind is read from the ally's body.
             kinds.Clear();
-            for (int i = firstHidden; i < cards.Count && kinds.Count < MaxIcons; i++)
+            for (int i = 0; i < hidden.Count && kinds.Count < MaxIcons; i++)
             {
-                CharacterMaster master = cards[i] ? cards[i].sourceMaster : null;
+                CharacterMaster master = hidden[i] ? hidden[i].sourceMaster : null;
                 CharacterBody body = master ? master.GetBody() : null;
                 Texture portrait = body ? body.portraitIcon : null;
                 if (portrait && !kinds.Contains(portrait))

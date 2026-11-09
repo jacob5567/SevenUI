@@ -45,8 +45,8 @@ namespace SevenUI.Tests
         // In the design canvas's pixels on its 1080-pixel-high screen.
         private const float DeckTolerance = 2f;
         private const float DeckCanvasHeight = 1080f;
-        // Healing Drones among the last allies, so the more row has two kinds to show.
-        private const int OverflowHealingDrones = 2;
+        // Enough lone allies past the compact rows to need the more row, whatever the room above the chat.
+        private const int MaxOverflowPairs = 20;
         // Barrier decays, so plenty for both looks' checks.
         private const float ProtectionBarrierShare = 0.8f;
 
@@ -551,55 +551,62 @@ namespace SevenUI.Tests
                 "the ally cards'");
         }
 
-        // The ally cards keep above the chat: at the game's size while they fit, as compact rows once the next card would
-        // reach it, and once even the rows would, the rows that fit and a "+N more" row for the rest. With the panels
-        // off every card shows at the game's size; dropping allies brings the cards back to it too. Allies left by
-        // earlier scenarios count, so the drones summoned are however many each step needs.
+        // The ally cards keep above the chat, allies of one kind always sharing a card. Healing Drones each following a
+        // Gunner Drone of their own keep a card each, while the Gunner Drones share one: at the game's size while all
+        // the cards fit, the Healing Drones' cards as compact rows once the next card would reach the chat (the shared
+        // card keeping its size and segments), and once even that is too tall, the cards that fit and a "+N more" row
+        // for the rest. With the panels off every card shows at the game's size; dropping allies brings the cards back.
+        // Allies left by earlier scenarios count, so the allies summoned are however many each step needs.
         private static IEnumerator AllyCardsKeepAboveChat(Harness h)
         {
-            // Counted before any drone is summoned: a new ally's card comes a frame or more after its body.
+            // Counted before any ally is summoned: a new ally's card comes a frame or more after its body.
             int before = AllyCardChecks.Cards(h).Count;
-            List<CharacterMaster> drones = new List<CharacterMaster>();
-            int Total() => before + drones.Count;
-            yield return Allies.SummonDrones(h, Allies.GunnerDroneMaster, 1, drones);
-            yield return h.Until(() => AllyCardChecks.Cards(h).Count == Total(), () => $"{Total()} ally cards {h.Diagnosis()}");
-            float full = AllyCardChecks.FullHeight(h);
-            if (full <= AllyCompactCard.RowHeight) throw h.Fail($"the first ally card is {full:0.#} units tall, already compact");
-            int fullFit = AllyCardChecks.Fitting(h, full);
-            bool roomy = Total() <= fullFit;
+            List<CharacterMaster> allies = new List<CharacterMaster>();
+            int Total() => before + allies.Count;
+            AllyCardChecks.Layout layout = null;
+            bool Settled(System.Func<AllyCardChecks.Layout, bool> expected)
+            {
+                layout = AllyCardChecks.Measure(h);
+                return layout.Cards == Total() && layout.Problem == null && expected(layout);
+            }
+            string Look() => $"{layout?.Cards} cards of {Total()} in {layout?.Kinds} kinds, compact={layout?.Compact}, " +
+                             $"{layout?.HiddenAllies} under the more row: {layout?.Problem ?? "as the rules say"} {h.Diagnosis()}";
+
+            yield return Allies.SummonLoneAllies(h, 1, allies);
+            yield return h.Until(() => Settled(_ => true), Look);
+            int fullFit = Mathf.FloorToInt(AllyCardChecks.Room(h) / AllyCardChecks.GameHeight + 0.01f);
+            // Allies left by earlier scenarios may already need more room than full-size cards have.
+            bool roomy = layout.Kinds <= fullFit;
             if (roomy)
             {
-                yield return Allies.SummonDrones(h, Allies.GunnerDroneMaster, fullFit - Total(), drones);
-                yield return h.Until(() => AllyCardChecks.AllShown(h, full, Total()) == null,
-                    () => $"{AllyCardChecks.AllShown(h, full, Total())} {h.Diagnosis()}");
+                yield return Allies.SummonLoneAllies(h, fullFit - layout.Kinds, allies);
+                yield return h.Until(() => Settled(now => !now.Compact && now.Kinds == fullFit), () => $"every card at the game's size: {Look()}");
             }
+            int keep = allies.Count;
 
-            yield return Allies.SummonDrones(h, Allies.GunnerDroneMaster, 1, drones);
-            float row = AllyCompactCard.RowHeight;
-            yield return h.Until(() => AllyCardChecks.AllShown(h, row, Total()) == null,
-                () => $"{AllyCardChecks.AllShown(h, row, Total())} {h.Diagnosis()}");
+            yield return Allies.SummonLoneAllies(h, 1, allies);
+            yield return h.Until(() => Settled(now => now.Compact && now.HiddenAllies == 0), () => $"lone allies compact: {Look()}");
             yield return h.Screenshot("compact");
 
-            int gunners = AllyCardChecks.Fitting(h, row) + 2 - OverflowHealingDrones - Total();
-            yield return Allies.SummonDrones(h, Allies.GunnerDroneMaster, Mathf.Max(0, gunners), drones);
-            yield return Allies.SummonDrones(h, Allies.HealingDroneMaster, OverflowHealingDrones, drones);
-            yield return h.Until(() => AllyCardChecks.Overflowing(h, Total()) == null,
-                () => $"{AllyCardChecks.Overflowing(h, Total())} {h.Diagnosis()}");
+            for (int added = 0; added < MaxOverflowPairs && layout.HiddenAllies == 0; added++)
+            {
+                yield return Allies.SummonLoneAllies(h, 1, allies);
+                yield return h.Until(() => Settled(_ => true), Look);
+            }
+            yield return h.Until(() => Settled(now => now.HiddenAllies > 0), () => $"a more row: {Look()}");
             yield return h.Screenshot("more");
 
             h.SetConfig(SevenUIPlugin.Settings.FlatPanels, false);
-            yield return h.Until(() => AllyCardChecks.GameLook(h, Total(), full) == null,
-                () => $"with the panels off, {AllyCardChecks.GameLook(h, Total(), full)} {h.Diagnosis()}");
+            yield return h.Until(() => AllyCardChecks.GameLook(h, Total()) == null,
+                () => $"with the panels off, {AllyCardChecks.GameLook(h, Total())} {h.Diagnosis()}");
             h.SetConfig(SevenUIPlugin.Settings.FlatPanels, true);
-            yield return h.Until(() => AllyCardChecks.Overflowing(h, Total()) == null,
-                () => $"with the panels back on, {AllyCardChecks.Overflowing(h, Total())} {h.Diagnosis()}");
+            yield return h.Until(() => Settled(now => now.HiddenAllies > 0), () => $"with the panels back on: {Look()}");
 
             if (!roomy) yield break;
-            List<CharacterMaster> dropped = drones.Skip(fullFit - before).ToList();
+            List<CharacterMaster> dropped = allies.Skip(keep).ToList();
             Allies.Remove(dropped);
-            drones.RemoveAll(dropped.Contains);
-            yield return h.Until(() => AllyCardChecks.AllShown(h, full, Total()) == null,
-                () => $"with the drones dropped, {AllyCardChecks.AllShown(h, full, Total())} {h.Diagnosis()}");
+            allies.RemoveAll(dropped.Contains);
+            yield return h.Until(() => Settled(now => !now.Compact && now.HiddenAllies == 0), () => $"with the allies dropped: {Look()}");
         }
 
         private static IEnumerator ProtectionBothLooks(Harness h, System.Func<IEnumerable<HealthBar>> bars, string whose)

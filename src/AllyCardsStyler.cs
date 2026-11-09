@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Text;
+using RoR2;
 using RoR2.UI;
 using UnityEngine;
 using UnityEngine.UI;
@@ -7,10 +8,13 @@ using UnityEngine.UI;
 namespace SevenUI
 {
     // Restyles the ally cards on the left: each on a flat panel, with a flat health bar on the dark trough like the
-    // player's. While the cards at the game's size would reach down over the chat, every card becomes a compact row
-    // (AllyCompactCard). If even the rows would reach it, the rows that don't fit are hidden and one more row stands
-    // in for them, with a portrait for each kind of ally hidden and "+N more" (AllyMoreRow). The game keeps adding,
-    // filling, sorting and removing the cards; this only resizes and hides them and draws over them.
+    // player's. Allies of one kind (the same name, following the same leader) always share one card, the kind's first,
+    // with "×8" and a bar segment per ally (AllyKindParts); the kind's other cards are hidden and take no room. Players
+    // and allies between bodies keep cards of their own. While the cards would reach down over the chat, the cards of
+    // a single ally become compact rows (AllyCompactCard), while shared cards keep their size and segments. If that is
+    // still too tall, the cards that don't fit are hidden and one more row stands in for them, with a portrait for each
+    // kind and "+N more", N the allies they hold (AllyMoreRow). The game keeps adding, filling, sorting and removing
+    // the cards; this only resizes and hides them and draws over them.
     internal sealed class AllyCardsStyler
     {
         private const string LeftClusterPath = "MainContainer/MainUIArea/SpringCanvas/LeftCluster";
@@ -24,8 +28,17 @@ namespace SevenUI
         private readonly StyleRecorder recorder = new StyleRecorder();
         // In the game's order, top to bottom.
         private readonly List<AllyCardController> cards = new List<AllyCardController>();
+        // Each card shown, in that order: a kind's shared card, or a card of its own.
+        private readonly List<Kind> kinds = new List<Kind>();
+        private readonly Stack<Kind> spareKinds = new Stack<Kind>();
+        private readonly List<AllyCardController> overflow = new List<AllyCardController>();
         private readonly Dictionary<AllyCardController, AllyCompactCard> looks = new Dictionary<AllyCardController, AllyCompactCard>();
-        private readonly List<AllyCardController> gone = new List<AllyCardController>();
+        private readonly Dictionary<AllyCardController, AllyKindParts> shared = new Dictionary<AllyCardController, AllyKindParts>();
+        // Each ally's name as the game shows it, found once per body: a hidden card's own label stops updating.
+        private readonly Dictionary<CharacterMaster, (CharacterBody Body, string Name)> names =
+            new Dictionary<CharacterMaster, (CharacterBody, string)>();
+        private readonly List<AllyCardController> goneCards = new List<AllyCardController>();
+        private readonly List<CharacterMaster> goneMasters = new List<CharacterMaster>();
         private readonly Vector3[] corners = new Vector3[4];
         // The cards' container (the game's AllyCardManager, which stacks them) and the chat's message area.
         private RectTransform container;
@@ -33,6 +46,18 @@ namespace SevenUI
         private AllyMoreRow more;
         // How far the container's bottom is pulled down past its own (see Stretch).
         private float stretch;
+
+        private sealed class Kind
+        {
+            // The kind's first card, which the kind shares.
+            public AllyCardController Lead;
+            public CharacterMaster Leader;
+            // None for a card that stands alone.
+            public string Name;
+            public readonly List<CharacterMaster> Members = new List<CharacterMaster>();
+            public readonly List<AllyCardController> Cards = new List<AllyCardController>();
+            public bool Shared => Members.Count > 1;
+        }
 
         public AllyCardsStyler(Transform root)
         {
@@ -68,6 +93,11 @@ namespace SevenUI
 
         public void Restore()
         {
+            foreach (KeyValuePair<AllyCardController, AllyKindParts> entry in shared)
+            {
+                entry.Value.Remove(entry.Key);
+            }
+            shared.Clear();
             foreach (AllyCompactCard look in looks.Values)
             {
                 look.Revert();
@@ -77,13 +107,15 @@ namespace SevenUI
             more = null;
             Stretch(0f);
             cards.Clear();
+            names.Clear();
             Compact = false;
             HiddenCount = 0;
             recorder.Restore();
         }
 
-        // Every frame while the panels are on: the game adds and removes cards as allies come and go. A few reads per
-        // card; a card is only changed when its look or place in the stack changes.
+        // Every frame while the panels are on: the game reassigns its cards as allies come and go, and each ally's
+        // health changes. A few reads per card; a card is only changed when its look or place changes, and a segment
+        // when its ally's health changed.
         public void Update()
         {
             cards.RemoveAll(card => !card);
@@ -93,39 +125,167 @@ namespace SevenUI
                 more?.Hide();
                 return;
             }
+            SortIntoKinds();
             float room = Room();
             float fullHeight = 0f;
-            foreach (AllyCardController card in cards)
+            foreach (Kind kind in kinds)
             {
-                fullHeight += LookOf(card).FullHeight;
+                fullHeight += LookOf(kind.Lead).FullHeight;
             }
             bool compact = fullHeight > room + SizeTolerance;
-            int shown = cards.Count;
-            float row = AllyCompactCard.RowHeight;
-            if (compact && cards.Count * row > room + SizeTolerance)
+            float used = 0f;
+            int shown = 0;
+            float total = 0f;
+            foreach (Kind kind in kinds)
             {
-                // The more row takes the last row's place.
-                shown = Mathf.Max(0, Mathf.FloorToInt((room - row) / row + SizeTolerance));
+                total += Height(kind, compact);
             }
-            for (int i = 0; i < cards.Count; i++)
+            if (total > room + SizeTolerance)
             {
-                LookOf(cards[i]).Set(compact, i >= shown);
+                // The more row takes a compact row's room under the cards that fit.
+                while (shown < kinds.Count && used + Height(kinds[shown], compact) + AllyCompactCard.RowHeight <= room + SizeTolerance)
+                {
+                    used += Height(kinds[shown], compact);
+                    shown++;
+                }
+            }
+            else
+            {
+                shown = kinds.Count;
+                used = total;
+            }
+
+            float tallest = 0f;
+            int hiddenAllies = 0;
+            overflow.Clear();
+            for (int i = 0; i < kinds.Count; i++)
+            {
+                Kind kind = kinds[i];
+                bool fits = i < shown;
+                ShowKind(kind, compact, fits);
+                if (fits)
+                {
+                    tallest = Mathf.Max(tallest, Height(kind, compact));
+                }
+                else
+                {
+                    hiddenAllies += Mathf.Max(1, kind.Members.Count);
+                    overflow.Add(kind.Lead);
+                }
             }
             Compact = compact;
-            HiddenCount = cards.Count - shown;
-            Stretch(compact ? cards.Count * row : 0f);
-            if (HiddenCount > 0)
+            HiddenCount = hiddenAllies;
+            Stretch(cards.Count * tallest);
+            if (overflow.Count > 0)
             {
                 if (more == null || !more.Alive)
                 {
                     more = new AllyMoreRow(container, cards[0].nameLabel);
                 }
-                more.Show(shown * row, cards, shown);
+                more.Show(used, overflow, hiddenAllies);
             }
             else
             {
                 more?.Hide();
             }
+        }
+
+        // A shared card keeps the game's height, with its segments; a card of one ally becomes a compact row when the
+        // cards must be compact.
+        private float Height(Kind kind, bool compact) =>
+            compact && !kind.Shared ? AllyCompactCard.RowHeight : LookOf(kind.Lead).FullHeight;
+
+        private void ShowKind(Kind kind, bool compact, bool fits)
+        {
+            foreach (AllyCardController card in kind.Cards)
+            {
+                AllyCompactCard look = LookOf(card);
+                if (card != kind.Lead)
+                {
+                    look.Set(false, true);
+                    continue;
+                }
+                bool hasParts = shared.TryGetValue(card, out AllyKindParts parts);
+                if (!kind.Shared && hasParts)
+                {
+                    parts.Remove(card);
+                    shared.Remove(card);
+                }
+                // The compact look comes off before a kind's parts go on: they share the bars' column.
+                look.Set(compact && !kind.Shared, !fits);
+                if (!kind.Shared || !fits) continue;
+                if (!hasParts)
+                {
+                    parts = AllyKindParts.Add(card);
+                    if (parts == null) continue;
+                    shared.Add(card, parts);
+                }
+                parts.Update(card, kind.Members);
+            }
+        }
+
+        // Sorts the cards into kinds, in the cards' order: the first card of a name and leader starts a kind, which the
+        // rest of its allies join.
+        private void SortIntoKinds()
+        {
+            foreach (Kind kind in kinds)
+            {
+                kind.Lead = null;
+                kind.Leader = null;
+                kind.Name = null;
+                kind.Members.Clear();
+                kind.Cards.Clear();
+                spareKinds.Push(kind);
+            }
+            kinds.Clear();
+            foreach (AllyCardController card in cards)
+            {
+                CharacterMaster master = card.sourceMaster;
+                // Players stand alone, as does an ally between bodies, which has no name to group by.
+                string name = master && !master.playerCharacterMasterController ? NameOf(master) : null;
+                CharacterMaster leader = master && master.minionOwnership ? master.minionOwnership.ownerMaster : null;
+                Kind found = null;
+                if (name != null)
+                {
+                    foreach (Kind kind in kinds)
+                    {
+                        if (kind.Name == name && kind.Leader == leader)
+                        {
+                            found = kind;
+                            break;
+                        }
+                    }
+                }
+                if (found == null)
+                {
+                    found = spareKinds.Count > 0 ? spareKinds.Pop() : new Kind();
+                    found.Lead = card;
+                    found.Leader = leader;
+                    found.Name = name;
+                    kinds.Add(found);
+                }
+                found.Cards.Add(card);
+                if (master)
+                {
+                    found.Members.Add(master);
+                }
+            }
+        }
+
+        // The name the game's card shows (Util.GetBestBodyName, as AllyCardController reads it), found again only when
+        // the ally's body changes.
+        private string NameOf(CharacterMaster master)
+        {
+            CharacterBody body = master.GetBody();
+            if (!body) return null;
+            if (names.TryGetValue(master, out (CharacterBody Body, string Name) known) && known.Body == body) return known.Name;
+            string name = Util.GetBestBodyName(body.gameObject);
+            names[master] = (body, name);
+            if (names.Count > cards.Count * 2)
+            {
+                ForgetGoneMasters();
+            }
+            return name;
         }
 
         // The height the cards may take down from the container's top: to the chat's top, less a gap, and never past
@@ -142,8 +302,9 @@ namespace SevenUI
         }
 
         // The game steps each card down by its height but at most the container's height over the number of cards,
-        // hidden ones included, so a long list of compact rows would be squeezed together. The container's bottom is
-        // pulled down until each row gets its height; the rows shown still end above the chat.
+        // the hidden ones included, so with many allies sharing cards or folded into the more row, the cards shown
+        // would be squeezed over each other. The container's bottom is pulled down until each card gets its height;
+        // the cards shown still end above the chat.
         private void Stretch(float needed)
         {
             if (!container) return;
@@ -170,14 +331,38 @@ namespace SevenUI
             {
                 if (!card)
                 {
-                    gone.Add(card);
+                    goneCards.Add(card);
                 }
             }
-            foreach (AllyCardController card in gone)
+            foreach (AllyCardController card in shared.Keys)
+            {
+                if (!card)
+                {
+                    goneCards.Add(card);
+                }
+            }
+            foreach (AllyCardController card in goneCards)
             {
                 looks.Remove(card);
+                shared.Remove(card);
             }
-            gone.Clear();
+            goneCards.Clear();
+        }
+
+        private void ForgetGoneMasters()
+        {
+            foreach (CharacterMaster master in names.Keys)
+            {
+                if (!master)
+                {
+                    goneMasters.Add(master);
+                }
+            }
+            foreach (CharacterMaster master in goneMasters)
+            {
+                names.Remove(master);
+            }
+            goneMasters.Clear();
         }
 
         private void StyleCard(AllyCardController card)
@@ -206,9 +391,9 @@ namespace SevenUI
         public void Describe(StringBuilder output)
         {
             output.AppendLine($"  restyled ally card values: {recorder.Count}");
-            output.AppendLine($"  ally cards: {cards.Count}, {(Compact ? "compact" : "full size")}, hidden under the more row: " +
-                              $"{HiddenCount}, room above the chat: {(container ? Room().ToString("0.#") : "none")}, " +
-                              $"container stretched {stretch:0.#}");
+            output.AppendLine($"  ally cards: {cards.Count} in {kinds.Count} kinds, {shared.Count} shared, " +
+                              $"{(Compact ? "single allies compact" : "full size")}, allies under the more row: {HiddenCount}, " +
+                              $"room above the chat: {(container ? Room().ToString("0.#") : "none")}, container stretched {stretch:0.#}");
         }
     }
 }

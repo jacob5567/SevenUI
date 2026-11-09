@@ -33,9 +33,10 @@ namespace SevenUI.Tests
             }
         }
 
-        // That many drones of the master's kind, the player's minions like bought ones, their AI off so they stay put.
-        // They are added to the list and destroyed at cleanup unless removed first (Remove).
-        public static IEnumerator SummonDrones(Harness h, string masterName, int count, List<CharacterMaster> made)
+        // That many drones of the master's kind, the player's minions like bought ones (or the leader's, if given), their
+        // AI off so they stay put. They are added to the list and destroyed at cleanup unless removed first (Remove).
+        public static IEnumerator SummonDrones(Harness h, string masterName, int count, List<CharacterMaster> made,
+            CharacterBody leader = null)
         {
             GameObject prefab = MasterCatalog.FindMasterPrefab(masterName);
             if (!prefab) throw h.Fail($"no {masterName} to summon");
@@ -50,7 +51,7 @@ namespace SevenUI.Tests
                     position = player.footPosition - player.transform.forward * (DroneSpacing * (made.Count + 1)) +
                                Vector3.up * DroneHeight,
                     rotation = player.transform.rotation,
-                    summonerBodyObject = player.gameObject,
+                    summonerBodyObject = (leader ? leader : player).gameObject,
                     teamIndexOverride = TeamIndex.Player,
                     ignoreTeamMemberLimit = true,
                     preSpawnSetupCallback = StandStill,
@@ -60,6 +61,19 @@ namespace SevenUI.Tests
                 made.Add(drone);
             }
             yield return h.Until(() => drones.All(drone => drone && drone.GetBody()), $"{count} summoned {masterName} with bodies");
+        }
+
+        // Allies that each keep an ally card of their own: a Healing Drone following a Gunner Drone of its own, so no
+        // two share a leader. The Gunner Drones all follow the player, so they share one card. Both are added to the list.
+        public static IEnumerator SummonLoneAllies(Harness h, int count, List<CharacterMaster> made)
+        {
+            for (int i = 0; i < count; i++)
+            {
+                List<CharacterMaster> leader = new List<CharacterMaster>();
+                yield return SummonDrones(h, GunnerDroneMaster, 1, leader);
+                made.AddRange(leader);
+                yield return SummonDrones(h, HealingDroneMaster, 1, made, leader[0].GetBody());
+            }
         }
 
         // Destroys the drones, bodies and all.
