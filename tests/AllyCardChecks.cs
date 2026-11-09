@@ -119,10 +119,17 @@ namespace SevenUI.Tests
             foreach (AllyCardController card in cards)
             {
                 if (!card.gameObject.activeSelf) continue;
-                card.rectTransform.GetWorldCorners(Corners);
+                // The portrait shows where the card's content starts; the card's own rect can differ from it.
+                RectTransform edge = card.portraitIconImage ? card.portraitIconImage.rectTransform : card.rectTransform;
+                edge.GetWorldCorners(Corners);
                 float x = cluster.InverseTransformPoint(Corners[0]).x;
                 left = left ?? x;
-                if (Mathf.Abs(x - left.Value) > Tolerance) return $"{Name(card)}'s card starts {x:0.#} units across, not {left.Value:0.#} like the first";
+                if (Mathf.Abs(x - left.Value) > Tolerance)
+                {
+                    bool isShared = kinds.Any(kind => kind.Lead == card && kind.Allies > 1);
+                    string look = isShared ? "shared" : compact ? "compact" : "full";
+                    return $"{Name(card)}'s {look} card has its portrait {x:0.#} units across, not {left.Value:0.#} like the first";
+                }
             }
             for (int i = 0; i < kinds.Count; i++)
             {

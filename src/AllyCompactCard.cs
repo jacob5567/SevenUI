@@ -19,6 +19,8 @@ namespace SevenUI
         private const float BarHeight = 5f * Canvas;
         // The name's share of the space beside the portrait, as on the canvas (118 of its 202px); the bar takes the rest.
         private const float NameShare = 0.58f;
+        // The bars column takes the row's spare width, as its layout group's flexible width did.
+        private const float BarsFlexibleWidth = 1f;
 
         public readonly AllyCardController Card;
         // The card's height in the game's look.
@@ -33,6 +35,12 @@ namespace SevenUI
         private readonly RectTransform bars;
         private readonly VerticalLayoutGroup barsLayout;
         private readonly float barsHeight;
+        // The row's alignment, which would shift the portrait right once the column no longer fills the row.
+        private readonly HorizontalLayoutGroup row;
+        private readonly TextAnchor rowAlignment;
+        private LayoutElement barsElement;
+        private bool addedBarsElement;
+        private float barsFlexibleWidth;
         // The card's own row padding, which the portrait and the column sit inside.
         private readonly float paddingY;
         private readonly float nameMaxSize;
@@ -46,7 +54,8 @@ namespace SevenUI
         {
             Card = card;
             FullHeight = card.layoutElement ? card.layoutElement.preferredHeight : 0f;
-            HorizontalLayoutGroup row = card.GetComponent<HorizontalLayoutGroup>();
+            row = card.GetComponent<HorizontalLayoutGroup>();
+            rowAlignment = row ? row.childAlignment : TextAnchor.UpperLeft;
             paddingY = row ? row.padding.vertical : 0f;
             if (card.portraitIconImage)
             {
@@ -122,6 +131,20 @@ namespace SevenUI
             }
 
             barsLayout.enabled = false;
+            // The column's layout group supplied the flexible width that filled the row; without it the row has slack
+            // and its alignment would move the portrait.
+            if (row)
+            {
+                row.childAlignment = LeftOf(rowAlignment);
+            }
+            barsElement = bars.GetComponent<LayoutElement>();
+            addedBarsElement = !barsElement;
+            if (addedBarsElement)
+            {
+                barsElement = bars.gameObject.AddComponent<LayoutElement>();
+            }
+            barsFlexibleWidth = barsElement.flexibleWidth;
+            barsElement.flexibleWidth = BarsFlexibleWidth;
             // The card's row lays the column out across but leaves its height alone.
             bars.sizeDelta = new Vector2(bars.sizeDelta.x, inner);
             TMP_Text name = Card.nameLabel;
@@ -157,7 +180,43 @@ namespace SevenUI
             name.alignment = nameAlignment;
             name.overflowMode = nameOverflow;
             barsLayout.enabled = true;
+            if (barsElement)
+            {
+                if (addedBarsElement)
+                {
+                    Object.Destroy(barsElement);
+                }
+                else
+                {
+                    barsElement.flexibleWidth = barsFlexibleWidth;
+                }
+            }
+            barsElement = null;
+            addedBarsElement = false;
+            if (row)
+            {
+                row.childAlignment = rowAlignment;
+            }
             LayoutRebuilder.MarkLayoutForRebuild(Card.rectTransform);
+        }
+
+        // The same vertical place, pushed to the left.
+        private static TextAnchor LeftOf(TextAnchor anchor)
+        {
+            switch (anchor)
+            {
+                case TextAnchor.UpperCenter:
+                case TextAnchor.UpperRight:
+                    return TextAnchor.UpperLeft;
+                case TextAnchor.MiddleCenter:
+                case TextAnchor.MiddleRight:
+                    return TextAnchor.MiddleLeft;
+                case TextAnchor.LowerCenter:
+                case TextAnchor.LowerRight:
+                    return TextAnchor.LowerLeft;
+                default:
+                    return anchor;
+            }
         }
     }
 }

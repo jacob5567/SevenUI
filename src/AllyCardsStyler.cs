@@ -50,6 +50,9 @@ namespace SevenUI
         private CanvasGroup hider;
         // How far the container's bottom is pulled down past its own (see Stretch).
         private float stretch;
+        // The game indents a minion's card under its leader by this much; zero while the cards are restyled, so every
+        // card starts at the same edge.
+        private float? savedIndent;
 
         private sealed class Kind
         {
@@ -87,6 +90,16 @@ namespace SevenUI
                 container = manager ? (RectTransform)manager.transform : null;
                 stretch = 0f;
             }
+            if (container && savedIndent == null)
+            {
+                AllyCardManager manager = container.GetComponent<AllyCardManager>();
+                if (manager)
+                {
+                    savedIndent = manager.indentWidth;
+                    manager.indentWidth = 0f;
+                    LayoutRebuilder.MarkLayoutForRebuild(container);
+                }
+            }
             // Kept when the look is turned off, only shown again, as a new group couldn't be added while an old one
             // waited to be destroyed at the frame's end.
             if (container && !hider)
@@ -120,13 +133,16 @@ namespace SevenUI
             looks.Clear();
             more?.Destroy();
             more = null;
-            foreach (AllyCardController card in cards)
+            if (container && savedIndent != null)
             {
-                if (card)
+                AllyCardManager manager = container.GetComponent<AllyCardManager>();
+                if (manager)
                 {
-                    SetLeft(card, card.shouldIndent ? IndentOf() : 0f);
+                    manager.indentWidth = savedIndent.Value;
+                    LayoutRebuilder.MarkLayoutForRebuild(container);
                 }
             }
+            savedIndent = null;
             Stretch(0f);
             if (hider)
             {
@@ -207,7 +223,6 @@ namespace SevenUI
                     overflow.Add(kind.Lead);
                 }
             }
-            AlignCards();
             Compact = compact;
             HiddenCount = hiddenAllies;
             Stretch(cards.Count * tallest);
@@ -348,29 +363,6 @@ namespace SevenUI
             if (Mathf.Abs(wanted - stretch) < SizeTolerance) return;
             container.offsetMin -= new Vector2(0f, wanted - stretch);
             stretch = wanted;
-        }
-
-        // The game's layout (AllyCardManager.SetLayoutHorizontal) sets each card's left edge to its indent width when the
-        // card is a minion listed under its leader, and to 0 otherwise, so the cards sit at different places. The cards
-        // all take the unindented place. The game writes the edge again only when it rebuilds the layout, and this runs
-        // after it every frame.
-        private void AlignCards()
-        {
-            foreach (AllyCardController card in cards)
-            {
-                SetLeft(card, 0f);
-            }
-        }
-
-        private float IndentOf() => container ? container.GetComponent<AllyCardManager>().indentWidth : 0f;
-
-        private static void SetLeft(AllyCardController card, float left)
-        {
-            RectTransform rect = card.rectTransform;
-            Vector2 min = rect.offsetMin;
-            if (Mathf.Abs(min.x - left) < SizeTolerance) return;
-            min.x = left;
-            rect.offsetMin = min;
         }
 
         private AllyCompactCard LookOf(AllyCardController card)
