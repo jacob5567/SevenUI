@@ -1,8 +1,9 @@
 # Publishes a GitHub release's package zip to Thunderstore.
 #
 # The mod compiles against the local game install, which can't be checked in, so CI doesn't build it. Run ./build.sh,
-# attach dist/SevenUI-<version>.zip to a release tagged v<version>, and publishing the release uploads
-# that exact zip. Needs a THUNDERSTORE_TOKEN repository secret (a service account token for the sevenstack team).
+# attach dist/SevenUI-<version>.zip to a release tagged v<version>, and publishing the release uploads that exact zip,
+# unless Thunderstore already has an identical one. Needs a THUNDERSTORE_TOKEN repository secret (a service account
+# token for the sevenstack team).
 name: Publish to Thunderstore
 
 on:
@@ -45,7 +46,38 @@ jobs:
           fi
           echo "PACKAGE_ZIP=$zip" >> "$GITHUB_ENV"
 
+      # A release whose run is delivered late can race a by-hand run of the same tag: the second upload of a version
+      # is refused. If Thunderstore already has this version, its zip must be byte for byte the release's, and the
+      # upload is skipped; a different zip under the same version is an error, since a version can't be replaced.
+      - name: Check whether Thunderstore already has it
+        run: |
+          read -r namespace name < <(python3 -c 'import tomllib; p = tomllib.load(open("thunderstore/thunderstore.toml", "rb"))["package"]; print(p["namespace"], p["name"])')
+          version=$(unzip -p "$PACKAGE_ZIP" manifest.json | jq -r .version_number)
+          status=$(curl -s -o /dev/null -w '%{http_code}' "https://thunderstore.io/api/experimental/package/$namespace/$name/$version/")
+          case "$status" in
+            404)
+              echo "$namespace-$name $version isn't on Thunderstore yet."
+              ;;
+            200)
+              published="${RUNNER_TEMP:-/tmp}/published.zip"
+              curl -sSfL -o "$published" "https://thunderstore.io/package/download/$namespace/$name/$version/"
+              ours=$(sha256sum "$PACKAGE_ZIP" | cut -d' ' -f1)
+              theirs=$(sha256sum "$published" | cut -d' ' -f1)
+              if [ "$ours" != "$theirs" ]; then
+                echo "::error::Thunderstore already has $namespace-$name $version with different contents (sha256 $theirs, the release's is $ours). Publish a new version instead."
+                exit 1
+              fi
+              echo "::notice::Thunderstore already has $namespace-$name $version, identical to the release's zip (sha256 $ours); skipping the upload."
+              echo "ALREADY_PUBLISHED=true" >> "$GITHUB_ENV"
+              ;;
+            *)
+              echo "::error::Thunderstore's API answered $status for $namespace-$name $version."
+              exit 1
+              ;;
+          esac
+
       - name: Publish
+        if: env.ALREADY_PUBLISHED != 'true'
         env:
           TCLI_AUTH_TOKEN: ${{ secrets.THUNDERSTORE_TOKEN }}
         run: >
