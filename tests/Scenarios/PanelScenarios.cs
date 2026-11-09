@@ -356,7 +356,8 @@ namespace SevenUI.Tests
                 () => $"after the swap, {DeckProblem(h, main, alternate, held[0]) ?? "the swap still plays"} {h.Diagnosis()}");
 
             h.SetConfig(SevenUIPlugin.Settings.FlatPanels, false);
-            yield return h.Until(() => !h.FindUnderHud(EquipmentDeck.Name) && !alternate.GetComponent<CanvasGroup>(),
+            yield return h.Until(() => !h.FindUnderHud(EquipmentDeck.Name) &&
+                                       (!alternate.GetComponent<CanvasGroup>() || alternate.GetComponent<CanvasGroup>().alpha >= 1f),
                 () => $"with the panels off, the deck is still there or the game's slot hidden {h.Diagnosis()}");
             h.SetConfig(SevenUIPlugin.Settings.FlatPanels, true);
             yield return h.Until(() => DeckProblem(h, main, alternate, held[0]) == null,

@@ -63,11 +63,23 @@ namespace SevenUI
         {
             this.main = main;
             this.alternate = alternate;
-            CanvasGroup hidden = alternate.gameObject.AddComponent<CanvasGroup>();
+            // Kept when the look is turned off, only shown again: turned straight back on, a new group couldn't be
+            // added while the old one waited to be destroyed at the frame's end.
+            CanvasGroup hidden = alternate.GetComponent<CanvasGroup>();
+            if (!hidden)
+            {
+                hidden = alternate.gameObject.AddComponent<CanvasGroup>();
+            }
             hidden.alpha = 0f;
             hidden.interactable = false;
             hidden.blocksRaycasts = false;
-            recorder.Add(hidden);
+            recorder.OnRestore(() =>
+            {
+                if (!hidden) return;
+                hidden.alpha = 1f;
+                hidden.interactable = true;
+                hidden.blocksRaycasts = true;
+            });
 
             RectTransform root = NewObject(Name, slot);
             SetAnchors(root, Vector2.zero, Vector2.one);
@@ -307,8 +319,11 @@ namespace SevenUI
         private static void NewKey(Transform parent, TMP_Text style, string action)
         {
             TMP_Text label = NewLabel(action, parent, style);
-            // Added after the text, which it fills in; it brings its own event system locator.
+            // Added after the text, which it fills in, and named before it wakes: it looks its binding up as soon as it
+            // is enabled. It brings its own event system locator.
+            label.gameObject.SetActive(false);
             label.gameObject.AddComponent<InputBindingDisplayController>().actionName = action;
+            label.gameObject.SetActive(true);
         }
 
         private static TMP_Text NewLabel(string name, Transform parent, TMP_Text style)

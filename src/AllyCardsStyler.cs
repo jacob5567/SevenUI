@@ -87,10 +87,15 @@ namespace SevenUI
                 container = manager ? (RectTransform)manager.transform : null;
                 stretch = 0f;
             }
+            // Kept when the look is turned off, only shown again, as a new group couldn't be added while an old one
+            // waited to be destroyed at the frame's end.
             if (container && !hider)
             {
-                hider = container.gameObject.AddComponent<CanvasGroup>();
-                recorder.Add(hider);
+                hider = container.GetComponent<CanvasGroup>();
+                if (!hider)
+                {
+                    hider = container.gameObject.AddComponent<CanvasGroup>();
+                }
             }
             if (!chat)
             {
@@ -116,6 +121,11 @@ namespace SevenUI
             more?.Destroy();
             more = null;
             Stretch(0f);
+            if (hider)
+            {
+                hider.alpha = 1f;
+                hider.blocksRaycasts = true;
+            }
             cards.Clear();
             names.Clear();
             Compact = false;
