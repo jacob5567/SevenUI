@@ -9,7 +9,7 @@ namespace SevenUI
 {
     // The equipment a Functional Coupler's swap (Interact + Equipment) or MUL-T's Retool switches to, as a deck of bare
     // icons above the equipment slot: the next one right-aligned over the slot, with a small chevron pointing down into
-    // it and "E + Q" (the player's own bindings) to its left, and the ones after it rising behind it, each fainter, in
+    // it and, for a Coupler's swap, "E + Q" (the player's own bindings) to its left, and the ones after it rising behind it, each fainter, in
     // the order the swap reaches them. The game draws only the next one, in a slot of its own right of the equipment
     // slot, which the tight margins put off the screen. That slot keeps running, invisible, and the next icon copies its
     // icon, its grey while recharging and its cooldown; the later icons are read from the inventory. When the active
@@ -26,10 +26,13 @@ namespace SevenUI
         public const int MaxShown = 3;
         public const float SwapSeconds = 0.25f;
 
-        // Shares of the slot's side (the canvas's 90px slot at 1440p): the icons are 54, 8 above the slot, each later
+        // Shares of the slot's side (the canvas's 90px slot at 1440p): the icons are 54, 18 above the slot, each later
         // one 32 higher; the keys end 12 left of the next icon; the chevron is drawn in a 36 square across the gap.
         private const float IconShare = 0.6f;
-        private const float GapShare = 0.12f;
+        private const float GapShare = 0.2f;
+        // The game's equipment icons leave about this share of their picture empty at the bottom (2 to 12%), so the
+        // chevron sits halfway between the slot and where a typical icon's picture starts, not its box.
+        private const float IconPaddingShare = 0.05f;
         private const float StepShare = 0.36f;
         private const float KeysGapShare = 0.13f;
         private const float KeysWidthShare = 2f;
@@ -43,6 +46,7 @@ namespace SevenUI
         private readonly EquipmentIcon main;
         private readonly EquipmentIcon alternate;
         private readonly GameObject deck;
+        private GameObject keys;
         private readonly RawImage[] icons = new RawImage[MaxShown];
         private readonly TMP_Text cooldown;
         private readonly GameObject swap;
@@ -89,7 +93,7 @@ namespace SevenUI
             arrow.color = Palette.HeaderText;
             arrow.raycastTarget = false;
             float arrowX = 1f - IconShare / 2f;
-            float arrowY = 1f + GapShare / 2f;
+            float arrowY = 1f + (GapShare + IconShare * IconPaddingShare) / 2f;
             SetAnchors(arrow.rectTransform, new Vector2(arrowX - ArrowShare / 2f, arrowY - ArrowShare / 2f),
                 new Vector2(arrowX + ArrowShare / 2f, arrowY + ArrowShare / 2f));
             AddKeys(root, row);
@@ -139,6 +143,12 @@ namespace SevenUI
             if (deck.activeSelf != shown)
             {
                 deck.SetActive(shown);
+            }
+            // The keys switch a Coupler's sets; MUL-T's Retool switches his slots with a skill of its own.
+            bool sets = now && now.accessibleEquipmentSetCount > 1;
+            if (keys.activeSelf != sets)
+            {
+                keys.SetActive(sets);
             }
             bool disabled = now && (now.GetEquipmentDisabled() || now.inventoryDisabled);
             for (int i = 0; i < MaxShown; i++)
@@ -278,6 +288,7 @@ namespace SevenUI
         private void AddKeys(RectTransform root, SkillRow row)
         {
             RectTransform keys = NewObject(KeysName, root);
+            this.keys = keys.gameObject;
             float middle = 1f + GapShare + IconShare / 2f;
             float right = 1f - IconShare - KeysGapShare;
             SetAnchors(keys, new Vector2(right - KeysWidthShare, middle), new Vector2(right, middle));
