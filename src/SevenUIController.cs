@@ -49,7 +49,7 @@ namespace SevenUI
             skillSlots = new SkillSlotsStyler(hud, root);
             top = new TopStyler(hud, root);
             itemIcons = new ItemIconsStyler(root);
-            allyCards = new AllyCardsStyler(root);
+            allyCards = new AllyCardsStyler(hud, root);
             prompts = new PromptsStyler(hud, root);
             pickers = new PickerStyler(hud, root);
             scoreboard = new ScoreboardStyler(hud, root);

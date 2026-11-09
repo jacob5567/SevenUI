@@ -48,10 +48,10 @@ namespace SevenUI.Tests
 
         // One board's checks and screenshots, and the collapse while open, which both suites share.
         public static IEnumerable<Scenario> All(Board board) =>
-            Checks(board).Append(CollapseWhileOpenScenario()).Concat(Screenshots(board));
+            Checks(board).Append(CollapseWhileOpenScenario()).Append(HidesAllyCardsScenario()).Concat(Screenshots(board));
 
         public static IEnumerable<Scenario> Checks() =>
-            Checks(Board.Rows).Concat(Checks(Board.Tabs)).Append(CollapseWhileOpenScenario());
+            Checks(Board.Rows).Concat(Checks(Board.Tabs)).Append(CollapseWhileOpenScenario()).Append(HidesAllyCardsScenario());
 
         // Each board's checks, named "scoreboard_..." on the rows and "scoreboard_tabs_..." on the tabs.
         public static IEnumerable<Scenario> Checks(Board board)
@@ -131,6 +131,44 @@ namespace SevenUI.Tests
 
         private static Scenario CollapseWhileOpenScenario() =>
             new Scenario(1, "scoreboard_collapse_while_open", Stages.TitanicPlains, CollapseWhileOpen);
+
+        private static Scenario HidesAllyCardsScenario() =>
+            new Scenario(1, "scoreboard_hides_ally_cards", Stages.TitanicPlains, HidesAllyCards);
+
+        // While the scoreboard is open the ally cards are hidden, as they would draw over the board's left edge; they
+        // come back when it closes. With the panels off the game's cards show over the open board as before.
+        private static IEnumerator HidesAllyCards(Harness h)
+        {
+            List<CharacterMaster> drones = new List<CharacterMaster>();
+            yield return Allies.SummonDrones(h, Allies.GunnerDroneMaster, 1, drones);
+            yield return h.Until(() => AllyCardsSeen(h), () => $"an ally card showing {h.Diagnosis()}");
+            yield return ScoreboardSetUp.Open(h);
+            yield return h.Until(() => !AllyCardsSeen(h), () => $"the ally cards hidden with the scoreboard open {h.Diagnosis()}");
+            yield return h.Screenshot("scoreboard_without_allies");
+            h.SetConfig(SevenUIPlugin.Settings.FlatPanels, false);
+            yield return h.Until(() => AllyCardsSeen(h), () => $"with the panels off, the game's ally cards over the open scoreboard {h.Diagnosis()}");
+            h.SetConfig(SevenUIPlugin.Settings.FlatPanels, true);
+            yield return h.Until(() => !AllyCardsSeen(h), () => $"with the panels back on, the ally cards hidden {h.Diagnosis()}");
+            HUD.SetScoreboardActive(LocalUserManager.GetFirstLocalUser(), false, EScoreboardDeactivateReturnContext.Game);
+            yield return h.Until(() => AllyCardsSeen(h), () => $"the ally cards back with the scoreboard closed {h.Diagnosis()}");
+        }
+
+        // Whether any ally card shows: active, and not faded out by a canvas group above it.
+        private static bool AllyCardsSeen(Harness h) =>
+            AllyCardChecks.Cards(h).Any(card => card.gameObject.activeInHierarchy && Alpha(card.transform) > 0f);
+
+        private static float Alpha(Transform part)
+        {
+            float alpha = 1f;
+            for (; part; part = part.parent)
+            {
+                CanvasGroup group = part.GetComponent<CanvasGroup>();
+                if (!group || !group.enabled) continue;
+                alpha *= group.alpha;
+                if (group.ignoreParentGroups) break;
+            }
+            return alpha;
+        }
 
         private static string Prefix(Board board) =>
             board == Board.Rows ? "scoreboard_" : "scoreboard_tabs_";

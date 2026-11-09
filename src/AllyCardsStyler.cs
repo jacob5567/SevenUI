@@ -14,7 +14,8 @@ namespace SevenUI
     // a single ally become compact rows (AllyCompactCard), while shared cards keep their size and segments. If that is
     // still too tall, the cards that don't fit are hidden and one more row stands in for them, with a portrait for each
     // kind and "+N more", N the allies they hold (AllyMoreRow). The game keeps adding, filling, sorting and removing
-    // the cards; this only resizes and hides them and draws over them.
+    // the cards; this only resizes and hides them and draws over them. While the scoreboard is open, the cards are
+    // hidden altogether, as they would otherwise draw over the board's left edge.
     internal sealed class AllyCardsStyler
     {
         private const string LeftClusterPath = "MainContainer/MainUIArea/SpringCanvas/LeftCluster";
@@ -24,6 +25,7 @@ namespace SevenUI
         private const float ChatGap = 8f * HudUnits.PerCanvasPixel;
         private const float SizeTolerance = 0.01f;
 
+        private readonly HUD hud;
         private readonly Transform root;
         private readonly StyleRecorder recorder = new StyleRecorder();
         // In the game's order, top to bottom.
@@ -44,6 +46,8 @@ namespace SevenUI
         private RectTransform container;
         private RectTransform chat;
         private AllyMoreRow more;
+        // Fades the whole stack out while the scoreboard is open.
+        private CanvasGroup hider;
         // How far the container's bottom is pulled down past its own (see Stretch).
         private float stretch;
 
@@ -59,8 +63,9 @@ namespace SevenUI
             public bool Shared => Members.Count > 1;
         }
 
-        public AllyCardsStyler(Transform root)
+        public AllyCardsStyler(HUD hud, Transform root)
         {
+            this.hud = hud;
             this.root = root;
         }
 
@@ -81,6 +86,11 @@ namespace SevenUI
                 AllyCardManager manager = cluster.GetComponentInChildren<AllyCardManager>(true);
                 container = manager ? (RectTransform)manager.transform : null;
                 stretch = 0f;
+            }
+            if (container && !hider)
+            {
+                hider = container.gameObject.AddComponent<CanvasGroup>();
+                recorder.Add(hider);
             }
             if (!chat)
             {
@@ -118,6 +128,13 @@ namespace SevenUI
         // when its ally's health changed.
         public void Update()
         {
+            // The game turns the scoreboard's panel on and off as it opens and closes.
+            bool board = hud && hud.scoreboardPanel && hud.scoreboardPanel.activeSelf;
+            if (hider && hider.alpha != (board ? 0f : 1f))
+            {
+                hider.alpha = board ? 0f : 1f;
+                hider.blocksRaycasts = !board;
+            }
             cards.RemoveAll(card => !card);
             ForgetGoneCards();
             if (!container || cards.Count == 0)
