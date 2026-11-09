@@ -19,13 +19,19 @@ Found a bug or have an idea? Open an issue on [GitHub](https://github.com/jacob5
 - **Scoreboard:** a row or a tab per player, with item counts per tier and the items at full size sorted by tier. The item or equipment you point at is described in a panel docked on the board, with who else holds it.
 - **Tooltips, item pickers and pause menu:** restyled to match.
 
-![The game's HUD and SevenUI side by side](https://raw.githubusercontent.com/jacob5567/SevenUI/main/docs/screenshots/before-after.jpg)
+![The game's HUD and SevenUI side by side, midway through a run](https://raw.githubusercontent.com/jacob5567/SevenUI/main/docs/screenshots/before-after.jpg)
+
+![The HUD at the start of a run](https://raw.githubusercontent.com/jacob5567/SevenUI/main/docs/screenshots/run-start.jpg)
 
 ![An interaction prompt and a pickup notification](https://raw.githubusercontent.com/jacob5567/SevenUI/main/docs/screenshots/prompts.jpg)
 
 ![Gunner Drones sharing an ally card beside a Gunner Turret's](https://raw.githubusercontent.com/jacob5567/SevenUI/main/docs/screenshots/allies.jpg)
 
-![The scoreboard](https://raw.githubusercontent.com/jacob5567/SevenUI/main/docs/screenshots/scoreboard.jpg)
+![The scoreboard with four players, describing the item pointed at](https://raw.githubusercontent.com/jacob5567/SevenUI/main/docs/screenshots/scoreboard.jpg)
+
+![A crowded scoreboard collapsed to your tab](https://raw.githubusercontent.com/jacob5567/SevenUI/main/docs/screenshots/scoreboard-crowded.jpg)
+
+![The equipment a Functional Coupler holds, above the equipment slot](https://raw.githubusercontent.com/jacob5567/SevenUI/main/docs/screenshots/equipment-deck.jpg)
 
 ![An item picker](https://raw.githubusercontent.com/jacob5567/SevenUI/main/docs/screenshots/picker.jpg)
 
