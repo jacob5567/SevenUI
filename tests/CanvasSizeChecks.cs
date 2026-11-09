@@ -757,7 +757,7 @@ namespace SevenUI.Tests
         }
 
         // With the pointer on the icon: the pane describing its item under its name, with the viewer among its holders
-        // at the icon's stack, the item's tooltip hidden, and the icon outlined, the pane right of the players and the
+        // at the icon's stack (with one player, no holders), the item's tooltip hidden, and the icon outlined, the pane right of the players and the
         // items, inside the board. Unless the rows are collapsed, every other item dimmed.
         public static IEnumerator ExpectItemPane(this Harness h, ItemIcon icon)
         {
@@ -787,7 +787,9 @@ namespace SevenUI.Tests
                            $"{(tooltip ? (tooltip.enabled ? "shown" : "hidden") : "none")}, outlined {outlined}, " +
                            $"{others.Count} others dimmed {dimmed}, this one undimmed {undimmed}, {beside ?? "placed"}";
                     return pane.Shown && pane.Item == icon.itemIndex && pane.Title == title && pane.Root.gameObject.activeInHierarchy &&
-                           Enumerable.Range(0, pane.HolderCount).Any(i => pane.HolderText(i).Contains(stack)) &&
+                           (board.Grids.Count > 1
+                               ? Enumerable.Range(0, pane.HolderCount).Any(i => pane.HolderText(i).Contains(stack))
+                               : pane.HolderCount == 0) &&
                            (!tooltip || !tooltip.enabled) && outlined && undimmed && beside == null &&
                            (board.Collapsed || dimmed);
                 },

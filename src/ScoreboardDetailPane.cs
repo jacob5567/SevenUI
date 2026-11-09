@@ -124,7 +124,8 @@ namespace SevenUI
         public int HolderCount => holderCount;
         public string HolderText(int index) => holders[index].Label.text;
 
-        // Describes the item the icon shows, with every row holding it.
+        // Describes the item the icon shows, with every row holding it. A lone player's count is already on their icon,
+        // so with one row no holders are listed.
         public void Show(ItemIcon shown, IReadOnlyList<ScoreboardItemGrid> grids)
         {
             ItemDef item = ItemCatalog.GetItemDef(shown.itemIndex);
@@ -133,7 +134,7 @@ namespace SevenUI
                 shown.tooltipProvider, item.nameToken, item.descriptionToken);
             Item = item.itemIndex;
             holderCount = 0;
-            foreach (ScoreboardItemGrid grid in grids)
+            foreach (ScoreboardItemGrid grid in grids.Count > 1 ? grids : NoGrids)
             {
                 ItemIcon held = grid.Alive ? grid.Find(Item) : null;
                 if (held)
@@ -180,6 +181,8 @@ namespace SevenUI
             }
             Finish();
         }
+
+        private static readonly ScoreboardItemGrid[] NoGrids = new ScoreboardItemGrid[0];
 
         private static Texture AsyncTexture(AsyncRawImage image) => image && image.renderer ? image.renderer.texture : null;
 
