@@ -115,6 +115,15 @@ namespace SevenUI.Tests
             {
                 if (card.gameObject.activeSelf) return $"a second {Name(card)} has a card of its own";
             }
+            float? left = null;
+            foreach (AllyCardController card in cards)
+            {
+                if (!card.gameObject.activeSelf) continue;
+                card.rectTransform.GetWorldCorners(Corners);
+                float x = cluster.InverseTransformPoint(Corners[0]).x;
+                left = left ?? x;
+                if (Mathf.Abs(x - left.Value) > Tolerance) return $"{Name(card)}'s card starts {x:0.#} units across, not {left.Value:0.#} like the first";
+            }
             for (int i = 0; i < kinds.Count; i++)
             {
                 Kind kind = kinds[i];

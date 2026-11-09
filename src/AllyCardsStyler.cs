@@ -120,6 +120,13 @@ namespace SevenUI
             looks.Clear();
             more?.Destroy();
             more = null;
+            foreach (AllyCardController card in cards)
+            {
+                if (card)
+                {
+                    SetLeft(card, card.shouldIndent ? IndentOf() : 0f);
+                }
+            }
             Stretch(0f);
             if (hider)
             {
@@ -200,6 +207,7 @@ namespace SevenUI
                     overflow.Add(kind.Lead);
                 }
             }
+            AlignCards();
             Compact = compact;
             HiddenCount = hiddenAllies;
             Stretch(cards.Count * tallest);
@@ -340,6 +348,29 @@ namespace SevenUI
             if (Mathf.Abs(wanted - stretch) < SizeTolerance) return;
             container.offsetMin -= new Vector2(0f, wanted - stretch);
             stretch = wanted;
+        }
+
+        // The game's layout (AllyCardManager.SetLayoutHorizontal) sets each card's left edge to its indent width when the
+        // card is a minion listed under its leader, and to 0 otherwise, so the cards sit at different places. The cards
+        // all take the unindented place. The game writes the edge again only when it rebuilds the layout, and this runs
+        // after it every frame.
+        private void AlignCards()
+        {
+            foreach (AllyCardController card in cards)
+            {
+                SetLeft(card, 0f);
+            }
+        }
+
+        private float IndentOf() => container ? container.GetComponent<AllyCardManager>().indentWidth : 0f;
+
+        private static void SetLeft(AllyCardController card, float left)
+        {
+            RectTransform rect = card.rectTransform;
+            Vector2 min = rect.offsetMin;
+            if (Mathf.Abs(min.x - left) < SizeTolerance) return;
+            min.x = left;
+            rect.offsetMin = min;
         }
 
         private AllyCompactCard LookOf(AllyCardController card)
