@@ -27,6 +27,7 @@ namespace SevenUI
         private readonly TMP_Text label;
         private int shownKarma = -1;
         private TMP_FontAsset shownFont;
+        private float shownWidth = -1f;
 
         // 'rowOffset' is how far the row's middle sits below the bar's; 'inset' how far its ends stay inside the bar's.
         public KarmaRow(RectTransform bar, TMP_Text fontFrom, float rowHeight, float rowOffset, float inset, float labelSize)
@@ -71,13 +72,17 @@ namespace SevenUI
 
         public string ShownLabel => label.text;
 
-        // Fills the segments up to the karma and writes its number; laid out again only when the number or font
-        // changes the label's width.
+        // Fills the segments up to the karma and writes its number; laid out again only when the number, the font or the
+        // row's width changes. Does nothing while the row is inactive (its panel hidden), where the label measures far
+        // too narrow and the width reads zero; the next Set once it is active lays it out.
         public void Set(int karma)
         {
-            if (karma == shownKarma && label.font == shownFont) return;
+            if (!Root || !Root.gameObject.activeInHierarchy) return;
+            float width = Root.rect.width;
+            if (karma == shownKarma && label.font == shownFont && Mathf.Approximately(width, shownWidth)) return;
             shownKarma = karma;
             shownFont = label.font;
+            shownWidth = width;
             label.text = Language.GetString(KarmaToken) + " " + karma;
             for (int i = 0; i < segments.Length; i++)
             {
