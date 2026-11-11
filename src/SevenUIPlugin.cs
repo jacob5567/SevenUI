@@ -27,11 +27,20 @@ namespace SevenUI
             }
 
             HUD.onHudTargetChangedGlobal += OnHudTargetChanged;
+            Settings.MonospaceDamageNumbers.SettingChanged += OnMonospaceDamageNumbersChanged;
         }
 
         private void OnDestroy()
         {
             HUD.onHudTargetChangedGlobal -= OnHudTargetChanged;
+            Settings.MonospaceDamageNumbers.SettingChanged -= OnMonospaceDamageNumbersChanged;
+        }
+
+        // Applies the setting at once, so turning it off in the main menu restores the game's font without a HUD.
+        // The controllers still call this every frame, since each stage makes a new damage number manager.
+        private static void OnMonospaceDamageNumbersChanged(object sender, System.EventArgs e)
+        {
+            DamageNumberFont.Update(Settings.MonospaceDamageNumbers.Value);
         }
 
         // Fires whenever any HUD changes the body it is showing, so each HUD gets exactly one controller.
