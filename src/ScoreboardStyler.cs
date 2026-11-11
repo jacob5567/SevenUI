@@ -371,7 +371,7 @@ namespace SevenUI
 
             ScoreboardRow follower = holder.AddComponent<ScoreboardRow>();
             follower.Strip = row;
-            follower.Hud = root.GetComponent<HUD>();
+            follower.Hud = hud;
             follower.Background = background;
             follower.Name = name;
             follower.Money = row.moneyText;

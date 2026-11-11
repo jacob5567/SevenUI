@@ -46,6 +46,7 @@ namespace SevenUI
         // multiplayer pause), as in the item pickers.
         private const float UnavailableAlpha = 0.4f;
 
+        private readonly HUD hud;
         private readonly Transform hudRoot;
         private readonly List<Entry> buttons = new List<Entry>();
         private PauseScreenController styled;
@@ -69,8 +70,9 @@ namespace SevenUI
             public bool ShownAvailable = true;
         }
 
-        public PauseScreenStyler(Transform hudRoot)
+        public PauseScreenStyler(HUD hud, Transform hudRoot)
         {
+            this.hud = hud;
             this.hudRoot = hudRoot;
         }
 
@@ -154,7 +156,7 @@ namespace SevenUI
             timer = timerObject ? timerObject.GetComponent<TMP_Text>() : null;
             if (barlowFont)
             {
-                new HudFontSwapper(menu.transform).Apply();
+                new HudFontSwapper(hud, menu.transform).Apply();
             }
         }
 

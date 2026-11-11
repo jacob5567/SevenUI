@@ -42,7 +42,7 @@ namespace SevenUI
             hud = GetComponent<HUD>();
             // The HUD is a root object, but go through .root in case another mod parents it.
             root = hud.transform.root;
-            fontSwapper = new HudFontSwapper(root);
+            fontSwapper = new HudFontSwapper(hud, root);
             runInfo = new RunInfoStyler(root);
             rightInfoBar = new RightInfoBarStyler(root);
             playerBars = new PlayerBarsStyler(root);
@@ -56,7 +56,7 @@ namespace SevenUI
             chat = new ChatStyler(root);
             tilt = new TiltFlattener(root);
             tooltips = new TooltipStyler(hud, root);
-            pause = new PauseScreenStyler(root);
+            pause = new PauseScreenStyler(hud, root);
             topBars = new TopBarsWidth(root);
             margins = new HudMargins(hud, root);
             SevenUIPlugin.Settings.BarlowFont.SettingChanged += OnSettingChanged;

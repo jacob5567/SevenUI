@@ -14,6 +14,7 @@ namespace SevenUI
         // (Russian, Chinese, Japanese, Korean, ...) don't use them, so their text stays as it is.
         private const string GameFontPrefix = "tmpBomb";
 
+        private readonly HUD hud;
         private readonly Transform root;
         private readonly Dictionary<TMP_Text, (TMP_FontAsset font, Material material)> originals =
             new Dictionary<TMP_Text, (TMP_FontAsset, Material)>();
@@ -22,8 +23,9 @@ namespace SevenUI
         private readonly List<TMP_Text> scratch = new List<TMP_Text>();
         private bool warnedBakeFailed;
 
-        public HudFontSwapper(Transform root)
+        public HudFontSwapper(HUD hud, Transform root)
         {
+            this.hud = hud;
             this.root = root;
         }
 
@@ -110,7 +112,6 @@ namespace SevenUI
         // on the controller of the body this HUD shows (its meter is made when that body gets the overlay).
         private TMP_Text GameFontText()
         {
-            HUD hud = root.GetComponent<HUD>();
             if (!hud || !hud.targetBodyObject) return null;
             VoidSurvivorController controller = hud.targetBodyObject.GetComponent<VoidSurvivorController>();
             return controller ? controller.uiCorruptionText : null;

@@ -56,7 +56,7 @@ namespace SevenUI
             StatsSection stats = flatPanels ? Restyle(tooltip, provider) : null;
             if (barlowFont)
             {
-                new HudFontSwapper(tooltip.transform).Apply();
+                new HudFontSwapper(hud, tooltip.transform).Apply();
             }
             // Measured once the texts have their font.
             if (stats != null)
