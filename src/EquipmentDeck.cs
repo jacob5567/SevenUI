@@ -162,6 +162,7 @@ namespace SevenUI
             {
                 keys.SetActive(sets);
             }
+            // Inventory.GetEquipmentDisabled only returns a synced bool (the [Server] setter is SetEquipmentDisabled, never called here).
             bool disabled = now && (now.GetEquipmentDisabled() || now.inventoryDisabled);
             for (int i = 0; i < MaxShown; i++)
             {

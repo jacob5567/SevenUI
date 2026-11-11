@@ -443,6 +443,7 @@ namespace SevenUI
                     }
                 }
                 // Reads the inventory and draws, then places every icon at the game's size.
+                // Allowed exception to read-only access: these only rebuild this icon display's own local UI, with no run state or network.
                 display.UpdateDisplay();
                 display.LayoutAllIcons();
             });
