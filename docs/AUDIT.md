@@ -133,6 +133,8 @@ Steps 3 and 5 are much cheaper after the `IStyler` refactor in section 6: each s
 
 ## 8. Suggested order
 
+The detailed task plan is in [AUDIT-PLAN.md](AUDIT-PLAN.md).
+
 1. Install the current build and run the tests (section 1).
 2. Fix bugs 1 to 3.
 3. Add `IStyler`, `UiFactory` and `HudPaths` as one refactor on its own branch.
