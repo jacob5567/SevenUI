@@ -32,7 +32,6 @@ namespace SevenUI.Tests
             if (!settings.BarlowFont.Value) return "BarlowFont is off in the SevenUI config";
             if (!settings.FlatPanels.Value) return "FlatPanels is off in the SevenUI config";
             if (!settings.MonospaceDamageNumbers.Value) return "MonospaceDamageNumbers is off in the SevenUI config";
-            if (settings.DebugAlwaysShow.Value) return "DebugAlwaysShow is on in the SevenUI config";
             return null;
         }
 

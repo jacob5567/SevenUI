@@ -13,7 +13,6 @@ namespace SevenUI
         public readonly ConfigEntry<bool> ScoreboardBesideRunInfo;
 
         public readonly ConfigEntry<bool> DebugLogging;
-        public readonly ConfigEntry<bool> DebugAlwaysShow;
         public readonly ConfigEntry<KeyboardShortcut> DumpKey;
 
         public PluginConfig(ConfigFile config)
@@ -35,8 +34,6 @@ namespace SevenUI
             // Risk Of Options uses the section name as the menu header, so keep it exactly "Debug".
             DebugLogging = config.Bind("Debug", "DebugLogging", false,
                 "Log extra detail, and enable the dump key.");
-            DebugAlwaysShow = config.Bind("Debug", "DebugAlwaysShow", false,
-                "Show the mod's visuals even when they wouldn't normally appear, for testing.");
             DumpKey = config.Bind("Debug", "DumpKey", new KeyboardShortcut(KeyCode.F8),
                 "With DebugLogging on, press to log each HUD's fonts and what the mod restyled.");
         }
