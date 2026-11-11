@@ -1,3 +1,4 @@
+using System;
 using System.Text.RegularExpressions;
 using RoR2;
 using RoR2.UI;
@@ -29,6 +30,7 @@ namespace SevenUI
         private const float PaddingBottom = 8f * Canvas;
         private const float StripHeight = 2f * Canvas;
         private const float TextFontSize = 18f * Canvas;
+        private const float LookupInterval = 0.5f;
         private const float Gap = 12f * Canvas;
         private const float RowGap = 6f * Canvas;
         // A key 26px tall and at least as wide, its label 7px from its sides: an ItemSlot face with corners 3px round
@@ -75,16 +77,18 @@ namespace SevenUI
         private readonly RectTransform parent;
         private readonly RectTransform panel;
         private readonly Image strip;
-        private readonly RectTransform rightEdge;
+        private readonly Func<RectTransform> findRightEdge;
+        private RectTransform rightEdge;
+        private float nextLookup;
         private readonly Row[] rows;
         private readonly Vector3[] corners = new Vector3[4];
         private float shownRight = float.NaN;
         private TMP_FontAsset shownFont;
 
-        public PromptPanel(ContextManager prompt, RectTransform rightEdge, StyleRecorder recorder)
+        public PromptPanel(ContextManager prompt, Func<RectTransform> findRightEdge, StyleRecorder recorder)
         {
             this.prompt = prompt;
-            this.rightEdge = rightEdge;
+            this.findRightEdge = findRightEdge;
             parent = (RectTransform)prompt.transform;
 
             GameObject created = NewUIObject(PanelName, parent);
@@ -281,6 +285,13 @@ namespace SevenUI
         // The run info's right edge in the prompt's units, or the prompt's own right side without one.
         private float RightEdge()
         {
+            // The run info's panel may not exist yet when the prompt does; look again, a few times a second, until
+            // it's found, then keep it.
+            if (!rightEdge && Time.unscaledTime >= nextLookup)
+            {
+                rightEdge = findRightEdge();
+                nextLookup = Time.unscaledTime + LookupInterval;
+            }
             if (!rightEdge || !rightEdge.gameObject.activeInHierarchy) return parent.rect.xMax - PaddingX;
             rightEdge.GetWorldCorners(corners);
             return parent.InverseTransformPoint(corners[2]).x;

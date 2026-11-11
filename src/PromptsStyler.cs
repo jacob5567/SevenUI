@@ -71,7 +71,7 @@ namespace SevenUI
                 HideStrip(prompt.inspectDisplay);
                 if (!panels.Exists(panel => panel.Prompt == prompt))
                 {
-                    panels.Add(new PromptPanel(prompt, RunInfoPanel(), recorder));
+                    panels.Add(new PromptPanel(prompt, RunInfoPanel, recorder));
                 }
             }
             prompts.Clear();
