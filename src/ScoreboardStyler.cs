@@ -82,6 +82,8 @@ namespace SevenUI
         private const float OutlineEdge = 2f * Canvas;
         // The outline sprite's edge, in its pixels (FlatSprite.Outline).
         private const float OutlineEdgePixels = 2f;
+        // How many updates a row missing its parts is tried for (about a second) before it is taken to never have them.
+        private const int MaxStyleAttempts = 60;
 
         private readonly HUD hud;
         private readonly Transform root;
@@ -89,6 +91,9 @@ namespace SevenUI
         private readonly List<ScoreboardController> boards = new List<ScoreboardController>();
         private readonly List<ScoreboardStrip> rows = new List<ScoreboardStrip>();
         private readonly HashSet<ScoreboardStrip> styled = new HashSet<ScoreboardStrip>();
+        // Rows StyleRow returned early on: the tries so far, and the rows given up on, which are not tried again.
+        private readonly Dictionary<ScoreboardStrip, int> attempts = new Dictionary<ScoreboardStrip, int>();
+        private readonly HashSet<ScoreboardStrip> skipped = new HashSet<ScoreboardStrip>();
         private ScoreboardPlacement placement;
         private ScoreboardItemsBoard itemsBoard;
 
@@ -117,6 +122,8 @@ namespace SevenUI
             }
             recorder.Restore();
             styled.Clear();
+            attempts.Clear();
+            skipped.Clear();
             placement = null;
             itemsBoard = null;
         }
@@ -129,6 +136,22 @@ namespace SevenUI
                 placement.Update(SevenUIPlugin.Settings.ScoreboardBesideRunInfo.Value);
             }
             styled.RemoveWhere(row => !row);
+            skipped.RemoveWhere(row => !row);
+            // The styler otherwise runs only when the HUD's hierarchy changes, which a row still being built may not do.
+            if (attempts.Count > 0)
+            {
+                foreach (ScoreboardStrip row in new List<ScoreboardStrip>(attempts.Keys))
+                {
+                    if (!row)
+                    {
+                        attempts.Remove(row);
+                    }
+                }
+                if (attempts.Count > 0)
+                {
+                    Apply();
+                }
+            }
         }
 
         private void StyleBoard(Transform board)
@@ -159,9 +182,26 @@ namespace SevenUI
             board.GetComponentsInChildren(true, rows);
             foreach (ScoreboardStrip row in rows)
             {
-                if (styled.Add(row))
+                if (styled.Contains(row) || skipped.Contains(row))
                 {
-                    StyleRow(row);
+                    continue;
+                }
+                if (StyleRow(row))
+                {
+                    styled.Add(row);
+                    attempts.Remove(row);
+                    continue;
+                }
+                // Its parts may not be built yet; a row still without them after a while never will have them.
+                attempts.TryGetValue(row, out int tries);
+                if (++tries >= MaxStyleAttempts)
+                {
+                    attempts.Remove(row);
+                    skipped.Add(row);
+                }
+                else
+                {
+                    attempts[row] = tries;
                 }
             }
             rows.Clear();
@@ -177,12 +217,13 @@ namespace SevenUI
             itemsBoard.Init(recorder, styled, hud, (RectTransform)board, style);
         }
 
-        private void StyleRow(ScoreboardStrip row)
+        // False, with the row untouched, if its background or columns aren't there (yet).
+        private bool StyleRow(ScoreboardStrip row)
         {
             Transform background = row.transform.Find(RowBackgroundName);
             Image backgroundImage = background ? background.GetComponent<Image>() : null;
             HorizontalLayoutGroup columns = background ? background.GetComponent<HorizontalLayoutGroup>() : null;
-            if (!backgroundImage || !columns) return;
+            if (!backgroundImage || !columns) return false;
             Fill(backgroundImage, Color.clear);
             // The game's outline around the selected row; the viewer's row is tinted instead.
             recorder.Disable(row.GetComponent<RawImage>());
@@ -288,6 +329,7 @@ namespace SevenUI
             tab.Board = itemsBoard;
             tab.Strip = row;
             recorder.Add(tab);
+            return true;
         }
 
         // Out of the row's columns, for the board to place.
