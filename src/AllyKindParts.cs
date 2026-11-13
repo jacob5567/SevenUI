@@ -42,7 +42,7 @@ namespace SevenUI
         public static AllyKindParts Add(AllyCardController card)
         {
             if (!card.nameLabel || !card.healthBar) return null;
-            RectTransform countRect = NewObject(CountName, card.nameLabel.transform);
+            RectTransform countRect = UiFactory.NewObject(CountName, card.nameLabel.transform);
             countRect.anchorMin = countRect.anchorMax = new Vector2(0f, 0.5f);
             countRect.pivot = new Vector2(0f, 0.5f);
             countRect.sizeDelta = new Vector2(0f, card.nameLabel.rectTransform.rect.height);
@@ -59,7 +59,7 @@ namespace SevenUI
             countRect.gameObject.AddComponent<CondensedText>();
 
             Transform bar = card.healthBar.transform;
-            RectTransform segments = NewObject(SegmentsName, bar.parent);
+            RectTransform segments = UiFactory.NewObject(SegmentsName, bar.parent);
             segments.SetSiblingIndex(bar.GetSiblingIndex() + 1);
             LayoutElement barLayout = bar.GetComponent<LayoutElement>();
             LayoutElement layout = segments.gameObject.AddComponent<LayoutElement>();
@@ -118,12 +118,12 @@ namespace SevenUI
         {
             while (slots.Count < allies)
             {
-                RectTransform slot = NewObject("Segment", segments);
+                RectTransform slot = UiFactory.NewObject("Segment", segments);
                 Image trough = slot.gameObject.AddComponent<Image>();
                 trough.color = Palette.Trough;
                 trough.raycastTarget = false;
                 slot.gameObject.AddComponent<LayoutElement>().flexibleWidth = 1f;
-                RectTransform fill = NewObject("Fill", slot);
+                RectTransform fill = UiFactory.NewObject("Fill", slot);
                 fill.anchorMin = Vector2.zero;
                 fill.anchorMax = Vector2.one;
                 fill.offsetMin = fill.offsetMax = Vector2.zero;
@@ -147,14 +147,6 @@ namespace SevenUI
             {
                 shown[i] = -1f;
             }
-        }
-
-        private static RectTransform NewObject(string name, Transform parent)
-        {
-            GameObject created = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer));
-            created.layer = parent.gameObject.layer;
-            created.transform.SetParent(parent, false);
-            return (RectTransform)created.transform;
         }
     }
 }

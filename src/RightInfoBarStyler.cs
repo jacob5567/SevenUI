@@ -115,7 +115,7 @@ namespace SevenUI
             Image image = panel.GetComponent<Image>();
             if (!image) return;
             recorder.Record(image);
-            Flatten(image);
+            UiFactory.Flatten(image, Palette.Panel);
         }
 
         private void StyleObjectivePanel(Transform panel)
@@ -220,7 +220,7 @@ namespace SevenUI
                 {
                     recorder.Record(image);
                 }
-                Flatten(image);
+                UiFactory.Flatten(image, Palette.Panel);
             }
             VerticalLayoutGroup layout = panel.GetComponent<VerticalLayoutGroup>();
             VerticalLayoutGroup originalLayout = objectivePanel.GetComponent<VerticalLayoutGroup>();
@@ -289,7 +289,7 @@ namespace SevenUI
             by.color = Palette.HeaderSubtle;
             by.text = StatsSource;
 
-            GameObject holder = NewUIObject(StatsGridName, title);
+            GameObject holder = UiFactory.NewObject(StatsGridName, title).gameObject;
             RectTransform holderRect = (RectTransform)holder.transform;
             holderRect.anchorMin = Vector2.zero;
             holderRect.anchorMax = Vector2.one;
@@ -334,11 +334,8 @@ namespace SevenUI
         // In the game's language font, so the font swap gives it Barlow like the rest of the HUD.
         private static TMP_Text AddText(string name, Transform parent, TextAlignmentOptions alignment)
         {
-            GameObject line = NewUIObject(name, parent);
-            RectTransform rect = (RectTransform)line.transform;
-            rect.anchorMin = Vector2.zero;
-            rect.anchorMax = Vector2.one;
-            rect.offsetMin = rect.offsetMax = Vector2.zero;
+            GameObject line = UiFactory.NewObject(name, parent).gameObject;
+            UiFactory.Stretch((RectTransform)line.transform);
             TextMeshProUGUI text = line.AddComponent<TextMeshProUGUI>();
             TMP_FontAsset font = HGTextMeshProUGUI.defaultLanguageFont;
             if (font)
@@ -351,14 +348,6 @@ namespace SevenUI
             text.overflowMode = TextOverflowModes.Overflow;
             text.raycastTarget = false;
             return text;
-        }
-
-        private static GameObject NewUIObject(string name, Transform parent)
-        {
-            GameObject created = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer));
-            created.layer = parent.gameObject.layer;
-            created.transform.SetParent(parent, false);
-            return created;
         }
 
         private void AddHeaderStrip(Transform panel)
@@ -379,13 +368,6 @@ namespace SevenUI
             image.color = Palette.HeaderStrip;
             image.raycastTarget = false;
             recorder.Add(strip);
-        }
-
-        private static void Flatten(Image image)
-        {
-            image.sprite = null;
-            image.type = Image.Type.Simple;
-            image.color = Palette.Panel;
         }
 
         public void Describe(System.Text.StringBuilder output)

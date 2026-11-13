@@ -71,12 +71,12 @@ namespace SevenUI
         public ScoreboardDetailPane(Transform parent, TMP_Text style, StyleRecorder recorder)
         {
             this.style = style;
-            Root = NewObject(PaneName, parent);
+            Root = UiFactory.NewObject(PaneName, parent);
             recorder.Add(Root.gameObject);
             Image panel = Root.gameObject.AddComponent<Image>();
             panel.color = Palette.TooltipPanel;
             panel.raycastTarget = false;
-            strip = NewImage("TierStrip", Root, Palette.Text);
+            strip = UiFactory.NewImage("TierStrip", Root, Palette.Text);
             RectTransform stripRect = strip.rectTransform;
             stripRect.anchorMin = new Vector2(0f, 1f);
             stripRect.anchorMax = Vector2.one;
@@ -84,15 +84,15 @@ namespace SevenUI
             stripRect.anchoredPosition = Vector2.zero;
             stripRect.sizeDelta = new Vector2(0f, StripHeight);
 
-            iconSlot = NewImage("Slot", Root, Palette.ItemSlot).rectTransform;
-            icon = NewObject("Icon", iconSlot).gameObject.AddComponent<RawImage>();
+            iconSlot = UiFactory.NewImage("Slot", Root, Palette.ItemSlot).rectTransform;
+            icon = UiFactory.NewObject("Icon", iconSlot).gameObject.AddComponent<RawImage>();
             icon.raycastTarget = false;
             RectTransform iconRect = icon.rectTransform;
             iconRect.anchorMin = Vector2.zero;
             iconRect.anchorMax = Vector2.one;
             iconRect.offsetMin = new Vector2(IconInset, IconInset);
             iconRect.offsetMax = new Vector2(-IconInset, -IconInset);
-            iconStrip = NewImage("TierStrip", iconSlot, Palette.Text);
+            iconStrip = UiFactory.NewImage("TierStrip", iconSlot, Palette.Text);
             RectTransform iconStripRect = iconStrip.rectTransform;
             iconStripRect.anchorMin = Vector2.zero;
             iconStripRect.anchorMax = new Vector2(1f, 0f);
@@ -104,7 +104,7 @@ namespace SevenUI
             title.fontStyle = FontStyles.Bold;
             description = NewText("Description", Root, DescriptionSize, Palette.TooltipBody);
             stats = new StatsSection(Root, description, StatsUnit, StatsSize, recorder.Add);
-            divider = NewImage("Divider", Root, Palette.Divider).rectTransform;
+            divider = UiFactory.NewImage("Divider", Root, Palette.Divider).rectTransform;
             Root.gameObject.SetActive(false);
         }
 
@@ -300,9 +300,9 @@ namespace SevenUI
 
         private Holder NewHolder()
         {
-            Holder holder = new Holder { Rect = NewObject(HolderName, Root) };
-            holder.Slot = NewImage("PortraitSlot", holder.Rect, Palette.ItemSlot).rectTransform;
-            holder.Portrait = NewObject("Portrait", holder.Slot).gameObject.AddComponent<RawImage>();
+            Holder holder = new Holder { Rect = UiFactory.NewObject(HolderName, Root) };
+            holder.Slot = UiFactory.NewImage("PortraitSlot", holder.Rect, Palette.ItemSlot).rectTransform;
+            holder.Portrait = UiFactory.NewObject("Portrait", holder.Slot).gameObject.AddComponent<RawImage>();
             holder.Portrait.raycastTarget = false;
             RectTransform portrait = holder.Portrait.rectTransform;
             portrait.anchorMin = Vector2.zero;
@@ -315,7 +315,7 @@ namespace SevenUI
 
         private TMP_Text NewText(string name, Transform parent, float size, Color color)
         {
-            TextMeshProUGUI text = NewObject(name, parent).gameObject.AddComponent<TextMeshProUGUI>();
+            TextMeshProUGUI text = UiFactory.NewObject(name, parent).gameObject.AddComponent<TextMeshProUGUI>();
             if (style)
             {
                 text.font = style.font;
@@ -329,22 +329,6 @@ namespace SevenUI
             text.overflowMode = TextOverflowModes.Overflow;
             text.raycastTarget = false;
             return text;
-        }
-
-        private static Image NewImage(string name, Transform parent, Color color)
-        {
-            Image image = NewObject(name, parent).gameObject.AddComponent<Image>();
-            image.color = color;
-            image.raycastTarget = false;
-            return image;
-        }
-
-        private static RectTransform NewObject(string name, Transform parent)
-        {
-            GameObject made = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer));
-            made.layer = parent.gameObject.layer;
-            made.transform.SetParent(parent, false);
-            return (RectTransform)made.transform;
         }
     }
 }

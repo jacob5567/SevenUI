@@ -82,7 +82,7 @@ namespace SevenUI
 
             // The panel: the canvas's near-black, with the header band a faint light tint over it. The body's own image
             // is the game's blur of what is behind, which a color only tints, so the near-black is an image over it.
-            Image body = NewObject("SevenUIBodyPanel", bodyRect).gameObject.AddComponent<Image>();
+            Image body = UiFactory.NewObject("SevenUIBodyPanel", bodyRect).gameObject.AddComponent<Image>();
             body.color = Palette.TooltipPanel;
             body.raycastTarget = false;
             Fill((RectTransform)body.transform);
@@ -91,12 +91,12 @@ namespace SevenUI
             {
                 tooltip.colorHighlightImage.color = Palette.TooltipPanel;
             }
-            Image band = NewObject("SevenUIHeaderBand", titleRect).gameObject.AddComponent<Image>();
+            Image band = UiFactory.NewObject("SevenUIHeaderBand", titleRect).gameObject.AddComponent<Image>();
             band.color = CanvasBlend.Over(Palette.TooltipHeader, Palette.TooltipPanel);
             band.raycastTarget = false;
             Fill((RectTransform)band.transform);
             band.transform.SetAsFirstSibling();
-            Image strip = NewObject("SevenUITierStrip", titleRect).gameObject.AddComponent<Image>();
+            Image strip = UiFactory.NewObject("SevenUITierStrip", titleRect).gameObject.AddComponent<Image>();
             strip.color = StripColor(provider);
             strip.raycastTarget = false;
             RectTransform stripRect = (RectTransform)strip.transform;
@@ -112,7 +112,7 @@ namespace SevenUI
             int count = StackCount(provider);
             if (count > 0)
             {
-                TMP_Text label = NewText("SevenUIStackCount", titleRect, tooltip.titleLabel, CountSize, Palette.HeaderText);
+                TMP_Text label = UiFactory.NewText("SevenUIStackCount", titleRect, tooltip.titleLabel, CountSize, Palette.HeaderText);
                 // Barlow Condensed SemiBold, the canvas's 600 weight, unbolded.
                 label.gameObject.AddComponent<CondensedText>();
                 label.alignment = TextAlignmentOptions.Right;
@@ -184,25 +184,6 @@ namespace SevenUI
             rect.offsetMin = rect.offsetMax = Vector2.zero;
             LayoutElement element = rect.gameObject.AddComponent<LayoutElement>();
             element.ignoreLayout = true;
-        }
-
-        private static TMP_Text NewText(string name, Transform holder, TMP_Text style, float size, Color color)
-        {
-            TextMeshProUGUI text = NewObject(name, holder).gameObject.AddComponent<TextMeshProUGUI>();
-            text.font = style.font;
-            text.fontSharedMaterial = style.fontSharedMaterial;
-            text.fontSize = size;
-            text.color = color;
-            text.raycastTarget = false;
-            return text;
-        }
-
-        private static RectTransform NewObject(string name, Transform holder)
-        {
-            GameObject made = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer));
-            made.layer = holder.gameObject.layer;
-            made.transform.SetParent(holder, false);
-            return (RectTransform)made.transform;
         }
     }
 }

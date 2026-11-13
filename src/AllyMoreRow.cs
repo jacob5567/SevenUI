@@ -34,7 +34,7 @@ namespace SevenUI
         // game's font.
         public AllyMoreRow(RectTransform container, TMP_Text style, int paddingLeft)
         {
-            rect = NewObject(Name, container);
+            rect = UiFactory.NewObject(Name, container);
             // Pinned to the container's top across its width, like the cards the game places.
             rect.anchorMin = new Vector2(0f, 1f);
             rect.anchorMax = Vector2.one;
@@ -52,7 +52,7 @@ namespace SevenUI
 
             for (int i = 0; i < MaxIcons; i++)
             {
-                RectTransform slot = NewObject(IconName, rect);
+                RectTransform slot = UiFactory.NewObject(IconName, rect);
                 RawImage icon = slot.gameObject.AddComponent<RawImage>();
                 icon.raycastTarget = false;
                 LayoutElement size = slot.gameObject.AddComponent<LayoutElement>();
@@ -60,9 +60,9 @@ namespace SevenUI
                 slot.gameObject.SetActive(false);
                 icons.Add(icon);
             }
-            NewObject("Space", rect).gameObject.AddComponent<LayoutElement>().flexibleWidth = 1f;
+            UiFactory.NewObject("Space", rect).gameObject.AddComponent<LayoutElement>().flexibleWidth = 1f;
 
-            label = NewObject("Count", rect).gameObject.AddComponent<TextMeshProUGUI>();
+            label = UiFactory.NewObject("Count", rect).gameObject.AddComponent<TextMeshProUGUI>();
             if (style)
             {
                 label.font = style.font;
@@ -148,14 +148,6 @@ namespace SevenUI
             {
                 Object.Destroy(rect.gameObject);
             }
-        }
-
-        private static RectTransform NewObject(string name, Transform parent)
-        {
-            GameObject created = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer));
-            created.layer = parent.gameObject.layer;
-            created.transform.SetParent(parent, false);
-            return (RectTransform)created.transform;
         }
     }
 }

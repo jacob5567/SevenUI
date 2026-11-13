@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.IO;
 using TMPro;
 using UnityEngine;
 
@@ -120,19 +119,13 @@ namespace SevenUI
 
         private static TMP_FontAsset BakeEmbedded(string resource, string name, Material template)
         {
-            using (Stream stream = typeof(FontLibrary).Assembly.GetManifestResourceStream(resource))
+            byte[] bytes = UiFactory.ReadResource(resource);
+            if (bytes == null)
             {
-                if (stream == null)
-                {
-                    SevenUIPlugin.Log.LogError($"The font resource {resource} is missing from the DLL");
-                    return null;
-                }
-                using (MemoryStream bytes = new MemoryStream())
-                {
-                    stream.CopyTo(bytes);
-                    return FontBaker.Bake(bytes.ToArray(), name, template);
-                }
+                SevenUIPlugin.Log.LogError($"The font resource {resource} is missing from the DLL");
+                return null;
             }
+            return FontBaker.Bake(bytes, name, template);
         }
     }
 }

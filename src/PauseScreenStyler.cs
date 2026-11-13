@@ -323,10 +323,7 @@ namespace SevenUI
 
         private TMP_Text AddText(string name, TMP_Text font, float size, Color color)
         {
-            GameObject created = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer));
-            created.layer = options.gameObject.layer;
-            created.transform.SetParent(options, false);
-            TextMeshProUGUI text = created.AddComponent<TextMeshProUGUI>();
+            TextMeshProUGUI text = UiFactory.NewObject(name, options).gameObject.AddComponent<TextMeshProUGUI>();
             if (font)
             {
                 text.font = font.font;

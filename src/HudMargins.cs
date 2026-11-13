@@ -87,7 +87,7 @@ namespace SevenUI
         }
 
         // The HUD camera's part of the screen; a split-screen player's HUD has its own.
-        private Rect Screen => camera ? camera.pixelRect : new Rect(0f, 0f, UnityEngine.Screen.width, UnityEngine.Screen.height);
+        private Rect Screen => UiFactory.ScreenRect(camera);
 
         // A few projected points; moves a cluster only when its panels have moved from the margin. The equipment slot
         // is the skill row's right end once the mod has fitted it.

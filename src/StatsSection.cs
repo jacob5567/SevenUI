@@ -142,11 +142,9 @@ namespace SevenUI
 
         private RectTransform NewObject(string name, Transform holder)
         {
-            GameObject made = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer));
-            made.layer = holder.gameObject.layer;
-            made.transform.SetParent(holder, false);
-            created?.Invoke(made);
-            return (RectTransform)made.transform;
+            RectTransform made = UiFactory.NewObject(name, holder);
+            created?.Invoke(made.gameObject);
+            return made;
         }
     }
 }

@@ -262,7 +262,7 @@ namespace SevenUI
 
         private RectTransform NewHighlight()
         {
-            RectTransform rect = NewObject(HighlightName, Cell);
+            RectTransform rect = UiFactory.NewObject(HighlightName, Cell);
             recorder.Add(rect.gameObject);
             Image image = rect.gameObject.AddComponent<Image>();
             image.sprite = FlatSprite.Outline;
@@ -297,14 +297,6 @@ namespace SevenUI
                 if (icon && icon.itemIndex == item) return icon;
             }
             return null;
-        }
-
-        private static RectTransform NewObject(string name, Transform parent)
-        {
-            GameObject made = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer));
-            made.layer = parent.gameObject.layer;
-            made.transform.SetParent(parent, false);
-            return (RectTransform)made.transform;
         }
     }
 }

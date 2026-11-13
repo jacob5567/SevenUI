@@ -101,15 +101,13 @@ namespace SevenUI
                 recorder.RecordRect((RectTransform)label.transform);
                 recorder.Record(label);
                 label.alignment = TextAlignmentOptions.BottomLeft;
-                KeepOnOneLine(label, recorder);
+                UiFactory.KeepOnOneLine(label, recorder);
             }
             subtitle.fontSize = SmallFontSize;
 
             // The game's health text, written across the bar, gives way to the mod's above it.
             recorder.Disable(boss.healthLabel);
-            GameObject created = new GameObject(HealthName, typeof(RectTransform), typeof(CanvasRenderer));
-            created.layer = bar.gameObject.layer;
-            created.transform.SetParent(bar, false);
+            GameObject created = UiFactory.NewObject(HealthName, bar).gameObject;
             TextMeshProUGUI healthText = created.AddComponent<TextMeshProUGUI>();
             // In the game label's font, so the font swap gives it Barlow like the rest of the HUD.
             if (boss.healthLabel)
@@ -126,17 +124,6 @@ namespace SevenUI
             healthText.raycastTarget = false;
             recorder.Add(created);
             return new BossTitleRow(boss, container, layout, cell, topPadding, name, subtitle, healthText);
-        }
-
-        private static void KeepOnOneLine(TMP_Text label, StyleRecorder recorder)
-        {
-            bool wrapping = label.enableWordWrapping;
-            recorder.OnRestore(() =>
-            {
-                if (!label) return;
-                label.enableWordWrapping = wrapping;
-            });
-            label.enableWordWrapping = false;
         }
 
         public bool Alive => boss && container && layout && cell && name && subtitle && health;

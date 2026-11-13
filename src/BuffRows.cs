@@ -247,7 +247,7 @@ namespace SevenUI
 
         private void AddSlot()
         {
-            GameObject created = NewUIObject(SlotName, rect);
+            GameObject created = UiFactory.NewObject(SlotName, rect).gameObject;
             // First, so the icons, which the game adds after, draw over it.
             created.transform.SetAsFirstSibling();
             RectTransform slotRect = (RectTransform)created.transform;
@@ -257,7 +257,7 @@ namespace SevenUI
             slot.color = Palette.ItemSlot;
             slot.raycastTarget = false;
 
-            GameObject strip = NewUIObject("Strip", created.transform);
+            GameObject strip = UiFactory.NewObject("Strip", created.transform).gameObject;
             RectTransform stripRect = (RectTransform)strip.transform;
             stripRect.anchorMin = Vector2.zero;
             stripRect.anchorMax = new Vector2(1f, 0f);
@@ -272,7 +272,7 @@ namespace SevenUI
 
             if (!labels)
             {
-                GameObject holder = NewUIObject(LabelsName, rect);
+                GameObject holder = UiFactory.NewObject(LabelsName, rect).gameObject;
                 labels = (RectTransform)holder.transform;
                 labels.anchorMin = labels.anchorMax = labels.pivot = Vector2.zero;
                 labels.sizeDelta = Vector2.zero;
@@ -295,7 +295,7 @@ namespace SevenUI
         // game's, so the font swap gives it Barlow like the rest of the HUD.
         private TMP_Text AddLabel(string name, Vector2 pivot, TextAlignmentOptions alignment, float size)
         {
-            GameObject line = NewUIObject(name, labels);
+            GameObject line = UiFactory.NewObject(name, labels).gameObject;
             RectTransform lineRect = (RectTransform)line.transform;
             lineRect.anchorMin = lineRect.anchorMax = Vector2.zero;
             lineRect.pivot = pivot;
@@ -313,14 +313,6 @@ namespace SevenUI
             label.overflowMode = TextOverflowModes.Overflow;
             label.raycastTarget = false;
             return label;
-        }
-
-        private static GameObject NewUIObject(string name, Transform parent)
-        {
-            GameObject created = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer));
-            created.layer = parent.gameObject.layer;
-            created.transform.SetParent(parent, false);
-            return created;
         }
     }
 }

@@ -1,4 +1,3 @@
-using System.IO;
 using System.Runtime.CompilerServices;
 using BepInEx.Bootstrap;
 using RiskOfOptions;
@@ -40,17 +39,11 @@ namespace SevenUI
         // The Thunderstore icon, embedded in the DLL by the csproj.
         private static Sprite LoadIcon()
         {
-            using (Stream stream = typeof(RiskOfOptionsCompat).Assembly.GetManifestResourceStream(IconResource))
-            {
-                if (stream == null) return null;
-                using (MemoryStream bytes = new MemoryStream())
-                {
-                    stream.CopyTo(bytes);
-                    Texture2D texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
-                    if (!texture.LoadImage(bytes.ToArray())) return null;
-                    return Sprite.Create(texture, new Rect(0f, 0f, texture.width, texture.height), new Vector2(0.5f, 0.5f));
-                }
-            }
+            byte[] bytes = UiFactory.ReadResource(IconResource);
+            if (bytes == null) return null;
+            Texture2D texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+            if (!texture.LoadImage(bytes)) return null;
+            return Sprite.Create(texture, new Rect(0f, 0f, texture.width, texture.height), new Vector2(0.5f, 0.5f));
         }
     }
 }

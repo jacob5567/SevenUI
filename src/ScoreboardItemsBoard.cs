@@ -98,7 +98,7 @@ namespace SevenUI
                 recorder.Record(rowsGroup);
                 rowsGroup.padding = new RectOffset(rowsPadding.left, rowsPadding.right, rowsPadding.top, rowsPadding.bottom);
             }
-            RectTransform column = NewObject(PaneColumnName, strips);
+            RectTransform column = UiFactory.NewObject(PaneColumnName, strips);
             recorder.Add(column.gameObject);
             column.gameObject.AddComponent<LayoutIgnorer>();
             column.anchorMin = new Vector2(1f, 0f);
@@ -106,7 +106,7 @@ namespace SevenUI
             column.pivot = Vector2.one;
             column.anchoredPosition = Vector2.zero;
             column.sizeDelta = new Vector2(PaneColumnWidth + padding.right, 0f);
-            RectTransform line = NewObject("Divider", column);
+            RectTransform line = UiFactory.NewObject("Divider", column);
             line.gameObject.AddComponent<LayoutIgnorer>();
             Image image = line.gameObject.AddComponent<Image>();
             image.color = Palette.RowDivider;
@@ -117,7 +117,7 @@ namespace SevenUI
             line.offsetMax = new Vector2(HudUnits.DividerHeight, 0f);
             pane = new ScoreboardDetailPane(column, style, recorder);
             // Behind the rows, which the game keeps at the container's end (UIElementAllocator).
-            RectTransform shape = NewObject(TabName, strips);
+            RectTransform shape = UiFactory.NewObject(TabName, strips);
             recorder.Add(shape.gameObject);
             shape.gameObject.AddComponent<LayoutIgnorer>();
             shape.SetAsFirstSibling();
@@ -556,13 +556,5 @@ namespace SevenUI
 
         private MPEventSystem Events() =>
             hud && hud.eventSystemProvider ? hud.eventSystemProvider.resolvedEventSystem : null;
-
-        private static RectTransform NewObject(string name, Transform parent)
-        {
-            GameObject made = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer));
-            made.layer = parent.gameObject.layer;
-            made.transform.SetParent(parent, false);
-            return (RectTransform)made.transform;
-        }
     }
 }

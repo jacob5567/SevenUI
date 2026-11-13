@@ -362,10 +362,8 @@ namespace SevenUI
 
         private RectTransform AddBlended(Transform parent, string name, Sprite sprite, Color from, Color to)
         {
-            GameObject created = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer));
-            created.layer = parent.gameObject.layer;
-            RectTransform rect = (RectTransform)created.transform;
-            rect.SetParent(parent, false);
+            RectTransform rect = UiFactory.NewObject(name, parent);
+            GameObject created = rect.gameObject;
             Image image = created.AddComponent<Image>();
             image.sprite = sprite;
             image.color = Color.white;
@@ -434,7 +432,7 @@ namespace SevenUI
             Canvas canvas = root.GetComponent<Canvas>();
             if (!parent || !canvas) return;
             Camera camera = canvas.renderMode != RenderMode.ScreenSpaceOverlay ? canvas.worldCamera : null;
-            Rect screen = camera ? camera.pixelRect : new Rect(0f, 0f, Screen.width, Screen.height);
+            Rect screen = UiFactory.ScreenRect(camera);
             Vector2 spot = new Vector2(screen.center.x, screen.yMax - screen.height * NotificationMiddleDown);
             if (!RectTransformUtility.ScreenPointToWorldPointInRectangle(parent, spot, camera, out Vector3 target)) return;
             Vector3 middle = panel.TransformPoint(panel.rect.center);
@@ -444,10 +442,8 @@ namespace SevenUI
 
         private void AddStrip(Transform backdrop)
         {
-            GameObject strip = new GameObject(NotificationStripName, typeof(RectTransform), typeof(CanvasRenderer));
-            strip.layer = backdrop.gameObject.layer;
-            RectTransform rect = (RectTransform)strip.transform;
-            rect.SetParent(backdrop, false);
+            RectTransform rect = UiFactory.NewObject(NotificationStripName, backdrop);
+            GameObject strip = rect.gameObject;
             rect.anchorMin = new Vector2(0f, 1f);
             rect.anchorMax = Vector2.one;
             rect.offsetMin = new Vector2(0f, -NotificationStripHeight);

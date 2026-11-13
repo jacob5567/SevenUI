@@ -42,7 +42,7 @@ namespace SevenUI
         public ArtifactRow(RectTransform bar, ArtifactDisplayPanelController panel, TMP_Text fontFrom, float inset,
             float labelSize, StyleRecorder recorder)
         {
-            Root = NewObject(RowName, bar);
+            Root = UiFactory.NewObject(RowName, bar);
             Root.anchorMin = new Vector2(0f, 0.5f);
             Root.anchorMax = new Vector2(1f, 0.5f);
             Root.pivot = new Vector2(0.5f, 0.5f);
@@ -51,13 +51,13 @@ namespace SevenUI
             Root.gameObject.AddComponent<Canvas>();
             Root.gameObject.AddComponent<GraphicRaycaster>();
 
-            icons = NewObject(IconsName, Root);
+            icons = UiFactory.NewObject(IconsName, Root);
             icons.anchorMin = Vector2.zero;
             icons.anchorMax = new Vector2(0f, 1f);
             icons.pivot = new Vector2(0f, 0.5f);
             icons.anchoredPosition = Vector2.zero;
 
-            RectTransform labelRect = NewObject(LabelName, Root);
+            RectTransform labelRect = UiFactory.NewObject(LabelName, Root);
             TextMeshProUGUI text = labelRect.gameObject.AddComponent<TextMeshProUGUI>();
             // Starts in the game's font, so the font swap gives it Barlow like the rest of the HUD.
             if (fontFrom)
@@ -199,14 +199,6 @@ namespace SevenUI
             grid.childAlignment = TextAnchor.MiddleLeft;
             grid.spacing = new Vector2(IconGap, 0f);
             grid.cellSize = new Vector2(Height, Height);
-        }
-
-        private static RectTransform NewObject(string name, Transform holder)
-        {
-            GameObject created = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer));
-            created.layer = holder.gameObject.layer;
-            created.transform.SetParent(holder, false);
-            return (RectTransform)created.transform;
         }
     }
 }

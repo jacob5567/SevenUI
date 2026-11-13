@@ -81,12 +81,12 @@ namespace SevenUI
                 hidden.blocksRaycasts = true;
             });
 
-            RectTransform root = NewObject(Name, slot);
+            RectTransform root = UiFactory.NewObject(Name, slot);
             SetAnchors(root, Vector2.zero, Vector2.one);
             // Furthest first, so the next icon is drawn over the ones behind it.
             for (int i = MaxShown - 1; i >= 0; i--)
             {
-                RawImage icon = NewObject(IconName + i, root).gameObject.AddComponent<RawImage>();
+                RawImage icon = UiFactory.NewObject(IconName + i, root).gameObject.AddComponent<RawImage>();
                 icon.raycastTarget = false;
                 icon.color = Color.clear;
                 Place(icon.rectTransform, i);
@@ -100,7 +100,7 @@ namespace SevenUI
             cooldown.gameObject.AddComponent<CondensedText>();
             cooldown.gameObject.SetActive(false);
 
-            Image arrow = NewObject(ArrowName, root).gameObject.AddComponent<Image>();
+            Image arrow = UiFactory.NewObject(ArrowName, root).gameObject.AddComponent<Image>();
             arrow.sprite = FlatIcons.Down;
             arrow.color = Palette.HeaderText;
             arrow.raycastTarget = false;
@@ -114,12 +114,12 @@ namespace SevenUI
             recorder.Add(deck);
 
             // Over everything in the slot while it plays, its face hiding the slot's own icon and outline.
-            RectTransform swapRect = NewObject(SwapName, slot);
+            RectTransform swapRect = UiFactory.NewObject(SwapName, slot);
             SetAnchors(swapRect, Vector2.zero, Vector2.one);
             Image face = swapRect.gameObject.AddComponent<Image>();
             face.color = Palette.Trough;
             face.raycastTarget = false;
-            growing = NewObject("Next", swapRect).gameObject.AddComponent<RawImage>();
+            growing = UiFactory.NewObject("Next", swapRect).gameObject.AddComponent<RawImage>();
             growing.raycastTarget = false;
             swap = swapRect.gameObject;
             swap.SetActive(false);
@@ -300,7 +300,7 @@ namespace SevenUI
         // the skill row's styling sizes and colors like the other keys.
         private void AddKeys(RectTransform root, SkillRow row)
         {
-            RectTransform keys = NewObject(KeysName, root);
+            RectTransform keys = UiFactory.NewObject(KeysName, root);
             this.keys = keys.gameObject;
             float middle = 1f + GapShare + IconShare / 2f;
             float right = 1f - IconShare - KeysGapShare;
@@ -329,7 +329,7 @@ namespace SevenUI
 
         private static TMP_Text NewLabel(string name, Transform parent, TMP_Text style)
         {
-            TextMeshProUGUI label = NewObject(name, parent).gameObject.AddComponent<TextMeshProUGUI>();
+            TextMeshProUGUI label = UiFactory.NewObject(name, parent).gameObject.AddComponent<TextMeshProUGUI>();
             if (style)
             {
                 label.font = style.font;
@@ -352,14 +352,6 @@ namespace SevenUI
             rect.anchorMax = max;
             rect.offsetMin = Vector2.zero;
             rect.offsetMax = Vector2.zero;
-        }
-
-        private static RectTransform NewObject(string name, Transform parent)
-        {
-            GameObject created = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer));
-            created.layer = parent.gameObject.layer;
-            created.transform.SetParent(parent, false);
-            return (RectTransform)created.transform;
         }
     }
 }

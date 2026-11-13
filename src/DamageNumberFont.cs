@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.IO;
 using RoR2;
 using UnityEngine;
 
@@ -137,28 +136,22 @@ namespace SevenUI
         {
             if (sheetLoaded) return sheet;
             sheetLoaded = true;
-            using (Stream stream = typeof(DamageNumberFont).Assembly.GetManifestResourceStream(SheetResource))
+            byte[] bytes = UiFactory.ReadResource(SheetResource);
+            if (bytes == null)
             {
-                if (stream == null)
-                {
-                    SevenUIPlugin.Log.LogError($"The damage number sheet {SheetResource} is missing from the DLL");
-                    return null;
-                }
-                using (MemoryStream bytes = new MemoryStream())
-                {
-                    stream.CopyTo(bytes);
-                    Texture2D texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
-                    if (!texture.LoadImage(bytes.ToArray(), true))
-                    {
-                        SevenUIPlugin.Log.LogError("The damage number sheet couldn't be loaded");
-                        return null;
-                    }
-                    texture.name = "SevenUIDamageNumbers";
-                    texture.filterMode = FilterMode.Bilinear;
-                    texture.wrapMode = TextureWrapMode.Clamp;
-                    sheet = texture;
-                }
+                SevenUIPlugin.Log.LogError($"The damage number sheet {SheetResource} is missing from the DLL");
+                return null;
             }
+            Texture2D texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+            if (!texture.LoadImage(bytes, true))
+            {
+                SevenUIPlugin.Log.LogError("The damage number sheet couldn't be loaded");
+                return null;
+            }
+            texture.name = "SevenUIDamageNumbers";
+            texture.filterMode = FilterMode.Bilinear;
+            texture.wrapMode = TextureWrapMode.Clamp;
+            sheet = texture;
             return sheet;
         }
     }

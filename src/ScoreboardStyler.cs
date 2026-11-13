@@ -356,8 +356,8 @@ namespace SevenUI
             float y = 0f;
             Line(name.rectTransform, ref y, NameFontSize);
 
-            GameObject holder = NewUIObject(RowTextsName, nameObject);
-            Stretch((RectTransform)holder.transform);
+            GameObject holder = UiFactory.NewObject(RowTextsName, nameObject).gameObject;
+            UiFactory.Stretch((RectTransform)holder.transform);
             ((RectTransform)holder.transform).offsetMin = new Vector2(inset, 0f);
             Vector2 nameOffset = name.rectTransform.offsetMin;
             name.rectTransform.offsetMin = new Vector2(inset, nameOffset.y);
@@ -399,7 +399,7 @@ namespace SevenUI
 
         private static TMP_Text AddText(string name, Transform parent, TMP_Text like, float size, Color color)
         {
-            GameObject line = NewUIObject(name, parent);
+            GameObject line = UiFactory.NewObject(name, parent).gameObject;
             TextMeshProUGUI text = line.AddComponent<TextMeshProUGUI>();
             text.font = like.font;
             text.fontSharedMaterial = like.fontSharedMaterial;
@@ -462,10 +462,10 @@ namespace SevenUI
             Size(portrait.GetComponent<LayoutElement>(), size, size);
             if (portrait.Find(PortraitSquareName)) return;
             float down = (NameBlockHeight - size) / 2f;
-            GameObject square = NewUIObject(PortraitSquareName, portrait);
+            GameObject square = UiFactory.NewObject(PortraitSquareName, portrait).gameObject;
             square.transform.SetAsFirstSibling();
             RectTransform squareRect = (RectTransform)square.transform;
-            Stretch(squareRect);
+            UiFactory.Stretch(squareRect);
             squareRect.offsetMin = new Vector2(0f, -down);
             squareRect.offsetMax = new Vector2(0f, -down);
             Image squareImage = square.AddComponent<Image>();
@@ -509,8 +509,8 @@ namespace SevenUI
 
         private void AddEquipmentOutline(Transform equipment)
         {
-            GameObject outline = NewUIObject(OutlineName, equipment);
-            Stretch((RectTransform)outline.transform);
+            GameObject outline = UiFactory.NewObject(OutlineName, equipment).gameObject;
+            UiFactory.Stretch((RectTransform)outline.transform);
             Image image = outline.AddComponent<Image>();
             image.sprite = FlatSprite.Outline;
             image.type = Image.Type.Sliced;
@@ -523,7 +523,7 @@ namespace SevenUI
         // A thin line along the row's top, outside its layout.
         private void AddDivider(Transform background)
         {
-            GameObject divider = NewUIObject(DividerName, background);
+            GameObject divider = UiFactory.NewObject(DividerName, background).gameObject;
             divider.AddComponent<LayoutIgnorer>();
             RectTransform rect = (RectTransform)divider.transform;
             rect.anchorMin = new Vector2(0f, 1f);
@@ -553,21 +553,6 @@ namespace SevenUI
             recorder.Record(image);
             image.sprite = FlatSprite.Outline;
             image.type = Image.Type.Sliced;
-        }
-
-        private static void Stretch(RectTransform rect)
-        {
-            rect.anchorMin = Vector2.zero;
-            rect.anchorMax = Vector2.one;
-            rect.offsetMin = rect.offsetMax = Vector2.zero;
-        }
-
-        private static GameObject NewUIObject(string name, Transform parent)
-        {
-            GameObject created = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer));
-            created.layer = parent.gameObject.layer;
-            created.transform.SetParent(parent, false);
-            return created;
         }
 
         private static T Find<T>(Transform parent, string path) where T : Component

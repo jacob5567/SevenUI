@@ -95,7 +95,7 @@ namespace SevenUI
             if (trough)
             {
                 recorder.Record(trough);
-                FlattenTrough(trough);
+                UiFactory.Flatten(trough, Palette.Trough);
             }
 
             FlatHealthStyles.Apply(healthBar, recorder);
@@ -140,7 +140,7 @@ namespace SevenUI
         // font so the font swap gives them Barlow like the rest of the HUD.
         private void AddReadout(HealthBar healthBar, TMP_Text fontFrom)
         {
-            GameObject holder = NewUIObject(ReadoutName, healthBar.transform);
+            GameObject holder = UiFactory.NewObject(ReadoutName, healthBar.transform).gameObject;
             RectTransform holderRect = (RectTransform)holder.transform;
             holderRect.anchorMin = new Vector2(0f, 1f);
             holderRect.anchorMax = Vector2.one;
@@ -157,7 +157,7 @@ namespace SevenUI
         private static TMP_Text AddLabel(Transform parent, string name, TextAlignmentOptions alignment, float size,
             TMP_Text fontFrom)
         {
-            GameObject line = NewUIObject(name, parent);
+            GameObject line = UiFactory.NewObject(name, parent).gameObject;
             RectTransform rect = (RectTransform)line.transform;
             rect.anchorMin = Vector2.zero;
             rect.anchorMax = Vector2.one;
@@ -215,7 +215,7 @@ namespace SevenUI
             {
                 recorder.Record(trough);
                 recorder.SetEnabled(trough, true);
-                FlattenTrough(trough);
+                UiFactory.Flatten(trough, Palette.Trough);
             }
             Image fill = Find<Image>(bars, ExpFillPath);
             if (fill)
@@ -290,21 +290,6 @@ namespace SevenUI
             rect.pivot = new Vector2(0.5f, 0.5f);
             rect.sizeDelta = new Vector2(0f, LineBox);
             rect.anchoredPosition = new Vector2(0f, baseline);
-        }
-
-        private static void FlattenTrough(Image image)
-        {
-            image.sprite = null;
-            image.type = Image.Type.Simple;
-            image.color = Palette.Trough;
-        }
-
-        private static GameObject NewUIObject(string name, Transform parent)
-        {
-            GameObject created = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer));
-            created.layer = parent.gameObject.layer;
-            created.transform.SetParent(parent, false);
-            return created;
         }
 
         private static T Find<T>(Transform parent, string path) where T : Component

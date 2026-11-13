@@ -338,9 +338,7 @@ namespace SevenUI
         {
             if (!image) return;
             recorder.Record(image);
-            image.sprite = null;
-            image.type = Image.Type.Simple;
-            image.color = Palette.Trough;
+            UiFactory.Flatten(image, Palette.Trough);
         }
 
         // Hides the game's radial overlay as a group (the game turns it on and off and sets its color every frame) and

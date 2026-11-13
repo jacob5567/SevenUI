@@ -94,14 +94,10 @@ namespace SevenUI
         // Stretched over the field, outside its layout, and passing clicks through to it.
         private Image NewImage(string name, Transform field, Color color)
         {
-            GameObject created = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer));
-            created.layer = field.gameObject.layer;
-            created.transform.SetParent(field, false);
+            RectTransform rect = UiFactory.NewObject(name, field);
+            GameObject created = rect.gameObject;
             recorder.Add(created);
-            RectTransform rect = (RectTransform)created.transform;
-            rect.anchorMin = Vector2.zero;
-            rect.anchorMax = Vector2.one;
-            rect.offsetMin = rect.offsetMax = Vector2.zero;
+            UiFactory.Stretch(rect);
             created.AddComponent<LayoutElement>().ignoreLayout = true;
             Image image = created.AddComponent<Image>();
             image.color = color;

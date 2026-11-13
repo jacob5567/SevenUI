@@ -25,13 +25,9 @@ namespace SevenUI
         // Stretched over the holder, outside its layout, passing clicks through, and hidden until shown.
         public static PixelOutline Add(Transform holder, string name, Color color, float edge)
         {
-            GameObject created = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer));
-            created.layer = holder.gameObject.layer;
-            RectTransform rect = (RectTransform)created.transform;
-            rect.SetParent(holder, false);
-            rect.anchorMin = Vector2.zero;
-            rect.anchorMax = Vector2.one;
-            rect.offsetMin = rect.offsetMax = Vector2.zero;
+            RectTransform rect = UiFactory.NewObject(name, holder);
+            GameObject created = rect.gameObject;
+            UiFactory.Stretch(rect);
             created.AddComponent<LayoutElement>().ignoreLayout = true;
             PixelOutline outline = created.AddComponent<PixelOutline>();
             outline.Edge = edge;

@@ -167,10 +167,10 @@ namespace SevenUI
         // game label's font so the font swap gives them Barlow like the rest of the HUD.
         private static void AddCharge(Transform strip, TMP_Text label, HoldoutZoneController zone, StyleRecorder recorder)
         {
-            GameObject holder = NewUIObject(ChargeName, label.transform);
-            Stretch((RectTransform)holder.transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            GameObject holder = UiFactory.NewObject(ChargeName, label.transform).gameObject;
+            UiFactory.Stretch((RectTransform)holder.transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             TMP_Text copy = AddText(holder.transform, label);
-            Stretch(copy.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            UiFactory.Stretch(copy.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             copy.alignment = TextAlignmentOptions.Left;
             copy.enableWordWrapping = label.enableWordWrapping;
             ObjectiveIcons.ApplyToCopy(copy);
@@ -212,16 +212,16 @@ namespace SevenUI
         // as its first child, empty.
         private static (GameObject bar, RectTransform fill) AddBar(Transform strip, string name)
         {
-            GameObject bar = NewUIObject(name, strip);
+            GameObject bar = UiFactory.NewObject(name, strip).gameObject;
             bar.AddComponent<LayoutIgnorer>();
-            Stretch((RectTransform)bar.transform, Vector2.zero, new Vector2(1f, 0f), new Vector2(RowInset, RowGap / 2f),
+            UiFactory.Stretch((RectTransform)bar.transform, Vector2.zero, new Vector2(1f, 0f), new Vector2(RowInset, RowGap / 2f),
                 new Vector2(-RowInset, RowGap / 2f + ChargeBarHeight));
             Image trough = bar.AddComponent<Image>();
             trough.color = Palette.Trough;
             trough.raycastTarget = false;
-            GameObject fill = NewUIObject("Fill", bar.transform);
+            GameObject fill = UiFactory.NewObject("Fill", bar.transform).gameObject;
             RectTransform fillRect = (RectTransform)fill.transform;
-            Stretch(fillRect, Vector2.zero, new Vector2(0f, 1f), Vector2.zero, Vector2.zero);
+            UiFactory.Stretch(fillRect, Vector2.zero, new Vector2(0f, 1f), Vector2.zero, Vector2.zero);
             Image fillImage = fill.AddComponent<Image>();
             fillImage.color = Palette.Accent;
             fillImage.raycastTarget = false;
@@ -230,7 +230,7 @@ namespace SevenUI
 
         private static TMP_Text AddText(Transform parent, TMP_Text like)
         {
-            GameObject line = NewUIObject("Text", parent);
+            GameObject line = UiFactory.NewObject("Text", parent).gameObject;
             TextMeshProUGUI text = line.AddComponent<TextMeshProUGUI>();
             text.font = like.font;
             text.fontSharedMaterial = like.fontSharedMaterial;
@@ -240,23 +240,6 @@ namespace SevenUI
             text.overflowMode = TextOverflowModes.Overflow;
             text.raycastTarget = false;
             return text;
-        }
-
-        private static GameObject NewUIObject(string name, Transform parent)
-        {
-            GameObject created = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer));
-            created.layer = parent.gameObject.layer;
-            created.transform.SetParent(parent, false);
-            return created;
-        }
-
-        private static void Stretch(RectTransform rect, Vector2 anchorMin, Vector2 anchorMax, Vector2 offsetMin,
-            Vector2 offsetMax)
-        {
-            rect.anchorMin = anchorMin;
-            rect.anchorMax = anchorMax;
-            rect.offsetMin = offsetMin;
-            rect.offsetMax = offsetMax;
         }
     }
 }

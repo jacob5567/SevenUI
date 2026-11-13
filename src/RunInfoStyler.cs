@@ -362,8 +362,8 @@ namespace SevenUI
             recorder.Disable(level);
             if (stageRoot.Find(RunTextName)) return;
 
-            GameObject holder = NewUIObject(RunTextName, stageRoot);
-            Stretch((RectTransform)holder.transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            GameObject holder = UiFactory.NewObject(RunTextName, stageRoot).gameObject;
+            UiFactory.Stretch((RectTransform)holder.transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             RunInfoText text = holder.AddComponent<RunInfoText>();
             text.GameStage = stage;
             text.GameLevel = level;
@@ -382,8 +382,8 @@ namespace SevenUI
         // Barlow like the rest of the HUD.
         private static TMP_Text AddLabel(Transform parent, string name, Vector2 anchorMin, Vector2 anchorMax, TMP_Text fontFrom)
         {
-            GameObject line = NewUIObject(name, parent);
-            Stretch((RectTransform)line.transform, anchorMin, anchorMax, Vector2.zero, Vector2.zero);
+            GameObject line = UiFactory.NewObject(name, parent).gameObject;
+            UiFactory.Stretch((RectTransform)line.transform, anchorMin, anchorMax, Vector2.zero, Vector2.zero);
             TextMeshProUGUI label = line.AddComponent<TextMeshProUGUI>();
             label.font = fontFrom.font;
             label.fontSharedMaterial = fontFrom.fontSharedMaterial;
@@ -446,7 +446,7 @@ namespace SevenUI
 
         private Transform AddBackground(Transform panel)
         {
-            GameObject background = NewUIObject(BackgroundName, panel);
+            GameObject background = UiFactory.NewObject(BackgroundName, panel).gameObject;
             // First child, so it draws behind the rest of the run info.
             background.transform.SetAsFirstSibling();
             Image image = background.AddComponent<Image>();
@@ -512,24 +512,24 @@ namespace SevenUI
 
         private void AddReadout(DifficultyBarController bar)
         {
-            GameObject readout = NewUIObject(ReadoutName, bar.transform);
-            Stretch((RectTransform)readout.transform, Vector2.zero, Vector2.one, new Vector2(RowInset, 0f),
+            GameObject readout = UiFactory.NewObject(ReadoutName, bar.transform).gameObject;
+            UiFactory.Stretch((RectTransform)readout.transform, Vector2.zero, Vector2.one, new Vector2(RowInset, 0f),
                 new Vector2(-RowInset, 0f));
 
-            GameObject trough = NewUIObject("Trough", readout.transform);
+            GameObject trough = UiFactory.NewObject("Trough", readout.transform).gameObject;
             Image troughImage = trough.AddComponent<Image>();
             troughImage.color = Palette.Trough;
             troughImage.raycastTarget = false;
 
-            GameObject fill = NewUIObject("Fill", trough.transform);
+            GameObject fill = UiFactory.NewObject("Fill", trough.transform).gameObject;
             RectTransform fillRect = (RectTransform)fill.transform;
-            Stretch(fillRect, Vector2.zero, new Vector2(0f, 1f), Vector2.zero, Vector2.zero);
+            UiFactory.Stretch(fillRect, Vector2.zero, new Vector2(0f, 1f), Vector2.zero, Vector2.zero);
             Image fillImage = fill.AddComponent<Image>();
             fillImage.color = Palette.Accent;
             fillImage.raycastTarget = false;
 
             // DifficultyReadout places the name and the trough once it knows the name.
-            GameObject name = NewUIObject("Name", readout.transform);
+            GameObject name = UiFactory.NewObject("Name", readout.transform).gameObject;
             TextMeshProUGUI label = name.AddComponent<TextMeshProUGUI>();
             // Starts in the game's font, so the font swap gives it Barlow like the rest of the HUD.
             TMP_Text gameLabel = bar.labels != null && bar.labels.Length > 0 ? bar.labels[0] : null;
@@ -556,23 +556,6 @@ namespace SevenUI
             display.NameGap = BarNameGap;
             display.MaxNameShare = MaxNameShare;
             recorder.Add(readout);
-        }
-
-        private static GameObject NewUIObject(string name, Transform parent)
-        {
-            GameObject created = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer));
-            created.layer = parent.gameObject.layer;
-            created.transform.SetParent(parent, false);
-            return created;
-        }
-
-        private static void Stretch(RectTransform rect, Vector2 anchorMin, Vector2 anchorMax, Vector2 offsetMin,
-            Vector2 offsetMax)
-        {
-            rect.anchorMin = anchorMin;
-            rect.anchorMax = anchorMax;
-            rect.offsetMin = offsetMin;
-            rect.offsetMax = offsetMax;
         }
 
         private void Disable<T>(Transform parent, string path) where T : Behaviour

@@ -91,7 +91,7 @@ namespace SevenUI
             this.findRightEdge = findRightEdge;
             parent = (RectTransform)prompt.transform;
 
-            GameObject created = NewUIObject(PanelName, parent);
+            GameObject created = UiFactory.NewObject(PanelName, parent).gameObject;
             created.AddComponent<LayoutIgnorer>();
             panel = (RectTransform)created.transform;
             // First, so the game's rows, hidden, stay over it.
@@ -101,7 +101,7 @@ namespace SevenUI
             Image image = created.AddComponent<Image>();
             image.color = Palette.Panel;
             image.raycastTarget = false;
-            strip = NewImage(StripName, panel, Palette.Accent);
+            strip = UiFactory.NewImage(StripName, panel, Palette.Accent);
             RectTransform stripRect = strip.rectTransform;
             stripRect.anchorMin = new Vector2(0f, 1f);
             stripRect.anchorMax = Vector2.one;
@@ -135,17 +135,17 @@ namespace SevenUI
                 recorder.Record(text);
                 text.alpha = 0f;
             }
-            row.Box = (RectTransform)NewUIObject("Key", panel).transform;
+            row.Box = UiFactory.NewObject("Key", panel);
             row.Box.anchorMin = row.Box.anchorMax = row.Box.pivot = new Vector2(0f, 1f);
 
             // The lip fills the key; the face covers all but its bottom, and the light runs along the face's top
             // between its round corners.
-            row.Cap = NewUIObject("Cap", row.Box);
+            row.Cap = UiFactory.NewObject("Cap", row.Box).gameObject;
             Stretch((RectTransform)row.Cap.transform, 0f);
-            Stretch(Rounded(NewImage("Lip", row.Cap.transform, Palette.KeyLip)).rectTransform, 0f);
-            Image face = Rounded(NewImage(KeyFaceName, row.Cap.transform, Palette.ItemSlot));
+            Stretch(Rounded(UiFactory.NewImage("Lip", row.Cap.transform, Palette.KeyLip)).rectTransform, 0f);
+            Image face = Rounded(UiFactory.NewImage(KeyFaceName, row.Cap.transform, Palette.ItemSlot));
             Stretch(face.rectTransform, KeyLipHeight);
-            RectTransform light = NewImage("Light", face.transform, Palette.KeyHighlight).rectTransform;
+            RectTransform light = UiFactory.NewImage("Light", face.transform, Palette.KeyHighlight).rectTransform;
             light.anchorMin = new Vector2(0f, 1f);
             light.anchorMax = Vector2.one;
             light.pivot = new Vector2(0.5f, 1f);
@@ -160,7 +160,7 @@ namespace SevenUI
             row.Price = AddText("Cost", panel, gameText, TextFontSize, TextAlignmentOptions.MidlineLeft);
             row.Price.fontStyle = FontStyles.Bold;
             row.Price.color = Palette.Money;
-            row.Coin = NewImage(CoinName, panel, Palette.LunarCoin);
+            row.Coin = UiFactory.NewImage(CoinName, panel, Palette.LunarCoin);
             row.Coin.sprite = FlatSprite.LunarCoin;
             RectTransform coin = row.Coin.rectTransform;
             coin.anchorMin = coin.anchorMax = coin.pivot = new Vector2(0f, 1f);
@@ -190,7 +190,7 @@ namespace SevenUI
         // a gamepad's buttons.
         private static TMP_Text AddText(string name, Transform holder, TMP_Text like, float size, TextAlignmentOptions alignment)
         {
-            GameObject line = NewUIObject(name, holder);
+            GameObject line = UiFactory.NewObject(name, holder).gameObject;
             TextMeshProUGUI text = line.AddComponent<TextMeshProUGUI>();
             if (like)
             {
@@ -375,22 +375,6 @@ namespace SevenUI
             text.rectTransform.anchoredPosition = new Vector2(x, y);
             text.rectTransform.sizeDelta = new Vector2(width, KeySize);
             return x + width;
-        }
-
-        private static Image NewImage(string name, Transform holder, Color color)
-        {
-            Image image = NewUIObject(name, holder).AddComponent<Image>();
-            image.color = color;
-            image.raycastTarget = false;
-            return image;
-        }
-
-        private static GameObject NewUIObject(string name, Transform holder)
-        {
-            GameObject created = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer));
-            created.layer = holder.gameObject.layer;
-            created.transform.SetParent(holder, false);
-            return created;
         }
     }
 }

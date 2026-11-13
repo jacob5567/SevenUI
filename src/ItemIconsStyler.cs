@@ -92,7 +92,7 @@ namespace SevenUI
                 });
             }
 
-            GameObject slot = NewUIObject(SlotName, icon.transform);
+            GameObject slot = UiFactory.NewObject(SlotName, icon.transform).gameObject;
             // First child, so it draws behind the item's picture.
             slot.transform.SetAsFirstSibling();
             RectTransform slotRect = (RectTransform)slot.transform;
@@ -104,7 +104,7 @@ namespace SevenUI
             slotImage.color = Palette.ItemSlot;
             slotImage.raycastTarget = false;
 
-            GameObject strip = NewUIObject("TierStrip", slot.transform);
+            GameObject strip = UiFactory.NewObject("TierStrip", slot.transform).gameObject;
             RectTransform stripRect = (RectTransform)strip.transform;
             stripRect.anchorMin = Vector2.zero;
             stripRect.anchorMax = new Vector2(1f, 0f);
@@ -119,14 +119,6 @@ namespace SevenUI
             follower.TierStrip = stripImage;
             follower.Count = count;
             recorder.Add(slot);
-        }
-
-        private static GameObject NewUIObject(string name, Transform parent)
-        {
-            GameObject created = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer));
-            created.layer = parent.gameObject.layer;
-            created.transform.SetParent(parent, false);
-            return created;
         }
 
         public void Describe(StringBuilder output)

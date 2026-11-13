@@ -827,11 +827,9 @@ namespace SevenUI
 
         private RectTransform NewObject(string name, Transform holder)
         {
-            GameObject created = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer));
-            created.layer = holder.gameObject.layer;
-            created.transform.SetParent(holder, false);
-            recorder.Add(created);
-            return (RectTransform)created.transform;
+            RectTransform created = UiFactory.NewObject(name, holder);
+            recorder.Add(created.gameObject);
+            return created;
         }
 
         private static void Stretch(RectTransform rect)

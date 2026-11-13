@@ -55,7 +55,7 @@ namespace SevenUI
         public bool Alive => panel && container;
 
         // The HUD camera's part of the screen; a split-screen player's HUD has its own.
-        private Rect Screen => camera ? camera.pixelRect : new Rect(0f, 0f, UnityEngine.Screen.width, UnityEngine.Screen.height);
+        private Rect Screen => UiFactory.ScreenRect(camera);
 
         // While the scoreboard is open: a few projected points, and a change when the screen, the column or the setting
         // has.

@@ -52,7 +52,7 @@ namespace SevenUI
             }
             Canvas canvas = root.GetComponent<Canvas>();
             Camera camera = canvas && canvas.renderMode != RenderMode.ScreenSpaceOverlay ? canvas.worldCamera : null;
-            Rect screen = camera ? camera.pixelRect : new Rect(0f, 0f, Screen.width, Screen.height);
+            Rect screen = UiFactory.ScreenRect(camera);
             if (screen.height <= 0f) return null;
             // Up the scaler, which the cluster's slight turn about the vertical axis doesn't shorten.
             Vector2 bottom = RectTransformUtility.WorldToScreenPoint(camera, scaler.TransformPoint(Vector3.zero));
@@ -160,10 +160,8 @@ namespace SevenUI
         {
             float perUnit = PixelsPer(slot);
             if (perUnit <= 0f) return;
-            GameObject divider = new GameObject(DividerName, typeof(RectTransform), typeof(CanvasRenderer));
-            divider.layer = slot.gameObject.layer;
-            RectTransform rect = (RectTransform)divider.transform;
-            rect.SetParent(slot, false);
+            RectTransform rect = UiFactory.NewObject(DividerName, slot);
+            GameObject divider = rect.gameObject;
             rect.anchorMin = new Vector2(1f, 0f);
             rect.anchorMax = Vector2.one;
             rect.pivot = new Vector2(0.5f, 0.5f);

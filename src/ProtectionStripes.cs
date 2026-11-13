@@ -94,10 +94,7 @@ namespace SevenUI
 
         private static Image NewStripes(RectTransform container)
         {
-            GameObject created = new GameObject(StripesName, typeof(RectTransform), typeof(CanvasRenderer));
-            created.layer = container.gameObject.layer;
-            created.transform.SetParent(container, false);
-            Image image = created.AddComponent<Image>();
+            Image image = UiFactory.NewObject(StripesName, container).gameObject.AddComponent<Image>();
             image.sprite = FlatSprite.ProtectionHatch;
             image.type = Image.Type.Tiled;
             image.raycastTarget = false;

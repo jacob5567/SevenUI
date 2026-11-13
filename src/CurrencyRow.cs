@@ -120,10 +120,8 @@ namespace SevenUI
             {
                 currency.Sign.alpha = 0f;
             }
-            GameObject created = new GameObject(LunarCoinName, typeof(RectTransform), typeof(CanvasRenderer));
-            created.layer = currency.Rect.gameObject.layer;
-            RectTransform coin = (RectTransform)created.transform;
-            coin.SetParent(currency.Rect, false);
+            RectTransform coin = UiFactory.NewObject(LunarCoinName, currency.Rect);
+            GameObject created = coin.gameObject;
             coin.anchorMin = coin.anchorMax = coin.pivot = new Vector2(0f, 0.5f);
             coin.anchoredPosition = new Vector2(PaddingX, 0f);
             coin.sizeDelta = new Vector2(CoinSize, CoinSize);
@@ -145,18 +143,6 @@ namespace SevenUI
             text.sizeDelta = new Vector2(width, 0f);
         }
 
-        // A text exactly as wide as its preferred width could otherwise wrap.
-        private static void KeepOnOneLine(TMP_Text text, StyleRecorder recorder)
-        {
-            bool wrapping = text.enableWordWrapping;
-            recorder.OnRestore(() =>
-            {
-                if (!text) return;
-                text.enableWordWrapping = wrapping;
-            });
-            text.enableWordWrapping = false;
-        }
-
         private static void StyleAmount(TMP_Text amount, Color? color, StyleRecorder recorder)
         {
             recorder.Record(amount);
@@ -167,7 +153,7 @@ namespace SevenUI
             // descenders figures don't have, and draw them low.
             amount.alignment = TextAlignmentOptions.MidlineRight;
             amount.margin = Vector4.zero;
-            KeepOnOneLine(amount, recorder);
+            UiFactory.KeepOnOneLine(amount, recorder);
             if (color.HasValue)
             {
                 amount.color = color.Value;
@@ -185,7 +171,7 @@ namespace SevenUI
                 : DollarFontSize;
             sign.alignment = TextAlignmentOptions.MidlineLeft;
             sign.margin = Vector4.zero;
-            KeepOnOneLine(sign, recorder);
+            UiFactory.KeepOnOneLine(sign, recorder);
             if (color.HasValue)
             {
                 sign.color = color.Value;

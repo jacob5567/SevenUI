@@ -32,7 +32,7 @@ namespace SevenUI
         // 'rowOffset' is how far the row's middle sits below the bar's; 'inset' how far its ends stay inside the bar's.
         public KarmaRow(RectTransform bar, TMP_Text fontFrom, float rowHeight, float rowOffset, float inset, float labelSize)
         {
-            Root = NewObject(RowName, bar);
+            Root = UiFactory.NewObject(RowName, bar);
             Root.anchorMin = new Vector2(0f, 0.5f);
             Root.anchorMax = new Vector2(1f, 0.5f);
             Root.pivot = new Vector2(0.5f, 0.5f);
@@ -42,12 +42,12 @@ namespace SevenUI
             segments = new Image[KarmaManager.maxKarma];
             for (int i = 0; i < segments.Length; i++)
             {
-                segments[i] = NewObject(SegmentName, Root).gameObject.AddComponent<Image>();
+                segments[i] = UiFactory.NewObject(SegmentName, Root).gameObject.AddComponent<Image>();
                 segments[i].color = Palette.Trough;
                 segments[i].raycastTarget = false;
             }
 
-            RectTransform labelRect = NewObject(LabelName, Root);
+            RectTransform labelRect = UiFactory.NewObject(LabelName, Root);
             TextMeshProUGUI text = labelRect.gameObject.AddComponent<TextMeshProUGUI>();
             // Starts in the game's font, so the font swap gives it Barlow like the rest of the HUD.
             if (fontFrom)
@@ -110,14 +110,6 @@ namespace SevenUI
                 rect.anchoredPosition = new Vector2(i * (segment + SegmentGap), 0f);
                 rect.sizeDelta = new Vector2(segment, SegmentHeight);
             }
-        }
-
-        private static RectTransform NewObject(string name, Transform holder)
-        {
-            GameObject created = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer));
-            created.layer = holder.gameObject.layer;
-            created.transform.SetParent(holder, false);
-            return (RectTransform)created.transform;
         }
     }
 }
