@@ -17,7 +17,6 @@ namespace SevenUI
     internal sealed class ScoreboardPlacement
     {
         // In the design canvas's pixels, on a 1080-pixel-high screen.
-        private const float CanvasHeight = 1080f;
         private const float BoardWidth = 1220f;
         private const float BoardTop = 110f;
         public const float ItemBarGap = 8f;
@@ -66,7 +65,7 @@ namespace SevenUI
             RectTransform space = panel.parent as RectTransform;
             if (!space) return;
             Rect screen = Screen;
-            float pixel = screen.height / CanvasHeight;
+            float pixel = screen.height / HudUnits.CanvasHeight;
             float columnLeft = besideRunInfo ? ColumnLeft() : float.NaN;
             if (float.IsNaN(columnLeft))
             {
@@ -149,7 +148,7 @@ namespace SevenUI
         {
             if (!itemBar)
             {
-                Transform topCenter = hud.Find(TopBarsWidth.TopCenterPath);
+                Transform topCenter = hud.Find(HudPaths.TopCenterCluster);
                 itemBar = topCenter ? topCenter.GetComponentInChildren<ItemInventoryDisplay>(true) : null;
             }
             if (!itemBar || !itemBar.isActiveAndEnabled) return float.NaN;

@@ -51,7 +51,6 @@ namespace SevenUI
         private const float PaddingX = 14f * Canvas;
         private const float PaddingBottom = 14f * Canvas;
         private const float PartGap = 12f * Canvas;
-        private const float DividerHeight = 1f * Canvas;
         private const float DetailsGap = 10f * Canvas;
         // The cards: at least 196px wide and 8px apart under the title, with 14px of padding and 10px between their
         // parts. Across each card's top is a 92px band in the slot's grey with the item centered on it at 72px and the
@@ -705,8 +704,8 @@ namespace SevenUI
                 container.anchoredPosition = new Vector2(PaddingX, -y);
                 container.sizeDelta = new Vector2(gridWidth, gridHeight);
                 y += gridHeight + PartGap;
-                TopLeft(divider, PaddingX, y, textWidth, DividerHeight);
-                y += DividerHeight + DetailsGap;
+                TopLeft(divider, PaddingX, y, textWidth, HudUnits.DividerHeight);
+                y += HudUnits.DividerHeight + DetailsGap;
                 float nameHeight = detailsName.GetPreferredValues("A").y;
                 // The panel fits the hovered item's details. Its top stays where it would be for the tallest item's,
                 // centered on the screen, so the grid keeps its place and only the bottom moves as the item changes.

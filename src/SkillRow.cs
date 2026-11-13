@@ -18,7 +18,6 @@ namespace SevenUI
         // An empty slot above the skills that the game parents Drone Tech's drones and Seeker's lotus to, placed for
         // the game's row (HUD child locator entry RightUtilityArea).
         private const string UtilityAreaName = "UtilityArea";
-        private const float CanvasHeight = 1080f;
         public const float SlotSize = 68f;
         public const float Gap = 8f;
         private const float KeyGap = 5f;
@@ -58,7 +57,7 @@ namespace SevenUI
             // Up the scaler, which the cluster's slight turn about the vertical axis doesn't shorten.
             Vector2 bottom = RectTransformUtility.WorldToScreenPoint(camera, scaler.TransformPoint(Vector3.zero));
             Vector2 top = RectTransformUtility.WorldToScreenPoint(camera, scaler.TransformPoint(Vector3.up));
-            float unit = (top - bottom).magnitude / (screen.height / CanvasHeight);
+            float unit = (top - bottom).magnitude / (screen.height / HudUnits.CanvasHeight);
             return unit > 0f ? new SkillRow(scaler, unit) : null;
         }
 

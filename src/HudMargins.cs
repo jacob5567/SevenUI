@@ -16,8 +16,6 @@ namespace SevenUI
     // the screen; everything here is measured on screen through the HUD's camera, not in the canvas's units.
     internal sealed class HudMargins
     {
-        private const string MainAreaPath = "MainContainer/MainUIArea";
-        private const string SpringCanvasPath = MainAreaPath + "/SpringCanvas";
         private const string UpperLeftName = "UpperLeftCluster";
         private const string UpperRightName = "UpperRightCluster";
         private const string BottomLeftName = "BottomLeftCluster";
@@ -27,7 +25,6 @@ namespace SevenUI
         private const string BarsPath = "BarRoots";
 
         // The design canvas's margins, in its pixels on a 1080-pixel-high screen.
-        private const float CanvasHeight = 1080f;
         private const float SideMargin = 28f;
         private const float TopMargin = 24f;
         private const float AlliesTop = 300f;
@@ -60,8 +57,8 @@ namespace SevenUI
 
         public void Apply()
         {
-            spring = root.Find(SpringCanvasPath) as RectTransform;
-            area = root.Find(MainAreaPath) as RectTransform;
+            spring = root.Find(HudPaths.SpringCanvas) as RectTransform;
+            area = root.Find(HudPaths.MainUIArea) as RectTransform;
             if (!spring || !area) return;
             Canvas canvas = root.GetComponent<Canvas>();
             camera = canvas && canvas.renderMode != RenderMode.ScreenSpaceOverlay ? canvas.worldCamera : null;
@@ -142,7 +139,7 @@ namespace SevenUI
             bool top, float topMargin = TopMargin)
         {
             if (!cluster || !horizontal || !vertical || cluster.parent != spring) return;
-            float pixel = screen.height / CanvasHeight;
+            float pixel = screen.height / HudUnits.CanvasHeight;
             Rect across = OnScreen(horizontal);
             Rect upDown = OnScreen(vertical);
             float gapX = right ? screen.xMax - across.xMax : across.xMin - screen.xMin;

@@ -14,7 +14,6 @@ namespace SevenUI
     // off, and the parts are anchored in place. The game keeps filling the bars and writing the level.
     internal sealed class PlayerBarsStyler
     {
-        public const string BarRootsPath = "MainContainer/MainUIArea/SpringCanvas/BottomLeftCluster/BarRoots";
         // Vanilla object names under BarRoots.
         private const string HealthBarPath = "HealthbarRoot";
         private const string SpriteNumbersPath = "HealthbarRoot/Managed_Sprite_HP";
@@ -63,7 +62,7 @@ namespace SevenUI
 
         public void Apply()
         {
-            Transform bars = root.Find(BarRootsPath);
+            Transform bars = root.Find(HudPaths.BarRoots);
             if (!bars) return;
             StyleHealthBar(bars);
             StyleLevel(bars);
@@ -317,7 +316,7 @@ namespace SevenUI
         public void Describe(StringBuilder output)
         {
             output.AppendLine($"  restyled player bar values: {recorder.Count}");
-            Transform bars = root.Find(BarRootsPath);
+            Transform bars = root.Find(HudPaths.BarRoots);
             HealthBar healthBar = bars ? Find<HealthBar>(bars, HealthBarPath) : null;
             if (!healthBar) return;
             PlayerHealthReadout readout = healthBar.GetComponentInChildren<PlayerHealthReadout>(true);

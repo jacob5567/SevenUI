@@ -34,7 +34,6 @@ namespace SevenUI
         private const float DescriptionSize = 15f * Canvas;
         private const float StatsSize = 14f * Canvas;
         private const float HoldersGap = 12f * Canvas;
-        private const float DividerHeight = 1f * Canvas;
         private const float HoldersBelowDivider = 10f * Canvas;
         private const float PortraitSize = 22f * Canvas;
         private const float PortraitGap = 6f * Canvas;
@@ -268,8 +267,8 @@ namespace SevenUI
             if (holderCount > 0)
             {
                 y += HoldersGap;
-                StatsSection.TopLeft(divider, PaddingX, y, inner, DividerHeight);
-                y += DividerHeight + HoldersBelowDivider;
+                StatsSection.TopLeft(divider, PaddingX, y, inner, HudUnits.DividerHeight);
+                y += HudUnits.DividerHeight + HoldersBelowDivider;
                 y = LayOutHolders(y, inner);
             }
             return y + PaddingY;

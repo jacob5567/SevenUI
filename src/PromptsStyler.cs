@@ -16,7 +16,6 @@ namespace SevenUI
     // Found by their components, wherever they sit in the HUD: LookingGlass moves the prompt.
     internal sealed class PromptsStyler
     {
-        private const string UpperRightClusterPath = "MainContainer/MainUIArea/SpringCanvas/UpperRightCluster";
         // Under a notification's canvas group.
         private const string NotificationBackdropName = "Backdrop";
         private const string NotificationTextAreaName = "TextArea";
@@ -101,7 +100,7 @@ namespace SevenUI
         // The run info's panel, whose right edge the prompt's panel lines up with.
         private RectTransform RunInfoPanel()
         {
-            Transform cluster = root.Find(UpperRightClusterPath);
+            Transform cluster = root.Find(HudPaths.UpperRightCluster);
             if (!cluster) return null;
             foreach (RectTransform rect in cluster.GetComponentsInChildren<RectTransform>(true))
             {

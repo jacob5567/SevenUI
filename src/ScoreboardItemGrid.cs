@@ -22,8 +22,6 @@ namespace SevenUI
         // The highlight: a 2px accent outline, 1px clear of the slot.
         private const float HighlightEdge = 2f * Canvas;
         private const float HighlightOutset = 3f * Canvas;
-        // The outline sprite's edge, in its pixels (FlatSprite.Outline).
-        private const float OutlineEdgePixels = 2f;
         // Where an icon's place is, on the icon: its top-left corner. The game's scoreboard icon has its pivot outside
         // its picture, a tenth of its size left of and above it.
         private static readonly Vector2 IconTopLeft = new Vector2(0f, 1f);
@@ -269,7 +267,7 @@ namespace SevenUI
             Image image = rect.gameObject.AddComponent<Image>();
             image.sprite = FlatSprite.Outline;
             image.type = Image.Type.Sliced;
-            image.pixelsPerUnitMultiplier = OutlineEdgePixels / HighlightEdge;
+            image.pixelsPerUnitMultiplier = HudUnits.OutlineEdgePixels / HighlightEdge;
             image.color = Palette.Accent;
             image.raycastTarget = false;
             return rect;

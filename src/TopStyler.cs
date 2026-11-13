@@ -12,8 +12,6 @@ namespace SevenUI
     // capitals in a title row above it (BossTitleRow), and the game's trail of health just lost under its fill.
     internal sealed class TopStyler
     {
-        private const string UpperLeftPath = "MainContainer/MainUIArea/SpringCanvas/UpperLeftCluster";
-        private const string TopCenterPath = "MainContainer/MainUIArea/SpringCanvas/TopCenterCluster";
         // Under each currency's MoneyText object.
         private const string CurrencyBackgroundName = "BackgroundPanel";
         // Under the boss bar's container.
@@ -43,12 +41,12 @@ namespace SevenUI
 
         public void Apply()
         {
-            Transform upperLeft = root.Find(UpperLeftPath);
+            Transform upperLeft = root.Find(HudPaths.UpperLeftCluster);
             if (upperLeft)
             {
                 StyleCurrencies(upperLeft);
             }
-            Transform topCenter = root.Find(TopCenterPath);
+            Transform topCenter = root.Find(HudPaths.TopCenterCluster);
             if (topCenter)
             {
                 foreach (ItemInventoryDisplay items in topCenter.GetComponentsInChildren<ItemInventoryDisplay>(true))

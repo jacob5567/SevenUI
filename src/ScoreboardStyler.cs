@@ -78,10 +78,7 @@ namespace SevenUI
         // were chosen over.
         public static readonly Color CanvasBoard = new Color(0.039f, 0.043f, 0.054f, 1f);
         private const string ContainerName = "Container";
-        private const float DividerHeight = 1f * Canvas;
         private const float OutlineEdge = 2f * Canvas;
-        // The outline sprite's edge, in its pixels (FlatSprite.Outline).
-        private const float OutlineEdgePixels = 2f;
         // How many updates a row missing its parts is tried for (about a second) before it is taken to never have them.
         private const int MaxStyleAttempts = 60;
 
@@ -517,7 +514,7 @@ namespace SevenUI
             Image image = outline.AddComponent<Image>();
             image.sprite = FlatSprite.Outline;
             image.type = Image.Type.Sliced;
-            image.pixelsPerUnitMultiplier = OutlineEdgePixels / OutlineEdge;
+            image.pixelsPerUnitMultiplier = HudUnits.OutlineEdgePixels / OutlineEdge;
             image.color = Palette.Equipment;
             image.raycastTarget = false;
             recorder.Add(outline);
@@ -531,7 +528,7 @@ namespace SevenUI
             RectTransform rect = (RectTransform)divider.transform;
             rect.anchorMin = new Vector2(0f, 1f);
             rect.anchorMax = Vector2.one;
-            rect.offsetMin = new Vector2(0f, -DividerHeight);
+            rect.offsetMin = new Vector2(0f, -HudUnits.DividerHeight);
             rect.offsetMax = Vector2.zero;
             Image image = divider.AddComponent<Image>();
             image.color = Palette.RowDivider;

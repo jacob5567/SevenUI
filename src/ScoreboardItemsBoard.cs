@@ -32,7 +32,6 @@ namespace SevenUI
         private const float PaneInset = 16f * Canvas;
         // Collapsed, the shown items 16px in from every side of their part of the tab, which ends at the rows' right.
         public const float TabInset = ScoreboardStyler.RowPaddingY;
-        private const float DividerHeight = 1f * Canvas;
         // With more than one player, the smallest slot the rows keep before they collapse.
         private const float SmallestRowsSlot = 32f * Canvas;
         private static readonly float[] SlotSizes = { 40f * Canvas, 36f * Canvas, SmallestRowsSlot, 28f * Canvas, 24f * Canvas };
@@ -115,7 +114,7 @@ namespace SevenUI
             line.anchorMin = Vector2.zero;
             line.anchorMax = new Vector2(0f, 1f);
             line.offsetMin = Vector2.zero;
-            line.offsetMax = new Vector2(DividerHeight, 0f);
+            line.offsetMax = new Vector2(HudUnits.DividerHeight, 0f);
             pane = new ScoreboardDetailPane(column, style, recorder);
             // Behind the rows, which the game keeps at the container's end (UIElementAllocator).
             RectTransform shape = NewObject(TabName, strips);
@@ -543,7 +542,7 @@ namespace SevenUI
             float paneHeight = 0f;
             if (pane.Shown)
             {
-                pane.Place(DividerHeight + PaneInset, PaneInset, PaneColumnWidth - DividerHeight - 2f * PaneInset);
+                pane.Place(HudUnits.DividerHeight + PaneInset, PaneInset, PaneColumnWidth - HudUnits.DividerHeight - 2f * PaneInset);
                 paneHeight = 2f * PaneInset + pane.Height;
             }
             // The container grows under the rows to hold the pane, or the collapsed rows' shown items.

@@ -13,7 +13,6 @@ namespace SevenUI
     internal sealed class RightInfoBarStyler
     {
         // Vanilla object names. LookingGlass looks up ObjectivePanel and its Label by these, so they are never renamed.
-        private const string UpperRightClusterPath = "MainContainer/MainUIArea/SpringCanvas/UpperRightCluster";
         private const string RightInfoBarName = "RightInfoBar";
         private const string ObjectivePanelName = "ObjectivePanel";
         private const string TitleName = "Label";
@@ -59,7 +58,7 @@ namespace SevenUI
         // Restyles anything not yet restyled. Call it when the HUD's hierarchy changed.
         public void Apply()
         {
-            Transform cluster = root.Find(UpperRightClusterPath);
+            Transform cluster = root.Find(HudPaths.UpperRightCluster);
             if (!cluster) return;
             // The bars are collected first, since styling one can destroy objects under it.
             cluster.GetComponentsInChildren(true, scratch);
@@ -392,7 +391,7 @@ namespace SevenUI
         public void Describe(System.Text.StringBuilder output)
         {
             output.AppendLine($"  restyled panel values: {recorder.Count}");
-            Transform cluster = root.Find(UpperRightClusterPath);
+            Transform cluster = root.Find(HudPaths.UpperRightCluster);
             if (!cluster) return;
             foreach (Transform bar in cluster.GetComponentsInChildren<Transform>(true))
             {

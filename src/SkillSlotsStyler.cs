@@ -18,7 +18,6 @@ namespace SevenUI
     // a deck of icons above the equipment slot (EquipmentDeck). The game keeps running the slots.
     internal sealed class SkillSlotsStyler
     {
-        private const string ClusterPath = "MainContainer/MainUIArea/SpringCanvas/BottomRightCluster";
         // The inventory and sprint buttons and the key item slot, left of the skills.
         private const string ExtraButtonsPath = "Scaler/ExtraButtonPanels";
         // The scoreboard (Tab) and sprint buttons' icons, under the extra buttons. The game names both SprintIcon. The
@@ -70,7 +69,7 @@ namespace SevenUI
 
         public void Apply()
         {
-            Transform cluster = root.Find(ClusterPath);
+            Transform cluster = root.Find(HudPaths.BottomRightCluster);
             if (!cluster) return;
             // The row is sized first, as the other slots and the texts take their sizes from it.
             if (row == null)
@@ -433,7 +432,7 @@ namespace SevenUI
         public void Describe(StringBuilder output)
         {
             output.AppendLine($"  restyled skill slot values: {recorder.Count}");
-            Transform cluster = root.Find(ClusterPath);
+            Transform cluster = root.Find(HudPaths.BottomRightCluster);
             if (!cluster) return;
             foreach (CooldownCover cover in cluster.GetComponentsInChildren<CooldownCover>(true))
             {

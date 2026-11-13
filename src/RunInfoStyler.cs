@@ -19,7 +19,6 @@ namespace SevenUI
     // The game's objects keep running; only their look and places change.
     internal sealed class RunInfoStyler
     {
-        private const string UpperRightClusterPath = "MainContainer/MainUIArea/SpringCanvas/UpperRightCluster";
         // Vanilla object names under the run info panel (ClassicRunInfoHudPanel).
         private const string TimerPanelPath = "TimerPanel";
         private const string TimerGearPath = "TimerPanel/Wormgear";
@@ -96,7 +95,7 @@ namespace SevenUI
 
         public void Apply()
         {
-            Transform cluster = root.Find(UpperRightClusterPath);
+            Transform cluster = root.Find(HudPaths.UpperRightCluster);
             if (!cluster) return;
             cluster.GetComponentsInChildren(true, bars);
             foreach (DifficultyBarController bar in bars)
@@ -590,7 +589,7 @@ namespace SevenUI
         public void Describe(StringBuilder output)
         {
             output.AppendLine($"  restyled run info values: {recorder.Count}");
-            Transform cluster = root.Find(UpperRightClusterPath);
+            Transform cluster = root.Find(HudPaths.UpperRightCluster);
             if (!cluster) return;
             foreach (DifficultyReadout readout in cluster.GetComponentsInChildren<DifficultyReadout>(true))
             {

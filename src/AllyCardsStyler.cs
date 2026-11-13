@@ -18,7 +18,6 @@ namespace SevenUI
     // hidden altogether, as they would otherwise draw over the board's left edge.
     internal sealed class AllyCardsStyler
     {
-        private const string LeftClusterPath = "MainContainer/MainUIArea/SpringCanvas/LeftCluster";
         // Under each card's health bar.
         private const string TroughName = "BackgroundPanel";
         // Kept clear between the cards and the chat's messages, in the design canvas's pixels.
@@ -77,7 +76,7 @@ namespace SevenUI
 
         public void Apply()
         {
-            Transform cluster = root.Find(LeftClusterPath);
+            Transform cluster = root.Find(HudPaths.LeftCluster);
             if (!cluster) return;
             cluster.GetComponentsInChildren(true, cards);
             foreach (AllyCardController card in cards)
