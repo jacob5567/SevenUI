@@ -495,14 +495,6 @@ namespace SevenUI
         {
             if (!element) return;
             recorder.Record(element);
-            float minWidth = element.minWidth;
-            float preferredWidth = element.preferredWidth;
-            recorder.OnRestore(() =>
-            {
-                if (!element) return;
-                element.minWidth = minWidth;
-                element.preferredWidth = preferredWidth;
-            });
             element.minWidth = width;
             element.preferredWidth = width;
             element.minHeight = height;

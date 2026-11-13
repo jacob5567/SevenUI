@@ -269,13 +269,14 @@ namespace SevenUI
             label.alpha = 0f;
             LayoutElement element = title.GetComponent<LayoutElement>();
             LayoutElement originalElement = originalTitle ? originalTitle.GetComponent<LayoutElement>() : null;
-            if (copiedStyled && element && originalElement && recorder.TryGet(originalElement, out Vector2 heights))
+            if (copiedStyled && element && originalElement &&
+                recorder.TryGet(originalElement, out StyleRecorder.ElementLook elementLook))
             {
                 recorder.OnRestore(() =>
                 {
                     if (element)
                     {
-                        element.minHeight = heights.x;
+                        StyleRecorder.Apply(element, elementLook);
                     }
                 });
             }

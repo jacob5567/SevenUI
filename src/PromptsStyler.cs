@@ -231,15 +231,7 @@ namespace SevenUI
         private void SetPreferredWidth(LayoutElement element)
         {
             if (!element) return;
-            float width = element.preferredWidth;
-            if (Mathf.Approximately(width, NotificationTextWidth)) return;
-            recorder.OnRestore(() =>
-            {
-                if (element)
-                {
-                    element.preferredWidth = width;
-                }
-            });
+            recorder.Record(element);
             element.preferredWidth = NotificationTextWidth;
         }
 
@@ -265,18 +257,7 @@ namespace SevenUI
                 recorder.Record(element);
                 element.minHeight = NotificationSlotSize;
                 element.preferredHeight = NotificationSlotSize;
-                float width = element.preferredWidth;
-                if (!Mathf.Approximately(width, slotWidth))
-                {
-                    recorder.OnRestore(() =>
-                    {
-                        if (element)
-                        {
-                            element.preferredWidth = width;
-                        }
-                    });
-                    element.preferredWidth = slotWidth;
-                }
+                element.preferredWidth = slotWidth;
             }
             Image slot = iconArea.GetComponent<Image>();
             if (slot)

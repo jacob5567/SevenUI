@@ -249,18 +249,8 @@ namespace SevenUI
             if (entry.Label)
             {
                 TMP_Text text = entry.Label;
-                bool autoSizing = text.enableAutoSizing;
-                bool wordWrapping = text.enableWordWrapping;
                 recorder.Record(text);
                 recorder.RecordRect(text.rectTransform);
-                recorder.OnRestore(() =>
-                {
-                    if (text)
-                    {
-                        text.enableAutoSizing = autoSizing;
-                        text.enableWordWrapping = wordWrapping;
-                    }
-                });
                 entry.Label.enableAutoSizing = false;
                 entry.Label.enableWordWrapping = false;
                 entry.Label.fontSize = entry.Quit ? QuitTextSize : ButtonTextSize;

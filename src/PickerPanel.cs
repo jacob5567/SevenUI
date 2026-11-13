@@ -278,16 +278,6 @@ namespace SevenUI
             HeaderStyle.Apply(title);
             // Top-aligned, since the void potential's title ends in a line break.
             title.alignment = TextAlignmentOptions.TopLeft;
-            bool wrapping = title.enableWordWrapping;
-            TextOverflowModes overflow = title.overflowMode;
-            recorder.OnRestore(() =>
-            {
-                if (title)
-                {
-                    title.enableWordWrapping = wrapping;
-                    title.overflowMode = overflow;
-                }
-            });
             title.enableWordWrapping = false;
             title.overflowMode = TextOverflowModes.Overflow;
             // Art the game hangs on the title, such as the delusion panel's outline frames around it.
@@ -348,16 +338,6 @@ namespace SevenUI
             foreach (TMP_Text text in button.GetComponentsInChildren<TMP_Text>(true))
             {
                 recorder.Record(text);
-                bool autoSizing = text.enableAutoSizing;
-                bool wrapping = text.enableWordWrapping;
-                recorder.OnRestore(() =>
-                {
-                    if (text)
-                    {
-                        text.enableAutoSizing = autoSizing;
-                        text.enableWordWrapping = wrapping;
-                    }
-                });
                 text.enableAutoSizing = false;
                 text.enableWordWrapping = false;
                 text.fontSize = CancelTextSize;

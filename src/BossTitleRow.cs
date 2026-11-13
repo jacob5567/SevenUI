@@ -76,15 +76,7 @@ namespace SevenUI
             layout.childForceExpandWidth = false;
             layout.padding = new RectOffset(0, 0, topPadding, layout.padding.bottom);
 
-            float cellWidth = barCell.preferredWidth;
-            float cellFlexible = barCell.flexibleWidth;
             recorder.Record(barCell);
-            recorder.OnRestore(() =>
-            {
-                if (!barCell) return;
-                barCell.preferredWidth = cellWidth;
-                barCell.flexibleWidth = cellFlexible;
-            });
             barCell.preferredWidth = BarWidth;
             barCell.flexibleWidth = 0f;
             barCell.minHeight = BarHeight;
@@ -101,7 +93,7 @@ namespace SevenUI
                 recorder.RecordRect((RectTransform)label.transform);
                 recorder.Record(label);
                 label.alignment = TextAlignmentOptions.BottomLeft;
-                UiFactory.KeepOnOneLine(label, recorder);
+                UiFactory.KeepOnOneLine(label);
             }
             subtitle.fontSize = SmallFontSize;
 

@@ -153,7 +153,7 @@ namespace SevenUI
             // descenders figures don't have, and draw them low.
             amount.alignment = TextAlignmentOptions.MidlineRight;
             amount.margin = Vector4.zero;
-            UiFactory.KeepOnOneLine(amount, recorder);
+            UiFactory.KeepOnOneLine(amount);
             if (color.HasValue)
             {
                 amount.color = color.Value;
@@ -171,7 +171,7 @@ namespace SevenUI
                 : DollarFontSize;
             sign.alignment = TextAlignmentOptions.MidlineLeft;
             sign.margin = Vector4.zero;
-            UiFactory.KeepOnOneLine(sign, recorder);
+            UiFactory.KeepOnOneLine(sign);
             if (color.HasValue)
             {
                 sign.color = color.Value;

@@ -53,15 +53,10 @@ namespace SevenUI
             return text;
         }
 
-        // A text exactly as wide as its preferred width could otherwise wrap.
-        public static void KeepOnOneLine(TMP_Text text, StyleRecorder recorder)
+        // A text exactly as wide as its preferred width could otherwise wrap. The text must be recorded, which puts
+        // its wrapping back.
+        public static void KeepOnOneLine(TMP_Text text)
         {
-            bool wrapping = text.enableWordWrapping;
-            recorder.OnRestore(() =>
-            {
-                if (!text) return;
-                text.enableWordWrapping = wrapping;
-            });
             text.enableWordWrapping = false;
         }
 

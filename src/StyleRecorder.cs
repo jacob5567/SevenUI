@@ -24,6 +24,9 @@ namespace SevenUI
             public Color Color;
             public TextAlignmentOptions Alignment;
             public Vector4 Margin;
+            public bool WordWrapping;
+            public TextOverflowModes Overflow;
+            public bool AutoSize;
         }
 
         public struct RectLook
@@ -35,6 +38,16 @@ namespace SevenUI
             public Vector2 Size;
         }
 
+        public struct ElementLook
+        {
+            public float MinWidth;
+            public float MinHeight;
+            public float PreferredWidth;
+            public float PreferredHeight;
+            public float FlexibleWidth;
+            public float FlexibleHeight;
+        }
+
         public struct LayoutLook
         {
             public int Left;
@@ -43,6 +56,10 @@ namespace SevenUI
             public int Bottom;
             public float Spacing;
         }
+
+        // Entries for destroyed objects (notifications, buff icons) are dropped when the tracked count passes this,
+        // which then doubles, so recording stays cheap.
+        private const int PruneMinimum = 256;
 
         private readonly Dictionary<Image, ImageLook> images = new Dictionary<Image, ImageLook>();
         private readonly Dictionary<RawImage, (Texture texture, Color color)> rawImages =
@@ -58,11 +75,12 @@ namespace SevenUI
         private readonly List<System.Action> undos = new List<System.Action>();
         private readonly Dictionary<HorizontalOrVerticalLayoutGroup, LayoutLook> layouts =
             new Dictionary<HorizontalOrVerticalLayoutGroup, LayoutLook>();
-        private readonly Dictionary<LayoutElement, Vector2> minAndPreferredHeights = new Dictionary<LayoutElement, Vector2>();
+        private readonly Dictionary<LayoutElement, ElementLook> elements = new Dictionary<LayoutElement, ElementLook>();
+        private int pruneAt = PruneMinimum;
         private readonly List<Object> added = new List<Object>();
 
         public int Count => images.Count + rawImages.Count + labels.Count + texts.Count + enabledStates.Count + activeStates.Count +
-                            rotations.Count + scales.Count + positions.Count + rects.Count + layouts.Count + minAndPreferredHeights.Count + added.Count + undos.Count;
+                            rotations.Count + scales.Count + positions.Count + rects.Count + layouts.Count + elements.Count + added.Count + undos.Count;
 
         public static ImageLook Capture(Image image) => new ImageLook
         {
@@ -79,6 +97,19 @@ namespace SevenUI
             Color = label.color,
             Alignment = label.alignment,
             Margin = label.margin,
+            WordWrapping = label.enableWordWrapping,
+            Overflow = label.overflowMode,
+            AutoSize = label.enableAutoSizing,
+        };
+
+        public static ElementLook Capture(LayoutElement element) => new ElementLook
+        {
+            MinWidth = element.minWidth,
+            MinHeight = element.minHeight,
+            PreferredWidth = element.preferredWidth,
+            PreferredHeight = element.preferredHeight,
+            FlexibleWidth = element.flexibleWidth,
+            FlexibleHeight = element.flexibleHeight,
         };
 
         public static LayoutLook Capture(HorizontalOrVerticalLayoutGroup group) => new LayoutLook
@@ -94,6 +125,7 @@ namespace SevenUI
         {
             if (image && !images.ContainsKey(image))
             {
+                Prune();
                 images[image] = Capture(image);
             }
         }
@@ -112,6 +144,7 @@ namespace SevenUI
         {
             if (image && !rawImages.ContainsKey(image))
             {
+                Prune();
                 rawImages[image] = (image.texture, image.color);
             }
         }
@@ -120,6 +153,7 @@ namespace SevenUI
         {
             if (label && !labels.ContainsKey(label))
             {
+                Prune();
                 labels[label] = Capture(label);
             }
         }
@@ -132,6 +166,7 @@ namespace SevenUI
         {
             if (label && !texts.ContainsKey(label))
             {
+                Prune();
                 texts[label] = label.text;
             }
         }
@@ -143,6 +178,7 @@ namespace SevenUI
             if (!behaviour) return;
             if (!enabledStates.ContainsKey(behaviour))
             {
+                Prune();
                 enabledStates[behaviour] = behaviour.enabled;
             }
             behaviour.enabled = enabled;
@@ -159,6 +195,7 @@ namespace SevenUI
             if (!gameObject) return;
             if (!activeStates.ContainsKey(gameObject))
             {
+                Prune();
                 activeStates[gameObject] = gameObject.activeSelf;
             }
             gameObject.SetActive(active);
@@ -169,6 +206,7 @@ namespace SevenUI
             if (!transform) return;
             if (!rotations.ContainsKey(transform))
             {
+                Prune();
                 rotations[transform] = transform.localRotation;
             }
             transform.localRotation = rotation;
@@ -179,6 +217,7 @@ namespace SevenUI
             if (!transform) return;
             if (!scales.ContainsKey(transform))
             {
+                Prune();
                 scales[transform] = transform.localScale;
             }
             transform.localScale = scale;
@@ -189,6 +228,7 @@ namespace SevenUI
             if (!rect) return;
             if (!positions.ContainsKey(rect))
             {
+                Prune();
                 positions[rect] = rect.anchoredPosition;
             }
             rect.anchoredPosition = position;
@@ -201,6 +241,7 @@ namespace SevenUI
         {
             if (rect && !rects.ContainsKey(rect))
             {
+                Prune();
                 rects[rect] = new RectLook
                 {
                     AnchorMin = rect.anchorMin,
@@ -216,15 +257,62 @@ namespace SevenUI
 
         // For a change that isn't a plain value, put back by the given action, which must check its objects still
         // exist. Run in the order recorded, after the values above are put back.
+        // The same action added twice runs once.
         public void OnRestore(System.Action undo)
         {
-            undos.Add(undo);
+            if (!undos.Contains(undo))
+            {
+                undos.Add(undo);
+            }
+        }
+
+        private void Prune()
+        {
+            int tracked = images.Count + rawImages.Count + labels.Count + texts.Count + enabledStates.Count +
+                          activeStates.Count + rotations.Count + scales.Count + positions.Count + rects.Count +
+                          layouts.Count + elements.Count;
+            if (tracked < pruneAt) return;
+            RemoveDestroyed(images);
+            RemoveDestroyed(rawImages);
+            RemoveDestroyed(labels);
+            RemoveDestroyed(texts);
+            RemoveDestroyed(enabledStates);
+            RemoveDestroyed(activeStates);
+            RemoveDestroyed(rotations);
+            RemoveDestroyed(scales);
+            RemoveDestroyed(positions);
+            RemoveDestroyed(rects);
+            RemoveDestroyed(layouts);
+            RemoveDestroyed(elements);
+            pruneAt = System.Math.Max(PruneMinimum, tracked * 2);
+        }
+
+        private static void RemoveDestroyed<TKey, TValue>(Dictionary<TKey, TValue> entries) where TKey : Object
+        {
+            List<TKey> gone = null;
+            foreach (TKey key in entries.Keys)
+            {
+                if (!key)
+                {
+                    if (gone == null)
+                    {
+                        gone = new List<TKey>();
+                    }
+                    gone.Add(key);
+                }
+            }
+            if (gone == null) return;
+            foreach (TKey key in gone)
+            {
+                entries.Remove(key);
+            }
         }
 
         public void Record(HorizontalOrVerticalLayoutGroup group)
         {
             if (group && !layouts.ContainsKey(group))
             {
+                Prune();
                 layouts[group] = Capture(group);
             }
         }
@@ -233,14 +321,14 @@ namespace SevenUI
 
         public void Record(LayoutElement element)
         {
-            if (element && !minAndPreferredHeights.ContainsKey(element))
+            if (element && !elements.ContainsKey(element))
             {
-                minAndPreferredHeights[element] = new Vector2(element.minHeight, element.preferredHeight);
+                Prune();
+                elements[element] = Capture(element);
             }
         }
 
-        public bool TryGet(LayoutElement element, out Vector2 minAndPreferredHeight) =>
-            minAndPreferredHeights.TryGetValue(element, out minAndPreferredHeight);
+        public bool TryGet(LayoutElement element, out ElementLook look) => elements.TryGetValue(element, out look);
 
         // An object or component the mod created, destroyed when the setting is turned off.
         public void Add(Object created)
@@ -263,6 +351,19 @@ namespace SevenUI
             label.color = look.Color;
             label.alignment = look.Alignment;
             label.margin = look.Margin;
+            label.enableWordWrapping = look.WordWrapping;
+            label.overflowMode = look.Overflow;
+            label.enableAutoSizing = look.AutoSize;
+        }
+
+        public static void Apply(LayoutElement element, ElementLook look)
+        {
+            element.minWidth = look.MinWidth;
+            element.minHeight = look.MinHeight;
+            element.preferredWidth = look.PreferredWidth;
+            element.preferredHeight = look.PreferredHeight;
+            element.flexibleWidth = look.FlexibleWidth;
+            element.flexibleHeight = look.FlexibleHeight;
         }
 
         public static void Apply(HorizontalOrVerticalLayoutGroup group, LayoutLook look)
@@ -314,11 +415,12 @@ namespace SevenUI
                     Apply(entry.Key, entry.Value);
                 }
             }
-            foreach (KeyValuePair<LayoutElement, Vector2> entry in minAndPreferredHeights)
+            foreach (KeyValuePair<LayoutElement, ElementLook> entry in elements)
             {
-                if (!entry.Key) continue;
-                entry.Key.minHeight = entry.Value.x;
-                entry.Key.preferredHeight = entry.Value.y;
+                if (entry.Key)
+                {
+                    Apply(entry.Key, entry.Value);
+                }
             }
             foreach (KeyValuePair<GameObject, bool> entry in activeStates)
             {
@@ -357,7 +459,10 @@ namespace SevenUI
                     entry.Key.localScale = entry.Value;
                 }
             }
-            foreach (System.Action undo in undos)
+            // Taken out first, so an action that records another is not run in this pass.
+            System.Action[] pending = undos.ToArray();
+            undos.Clear();
+            foreach (System.Action undo in pending)
             {
                 undo();
             }
@@ -380,7 +485,7 @@ namespace SevenUI
             rects.Clear();
             undos.Clear();
             layouts.Clear();
-            minAndPreferredHeights.Clear();
+            elements.Clear();
             added.Clear();
         }
     }
