@@ -685,7 +685,9 @@ namespace SevenUI.Tests
             string difficulty = RunInfoText.Name(DifficultyCatalog.GetDifficultyDef(Run.instance.selectedDifficulty));
             yield return h.Until(() => PauseMenuLook(difficulty) == null, () => $"{PauseMenuLook(difficulty)} {h.Diagnosis()}");
             h.SetConfig(SevenUIPlugin.Settings.FlatPanels, false);
-            yield return h.Until(() => PauseMenuVanillaLook() == null, () => $"with the panels off, {PauseMenuVanillaLook()} {h.Diagnosis()}");
+            // BarlowFont is on (the suite requires it), so the menu keeps Barlow when only the panels go.
+            yield return h.Until(() => PauseMenuVanillaLook() == null && PauseMenuFontProblem() == null,
+                () => $"with the panels off, {PauseMenuVanillaLook() ?? PauseMenuFontProblem()} {h.Diagnosis()}");
             h.SetConfig(SevenUIPlugin.Settings.FlatPanels, true);
             yield return h.Until(() => PauseMenuLook(difficulty) == null, () => $"with the panels back on, {PauseMenuLook(difficulty)} {h.Diagnosis()}");
             PauseManager.ClosePauseScreen(true);
@@ -710,6 +712,19 @@ namespace SevenUI.Tests
                 if (!button) continue;
                 if (child.Find("SevenUIPauseOutline")) return $"{child.name} still has the mod's outline";
                 if (button.image && !button.image.sprite) return $"{child.name}'s face has no sprite";
+            }
+            return null;
+        }
+
+        // Null while the open menu's button labels are in Barlow, as they stay while BarlowFont is on.
+        private static string PauseMenuFontProblem()
+        {
+            PauseScreenController menu = PauseScreenController.instancesList.Count > 0 ? PauseScreenController.instancesList[0] : null;
+            Transform options = menu && menu.mainPanel ? menu.mainPanel.Find(PauseScreenStyler.OptionsName) : null;
+            if (!options) return "no pause menu is open";
+            foreach (TMP_Text text in options.GetComponentsInChildren<TMP_Text>())
+            {
+                if (text.font && !text.font.name.StartsWith(Texts.BarlowFontPrefix)) return $"{text.name} is in {text.font.name}, not Barlow";
             }
             return null;
         }

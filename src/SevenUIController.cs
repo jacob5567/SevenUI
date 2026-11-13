@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text;
 using BepInEx.Configuration;
 using RoR2.UI;
@@ -22,8 +23,14 @@ namespace SevenUI
         // The same stylers in the order they are restored, which differs from the apply order: the tilt and the top
         // bars width go after the panels they were applied around, and the pause menu is restored last.
         private IStyler[] restoreOrder;
-        // Parallel to stylers: whether each has been applied and not since restored.
-        private bool[] applied;
+        // The stylers with per-frame work, in the order they update. It differs from the apply order: the margins and
+        // the top bars width are last, so the top bars are fitted to the margins as they settle in the same frame.
+        private IStyler[] updateOrder;
+        // The stylers applied and not since restored.
+        private readonly HashSet<IStyler> applied = new HashSet<IStyler>();
+        // Applied after every other styler's apply and restore, so turning the panels off puts them back first.
+        private HudFontSwapper fontSwapper;
+        private PauseScreenStyler pause;
         private PickerStyler pickers;
         // Not in the list: it runs whether or not FlatPanels is on (it restyles only the font then), and has nothing to
         // restore, as the game makes each tooltip new.
@@ -37,7 +44,7 @@ namespace SevenUI
             hud = GetComponent<HUD>();
             // The HUD is a root object, but go through .root in case another mod parents it.
             root = hud.transform.root;
-            HudFontSwapper fontSwapper = new HudFontSwapper(hud, root);
+            fontSwapper = new HudFontSwapper(hud, root);
             RunInfoStyler runInfo = new RunInfoStyler(root);
             RightInfoBarStyler rightInfoBar = new RightInfoBarStyler(root);
             PlayerBarsStyler playerBars = new PlayerBarsStyler(root);
@@ -52,7 +59,7 @@ namespace SevenUI
             TiltFlattener tilt = new TiltFlattener(root);
             tooltips = new TooltipStyler(hud, root);
             // The pause menu is its own canvas, outside the HUD, made each time it opens.
-            PauseScreenStyler pause = new PauseScreenStyler(hud, root);
+            pause = new PauseScreenStyler(hud, root);
             TopBarsWidth topBars = new TopBarsWidth(root);
             HudMargins margins = new HudMargins(hud, root, skillSlots);
             stylers = new IStyler[]
@@ -65,7 +72,10 @@ namespace SevenUI
                 runInfo, rightInfoBar, playerBars, skillSlots, top, itemIcons, allyCards, prompts, pickers, scoreboard,
                 chat, tilt, topBars, margins, fontSwapper, pause,
             };
-            applied = new bool[stylers.Length];
+            updateOrder = new IStyler[]
+            {
+                runInfo, prompts, pickers, playerBars, top, skillSlots, scoreboard, chat, allyCards, pause, margins, topBars,
+            };
             watched = new[]
             {
                 SevenUIPlugin.Settings.BarlowFont,
@@ -86,11 +96,11 @@ namespace SevenUI
             tooltips.Update();
             // Static and shared by every HUD, and safe to repeat from each, so not one of the HUD's stylers.
             DamageNumberFont.Update(SevenUIPlugin.Settings.MonospaceDamageNumbers.Value);
-            for (int i = 0; i < stylers.Length; i++)
+            foreach (IStyler styler in updateOrder)
             {
-                if (applied[i])
+                if (applied.Contains(styler))
                 {
-                    stylers[i].Update();
+                    styler.Update();
                 }
             }
 
@@ -104,22 +114,26 @@ namespace SevenUI
 
         private void Restyle()
         {
-            for (int i = 0; i < stylers.Length; i++)
+            foreach (IStyler styler in stylers)
             {
-                if (stylers[i].Enabled)
+                if (styler != fontSwapper && styler.Enabled)
                 {
-                    stylers[i].Apply();
-                    applied[i] = true;
+                    styler.Apply();
+                    applied.Add(styler);
                 }
             }
             foreach (IStyler styler in restoreOrder)
             {
-                int i = Array.IndexOf(stylers, styler);
-                if (applied[i] && !styler.Enabled)
+                if (!styler.Enabled && applied.Remove(styler))
                 {
                     styler.Restore();
-                    applied[i] = false;
                 }
+            }
+            // After the panels are restored, so the font is applied to the panels as they are left.
+            if (fontSwapper.Enabled)
+            {
+                fontSwapper.Apply();
+                applied.Add(fontSwapper);
             }
         }
 
@@ -132,11 +146,16 @@ namespace SevenUI
         {
             output.AppendLine($"HUD {hud.name} (target {(hud.targetBodyObject ? hud.targetBodyObject.name : "none")})");
             output.AppendLine($"  hierarchy objects: {root.hierarchyCount}");
-            foreach (IStyler styler in stylers)
+            fontSwapper.Describe(output);
+            foreach (IStyler styler in restoreOrder)
             {
-                styler.Describe(output);
+                if (styler != fontSwapper && styler != pause)
+                {
+                    styler.Describe(output);
+                }
             }
             output.AppendLine($"  tooltips restyled: {tooltips.StyledCount}");
+            pause.Describe(output);
             output.AppendLine($"  monospace damage numbers: {DamageNumberFont.Applied}");
         }
 

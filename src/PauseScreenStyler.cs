@@ -190,8 +190,8 @@ namespace SevenUI
             if (barlowFont)
             {
                 HudFontSwapper fonts = new HudFontSwapper(hud, menu.transform);
+                // Not restored with the panels: the menu keeps Barlow while BarlowFont is on, as it always has.
                 fonts.Apply();
-                recorder.OnRestore(fonts.Restore);
             }
         }
 
