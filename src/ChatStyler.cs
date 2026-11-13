@@ -9,7 +9,7 @@ namespace SevenUI
     // Restyles the chat's input field, shown while typing, as an outlined field like the pickers' cancel button: a
     // faint face the stage shows through, a 1px outline in the divider's grey, and a 2px accent strip down its left
     // edge, which marks it as the field in use. The messages are plain text and already in Barlow.
-    internal sealed class ChatStyler
+    internal sealed class ChatStyler : IStyler
     {
         // Under the chat box.
         private const string InputFieldPath = "PermanentBG/Input Field";
@@ -31,6 +31,8 @@ namespace SevenUI
         {
             this.root = root;
         }
+
+        public bool Enabled => SevenUIPlugin.Settings.FlatPanels.Value;
 
         public void Apply()
         {

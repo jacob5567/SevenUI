@@ -14,7 +14,7 @@ namespace SevenUI
     // is wider, holding the old item and the new one at the same size, with a hairline arrow and a strip along the
     // slot's foot that both blend from the old item's tier color to the new one's.
     // Found by their components, wherever they sit in the HUD: LookingGlass moves the prompt.
-    internal sealed class PromptsStyler
+    internal sealed class PromptsStyler : IStyler
     {
         // Under a notification's canvas group.
         private const string NotificationBackdropName = "Backdrop";
@@ -59,6 +59,8 @@ namespace SevenUI
             this.hud = hud;
             this.root = root;
         }
+
+        public bool Enabled => SevenUIPlugin.Settings.FlatPanels.Value;
 
         public void Apply()
         {

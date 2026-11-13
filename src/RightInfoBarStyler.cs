@@ -10,7 +10,7 @@ namespace SevenUI
     // other mods add there, such as LookingGlass's stats) as flat translucent panels, with a header strip on the
     // objective panel and its rows laid out as on the design canvas (ObjectiveRow), and LookingGlass's stats in two
     // columns under a header strip of their own (StatsGrid).
-    internal sealed class RightInfoBarStyler
+    internal sealed class RightInfoBarStyler : IStyler
     {
         // Vanilla object names. LookingGlass looks up ObjectivePanel and its Label by these, so they are never renamed.
         private const string RightInfoBarName = "RightInfoBar";
@@ -56,6 +56,12 @@ namespace SevenUI
         public int RestyledCount => recorder.Count;
 
         // Restyles anything not yet restyled. Call it when the HUD's hierarchy changed.
+        public bool Enabled => SevenUIPlugin.Settings.FlatPanels.Value;
+
+        public void Update()
+        {
+        }
+
         public void Apply()
         {
             Transform cluster = root.Find(HudPaths.UpperRightCluster);

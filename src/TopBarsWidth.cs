@@ -9,7 +9,7 @@ namespace SevenUI
     //
     // The HUD is drawn by a perspective camera, and the main area sits behind the canvas, so it is drawn smaller than
     // the screen; the width is measured on screen through the HUD's camera, not in the canvas's units.
-    internal sealed class TopBarsWidth
+    internal sealed class TopBarsWidth : IStyler
     {
         private const float ScreenShare = 900f / 1920f;
         // Below this, in screen pixels, the cluster isn't resized, so it isn't dirtied every frame.
@@ -25,6 +25,8 @@ namespace SevenUI
         {
             this.root = root;
         }
+
+        public bool Enabled => SevenUIPlugin.Settings.FlatPanels.Value;
 
         public void Apply()
         {

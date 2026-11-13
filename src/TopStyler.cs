@@ -10,7 +10,7 @@ namespace SevenUI
     // Restyles the top of the HUD: the currencies in a row, each on its own flat panel fitted to it, without the
     // cluster's frame; the item bar without its frame; and the boss bar flat, with the boss's name in Barlow Condensed
     // capitals in a title row above it (BossTitleRow), and the game's trail of health just lost under its fill.
-    internal sealed class TopStyler
+    internal sealed class TopStyler : IStyler
     {
         // Under each currency's MoneyText object.
         private const string CurrencyBackgroundName = "BackgroundPanel";
@@ -38,6 +38,8 @@ namespace SevenUI
             this.hud = hud;
             this.root = root;
         }
+
+        public bool Enabled => SevenUIPlugin.Settings.FlatPanels.Value;
 
         public void Apply()
         {

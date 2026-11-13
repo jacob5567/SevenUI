@@ -14,7 +14,7 @@ namespace SevenUI
     // one centered stack, with Quit To Menu and Quit To Desktop side by side under the rest. The game makes the menu as
     // its own canvas, outside the HUD, each time it opens and destroys it when it closes, so this styles each new one
     // once and leaves it; the game's blurred backdrop, its submenus (settings, logbook) and the lobby panel keep their look.
-    internal sealed class PauseScreenStyler
+    internal sealed class PauseScreenStyler : IStyler
     {
         public const string TitleName = "SevenUIPauseTitle";
         public const string RunLineName = "SevenUIPauseRun";
@@ -49,6 +49,8 @@ namespace SevenUI
         private readonly HUD hud;
         private readonly Transform hudRoot;
         private readonly List<Entry> buttons = new List<Entry>();
+        // What the styling of the open menu changed, put back by Restore. New for each menu, as the game destroys the old.
+        private StyleRecorder recorder = new StyleRecorder();
         private PauseScreenController styled;
         private RectTransform options;
         private TMP_Text title;
@@ -78,20 +80,46 @@ namespace SevenUI
 
         public bool Styled => styled;
 
+        public bool Enabled => SevenUIPlugin.Settings.FlatPanels.Value;
+
+        // The menu is styled as it opens, in Update, not here.
+        public void Apply()
+        {
+        }
+
+        // Puts the open menu back, and forgets it so that Update styles it again if the panels come back on while it
+        // is still open. Its own objects are taken out of the menu at once, as Destroy is deferred and Update would
+        // take a menu that still has them for one it has styled.
+        public void Restore()
+        {
+            recorder.Restore();
+            recorder = new StyleRecorder();
+            ForgetMenu();
+        }
+
+        private void ForgetMenu()
+        {
+            buttons.Clear();
+            styled = null;
+            options = null;
+            title = null;
+            runLine = null;
+            run = null;
+            timer = null;
+            shownRun = null;
+            shownActive = -1;
+        }
+
         // Every frame while the panels are on: a list read while no menu is open; with one, a hover and an
         // availability read per button, an active count, and building and comparing the run line.
-        public void Update(bool barlowFont)
+        public void Update()
         {
+            bool barlowFont = SevenUIPlugin.Settings.BarlowFont.Value;
             PauseScreenController menu = PauseScreenController.instancesList.Count > 0 ? PauseScreenController.instancesList[0] : null;
             if (menu != styled)
             {
-                buttons.Clear();
-                styled = null;
-                options = null;
-                run = null;
-                timer = null;
-                shownRun = null;
-                shownActive = -1;
+                recorder = new StyleRecorder();
+                ForgetMenu();
                 // Each HUD runs this; with several (split screen) the first to see the menu styles it.
                 if (menu && menu.mainPanel && !menu.mainPanel.Find(OptionsName + "/" + TitleName))
                 {
@@ -128,10 +156,7 @@ namespace SevenUI
             DisableImage(menu.mainPanel);
             DisableImage(options);
             VerticalLayoutGroup stack = options.GetComponent<VerticalLayoutGroup>();
-            if (stack)
-            {
-                stack.enabled = false;
-            }
+            recorder.Disable(stack);
             TMP_Text font = null;
             foreach (Transform child in options)
             {
@@ -149,6 +174,14 @@ namespace SevenUI
             title.text = Language.GetString("PAUSE_PAUSED");
             runLine = AddText(RunLineName, font, RunLineSize, Palette.HeaderText);
             runLine.richText = true;
+            TMP_Text addedTitle = title;
+            TMP_Text addedRunLine = runLine;
+            // Runs before the recorder destroys them, which waits for the end of the frame.
+            recorder.OnRestore(() =>
+            {
+                Detach(addedTitle);
+                Detach(addedRunLine);
+            });
             // Found once: the HUD's run info outlives the menu.
             run = hudRoot ? hudRoot.GetComponentInChildren<RunInfoText>() : null;
             Transform panel = run && run.transform.parent ? run.transform.parent.parent : null;
@@ -156,7 +189,9 @@ namespace SevenUI
             timer = timerObject ? timerObject.GetComponent<TMP_Text>() : null;
             if (barlowFont)
             {
-                new HudFontSwapper(hud, menu.transform).Apply();
+                HudFontSwapper fonts = new HudFontSwapper(hud, menu.transform);
+                fonts.Apply();
+                recorder.OnRestore(fonts.Restore);
             }
         }
 
@@ -167,16 +202,31 @@ namespace SevenUI
             entry.Quit = language && System.Array.IndexOf(QuitTokens, language.token) >= 0;
             // The game's skin puts its own look and text style back on the button every frame.
             ButtonSkinController skin = button.GetComponent<ButtonSkinController>();
-            if (skin)
+            recorder.Disable(skin);
+            ColorBlock originalColors = button.colors;
+            recorder.OnRestore(() =>
             {
-                skin.enabled = false;
-            }
-            ColorBlock colors = button.colors;
+                if (button)
+                {
+                    button.colors = originalColors;
+                }
+            });
+            ColorBlock colors = originalColors;
             colors.normalColor = colors.highlightedColor = colors.pressedColor = colors.selectedColor = Color.white;
             button.colors = colors;
             entry.Face = button.image ? button.image : button.GetComponent<Image>();
             if (entry.Face)
             {
+                Image face = entry.Face;
+                Material originalMaterial = face.material;
+                recorder.Record(face);
+                recorder.OnRestore(() =>
+                {
+                    if (face)
+                    {
+                        face.material = originalMaterial;
+                    }
+                });
                 entry.Face.sprite = null;
                 entry.Face.type = Image.Type.Simple;
                 entry.Face.material = null;
@@ -185,11 +235,32 @@ namespace SevenUI
             DisableImage(button.transform.Find(BaseOutlineName));
             DisableImage(button.transform.Find(HoverOutlineName));
             // The button turns this image back on every frame while it can be pressed.
+            Image originalInteractable = button.imageOnInteractable;
+            recorder.OnRestore(() =>
+            {
+                if (button)
+                {
+                    button.imageOnInteractable = originalInteractable;
+                }
+            });
             button.imageOnInteractable = null;
             Transform label = button.transform.Find(LabelName);
             entry.Label = label ? label.GetComponent<TMP_Text>() : button.GetComponentInChildren<TMP_Text>(true);
             if (entry.Label)
             {
+                TMP_Text text = entry.Label;
+                bool autoSizing = text.enableAutoSizing;
+                bool wordWrapping = text.enableWordWrapping;
+                recorder.Record(text);
+                recorder.RecordRect(text.rectTransform);
+                recorder.OnRestore(() =>
+                {
+                    if (text)
+                    {
+                        text.enableAutoSizing = autoSizing;
+                        text.enableWordWrapping = wordWrapping;
+                    }
+                });
                 entry.Label.enableAutoSizing = false;
                 entry.Label.enableWordWrapping = false;
                 entry.Label.fontSize = entry.Quit ? QuitTextSize : ButtonTextSize;
@@ -203,6 +274,8 @@ namespace SevenUI
                 rect.anchorMax = Vector2.one;
                 rect.offsetMin = rect.offsetMax = Vector2.zero;
             }
+            // Placed by Layout, which runs after this.
+            recorder.RecordRect((RectTransform)button.transform);
             entry.Rest = AddOutline(button.transform, Palette.Divider);
             entry.Rest.enabled = true;
             entry.Hover = AddOutline(button.transform, Palette.Accent);
@@ -335,19 +408,27 @@ namespace SevenUI
             text.enableWordWrapping = false;
             text.overflowMode = TextOverflowModes.Overflow;
             text.raycastTarget = false;
+            recorder.Add(text.gameObject);
             return text;
         }
 
-        private static PixelOutline AddOutline(Transform button, Color color) =>
-            PixelOutline.Add(button, "SevenUIPauseOutline", color, OutlineEdge);
-
-        private static void DisableImage(Transform holder)
+        private PixelOutline AddOutline(Transform button, Color color)
         {
-            Image image = holder ? holder.GetComponent<Image>() : null;
-            if (image)
-            {
-                image.enabled = false;
-            }
+            PixelOutline outline = PixelOutline.Add(button, "SevenUIPauseOutline", color, OutlineEdge);
+            recorder.Add(outline.gameObject);
+            return outline;
+        }
+
+        private void DisableImage(Transform holder)
+        {
+            recorder.Disable(holder ? holder.GetComponent<Image>() : null);
+        }
+
+        private static void Detach(TMP_Text text)
+        {
+            if (!text) return;
+            text.transform.SetParent(null, false);
+            text.gameObject.SetActive(false);
         }
 
         // Centered across at x from the panel's middle, its top y above the middle.

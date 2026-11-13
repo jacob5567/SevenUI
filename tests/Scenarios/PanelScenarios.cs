@@ -80,6 +80,7 @@ namespace SevenUI.Tests
             yield return new Scenario(1, "scoreboard_and_chat_are_flat", Stages.TitanicPlains, ScoreboardAndChatAreFlat);
             yield return new Scenario(1, "chat_input_outlined", Stages.TitanicPlains, ChatInputOutlined);
             yield return new Scenario(1, "pause_menu_as_canvas", Stages.TitanicPlains, PauseMenuAsCanvas);
+            yield return new Scenario(1, "pause_menu_follows_flat_panels", Stages.TitanicPlains, PauseMenuFollowsFlatPanels);
             yield return new Scenario(1, "hud_settles", Stages.TitanicPlains, HudSettles);
             yield return new Scenario(1, "protection_striped_on_player", Stages.TitanicPlains, ProtectionStripedOnPlayer);
             yield return new Scenario(1, "protection_tinted_with_infusion", Stages.TitanicPlains, ProtectionTintedWithInfusion);
@@ -667,6 +668,50 @@ namespace SevenUI.Tests
             yield return h.Screenshot("paused");
             PauseManager.ClosePauseScreen(true);
             yield return h.Until(() => PauseScreenController.instancesList.Count == 0, () => $"the pause menu is still open {h.Diagnosis()}");
+        }
+
+        // The menu left open while FlatPanels goes off and on: the game's look comes back on it, then the mod's again.
+        private static IEnumerator PauseMenuFollowsFlatPanels(Harness h)
+        {
+            h.SetConfig(SevenUIPlugin.Settings.DebugLogging, true);
+            PauseManager.TogglePauseScreen();
+            h.OnCleanup(() =>
+            {
+                if (PauseManager.PauseScreenIsOpen())
+                {
+                    PauseManager.ClosePauseScreen(true);
+                }
+            });
+            string difficulty = RunInfoText.Name(DifficultyCatalog.GetDifficultyDef(Run.instance.selectedDifficulty));
+            yield return h.Until(() => PauseMenuLook(difficulty) == null, () => $"{PauseMenuLook(difficulty)} {h.Diagnosis()}");
+            h.SetConfig(SevenUIPlugin.Settings.FlatPanels, false);
+            yield return h.Until(() => PauseMenuVanillaLook() == null, () => $"with the panels off, {PauseMenuVanillaLook()} {h.Diagnosis()}");
+            h.SetConfig(SevenUIPlugin.Settings.FlatPanels, true);
+            yield return h.Until(() => PauseMenuLook(difficulty) == null, () => $"with the panels back on, {PauseMenuLook(difficulty)} {h.Diagnosis()}");
+            PauseManager.ClosePauseScreen(true);
+            yield return h.Until(() => PauseScreenController.instancesList.Count == 0, () => $"the pause menu is still open {h.Diagnosis()}");
+        }
+
+        // Null once the open menu has none of the mod's objects and its buttons and panels are the game's again.
+        private static string PauseMenuVanillaLook()
+        {
+            PauseScreenController menu = PauseScreenController.instancesList.Count > 0 ? PauseScreenController.instancesList[0] : null;
+            Transform options = menu && menu.mainPanel ? menu.mainPanel.Find(PauseScreenStyler.OptionsName) : null;
+            if (!options) return "no pause menu is open";
+            if (options.Find(PauseScreenStyler.TitleName)) return "the menu still has the mod's title";
+            if (options.Find(PauseScreenStyler.RunLineName)) return "the menu still has the mod's run line";
+            Image optionsImage = options.GetComponent<Image>();
+            if (optionsImage && !optionsImage.enabled) return "the options panel's image is still off";
+            VerticalLayoutGroup stack = options.GetComponent<VerticalLayoutGroup>();
+            if (stack && !stack.enabled) return "the options stack's layout is still off";
+            foreach (Transform child in options)
+            {
+                HGButton button = child.GetComponent<HGButton>();
+                if (!button) continue;
+                if (child.Find("SevenUIPauseOutline")) return $"{child.name} still has the mod's outline";
+                if (button.image && !button.image.sprite) return $"{child.name}'s face has no sprite";
+            }
+            return null;
         }
 
         // Null once the menu is laid out as the design's, otherwise what isn't.

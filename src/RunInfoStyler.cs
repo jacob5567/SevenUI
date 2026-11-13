@@ -17,7 +17,7 @@ namespace SevenUI
     // panel is the canvas's height, and the timer reads "24:51" without the hundredths (TightTimerFormat). The column
     // it heads, which holds the objective panel, is widened to 300 of the canvas's pixels and starts a gap under it.
     // The game's objects keep running; only their look and places change.
-    internal sealed class RunInfoStyler
+    internal sealed class RunInfoStyler : IStyler
     {
         // Vanilla object names under the run info panel (ClassicRunInfoHudPanel).
         private const string TimerPanelPath = "TimerPanel";
@@ -92,6 +92,8 @@ namespace SevenUI
         {
             this.root = root;
         }
+
+        public bool Enabled => SevenUIPlugin.Settings.FlatPanels.Value;
 
         public void Apply()
         {

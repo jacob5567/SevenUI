@@ -10,7 +10,7 @@ namespace SevenUI
     // Restyles the item icons in the HUD's item displays (the item bar at the top, the scoreboard's rows): each on a
     // dark slot with its tier's color along the bottom, and the stack count as Barlow Condensed text instead of sprite
     // digits. The game keeps laying out the icons and choosing what they show.
-    internal sealed class ItemIconsStyler
+    internal sealed class ItemIconsStyler : IStyler
     {
         // Under each item icon.
         private const string SpriteCountName = "Managed_Sprite_ItemCounter";
@@ -33,6 +33,12 @@ namespace SevenUI
         public ItemIconsStyler(Transform root)
         {
             this.root = root;
+        }
+
+        public bool Enabled => SevenUIPlugin.Settings.FlatPanels.Value;
+
+        public void Update()
+        {
         }
 
         public void Apply()

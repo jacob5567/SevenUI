@@ -7,7 +7,7 @@ namespace SevenUI
 {
     // Restyles the HUD's pick-an-item panels (PickerPanel), which the game opens under the HUD for Command, Void
     // Potentials and the like, and destroys when the choice is made or cancelled.
-    internal sealed class PickerStyler
+    internal sealed class PickerStyler : IStyler
     {
         private readonly HUD hud;
         private readonly Transform root;
@@ -21,6 +21,8 @@ namespace SevenUI
         }
 
         public IReadOnlyList<PickerPanel> Panels => panels;
+
+        public bool Enabled => SevenUIPlugin.Settings.FlatPanels.Value;
 
         public void Apply()
         {

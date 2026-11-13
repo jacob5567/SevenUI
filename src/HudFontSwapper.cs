@@ -8,7 +8,7 @@ using UnityEngine;
 namespace SevenUI
 {
     // Switches the game's Bombardier font to Barlow on every text under one HUD, and can put the originals back.
-    internal sealed class HudFontSwapper
+    internal sealed class HudFontSwapper : IStyler
     {
         // The Bombardier font assets (tmpBombDropShadow and its variants). Languages the game draws in Noto Sans
         // (Russian, Chinese, Japanese, Korean, ...) don't use them, so their text stays as it is.
@@ -33,6 +33,12 @@ namespace SevenUI
 
         // Swaps every text still in the game's font. Cheap to repeat, but walks the whole hierarchy, so call it only
         // when the hierarchy changed.
+        public bool Enabled => SevenUIPlugin.Settings.BarlowFont.Value;
+
+        public void Update()
+        {
+        }
+
         public void Apply()
         {
             TMP_FontAsset languageFont = HGTextMeshProUGUI.defaultLanguageFont;

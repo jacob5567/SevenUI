@@ -14,7 +14,7 @@ namespace SevenUI
     //
     // The HUD is drawn by a perspective camera, and the main area sits behind the canvas, so it is drawn smaller than
     // the screen; everything here is measured on screen through the HUD's camera, not in the canvas's units.
-    internal sealed class HudMargins
+    internal sealed class HudMargins : IStyler
     {
         private const string UpperLeftName = "UpperLeftCluster";
         private const string UpperRightName = "UpperRightCluster";
@@ -33,6 +33,7 @@ namespace SevenUI
 
         private readonly HUD hud;
         private readonly Transform root;
+        private readonly SkillSlotsStyler skillSlots;
         private readonly StyleRecorder recorder = new StyleRecorder();
         private readonly Vector3[] corners = new Vector3[4];
         private Camera camera;
@@ -49,11 +50,14 @@ namespace SevenUI
         private RectTransform skillKey;
         private Rect filledScreen;
 
-        public HudMargins(HUD hud, Transform root)
+        public HudMargins(HUD hud, Transform root, SkillSlotsStyler skillSlots)
         {
             this.hud = hud;
             this.root = root;
+            this.skillSlots = skillSlots;
         }
+
+        public bool Enabled => SevenUIPlugin.Settings.FlatPanels.Value && SevenUIPlugin.Settings.TightMargins.Value;
 
         public void Apply()
         {
@@ -91,9 +95,10 @@ namespace SevenUI
 
         // A few projected points; moves a cluster only when its panels have moved from the margin. The equipment slot
         // is the skill row's right end once the mod has fitted it.
-        public void Update(RectTransform equipmentSlot)
+        public void Update()
         {
             if (!spring || !area) return;
+            RectTransform equipmentSlot = skillSlots.EquipmentSlot;
             Rect screen = Screen;
             if (screen != filledScreen)
             {
@@ -181,6 +186,7 @@ namespace SevenUI
 
         public void Describe(StringBuilder output)
         {
+            output.AppendLine($"  tight margins: {Enabled}");
             output.AppendLine($"  margins: spring canvas {(spring ? $"{spring.anchorMin}-{spring.anchorMax}" : "none")}, " +
                               $"camera={(camera ? camera.name : "none")}, run info={(bool)runInfo}, bars={(bool)bars}, " +
                               $"skill key={(bool)skillKey}");

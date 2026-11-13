@@ -13,27 +13,22 @@ namespace SevenUI
     {
         private HUD hud;
         private Transform root;
-        private HudFontSwapper fontSwapper;
-        private RunInfoStyler runInfo;
-        private RightInfoBarStyler rightInfoBar;
-        private PlayerBarsStyler playerBars;
-        private SkillSlotsStyler skillSlots;
-        private TopStyler top;
-        private ItemIconsStyler itemIcons;
-        private AllyCardsStyler allyCards;
-        private PromptsStyler prompts;
+        // Every setting a styler's Enabled reads, which the controller restyles on.
+        private ConfigEntry<bool>[] watched;
+        // In apply order. The tilt is first, so the parts measured on screen (the skill row) are measured facing it, as
+        // they are drawn. The margins are after the panels, as they find panels they add and measure the clusters once
+        // they face the screen, and after the skill slots, since the skill row's end is the equipment slot as fitted.
+        private IStyler[] stylers;
+        // The same stylers in the order they are restored, which differs from the apply order: the tilt and the top
+        // bars width go after the panels they were applied around, and the pause menu is restored last.
+        private IStyler[] restoreOrder;
+        // Parallel to stylers: whether each has been applied and not since restored.
+        private bool[] applied;
         private PickerStyler pickers;
-        private ScoreboardStyler scoreboard;
-        private ChatStyler chat;
-        private TiltFlattener tilt;
+        // Not in the list: it runs whether or not FlatPanels is on (it restyles only the font then), and has nothing to
+        // restore, as the game makes each tooltip new.
         private TooltipStyler tooltips;
-        private PauseScreenStyler pause;
-        private TopBarsWidth topBars;
-        private HudMargins margins;
         private int lastHierarchyCount = -1;
-        private bool fontApplied;
-        private bool panelsApplied;
-        private bool marginsApplied;
 
         public PickerStyler Pickers => pickers;
 
@@ -42,26 +37,45 @@ namespace SevenUI
             hud = GetComponent<HUD>();
             // The HUD is a root object, but go through .root in case another mod parents it.
             root = hud.transform.root;
-            fontSwapper = new HudFontSwapper(hud, root);
-            runInfo = new RunInfoStyler(root);
-            rightInfoBar = new RightInfoBarStyler(root);
-            playerBars = new PlayerBarsStyler(root);
-            skillSlots = new SkillSlotsStyler(hud, root);
-            top = new TopStyler(hud, root);
-            itemIcons = new ItemIconsStyler(root);
-            allyCards = new AllyCardsStyler(hud, root);
-            prompts = new PromptsStyler(hud, root);
+            HudFontSwapper fontSwapper = new HudFontSwapper(hud, root);
+            RunInfoStyler runInfo = new RunInfoStyler(root);
+            RightInfoBarStyler rightInfoBar = new RightInfoBarStyler(root);
+            PlayerBarsStyler playerBars = new PlayerBarsStyler(root);
+            SkillSlotsStyler skillSlots = new SkillSlotsStyler(hud, root);
+            TopStyler top = new TopStyler(hud, root);
+            ItemIconsStyler itemIcons = new ItemIconsStyler(root);
+            AllyCardsStyler allyCards = new AllyCardsStyler(hud, root);
+            PromptsStyler prompts = new PromptsStyler(hud, root);
             pickers = new PickerStyler(hud, root);
-            scoreboard = new ScoreboardStyler(hud, root);
-            chat = new ChatStyler(root);
-            tilt = new TiltFlattener(root);
+            ScoreboardStyler scoreboard = new ScoreboardStyler(hud, root);
+            ChatStyler chat = new ChatStyler(root);
+            TiltFlattener tilt = new TiltFlattener(root);
             tooltips = new TooltipStyler(hud, root);
-            pause = new PauseScreenStyler(hud, root);
-            topBars = new TopBarsWidth(root);
-            margins = new HudMargins(hud, root);
-            SevenUIPlugin.Settings.BarlowFont.SettingChanged += OnSettingChanged;
-            SevenUIPlugin.Settings.FlatPanels.SettingChanged += OnSettingChanged;
-            SevenUIPlugin.Settings.TightMargins.SettingChanged += OnSettingChanged;
+            // The pause menu is its own canvas, outside the HUD, made each time it opens.
+            PauseScreenStyler pause = new PauseScreenStyler(hud, root);
+            TopBarsWidth topBars = new TopBarsWidth(root);
+            HudMargins margins = new HudMargins(hud, root, skillSlots);
+            stylers = new IStyler[]
+            {
+                tilt, runInfo, rightInfoBar, playerBars, skillSlots, top, itemIcons, allyCards, prompts, pickers,
+                scoreboard, chat, topBars, margins, fontSwapper, pause,
+            };
+            restoreOrder = new IStyler[]
+            {
+                runInfo, rightInfoBar, playerBars, skillSlots, top, itemIcons, allyCards, prompts, pickers, scoreboard,
+                chat, tilt, topBars, margins, fontSwapper, pause,
+            };
+            applied = new bool[stylers.Length];
+            watched = new[]
+            {
+                SevenUIPlugin.Settings.BarlowFont,
+                SevenUIPlugin.Settings.FlatPanels,
+                SevenUIPlugin.Settings.TightMargins,
+            };
+            foreach (ConfigEntry<bool> setting in watched)
+            {
+                setting.SettingChanged += OnSettingChanged;
+            }
         }
 
         // LateUpdate, after the game's Updates have added this frame's objects (objective rows are added in
@@ -69,28 +83,15 @@ namespace SevenUI
         private void LateUpdate()
         {
             // Tooltips live outside the HUD, so they don't change its count; checking for a new one is one read.
-            tooltips.Update(SevenUIPlugin.Settings.BarlowFont.Value, SevenUIPlugin.Settings.FlatPanels.Value);
-            // Shared by every HUD, and safe to repeat from each.
+            tooltips.Update();
+            // Static and shared by every HUD, and safe to repeat from each, so not one of the HUD's stylers.
             DamageNumberFont.Update(SevenUIPlugin.Settings.MonospaceDamageNumbers.Value);
-            if (panelsApplied)
+            for (int i = 0; i < stylers.Length; i++)
             {
-                runInfo.Update();
-                prompts.Update();
-                pickers.Update();
-                playerBars.Update();
-                top.Update();
-                skillSlots.Update();
-                scoreboard.Update();
-                chat.Update();
-                allyCards.Update();
-                // The pause menu is its own canvas, outside the HUD, made each time it opens.
-                pause.Update(SevenUIPlugin.Settings.BarlowFont.Value);
-                if (marginsApplied)
+                if (applied[i])
                 {
-                    // After the slots, since the skill row's end is the equipment slot as fitted.
-                    margins.Update(skillSlots.EquipmentSlot);
+                    stylers[i].Update();
                 }
-                topBars.Update();
             }
 
             // Any object added under the HUD changes this count, and reading it is cheap, so it is the signal to
@@ -103,68 +104,23 @@ namespace SevenUI
 
         private void Restyle()
         {
-            panelsApplied = Toggle(SevenUIPlugin.Settings.FlatPanels, panelsApplied, ApplyPanels, RestorePanels);
-            // After the panels, as it finds panels they add, and measures the clusters once they face the screen.
-            bool margined = panelsApplied && SevenUIPlugin.Settings.TightMargins.Value;
-            if (margined)
+            for (int i = 0; i < stylers.Length; i++)
             {
-                margins.Apply();
+                if (stylers[i].Enabled)
+                {
+                    stylers[i].Apply();
+                    applied[i] = true;
+                }
             }
-            else if (marginsApplied)
+            foreach (IStyler styler in restoreOrder)
             {
-                margins.Restore();
+                int i = Array.IndexOf(stylers, styler);
+                if (applied[i] && !styler.Enabled)
+                {
+                    styler.Restore();
+                    applied[i] = false;
+                }
             }
-            marginsApplied = margined;
-            fontApplied = Toggle(SevenUIPlugin.Settings.BarlowFont, fontApplied, fontSwapper.Apply, fontSwapper.Restore);
-        }
-
-        private void ApplyPanels()
-        {
-            // First, so the parts measured on screen (the skill row) are measured facing it, as they are drawn.
-            tilt.Apply();
-            runInfo.Apply();
-            rightInfoBar.Apply();
-            playerBars.Apply();
-            skillSlots.Apply();
-            top.Apply();
-            itemIcons.Apply();
-            allyCards.Apply();
-            prompts.Apply();
-            pickers.Apply();
-            scoreboard.Apply();
-            chat.Apply();
-            topBars.Apply();
-        }
-
-        private void RestorePanels()
-        {
-            runInfo.Restore();
-            rightInfoBar.Restore();
-            playerBars.Restore();
-            skillSlots.Restore();
-            top.Restore();
-            itemIcons.Restore();
-            allyCards.Restore();
-            prompts.Restore();
-            pickers.Restore();
-            scoreboard.Restore();
-            chat.Restore();
-            tilt.Restore();
-            topBars.Restore();
-        }
-
-        private static bool Toggle(ConfigEntry<bool> setting, bool applied, Action apply, Action restore)
-        {
-            if (setting.Value)
-            {
-                apply();
-                return true;
-            }
-            if (applied)
-            {
-                restore();
-            }
-            return false;
         }
 
         private void OnSettingChanged(object sender, EventArgs e)
@@ -176,32 +132,20 @@ namespace SevenUI
         {
             output.AppendLine($"HUD {hud.name} (target {(hud.targetBodyObject ? hud.targetBodyObject.name : "none")})");
             output.AppendLine($"  hierarchy objects: {root.hierarchyCount}");
-            fontSwapper.Describe(output);
-            runInfo.Describe(output);
-            rightInfoBar.Describe(output);
-            playerBars.Describe(output);
-            skillSlots.Describe(output);
-            top.Describe(output);
-            itemIcons.Describe(output);
-            allyCards.Describe(output);
-            prompts.Describe(output);
-            pickers.Describe(output);
-            scoreboard.Describe(output);
-            chat.Describe(output);
-            output.AppendLine($"  leveled tilts: {tilt.LeveledCount}");
-            topBars.Describe(output);
-            output.AppendLine($"  tight margins: {marginsApplied}");
-            margins.Describe(output);
+            foreach (IStyler styler in stylers)
+            {
+                styler.Describe(output);
+            }
             output.AppendLine($"  tooltips restyled: {tooltips.StyledCount}");
-            pause.Describe(output);
             output.AppendLine($"  monospace damage numbers: {DamageNumberFont.Applied}");
         }
 
         private void OnDestroy()
         {
-            SevenUIPlugin.Settings.BarlowFont.SettingChanged -= OnSettingChanged;
-            SevenUIPlugin.Settings.FlatPanels.SettingChanged -= OnSettingChanged;
-            SevenUIPlugin.Settings.TightMargins.SettingChanged -= OnSettingChanged;
+            foreach (ConfigEntry<bool> setting in watched)
+            {
+                setting.SettingChanged -= OnSettingChanged;
+            }
         }
     }
 }

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Text;
 using UnityEngine;
 
 namespace SevenUI
@@ -8,7 +9,7 @@ namespace SevenUI
     // (the shared suffering counter, the Void Fiend corruption meter). This levels every such small turn so the whole
     // HUD faces the screen squarely. Larger turns, such as the equipment slot's 180-degree flip, and turns about other
     // axes are left alone.
-    internal sealed class TiltFlattener
+    internal sealed class TiltFlattener : IStyler
     {
         // The game's tilts are 6 and 15.5 degrees; anything this far or more is a deliberate turn, not a lean.
         private const float MaxTiltDegrees = 30f;
@@ -27,6 +28,12 @@ namespace SevenUI
 
         public int LeveledCount => recorder.Count;
 
+        public bool Enabled => SevenUIPlugin.Settings.FlatPanels.Value;
+
+        public void Update()
+        {
+        }
+
         public void Apply()
         {
             root.GetComponentsInChildren(true, scratch);
@@ -43,6 +50,11 @@ namespace SevenUI
         public void Restore()
         {
             recorder.Restore();
+        }
+
+        public void Describe(StringBuilder output)
+        {
+            output.AppendLine($"  leveled tilts: {LeveledCount}");
         }
 
         private static bool IsLean(Quaternion rotation)

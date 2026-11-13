@@ -44,8 +44,10 @@ namespace SevenUI
 
         public int StyledCount { get; private set; }
 
-        public void Update(bool barlowFont, bool flatPanels)
+        public void Update()
         {
+            bool barlowFont = SevenUIPlugin.Settings.BarlowFont.Value;
+            bool flatPanels = SevenUIPlugin.Settings.FlatPanels.Value;
             MPEventSystem events = hud.eventSystemProvider ? hud.eventSystemProvider.resolvedEventSystem : null;
             TooltipController tooltip = events ? events.currentTooltip : null;
             if (tooltip == seen) return;

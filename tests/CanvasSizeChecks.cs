@@ -163,7 +163,7 @@ namespace SevenUI.Tests
         // How far down the screen the HUD's item bar reaches, from the screen's top; 0 without items.
         private static float ItemBarBottom(Harness h, float screenTop)
         {
-            Transform topCenter = SevenUIChecks.HudRoot(h).Find(TopBarsWidth.TopCenterPath);
+            Transform topCenter = SevenUIChecks.HudRoot(h).Find(HudPaths.TopCenterCluster);
             ItemInventoryDisplay bar = topCenter ? topCenter.GetComponentInChildren<ItemInventoryDisplay>() : null;
             List<ItemIcon> icons = bar ? bar.GetComponentsInChildren<ItemIcon>().Where(icon => icon.isActiveAndEnabled).ToList() : null;
             if (icons == null || icons.Count == 0) return 0f;

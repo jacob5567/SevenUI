@@ -16,7 +16,7 @@ namespace SevenUI
     // kind and "+N more", N the allies they hold (AllyMoreRow). The game keeps adding, filling, sorting and removing
     // the cards; this only resizes and hides them and draws over them. While the scoreboard is open, the cards are
     // hidden altogether, as they would otherwise draw over the board's left edge.
-    internal sealed class AllyCardsStyler
+    internal sealed class AllyCardsStyler : IStyler
     {
         // Under each card's health bar.
         private const string TroughName = "BackgroundPanel";
@@ -73,6 +73,8 @@ namespace SevenUI
 
         public bool Compact { get; private set; }
         public int HiddenCount { get; private set; }
+
+        public bool Enabled => SevenUIPlugin.Settings.FlatPanels.Value;
 
         public void Apply()
         {

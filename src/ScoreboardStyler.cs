@@ -17,7 +17,7 @@ namespace SevenUI
     // block with the money at the right of the name, the key item, the equipment, then the items. When several players'
     // items would be too small, the rows collapse to their top lines, and only the shown player's items show, their row
     // and items outlined together as one tab (ScoreboardTabShape).
-    internal sealed class ScoreboardStyler
+    internal sealed class ScoreboardStyler : IStyler
     {
         // Under the scoreboard panel.
         private const string BoardPath = "Container/StripContainer";
@@ -99,6 +99,8 @@ namespace SevenUI
             this.hud = hud;
             this.root = root;
         }
+
+        public bool Enabled => SevenUIPlugin.Settings.FlatPanels.Value;
 
         public void Apply()
         {

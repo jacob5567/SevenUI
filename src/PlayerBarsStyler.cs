@@ -12,7 +12,7 @@ namespace SevenUI
     // The bars are flat on a dark trough, and the buffs sit on squares in rows above it all, no wider than it
     // (BuffRows). The game lays the level and experience out in a row above the health bar; its layout group is turned
     // off, and the parts are anchored in place. The game keeps filling the bars and writing the level.
-    internal sealed class PlayerBarsStyler
+    internal sealed class PlayerBarsStyler : IStyler
     {
         // Vanilla object names under BarRoots.
         private const string HealthBarPath = "HealthbarRoot";
@@ -59,6 +59,8 @@ namespace SevenUI
         {
             this.root = root;
         }
+
+        public bool Enabled => SevenUIPlugin.Settings.FlatPanels.Value;
 
         public void Apply()
         {

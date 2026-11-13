@@ -16,7 +16,7 @@ namespace SevenUI
     // scoreboard and sprint (or descend) buttons' icons as flat strokes (FlatIcons), with the tutorial popups above
     // them as dark panels (TutorialPopups). The equipment a Functional Coupler's swap or MUL-T's Retool switches to is
     // a deck of icons above the equipment slot (EquipmentDeck). The game keeps running the slots.
-    internal sealed class SkillSlotsStyler
+    internal sealed class SkillSlotsStyler : IStyler
     {
         // The inventory and sprint buttons and the key item slot, left of the skills.
         private const string ExtraButtonsPath = "Scaler/ExtraButtonPanels";
@@ -66,6 +66,8 @@ namespace SevenUI
             this.hud = hud;
             this.root = root;
         }
+
+        public bool Enabled => SevenUIPlugin.Settings.FlatPanels.Value;
 
         public void Apply()
         {
