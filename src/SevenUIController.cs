@@ -28,6 +28,11 @@ namespace SevenUI
         private IStyler[] updateOrder;
         // The stylers applied and not since restored.
         private readonly HashSet<IStyler> applied = new HashSet<IStyler>();
+        // The stylers restored in the frame 'restoredFrame'. What a Restore destroys stays until that frame's end, where
+        // the styler applied again would still find it, by name or by component, and skip adding its own; so a styler
+        // restored this frame is applied again from the next.
+        private readonly HashSet<IStyler> restoredNow = new HashSet<IStyler>();
+        private int restoredFrame = -1;
         // Applied after every other styler's apply and restore, so turning the panels off puts them back first.
         private HudFontSwapper fontSwapper;
         private PauseScreenStyler pause;
@@ -117,30 +122,41 @@ namespace SevenUI
             // Any object added under the HUD changes this count, and reading it is cheap, so it is the signal to
             // restyle new objects without walking the hierarchy every frame.
             int hierarchyCount = root.hierarchyCount;
-            if (hierarchyCount == lastHierarchyCount) return;
+            if (hierarchyCount == lastHierarchyCount && restoredNow.Count == 0) return;
             lastHierarchyCount = hierarchyCount;
             Restyle();
         }
 
+        private void Restore(IStyler styler)
+        {
+            styler.Restore();
+            restoredNow.Add(styler);
+            restoredFrame = Time.frameCount;
+        }
+
         private void Restyle()
         {
+            if (restoredFrame != Time.frameCount)
+            {
+                restoredNow.Clear();
+            }
             // The skill row is measured on screen once, so a tilt that comes or goes after that leaves it measured for
             // the wrong view. Put the tilt back (or have the row measured again) before anything is applied.
             if (tilt.Enabled != applied.Contains(tilt))
             {
                 if (applied.Remove(skillSlots))
                 {
-                    skillSlots.Restore();
+                    Restore(skillSlots);
                 }
                 if (!tilt.Enabled)
                 {
                     applied.Remove(tilt);
-                    tilt.Restore();
+                    Restore(tilt);
                 }
             }
             foreach (IStyler styler in stylers)
             {
-                if (styler != fontSwapper && styler.Enabled)
+                if (styler != fontSwapper && styler.Enabled && !restoredNow.Contains(styler))
                 {
                     styler.Apply();
                     applied.Add(styler);
@@ -150,11 +166,11 @@ namespace SevenUI
             {
                 if (!styler.Enabled && applied.Remove(styler))
                 {
-                    styler.Restore();
+                    Restore(styler);
                 }
             }
             // After the panels are restored, so the font is applied to the panels as they are left.
-            if (fontSwapper.Enabled)
+            if (fontSwapper.Enabled && !restoredNow.Contains(fontSwapper))
             {
                 fontSwapper.Apply();
                 applied.Add(fontSwapper);
