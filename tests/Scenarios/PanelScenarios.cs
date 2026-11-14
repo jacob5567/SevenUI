@@ -648,8 +648,9 @@ namespace SevenUI.Tests
                 () => $"with CompactAllyCards back on: {layout.Problem ?? "no more row"} {h.Diagnosis()}");
         }
 
-        // GroupAllyCards off gives every ally a card of its own with the game's name and bar, no count or segments; on
-        // again shares one card among the Gunner Drones.
+        // GroupAllyCards off gives every ally a card of its own with the game's name and bar, no count or segments, still
+        // compact and folded under "+N more" as the room needs (allies left by earlier scenarios may fill it); on again
+        // shares one card among the Gunner Drones.
         private static IEnumerator AllyCardsNotGrouped(Harness h)
         {
             PluginConfig settings = SevenUIPlugin.Settings;
@@ -660,9 +661,9 @@ namespace SevenUI.Tests
                 () => $"the drones' cards shared before turning the setting off {h.Diagnosis()}");
             h.SetConfig(settings.GroupAllyCards, false);
             h.OnCleanup(() => h.SetConfig(settings.GroupAllyCards, true));
-            string problem = null;
-            yield return h.Until(() => (problem = AllyCardChecks.GameLook(h, before + GroupedDroneCount)) == null && !AllyCardChecks.Grouped(h),
-                () => $"with GroupAllyCards off, {problem ?? "segments remain"} {h.Diagnosis()}");
+            AllyCardChecks.Layout layout = null;
+            yield return h.Until(() => (layout = AllyCardChecks.Measure(h, false)).Problem == null && !AllyCardChecks.Grouped(h),
+                () => $"with GroupAllyCards off, {layout?.Problem ?? "a count or segments remain"} {h.Diagnosis()}");
             yield return h.Screenshot("off");
             h.SetConfig(settings.GroupAllyCards, true);
             yield return h.Until(() => AllyCardChecks.Grouped(h), () => $"with GroupAllyCards back on, the cards are shared {h.Diagnosis()}");

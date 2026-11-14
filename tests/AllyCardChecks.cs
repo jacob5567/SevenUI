@@ -62,7 +62,8 @@ namespace SevenUI.Tests
             return Mathf.Min(cluster.rect.height, cluster.rect.yMax - chatTop - ChatGap);
         }
 
-        public static Layout Measure(Harness h)
+        // With grouped false, as with GroupAllyCards off: every ally is a kind of its own.
+        public static Layout Measure(Harness h, bool grouped = true)
         {
             List<AllyCardController> cards = Cards(h);
             Layout layout = new Layout { Cards = cards.Count };
@@ -75,7 +76,7 @@ namespace SevenUI.Tests
             {
                 CharacterMaster master = card.sourceMaster;
                 CharacterBody body = master ? master.GetBody() : null;
-                string name = body && !master.playerCharacterMasterController ? Util.GetBestBodyName(body.gameObject) : null;
+                string name = grouped && body && !master.playerCharacterMasterController ? Util.GetBestBodyName(body.gameObject) : null;
                 CharacterMaster leader = master && master.minionOwnership ? master.minionOwnership.ownerMaster : null;
                 Kind kind = name == null ? null : kinds.FirstOrDefault(found => found.Name == name && found.Leader == leader);
                 if (kind == null)
