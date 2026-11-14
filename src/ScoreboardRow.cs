@@ -85,7 +85,7 @@ namespace SevenUI
                 Counts.text = inventory ? CountsText(inventory) : "";
             }
 
-            if (Money && Name && (!ReferenceEquals(Money.text, shownMoney) || Money.font != shownMoneyFont))
+            if (Money && Name && (!string.Equals(Money.text, shownMoney, System.StringComparison.Ordinal) || Money.font != shownMoneyFont))
             {
                 shownMoney = Money.text;
                 shownMoneyFont = Money.font;
