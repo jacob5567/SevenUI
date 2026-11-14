@@ -19,6 +19,7 @@ namespace SevenUI
         public readonly ConfigEntry<bool> ScoreboardDetailPanel;
         public readonly ConfigEntry<bool> ScoreboardTabs;
         public readonly ConfigEntry<bool> RestylePauseMenu;
+        public readonly ConfigEntry<bool> RestyleTooltips;
 
         public readonly ConfigEntry<bool> DebugLogging;
         public readonly ConfigEntry<KeyboardShortcut> DumpKey;
@@ -60,6 +61,9 @@ namespace SevenUI
                 "and shrinks the items to fit. Only with FlatPanels on.");
             RestylePauseMenu = config.Bind("Panels", "RestylePauseMenu", true,
                 "Restyle the pause menu with a title, the run's line and outlined buttons. Off keeps the game's look for it. " +
+                "Only with FlatPanels on.");
+            RestyleTooltips = config.Bind("Panels", "RestyleTooltips", true,
+                "Restyle the tooltips of items, equipment and skills in the HUD. Off keeps the game's look for them. " +
                 "Only with FlatPanels on.");
 
             // Risk Of Options uses the section name as the menu header, so keep it exactly "Debug".

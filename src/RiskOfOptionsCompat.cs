@@ -38,6 +38,7 @@ namespace SevenUI
             ModSettingsManager.AddOption(new CheckBoxOption(settings.ScoreboardDetailPanel));
             ModSettingsManager.AddOption(new CheckBoxOption(settings.ScoreboardTabs));
             ModSettingsManager.AddOption(new CheckBoxOption(settings.RestylePauseMenu));
+            ModSettingsManager.AddOption(new CheckBoxOption(settings.RestyleTooltips));
 
             // The options menu groups these under a "Debug" header, named after their config section.
             ModSettingsManager.AddOption(new CheckBoxOption(settings.DebugLogging));

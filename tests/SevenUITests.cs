@@ -42,6 +42,7 @@ namespace SevenUI.Tests
             if (!settings.ScoreboardDetailPanel.Value) return "ScoreboardDetailPanel is off in the SevenUI config";
             if (!settings.ScoreboardTabs.Value) return "ScoreboardTabs is off in the SevenUI config";
             if (!settings.RestylePauseMenu.Value) return "RestylePauseMenu is off in the SevenUI config";
+            if (!settings.RestyleTooltips.Value) return "RestyleTooltips is off in the SevenUI config";
             return null;
         }
 

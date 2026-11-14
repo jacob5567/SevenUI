@@ -47,7 +47,8 @@ namespace SevenUI
         public void Update()
         {
             bool barlowFont = SevenUIPlugin.Settings.BarlowFont.Value;
-            bool flatPanels = SevenUIPlugin.Settings.FlatPanels.Value;
+            // Read as each tooltip is made: the game makes a new one every time, so there is nothing to restore.
+            bool restyle = SevenUIPlugin.Settings.FlatPanels.Value && SevenUIPlugin.Settings.RestyleTooltips.Value;
             MPEventSystem events = hud.eventSystemProvider ? hud.eventSystemProvider.resolvedEventSystem : null;
             TooltipController tooltip = events ? events.currentTooltip : null;
             if (tooltip == seen) return;
@@ -55,7 +56,7 @@ namespace SevenUI
             TooltipProvider provider = events ? events.currentTooltipProvider : null;
             if (!tooltip || !provider || !provider.transform.IsChildOf(root)) return;
 
-            StatsSection stats = flatPanels ? Restyle(tooltip, provider) : null;
+            StatsSection stats = restyle ? Restyle(tooltip, provider) : null;
             if (barlowFont)
             {
                 new HudFontSwapper(hud, tooltip.transform).Apply();

@@ -52,6 +52,7 @@ Edit `BepInEx/config/sevenstack.SevenUI.cfg`, or use the in-game settings menu i
 | `ScoreboardDetailPanel` | true | On describes the item, equipment or key item pointed at in the scoreboard in `ScoreboardDetailPane`, a panel docked at the board's right that the board's width keeps room for, and hides the game's tooltip. Off shows the game's tooltip over the pointed-at item instead, and the board keeps no room for the panel. Only with `FlatPanels` on. |
 | `ScoreboardTabs` | true | On collapses the scoreboard's rows to tabs when there is more than one player and the items would need to be smaller than 32 pixels to fit. Off never collapses them: every row keeps its items, shrunk to fit. Only with `FlatPanels` on. |
 | `RestylePauseMenu` | true | Restyle the pause menu: the title, the run's line and the outlined buttons. Off keeps the game's look for it, open now or opened later. Only with `FlatPanels` on. |
+| `RestyleTooltips` | true | Restyle the tooltips of items, equipment and skills in the HUD: a dark panel, a strip of the tier color, a header band and the stack count. Off keeps the game's look for them, with the font still following `BarlowFont`. Read as each tooltip opens, so a tooltip already open keeps its look. Only with `FlatPanels` on. |
 | `DebugLogging` | false | Log extra detail, and enable the dump key. |
 | `DumpKey` | F8 | With `DebugLogging` on, press to log each HUD's fonts and what the mod restyled. |
 

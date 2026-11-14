@@ -72,6 +72,7 @@ namespace SevenUI.Tests
                 Stages.TitanicPlains, h => ItemBarTooltip(h, board));
             if (board == Board.Rows)
             {
+                yield return new Scenario(1, "item_bar_tooltip_setting_off", Stages.TitanicPlains, ItemBarTooltipSettingOff);
                 yield return new Scenario(1, "scoreboard_players_rows_while_roomy", Stages.TitanicPlains, RowsWhileRoomy);
             }
             else
@@ -199,6 +200,29 @@ namespace SevenUI.Tests
                 $"the item's tooltip in the flat look");
             yield return h.Wait(SettleSeconds);
             yield return h.Screenshot(board == Board.Rows ? "tooltip" : "tooltip_over_tabs");
+        }
+
+        // With RestyleTooltips off, a tooltip on an item in the item bar keeps the game's panel look: none of the mod's
+        // objects on it.
+        private static IEnumerator ItemBarTooltipSettingOff(Harness h)
+        {
+            PluginConfig settings = SevenUIPlugin.Settings;
+            h.SetConfig(settings.RestyleTooltips, false);
+            h.OnCleanup(() => h.SetConfig(settings.RestyleTooltips, true));
+            ScoreboardSetUp.GiveDifferentItems(h, TooltipItems);
+            HUD hud = SevenUIChecks.HudRoot(h).GetComponent<HUD>();
+            ItemIcon icon = null;
+            yield return h.Until(() => (icon = FirstIcon(hud.itemInventoryDisplay.transform)) != null, "an item in the item bar");
+            yield return h.Wait(SettleSeconds);
+            MPEventSystem events = PointAt(h, icon.rectTransform, "an item in the item bar");
+            yield return h.Until(() => events.currentTooltipProvider == icon.tooltipProvider && events.currentTooltip,
+                () => $"the pointer on an item in the item bar opened " +
+                      $"{(events.currentTooltipProvider ? events.currentTooltipProvider.name + "'s tooltip" : "no tooltip")}");
+            // The styler looks once a frame, so wait a moment, then expect it to have left the tooltip alone.
+            yield return h.Wait(SettleSeconds);
+            yield return h.Until(() => events.currentTooltip && !events.currentTooltip.transform.Find(TooltipBandPath),
+                "the item's tooltip in the game's look, with RestyleTooltips off");
+            yield return h.Screenshot("tooltip_setting_off");
         }
 
         // On each board, the pointer on an item in the scoreboard describes it in the pane instead of a tooltip, lights
