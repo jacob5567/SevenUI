@@ -69,6 +69,7 @@ namespace SevenUI.Tests
             yield return new Scenario(1, "stocks_in_slot_corners", Stages.TitanicPlains, StocksInSlotCorners);
             yield return new Scenario(1, "ally_cards_not_compact", Stages.TitanicPlains, AllyCardsNotCompact);
             yield return new Scenario(1, "ally_cards_not_grouped", Stages.TitanicPlains, AllyCardsNotGrouped);
+            yield return new Scenario(1, "hud_lean_kept", Stages.TitanicPlains, HudLeanKept);
             yield return new Scenario(1, "next_equipment_deck_swaps", Stages.TitanicPlains, NextEquipmentDeckSwaps);
             yield return new Scenario(1, "ntormat_pages_follow_key_item", Stages.TitanicPlains, NtormatPagesFollowKeyItem);
             yield return new Scenario(1, "top_is_flat", Stages.TitanicPlains, TopIsFlat);
@@ -667,6 +668,24 @@ namespace SevenUI.Tests
             yield return h.Screenshot("off");
             h.SetConfig(settings.GroupAllyCards, true);
             yield return h.Until(() => AllyCardChecks.Grouped(h), () => $"with GroupAllyCards back on, the cards are shared {h.Diagnosis()}");
+        }
+
+        // LevelHud off brings back the game's lean of the corners while everything else stays flat; the skill row and the
+        // margins, which are measured through the camera, still sit as on the canvas. On again levels the HUD.
+        private static IEnumerator HudLeanKept(Harness h)
+        {
+            PluginConfig settings = SevenUIPlugin.Settings;
+            h.SetConfig(settings.FlatPanels, true);
+            h.SetConfig(settings.TightMargins, true);
+            h.SetConfig(settings.LevelHud, false);
+            h.OnCleanup(() => h.SetConfig(settings.LevelHud, true));
+            yield return h.ExpectHudTilted();
+            yield return h.ExpectSkillRowAsCanvas();
+            yield return h.ExpectHudAtCanvasMargins();
+            yield return h.Screenshot("skill_row");
+            yield return h.Screenshot("corners");
+            h.SetConfig(settings.LevelHud, true);
+            yield return h.ExpectHudLevel();
         }
 
         private static IEnumerator ProtectionBothLooks(Harness h, System.Func<IEnumerable<HealthBar>> bars, string whose)

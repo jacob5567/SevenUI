@@ -34,6 +34,7 @@ namespace SevenUI
             ModSettingsManager.AddOption(new CheckBoxOption(settings.RestyleItemPickers));
             ModSettingsManager.AddOption(new CheckBoxOption(settings.CompactAllyCards));
             ModSettingsManager.AddOption(new CheckBoxOption(settings.GroupAllyCards));
+            ModSettingsManager.AddOption(new CheckBoxOption(settings.LevelHud));
 
             // The options menu groups these under a "Debug" header, named after their config section.
             ModSettingsManager.AddOption(new CheckBoxOption(settings.DebugLogging));

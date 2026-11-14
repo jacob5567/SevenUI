@@ -56,6 +56,7 @@ Edit `BepInEx/config/sevenstack.SevenUI.cfg`, or use [Risk Of Options](https://t
 | `RestyleItemPickers` | true | Restyle the panels where you pick an item, such as Command and Void Potentials. Off keeps the game's look for them. Only with `FlatPanels` on. |
 | `CompactAllyCards` | true | Shrink the ally cards to compact rows, and fold the ones that don't fit above the chat into "+N more". Off keeps the cards at full size, never folded. Only with `FlatPanels` on. |
 | `GroupAllyCards` | true | Group allies of one kind into a single card with a count and a health segment each. Off shows one card per ally, as the game has it. Only with `FlatPanels` on. |
+| `LevelHud` | true | Off keeps the game's inward lean of the HUD's corners, with everything else flat. Only with `FlatPanels` on. |
 | `DebugLogging` | false | Log extra detail, and enable the dump key. |
 | `DumpKey` | F8 | With `DebugLogging` on, log each HUD's fonts and what the mod restyled. |
 

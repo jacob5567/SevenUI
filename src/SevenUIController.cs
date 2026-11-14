@@ -31,6 +31,8 @@ namespace SevenUI
         // Applied after every other styler's apply and restore, so turning the panels off puts them back first.
         private HudFontSwapper fontSwapper;
         private PauseScreenStyler pause;
+        private TiltFlattener tilt;
+        private SkillSlotsStyler skillSlots;
         private PickerStyler pickers;
         // Not in the list: it runs whether or not FlatPanels is on (it restyles only the font then), and has nothing to
         // restore, as the game makes each tooltip new.
@@ -48,7 +50,7 @@ namespace SevenUI
             RunInfoStyler runInfo = new RunInfoStyler(root);
             RightInfoBarStyler rightInfoBar = new RightInfoBarStyler(root);
             PlayerBarsStyler playerBars = new PlayerBarsStyler(root);
-            SkillSlotsStyler skillSlots = new SkillSlotsStyler(hud, root);
+            skillSlots = new SkillSlotsStyler(hud, root);
             TopStyler top = new TopStyler(hud, root);
             ItemIconsStyler itemIcons = new ItemIconsStyler(root);
             AllyCardsStyler allyCards = new AllyCardsStyler(hud, root);
@@ -56,7 +58,7 @@ namespace SevenUI
             pickers = new PickerStyler(hud, root);
             ScoreboardStyler scoreboard = new ScoreboardStyler(hud, root);
             ChatStyler chat = new ChatStyler(root);
-            TiltFlattener tilt = new TiltFlattener(root);
+            tilt = new TiltFlattener(root);
             tooltips = new TooltipStyler(hud, root);
             // The pause menu is its own canvas, outside the HUD, made each time it opens.
             pause = new PauseScreenStyler(hud, root);
@@ -85,6 +87,7 @@ namespace SevenUI
                 SevenUIPlugin.Settings.RestyleItemPickers,
                 SevenUIPlugin.Settings.CompactAllyCards,
                 SevenUIPlugin.Settings.GroupAllyCards,
+                SevenUIPlugin.Settings.LevelHud,
             };
             foreach (ConfigEntry<bool> setting in watched)
             {
@@ -118,6 +121,20 @@ namespace SevenUI
 
         private void Restyle()
         {
+            // The skill row is measured on screen once, so a tilt that comes or goes after that leaves it measured for
+            // the wrong view. Put the tilt back (or have the row measured again) before anything is applied.
+            if (tilt.Enabled != applied.Contains(tilt))
+            {
+                if (applied.Remove(skillSlots))
+                {
+                    skillSlots.Restore();
+                }
+                if (!tilt.Enabled)
+                {
+                    applied.Remove(tilt);
+                    tilt.Restore();
+                }
+            }
             foreach (IStyler styler in stylers)
             {
                 if (styler != fontSwapper && styler.Enabled)

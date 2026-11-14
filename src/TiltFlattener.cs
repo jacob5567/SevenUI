@@ -28,7 +28,7 @@ namespace SevenUI
 
         public int LeveledCount => recorder.Count;
 
-        public bool Enabled => SevenUIPlugin.Settings.FlatPanels.Value;
+        public bool Enabled => SevenUIPlugin.Settings.FlatPanels.Value && SevenUIPlugin.Settings.LevelHud.Value;
 
         public void Update()
         {

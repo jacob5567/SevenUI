@@ -15,6 +15,7 @@ namespace SevenUI
         public readonly ConfigEntry<bool> RestyleItemPickers;
         public readonly ConfigEntry<bool> CompactAllyCards;
         public readonly ConfigEntry<bool> GroupAllyCards;
+        public readonly ConfigEntry<bool> LevelHud;
 
         public readonly ConfigEntry<bool> DebugLogging;
         public readonly ConfigEntry<KeyboardShortcut> DumpKey;
@@ -46,6 +47,8 @@ namespace SevenUI
             GroupAllyCards = config.Bind("Panels", "GroupAllyCards", true,
                 "Group allies of one kind into a single card with a count and a health segment each. Off shows one card per " +
                 "ally, as the game has it, with its own name and health bar. Only with FlatPanels on.");
+            LevelHud = config.Bind("Panels", "LevelHud", true,
+                "Keeps the game's inward lean of the HUD's corners, with everything else flat. Only with FlatPanels on.");
 
             // Risk Of Options uses the section name as the menu header, so keep it exactly "Debug".
             DebugLogging = config.Bind("Debug", "DebugLogging", false,
