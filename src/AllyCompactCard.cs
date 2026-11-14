@@ -9,10 +9,8 @@ namespace SevenUI
     // small portrait and then the name and the health bar side by side on one line; hidden, it is turned off and takes
     // no height. Keeps what it changes, so the card goes back to the game's look when it leaves the compact look.
     //
-    // The portrait is the one part sized by the card's layout, not set directly. A layout marked while the card is
-    // turned off is never rebuilt, so a card that changed look while hidden (folded under the more row, or a kind's
-    // spare card) came back as a compact row with its full-size portrait. The card is rebuilt whenever it is shown or
-    // changes look, and again if its portrait's width ever differs from the one asked for.
+    // The portrait is the one part the card's row sizes, not set directly: it gets the row's spare width unless the
+    // bars' column takes it, and its height follows its width.
     internal sealed class AllyCompactCard
     {
         private const float Canvas = HudUnits.PerCanvasPixel;
@@ -26,15 +24,11 @@ namespace SevenUI
         private const float NameShare = 0.58f;
         // The bars column takes the row's spare width, as its layout group's flexible width did.
         private const float BarsFlexibleWidth = 1f;
-        // In the HUD's units.
-        private const float PortraitTolerance = 0.5f;
-        private static bool loggedPortraitFix;
 
         public readonly AllyCardController Card;
         // The card's height in the game's look.
         public readonly float FullHeight;
         private readonly LayoutElement portraitLayout;
-        private readonly RectTransform portrait;
         private readonly float portraitWidth;
         // The portrait's badges (critically hurt, dead, the drone's item), drawn at a fixed size around its middle.
         private readonly RectTransform[] badges;
@@ -48,7 +42,6 @@ namespace SevenUI
         private readonly HorizontalLayoutGroup row;
         private readonly TextAnchor rowAlignment;
         private LayoutElement barsElement;
-        private bool addedBarsElement;
         private float barsFlexibleWidth;
         // The card's own row padding, which the portrait and the column sit inside.
         private readonly float paddingY;
@@ -71,7 +64,7 @@ namespace SevenUI
             {
                 portraitLayout = card.portraitIconImage.GetComponent<LayoutElement>();
                 portraitWidth = portraitLayout ? portraitLayout.preferredWidth : 0f;
-                portrait = card.portraitIconImage.rectTransform;
+                Transform portrait = card.portraitIconImage.transform;
                 badges = new RectTransform[portrait.childCount];
                 badgePositions = new Vector2[badges.Length];
                 badgeScales = new Vector3[badges.Length];
@@ -99,10 +92,8 @@ namespace SevenUI
         public void Set(bool compact, bool hidden)
         {
             if (!Card) return;
-            bool relayout = false;
             if (compact != Compact && CanCompact)
             {
-                relayout = true;
                 Compact = compact;
                 if (compact)
                 {
@@ -122,29 +113,8 @@ namespace SevenUI
             if (Card.gameObject.activeSelf == hidden)
             {
                 Card.gameObject.SetActive(!hidden);
-                relayout |= !hidden;
-            }
-            if (hidden || !Card.gameObject.activeInHierarchy) return;
-            if (relayout)
-            {
-                LayoutRebuilder.ForceRebuildLayoutImmediate(Card.rectTransform);
-            }
-            else if (Compact && PortraitOff)
-            {
-                // The rebuild above should leave nothing to fix; logged once in case something else resizes it.
-                if (!loggedPortraitFix && SevenUIPlugin.Settings.DebugLogging.Value)
-                {
-                    loggedPortraitFix = true;
-                    SevenUIPlugin.Log.LogInfo($"Ally card portrait was {portrait.rect.width:0.#} wide, not " +
-                                              $"{portraitLayout.preferredWidth:0.#}; rebuilt the card's layout");
-                }
-                LayoutRebuilder.ForceRebuildLayoutImmediate(Card.rectTransform);
             }
         }
-
-        // A read of two floats.
-        private bool PortraitOff =>
-            portrait && portraitLayout && Mathf.Abs(portrait.rect.width - portraitLayout.preferredWidth) > PortraitTolerance;
 
         public void Revert() => Set(false, false);
 
@@ -171,9 +141,11 @@ namespace SevenUI
             {
                 row.childAlignment = LeftOf(rowAlignment);
             }
+            // Added once and kept: an element with nothing set changes no layout, and a destroyed one lingers until the
+            // frame's end, where a restyle that reverts and compacts the card in one frame would take it for a live
+            // one, leaving the column without its flexible width and the portrait to take the row's spare width.
             barsElement = bars.GetComponent<LayoutElement>();
-            addedBarsElement = !barsElement;
-            if (addedBarsElement)
+            if (!barsElement)
             {
                 barsElement = bars.gameObject.AddComponent<LayoutElement>();
             }
@@ -219,17 +191,9 @@ namespace SevenUI
             barsLayout.enabled = true;
             if (barsElement)
             {
-                if (addedBarsElement)
-                {
-                    Object.Destroy(barsElement);
-                }
-                else
-                {
-                    barsElement.flexibleWidth = barsFlexibleWidth;
-                }
+                barsElement.flexibleWidth = barsFlexibleWidth;
             }
             barsElement = null;
-            addedBarsElement = false;
             if (row)
             {
                 row.childAlignment = rowAlignment;
