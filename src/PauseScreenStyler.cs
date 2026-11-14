@@ -64,6 +64,15 @@ namespace SevenUI
         private RunInfoText run;
         private TMP_Text timer;
         private string shownRun;
+        // The run info's texts the run line was built from; it is rebuilt only when one changes.
+        private string builtTime;
+        private string builtStage;
+        private string builtDifficulty;
+        private bool builtRun;
+        // The menu a styling attempt last failed on, and its canvas's hierarchy count then: the attempt is made again
+        // only when the count changes, as the menu's objects may not be there yet when it opens.
+        private PauseScreenController attempted;
+        private int attemptedCount;
         private int shownActive = -1;
 
         private sealed class Entry
@@ -102,6 +111,7 @@ namespace SevenUI
             RestoreFonts();
             recorder = new StyleRecorder();
             ForgetMenu();
+            attempted = null;
         }
 
         // The skin controllers come back on with Restore and then set their button's font from the skin every frame,
@@ -139,6 +149,10 @@ namespace SevenUI
             run = null;
             timer = null;
             shownRun = null;
+            builtTime = null;
+            builtStage = null;
+            builtDifficulty = null;
+            builtRun = false;
             shownActive = -1;
         }
 
@@ -150,7 +164,22 @@ namespace SevenUI
             PauseScreenController menu = PauseScreenController.instancesList.Count > 0 ? PauseScreenController.instancesList[0] : null;
             if (menu != styled)
             {
-                recorder = new StyleRecorder();
+                // A menu that could not be styled is looked at again only once its hierarchy changes.
+                if (menu && menu.mainPanel)
+                {
+                    int count = menu.mainPanel.hierarchyCount;
+                    if (menu == attempted && count == attemptedCount) return;
+                    attempted = menu;
+                    attemptedCount = count;
+                }
+                else
+                {
+                    attempted = null;
+                }
+                if (styled)
+                {
+                    recorder = new StyleRecorder();
+                }
                 ForgetMenu();
                 // Each HUD runs this; with several (split screen) the first to see the menu styles it.
                 if (menu && menu.mainPanel && !menu.mainPanel.Find(OptionsName + "/" + TitleName))
@@ -169,12 +198,7 @@ namespace SevenUI
             {
                 UpdateButton(entry);
             }
-            string line = RunText();
-            if (!string.Equals(line, shownRun, System.StringComparison.Ordinal))
-            {
-                shownRun = line;
-                runLine.text = line;
-            }
+            UpdateRunLine();
         }
 
         private void Style(PauseScreenController menu, bool barlowFont)
@@ -402,20 +426,37 @@ namespace SevenUI
 
         // The run info's time, stage and level, and difficulty, as the HUD shows them, so they agree with it on host and
         // client: the time and difficulty in bold, the difficulty in the accent.
-        private string RunText()
+        private void UpdateRunLine()
         {
-            if (!run) return "";
+            bool hasRun = run;
+            string time = hasRun && timer ? timer.text : null;
+            string stage = hasRun && run.StageAndLevel ? run.StageAndLevel.text : null;
+            string difficulty = hasRun ? run.ShownDifficulty : null;
+            if (hasRun == builtRun && shownRun != null && Same(time, builtTime) && Same(stage, builtStage) && Same(difficulty, builtDifficulty)) return;
+            builtRun = hasRun;
+            builtTime = time;
+            builtStage = stage;
+            builtDifficulty = difficulty;
+            shownRun = RunText(time, stage, difficulty);
+            runLine.text = shownRun;
+        }
+
+        private static bool Same(string a, string b)
+        {
+            return string.Equals(a, b, System.StringComparison.Ordinal);
+        }
+
+        private static string RunText(string time, string stage, string difficulty)
+        {
             StringBuilder line = new StringBuilder();
-            if (timer && !string.IsNullOrEmpty(timer.text))
+            if (!string.IsNullOrEmpty(time))
             {
-                line.Append("<color=#").Append(ColorUtility.ToHtmlStringRGB(Palette.Text)).Append("><b>").Append(timer.text).Append("</b></color>");
+                line.Append("<color=#").Append(ColorUtility.ToHtmlStringRGB(Palette.Text)).Append("><b>").Append(time).Append("</b></color>");
             }
-            string stage = run.StageAndLevel ? run.StageAndLevel.text : "";
             if (!string.IsNullOrEmpty(stage))
             {
                 line.Append(line.Length > 0 ? Separator : "").Append(stage);
             }
-            string difficulty = run.ShownDifficulty;
             if (!string.IsNullOrEmpty(difficulty))
             {
                 line.Append(line.Length > 0 ? Separator : "").Append("<color=#").Append(ColorUtility.ToHtmlStringRGB(Palette.Accent))
