@@ -126,7 +126,7 @@ namespace SevenUI
                     SetText(counts[shown], Count(icon));
                 }
                 string timer = Timer(icon);
-                if (!ReferenceEquals(timer, timerSources[shown]))
+                if (!string.Equals(timer, timerSources[shown], System.StringComparison.Ordinal))
                 {
                     timerSources[shown] = timer;
                     SetText(timers[shown], timer != null ? TimerText(timer) : "");

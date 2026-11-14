@@ -39,7 +39,7 @@ namespace SevenUI
         {
             if (!Source) return;
             string text = Source.text;
-            if (ReferenceEquals(text, shownSource)) return;
+            if (string.Equals(text, shownSource, System.StringComparison.Ordinal)) return;
             shownSource = text;
             Read(text);
         }

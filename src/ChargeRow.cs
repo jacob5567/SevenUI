@@ -31,7 +31,7 @@ namespace SevenUI
             if (!Zone || !GameLabel) return;
             int percent = Zone.displayChargePercent;
             string text = GameLabel.text;
-            if (!ReferenceEquals(text, shownSource) || percent != shownPercent)
+            if (!string.Equals(text, shownSource, System.StringComparison.Ordinal) || percent != shownPercent)
             {
                 shownSource = text;
                 Label.text = WithoutPercent(text);
