@@ -9,8 +9,9 @@ namespace SevenUI
     // small portrait and then the name and the health bar side by side on one line; hidden, it is turned off and takes
     // no height. Keeps what it changes, so the card goes back to the game's look when it leaves the compact look.
     //
-    // The portrait is the one part the card's row sizes, not set directly: it gets the row's spare width unless the
-    // bars' column takes it, and its height follows its width.
+    // The portrait is the one part the card's row sizes, not set directly, and its height follows its width. The
+    // game's row force-expands its children's widths, which splits the spare width evenly between the portrait and
+    // the bars' column; while compact it doesn't, so the column takes it all and the portrait keeps its row's size.
     internal sealed class AllyCompactCard
     {
         private const float Canvas = HudUnits.PerCanvasPixel;
@@ -38,9 +39,11 @@ namespace SevenUI
         private readonly RectTransform bars;
         private readonly VerticalLayoutGroup barsLayout;
         private readonly float barsHeight;
-        // The row's alignment, which would shift the portrait right once the column no longer fills the row.
+        // The row's alignment, which would shift the portrait right once the column no longer fills the row, and its
+        // force-expanded widths, which would give the portrait half the spare width.
         private readonly HorizontalLayoutGroup row;
         private readonly TextAnchor rowAlignment;
+        private readonly bool rowExpandsWidth;
         private LayoutElement barsElement;
         private float barsFlexibleWidth;
         // The card's own row padding, which the portrait and the column sit inside.
@@ -59,6 +62,7 @@ namespace SevenUI
             FullHeight = card.layoutElement ? card.layoutElement.preferredHeight : 0f;
             row = card.GetComponent<HorizontalLayoutGroup>();
             rowAlignment = row ? row.childAlignment : TextAnchor.UpperLeft;
+            rowExpandsWidth = row && row.childForceExpandWidth;
             paddingY = row ? row.padding.vertical : 0f;
             if (card.portraitIconImage)
             {
@@ -140,6 +144,7 @@ namespace SevenUI
             if (row)
             {
                 row.childAlignment = LeftOf(rowAlignment);
+                row.childForceExpandWidth = false;
             }
             // Added once and kept: an element with nothing set changes no layout, and a destroyed one lingers until the
             // frame's end, where a restyle that reverts and compacts the card in one frame would take it for a live
@@ -197,6 +202,7 @@ namespace SevenUI
             if (row)
             {
                 row.childAlignment = rowAlignment;
+                row.childForceExpandWidth = rowExpandsWidth;
             }
             LayoutRebuilder.MarkLayoutForRebuild(Card.rectTransform);
         }
