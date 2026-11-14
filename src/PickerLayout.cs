@@ -1,3 +1,5 @@
+using RoR2;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using static SevenUI.PickerPanel;
@@ -15,6 +17,14 @@ namespace SevenUI
         private readonly PickerGrid pickerGrid;
         private readonly PickerSlots slots;
 
+        // What the tallest-details measurement was made from. Hovering changes none of it, so hovers reuse the result.
+        private PickupPickerController.Option[] measuredOptions;
+        private int measuredCount = -1;
+        private float measuredTextWidth;
+        private TMP_FontAsset measuredFont;
+        private bool measuredFull;
+        private float tallestDetails;
+
         public PickerLayout(PickerPanel owner, PickerUi ui, PickerCards cards, PickerGrid pickerGrid, PickerSlots slots)
         {
             this.owner = owner;
@@ -22,6 +32,34 @@ namespace SevenUI
             this.cards = cards;
             this.pickerGrid = pickerGrid;
             this.slots = slots;
+        }
+
+        // The tallest description plus stats over all options, measured again only when the options, the text width, the
+        // font or the short/full setting change. Measuring is costly and Command has 100+ options.
+        private float TallestDetails(float textWidth)
+        {
+            var buttons = owner.Buttons;
+            TMP_FontAsset font = slots.DetailsDescription.font;
+            bool full = ui.FullDescriptions;
+            if (owner.ShownOptions == measuredOptions && buttons.Count == measuredCount && textWidth == measuredTextWidth
+                && font == measuredFont && full == measuredFull)
+            {
+                return tallestDetails;
+            }
+            float tallest = 0f;
+            foreach (PickerButton slot in buttons)
+            {
+                float description = slots.DetailsDescription.GetPreferredValues(slot.Parts.Description, textWidth, 0f).y;
+                slots.DetailsStats.Set(slot.Parts);
+                tallest = Mathf.Max(tallest, description + slots.DetailsStats.Layout(0f, 0f, textWidth));
+            }
+            measuredOptions = owner.ShownOptions;
+            measuredCount = buttons.Count;
+            measuredTextWidth = textWidth;
+            measuredFont = font;
+            measuredFull = full;
+            tallestDetails = tallest;
+            return tallest;
         }
 
         // Sizes the panel and places its parts, from the texts as measured in their current font.
@@ -93,13 +131,7 @@ namespace SevenUI
                 float nameHeight = slots.DetailsName.GetPreferredValues("A").y;
                 // The panel fits the hovered item's details. Its top stays where it would be for the tallest item's,
                 // centered on the screen, so the grid keeps its place and only the bottom moves as the item changes.
-                float detailsHeight = 0f;
-                foreach (PickerButton slot in buttons)
-                {
-                    float description = slots.DetailsDescription.GetPreferredValues(slot.Parts.Description, textWidth, 0f).y;
-                    slots.DetailsStats.Set(slot.Parts);
-                    detailsHeight = Mathf.Max(detailsHeight, description + slots.DetailsStats.Layout(0f, 0f, textWidth));
-                }
+                float detailsHeight = TallestDetails(textWidth);
                 int detailsIndex = slots.DetailsIndex;
                 ItemStatsText.Parts shown = detailsIndex >= 0 && detailsIndex < count ? buttons[detailsIndex].Parts : new ItemStatsText.Parts();
                 slots.DetailsStats.Set(shown);
