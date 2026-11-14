@@ -134,7 +134,7 @@ namespace SevenUI.Tests
                 float portraitWidth = portrait ? card.portraitIconImage.rectTransform.rect.width : 0f;
                 if (compact && kind.Allies <= 1 && portrait && Mathf.Abs(portraitWidth - portrait.preferredWidth) > Tolerance)
                 {
-                    return $"{Name(card)}'s compact portrait is {portraitWidth:0.#} units wide, not {portrait.preferredWidth:0.#}";
+                    return $"{Name(card)}'s compact portrait is {portraitWidth:0.#} units wide, not {portrait.preferredWidth:0.#}. {RowLayout(card)}";
                 }
                 float depth = Depth(cluster, card.rectTransform);
                 if (depth > room + Tolerance) return $"{Name(card)}'s card reaches {depth:0.#} units down, past the {room:0.#} above the chat";
@@ -284,7 +284,30 @@ namespace SevenUI.Tests
             return more && more.gameObject.activeSelf ? "the more row is still shown" : null;
         }
 
-        private static RectTransform More(Harness h)
+        // How the card's row lays out its children, for a failure message: the row group's settings, then each child's
+        // width, the sizes the layout reads from it, and its layout components.
+        internal static string RowLayout(AllyCardController card)
+        {
+            HorizontalLayoutGroup row = card.GetComponent<HorizontalLayoutGroup>();
+            string text = $"Card {card.rectTransform.rect.width:0.#}x{card.rectTransform.rect.height:0.#}; row " +
+                          (row ? $"enabled={row.enabled} controlW={row.childControlWidth} controlH={row.childControlHeight} " +
+                                 $"expandW={row.childForceExpandWidth} expandH={row.childForceExpandHeight} " +
+                                 $"padding={row.padding} spacing={row.spacing} align={row.childAlignment}" : "none") + ";";
+            foreach (RectTransform child in card.transform)
+            {
+                string parts = string.Join(",", child.GetComponents<Component>()
+                    .Where(part => part is ILayoutElement || part is ILayoutController)
+                    .Select(part => part.GetType().Name + (part is Behaviour behaviour && !behaviour.enabled ? "(off)" : "") +
+                                    (part is AspectRatioFitter fitter ? $"({fitter.aspectMode} {fitter.aspectRatio:0.##})" : "") +
+                                    (part is LayoutElement element ? $"(pref {element.preferredWidth:0.#} flex {element.flexibleWidth:0.#} prio {element.layoutPriority})" : "")));
+                text += $" {child.name} active={child.gameObject.activeSelf} {child.rect.width:0.#}x{child.rect.height:0.#} " +
+                        $"min={LayoutUtility.GetMinWidth(child):0.#} pref={LayoutUtility.GetPreferredWidth(child):0.#} " +
+                        $"flex={LayoutUtility.GetFlexibleWidth(child):0.#} [{parts}];";
+            }
+            return text;
+        }
+
+        internal static RectTransform More(Harness h)
         {
             AllyCardManager manager = SevenUIChecks.HudRoot(h).GetComponentInChildren<AllyCardManager>(true);
             return manager ? manager.transform.Find(AllyMoreRow.Name) as RectTransform : null;

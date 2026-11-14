@@ -1,0 +1,250 @@
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using ModTestRunner;
+using RoR2;
+using RoR2.UI;
+using UnityEngine;
+using UnityEngine.UI;
+
+namespace SevenUI.Tests
+{
+    // Narrows down when a compact ally card's portrait grows past its row: each scenario walks one sequence of adding and
+    // removing allies or turning settings off and on, and after every step logs which compact portraits are wider than
+    // they ask to be, with the card's layout, and takes a screenshot at the steps worth seeing. A scenario runs every
+    // step whatever it finds and fails at the end with the steps that went wrong, so one run shows which changes do it.
+    internal static class AllyPortraitScenarios
+    {
+        private const float Tolerance = 0.5f;
+        // Long enough for the game to add or remove a card and the mod to lay it out.
+        private const float SettleSeconds = 0.5f;
+        private const int MaxLoneAllies = 20;
+        private const int KindSize = 5;
+
+        public static IEnumerable<Scenario> All()
+        {
+            yield return new Scenario(1, "ally_portraits_growing", Stages.TitanicPlains, Growing);
+            yield return new Scenario(1, "ally_portraits_more_row_and_back", Stages.TitanicPlains, MoreRowAndBack);
+            yield return new Scenario(1, "ally_portraits_kind_shrinks", Stages.TitanicPlains, KindShrinks);
+            yield return new Scenario(1, "ally_portraits_kind_lead_removed", Stages.TitanicPlains, KindLeadRemoved);
+            yield return new Scenario(1, "ally_portraits_group_toggle", Stages.TitanicPlains, GroupToggle);
+            yield return new Scenario(1, "ally_portraits_compact_toggle", Stages.TitanicPlains, CompactToggle);
+            yield return new Scenario(1, "ally_portraits_flat_panels_toggle", Stages.TitanicPlains, FlatPanelsToggle);
+        }
+
+        // What each step found, kept for the scenario's end.
+        private sealed class Trace
+        {
+            private readonly Harness h;
+            private readonly List<string> bad = new List<string>();
+
+            public Trace(Harness h)
+            {
+                this.h = h;
+            }
+
+            // Waits for the cards to settle, then logs the step and, if asked, takes a screenshot named after it.
+            public IEnumerator Step(string step, bool screenshot = false)
+            {
+                yield return h.Wait(SettleSeconds);
+                List<AllyCardController> cards = AllyCardChecks.Cards(h);
+                List<AllyCardController> shown = cards.Where(card => card.gameObject.activeSelf).ToList();
+                int compact = shown.Count(IsCompact);
+                RectTransform more = AllyCardChecks.More(h);
+                List<AllyCardController> wrong = shown.Where(card => IsCompact(card) && PortraitOff(card)).ToList();
+                string summary = $"{step}: {cards.Count} cards, {shown.Count} shown, {compact} compact, " +
+                                 $"more row {(more && more.gameObject.activeSelf ? "shown" : "hidden")}, " +
+                                 (wrong.Count == 0 ? "portraits right" : $"{wrong.Count} compact portraits too wide");
+                h.Log("[ally_portraits] " + summary);
+                if (wrong.Count > 0)
+                {
+                    bad.Add(summary);
+                    foreach (AllyCardController card in wrong)
+                    {
+                        h.Log($"[ally_portraits]   {Name(card)}: {AllyCardChecks.RowLayout(card)}");
+                    }
+                }
+                if (screenshot)
+                {
+                    yield return h.Screenshot(step.Replace(' ', '_'));
+                }
+            }
+
+            public void Finish()
+            {
+                if (bad.Count > 0) throw h.Fail($"compact portraits too wide after: {string.Join(" | ", bad)}");
+            }
+        }
+
+        // Lone allies added one at a time until the cards turn compact, then until the more row shows.
+        private static IEnumerator Growing(Harness h)
+        {
+            Trace trace = new Trace(h);
+            List<CharacterMaster> allies = new List<CharacterMaster>();
+            yield return trace.Step("start");
+            yield return GrowUntil(h, trace, allies, () => AnyCompact(h), "compact");
+            yield return trace.Step("first compact", true);
+            yield return Allies.SummonLoneAllies(h, 1, allies);
+            yield return trace.Step("one more while compact", true);
+            yield return GrowUntil(h, trace, allies, () => MoreShown(h), "more row");
+            yield return trace.Step("first more row", true);
+            yield return Allies.SummonLoneAllies(h, 1, allies);
+            yield return trace.Step("one more under the more row", true);
+            trace.Finish();
+        }
+
+        // Up to the more row, then allies removed one pair at a time, newest first, until the cards are full size again.
+        private static IEnumerator MoreRowAndBack(Harness h)
+        {
+            Trace trace = new Trace(h);
+            List<CharacterMaster> allies = new List<CharacterMaster>();
+            yield return GrowUntil(h, trace, allies, () => MoreShown(h), "more row");
+            yield return trace.Step("more row", true);
+            int removed = 0;
+            while (allies.Count >= 2 && AnyCompact(h))
+            {
+                RemoveLast(allies, 2);
+                removed++;
+                yield return trace.Step($"removed pair {removed}", true);
+            }
+            yield return trace.Step("full size again", true);
+            trace.Finish();
+        }
+
+        // A kind of five Healing Drones shares a card while lone allies make the cards compact; its members are removed
+        // one at a time until it is a single ally's card, which then turns compact.
+        private static IEnumerator KindShrinks(Harness h)
+        {
+            Trace trace = new Trace(h);
+            List<CharacterMaster> kind = new List<CharacterMaster>();
+            List<CharacterMaster> allies = new List<CharacterMaster>();
+            yield return Allies.SummonDrones(h, Allies.HealingDroneMaster, KindSize, kind);
+            yield return trace.Step("kind of five");
+            yield return GrowUntil(h, trace, allies, () => AnyCompact(h), "compact");
+            yield return trace.Step("compact with the kind", true);
+            while (kind.Count > 1)
+            {
+                RemoveLast(kind, 1);
+                yield return trace.Step($"kind of {kind.Count}", kind.Count == 1);
+            }
+            trace.Finish();
+        }
+
+        // As above, but the kind's first member goes each time, so a card that was hidden as the kind's spare becomes the
+        // one the kind shares, or a compact single card.
+        private static IEnumerator KindLeadRemoved(Harness h)
+        {
+            Trace trace = new Trace(h);
+            List<CharacterMaster> kind = new List<CharacterMaster>();
+            List<CharacterMaster> allies = new List<CharacterMaster>();
+            yield return Allies.SummonDrones(h, Allies.HealingDroneMaster, KindSize, kind);
+            yield return GrowUntil(h, trace, allies, () => AnyCompact(h), "compact");
+            yield return trace.Step("compact with the kind", true);
+            while (kind.Count > 1)
+            {
+                Allies.Remove(kind.Take(1));
+                kind.RemoveAt(0);
+                yield return trace.Step($"lead removed, kind of {kind.Count}", kind.Count == 1);
+            }
+            trace.Finish();
+        }
+
+        // A kind of five shown as one card while the cards are compact, then GroupAllyCards off and on, twice.
+        private static IEnumerator GroupToggle(Harness h)
+        {
+            Trace trace = new Trace(h);
+            PluginConfig settings = SevenUIPlugin.Settings;
+            h.OnCleanup(() => h.SetConfig(settings.GroupAllyCards, true));
+            List<CharacterMaster> kind = new List<CharacterMaster>();
+            List<CharacterMaster> allies = new List<CharacterMaster>();
+            yield return Allies.SummonDrones(h, Allies.HealingDroneMaster, KindSize, kind);
+            yield return GrowUntil(h, trace, allies, () => AnyCompact(h), "compact");
+            yield return trace.Step("grouped", true);
+            for (int round = 1; round <= 2; round++)
+            {
+                h.SetConfig(settings.GroupAllyCards, false);
+                yield return trace.Step($"grouping off {round}", true);
+                h.SetConfig(settings.GroupAllyCards, true);
+                yield return trace.Step($"grouping on {round}", true);
+            }
+            trace.Finish();
+        }
+
+        // Compact cards, then CompactAllyCards off and on, twice.
+        private static IEnumerator CompactToggle(Harness h)
+        {
+            Trace trace = new Trace(h);
+            PluginConfig settings = SevenUIPlugin.Settings;
+            h.OnCleanup(() => h.SetConfig(settings.CompactAllyCards, true));
+            List<CharacterMaster> allies = new List<CharacterMaster>();
+            yield return GrowUntil(h, trace, allies, () => AnyCompact(h), "compact");
+            yield return trace.Step("compact", true);
+            for (int round = 1; round <= 2; round++)
+            {
+                h.SetConfig(settings.CompactAllyCards, false);
+                yield return trace.Step($"compact off {round}");
+                h.SetConfig(settings.CompactAllyCards, true);
+                yield return trace.Step($"compact on {round}", true);
+            }
+            trace.Finish();
+        }
+
+        // Compact cards, then FlatPanels off and on, twice: the whole look restored and applied again.
+        private static IEnumerator FlatPanelsToggle(Harness h)
+        {
+            Trace trace = new Trace(h);
+            PluginConfig settings = SevenUIPlugin.Settings;
+            h.OnCleanup(() => h.SetConfig(settings.FlatPanels, true));
+            List<CharacterMaster> allies = new List<CharacterMaster>();
+            yield return GrowUntil(h, trace, allies, () => AnyCompact(h), "compact");
+            yield return trace.Step("compact", true);
+            for (int round = 1; round <= 2; round++)
+            {
+                h.SetConfig(settings.FlatPanels, false);
+                yield return trace.Step($"panels off {round}");
+                h.SetConfig(settings.FlatPanels, true);
+                yield return trace.Step($"panels on {round}", true);
+            }
+            trace.Finish();
+        }
+
+        // Lone allies one at a time, a step logged after each, until the condition holds.
+        private static IEnumerator GrowUntil(Harness h, Trace trace, List<CharacterMaster> allies, System.Func<bool> done,
+            string what)
+        {
+            for (int added = 0; added < MaxLoneAllies && !done(); added++)
+            {
+                yield return Allies.SummonLoneAllies(h, 1, allies);
+                yield return trace.Step($"added lone ally {added + 1}");
+            }
+            if (!done()) throw h.Fail($"no {what} after {MaxLoneAllies} lone allies {h.Diagnosis()}");
+        }
+
+        private static void RemoveLast(List<CharacterMaster> allies, int count)
+        {
+            List<CharacterMaster> last = allies.Skip(allies.Count - count).ToList();
+            Allies.Remove(last);
+            allies.RemoveAll(last.Contains);
+        }
+
+        private static bool IsCompact(AllyCardController card) =>
+            Mathf.Abs(card.rectTransform.rect.height - AllyCompactCard.RowHeight) < Tolerance;
+
+        private static bool PortraitOff(AllyCardController card)
+        {
+            LayoutElement portrait = card.portraitIconImage ? card.portraitIconImage.GetComponent<LayoutElement>() : null;
+            return portrait && Mathf.Abs(card.portraitIconImage.rectTransform.rect.width - portrait.preferredWidth) > Tolerance;
+        }
+
+        private static bool AnyCompact(Harness h) =>
+            AllyCardChecks.Cards(h).Any(card => card.gameObject.activeSelf && IsCompact(card));
+
+        private static bool MoreShown(Harness h)
+        {
+            RectTransform more = AllyCardChecks.More(h);
+            return more && more.gameObject.activeSelf;
+        }
+
+        private static string Name(AllyCardController card) => card.nameLabel ? card.nameLabel.text : card.name;
+    }
+}
