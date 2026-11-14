@@ -53,6 +53,7 @@ namespace SevenUI
         // The card's own row padding, which the portrait and the column sit inside.
         private readonly float paddingY;
         private readonly float nameMaxSize;
+        private readonly float nameMinSize;
         private readonly TextAlignmentOptions nameAlignment;
         private readonly TextOverflowModes nameOverflow;
 
@@ -88,6 +89,7 @@ namespace SevenUI
             if (card.nameLabel)
             {
                 nameMaxSize = card.nameLabel.fontSizeMax;
+                nameMinSize = card.nameLabel.fontSizeMin;
                 nameAlignment = card.nameLabel.alignment;
                 nameOverflow = card.nameLabel.overflowMode;
             }
@@ -180,7 +182,9 @@ namespace SevenUI
             // The card's row lays the column out across but leaves its height alone.
             bars.sizeDelta = new Vector2(bars.sizeDelta.x, inner);
             TMP_Text name = Card.nameLabel;
+            // Every compact name at one size, long ones cut short rather than shrunk.
             name.fontSizeMax = NameSize;
+            name.fontSizeMin = NameSize;
             name.alignment = TextAlignmentOptions.MidlineLeft;
             name.overflowMode = TextOverflowModes.Ellipsis;
             RectTransform nameRect = name.rectTransform;
@@ -209,6 +213,7 @@ namespace SevenUI
             bars.sizeDelta = new Vector2(bars.sizeDelta.x, barsHeight);
             TMP_Text name = Card.nameLabel;
             name.fontSizeMax = nameMaxSize;
+            name.fontSizeMin = nameMinSize;
             name.alignment = nameAlignment;
             name.overflowMode = nameOverflow;
             barsLayout.enabled = true;
