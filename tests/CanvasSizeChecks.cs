@@ -95,6 +95,23 @@ namespace SevenUI.Tests
             return new Rect(box.x / unit, box.y / unit, box.width / unit, box.height / unit);
         }
 
+        // A rect's box in the skill scaler's plane, in canvas pixels at the scaler's origin.
+        private static Rect ScalerBox(Harness h, RectTransform rect)
+        {
+            HUD hud = SevenUIChecks.HudRoot(h).GetComponent<HUD>();
+            RectTransform scaler = hud && hud.skillIcons != null && hud.skillIcons.Length > 0 && hud.skillIcons[0]
+                ? hud.skillIcons[0].transform.parent as RectTransform
+                : null;
+            if (!scaler) return new Rect();
+            (Camera camera, float unit) = Screen(h);
+            Vector2 bottom = RectTransformUtility.WorldToScreenPoint(camera, scaler.TransformPoint(Vector3.zero));
+            Vector2 top = RectTransformUtility.WorldToScreenPoint(camera, scaler.TransformPoint(Vector3.up));
+            float perUnit = (top - bottom).magnitude / unit;
+            Vector2 min = scaler.InverseTransformPoint(rect.TransformPoint(rect.rect.min)) * perUnit;
+            Vector2 max = scaler.InverseTransformPoint(rect.TransformPoint(rect.rect.max)) * perUnit;
+            return Rect.MinMaxRect(min.x, min.y, max.x, max.y);
+        }
+
         private static bool Near(float value, float expected) => Mathf.Abs(value - expected) < SizeTolerance;
 
         // Null when the portrait's square is centered on the name block beside it, as on the canvas.
@@ -238,7 +255,16 @@ namespace SevenUI.Tests
                       $"{BarsInset}px in ({look}) {h.Diagnosis()}");
         }
 
-        public static IEnumerator ExpectSkillRowAsCanvas(this Harness h)
+        public static IEnumerator ExpectSkillRowAsCanvas(this Harness h) =>
+            h.ExpectSkillRow(rect => Box(h, rect));
+
+        // With the game's tilt, whose perspective draws the slots a few percent larger toward one end: the row is
+        // measured in its scaler's plane, in canvas pixels by the scaler's height on screen at its origin, as SkillRow
+        // measures it, so a row measured for the level view still fails.
+        public static IEnumerator ExpectSkillRowAsCanvasTilted(this Harness h) =>
+            h.ExpectSkillRow(rect => ScalerBox(h, rect));
+
+        private static IEnumerator ExpectSkillRow(this Harness h, System.Func<RectTransform, Rect> box)
         {
             string look = null;
             yield return h.Until(
@@ -246,10 +272,10 @@ namespace SevenUI.Tests
                 {
                     HUD hud = SevenUIChecks.HudRoot(h).GetComponent<HUD>();
                     if (!hud || hud.skillIcons == null || hud.skillIcons.Length < 2 || hud.skillIcons.Any(skill => !skill)) return false;
-                    List<Rect> boxes = hud.skillIcons.Select(skill => Box(h, (RectTransform)skill.transform)).ToList();
+                    List<Rect> boxes = hud.skillIcons.Select(skill => box((RectTransform)skill.transform)).ToList();
                     EquipmentIcon equipment = hud.equipmentIcons.FirstOrDefault(icon => icon && !icon.displayAlternateEquipment &&
                                                                                         icon.displayRoot);
-                    Rect equipmentBox = equipment ? Box(h, (RectTransform)equipment.displayRoot.transform) : new Rect();
+                    Rect equipmentBox = equipment ? box((RectTransform)equipment.displayRoot.transform) : new Rect();
                     Transform divider = hud.skillIcons.Last().transform.Find(SkillRow.DividerName);
                     look = string.Join(", ", boxes.Select(BoxText)) + $"; equipment {BoxText(equipmentBox)}; divider {(bool)divider}";
                     bool sized = boxes.All(box => Near(box.width, SkillSize) && Near(box.height, SkillSize));

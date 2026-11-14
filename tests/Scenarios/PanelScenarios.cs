@@ -680,7 +680,7 @@ namespace SevenUI.Tests
             h.SetConfig(settings.LevelHud, false);
             h.OnCleanup(() => h.SetConfig(settings.LevelHud, true));
             yield return h.ExpectHudTilted();
-            yield return h.ExpectSkillRowAsCanvas();
+            yield return h.ExpectSkillRowAsCanvasTilted();
             yield return h.ExpectHudAtCanvasMargins();
             yield return h.Screenshot("skill_row");
             yield return h.Screenshot("corners");
