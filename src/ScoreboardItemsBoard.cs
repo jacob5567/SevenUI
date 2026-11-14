@@ -56,6 +56,8 @@ namespace SevenUI
         private float rowsHeight;
         // Collapsed: the shown player's items, from the first row's top, which the board grows to hold.
         private bool collapsed;
+        // ScoreboardTabs as last laid out for, so turning it on or off with the scoreboard open lays the rows out again.
+        private bool tabsAllowed;
         private float itemsHeight;
         private ScoreboardDetailPane pane;
         private ScoreboardTabShape tab;
@@ -97,6 +99,7 @@ namespace SevenUI
             RectOffset padding = rowsGroup ? rowsGroup.padding : new RectOffset();
             gamePaddingRight = padding.right;
             docked = SevenUIPlugin.Settings.ScoreboardDetailPanel.Value;
+            tabsAllowed = SevenUIPlugin.Settings.ScoreboardTabs.Value;
             rowsPadding = new RectOffset(padding.left, RowsPaddingRight(docked), padding.top, padding.bottom);
             if (rowsGroup)
             {
@@ -163,6 +166,12 @@ namespace SevenUI
         {
             if (recorder == null) return;
             ApplyDocking();
+            bool tabs = SevenUIPlugin.Settings.ScoreboardTabs.Value;
+            if (tabs != tabsAllowed)
+            {
+                tabsAllowed = tabs;
+                stale = true;
+            }
             bool changed = Gather();
             foreach (ScoreboardItemGrid grid in grids)
             {
@@ -282,8 +291,8 @@ namespace SevenUI
             float spacing = rowsGroup ? rowsGroup.spacing : 0f;
             float size = SlotSize(candidate => ExpandedHeight(candidate, across), limit);
             // A lone player's row has nothing to collapse to, so it shrinks on.
-            // The setting is read live, so it applies while the scoreboard is open: off, the rows never collapse.
-            bool collapse = SevenUIPlugin.Settings.ScoreboardTabs.Value && grids.Count > 1 && size < SmallestRowsSlot;
+            // Off, the rows never collapse; LateUpdate lays them out again when the setting changes.
+            bool collapse = tabsAllowed && grids.Count > 1 && size < SmallestRowsSlot;
             if (collapse != collapsed)
             {
                 collapsed = collapse;
