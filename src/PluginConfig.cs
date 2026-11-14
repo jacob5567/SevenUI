@@ -13,6 +13,7 @@ namespace SevenUI
         public readonly ConfigEntry<bool> ScoreboardBesideRunInfo;
         public readonly ConfigEntry<bool> EquipmentDeck;
         public readonly ConfigEntry<bool> RestyleItemPickers;
+        public readonly ConfigEntry<bool> CompactAllyCards;
 
         public readonly ConfigEntry<bool> DebugLogging;
         public readonly ConfigEntry<KeyboardShortcut> DumpKey;
@@ -38,6 +39,9 @@ namespace SevenUI
             RestyleItemPickers = config.Bind("Panels", "RestyleItemPickers", true,
                 "Restyle the panels where you pick an item, such as Command and Void Potentials. Off keeps the game's look for " +
                 "them. Only with FlatPanels on.");
+            CompactAllyCards = config.Bind("Panels", "CompactAllyCards", true,
+                "Shrink the ally cards to compact rows and fold the ones that don't fit into \"+N more\" above the chat. Off keeps " +
+                "the cards at full size and never folds them. Only with FlatPanels on.");
 
             // Risk Of Options uses the section name as the menu header, so keep it exactly "Debug".
             DebugLogging = config.Bind("Debug", "DebugLogging", false,

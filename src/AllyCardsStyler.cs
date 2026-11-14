@@ -15,7 +15,8 @@ namespace SevenUI
     // still too tall, the cards that don't fit are hidden and one more row stands in for them, with a portrait for each
     // kind and "+N more", N the allies they hold (AllyMoreRow). The game keeps adding, filling, sorting and removing
     // the cards; this only resizes and hides them and draws over them. While the scoreboard is open, the cards are
-    // hidden altogether, as they would otherwise draw over the board's left edge.
+    // hidden altogether, as they would otherwise draw over the board's left edge. With CompactAllyCards off, none of the
+    // fitting happens: the cards keep their size and none is folded, though kinds still share cards.
     internal sealed class AllyCardsStyler : IStyler
     {
         // Under each card's health bar.
@@ -172,7 +173,9 @@ namespace SevenUI
             {
                 fullHeight += LookOf(kind.Lead).FullHeight;
             }
-            bool compact = fullHeight > room + SizeTolerance;
+            // With the setting off the cards keep their size and none is folded away, whatever the room.
+            bool fold = SevenUIPlugin.Settings.CompactAllyCards.Value;
+            bool compact = fold && fullHeight > room + SizeTolerance;
             float used = 0f;
             int shown = 0;
             float total = 0f;
@@ -180,7 +183,7 @@ namespace SevenUI
             {
                 total += Height(kind, compact);
             }
-            if (total > room + SizeTolerance)
+            if (fold && total > room + SizeTolerance)
             {
                 // The more row takes a compact row's room under the cards that fit.
                 while (shown < kinds.Count && used + Height(kinds[shown], compact) + AllyCompactCard.RowHeight <= room + SizeTolerance)

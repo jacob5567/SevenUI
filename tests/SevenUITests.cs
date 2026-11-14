@@ -34,6 +34,7 @@ namespace SevenUI.Tests
             if (!settings.MonospaceDamageNumbers.Value) return "MonospaceDamageNumbers is off in the SevenUI config";
             if (!settings.EquipmentDeck.Value) return "EquipmentDeck is off in the SevenUI config";
             if (!settings.RestyleItemPickers.Value) return "RestyleItemPickers is off in the SevenUI config";
+            if (!settings.CompactAllyCards.Value) return "CompactAllyCards is off in the SevenUI config";
             return null;
         }
 

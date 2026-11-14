@@ -238,6 +238,32 @@ namespace SevenUI.Tests
             return More(h) ? "the more row is still there" : null;
         }
 
+        // Null when every kind's first card is shown at the game's height and there is no more row. Shared cards keep
+        // their count and segments, and a kind's other cards stay hidden, so unlike GameLook this leaves them be.
+        public static string FullSize(Harness h)
+        {
+            List<AllyCardController> cards = Cards(h);
+            List<string> seen = new List<string>();
+            foreach (AllyCardController card in cards)
+            {
+                CharacterMaster master = card.sourceMaster;
+                CharacterBody body = master ? master.GetBody() : null;
+                string kind = body && !master.playerCharacterMasterController ? Util.GetBestBodyName(body.gameObject) : null;
+                CharacterMaster leader = master && master.minionOwnership ? master.minionOwnership.ownerMaster : null;
+                if (kind != null)
+                {
+                    string key = kind + "/" + (leader ? leader.GetInstanceID().ToString() : "");
+                    if (seen.Contains(key)) continue;
+                    seen.Add(key);
+                }
+                if (!card.gameObject.activeSelf) return $"{Name(card)}'s card is hidden";
+                float tall = card.rectTransform.rect.height;
+                if (Mathf.Abs(tall - GameHeight) > Tolerance) return $"{Name(card)}'s card is {tall:0.#} units tall, not {GameHeight:0.#}";
+            }
+            RectTransform more = More(h);
+            return more && more.gameObject.activeSelf ? "the more row is still shown" : null;
+        }
+
         private static RectTransform More(Harness h)
         {
             AllyCardManager manager = SevenUIChecks.HudRoot(h).GetComponentInChildren<AllyCardManager>(true);

@@ -66,6 +66,7 @@ namespace SevenUI.Tests
             yield return new Scenario(1, "void_transformation_notification_blend", Stages.TitanicPlains,
                 VoidTransformationNotificationBlend);
             yield return new Scenario(1, "stocks_in_slot_corners", Stages.TitanicPlains, StocksInSlotCorners);
+            yield return new Scenario(1, "ally_cards_not_compact", Stages.TitanicPlains, AllyCardsNotCompact);
             yield return new Scenario(1, "next_equipment_deck_swaps", Stages.TitanicPlains, NextEquipmentDeckSwaps);
             yield return new Scenario(1, "ntormat_pages_follow_key_item", Stages.TitanicPlains, NtormatPagesFollowKeyItem);
             yield return new Scenario(1, "top_is_flat", Stages.TitanicPlains, TopIsFlat);
@@ -618,6 +619,31 @@ namespace SevenUI.Tests
             Allies.Remove(dropped);
             allies.RemoveAll(dropped.Contains);
             yield return h.Until(() => Settled(now => !now.Compact && now.HiddenAllies == 0), () => $"with the allies dropped: {Look()}");
+        }
+
+        // CompactAllyCards off keeps every card at the game's height and folds none into "+N more", with allies enough
+        // that the cards would otherwise fold; on again folds them as before.
+        private static IEnumerator AllyCardsNotCompact(Harness h)
+        {
+            PluginConfig settings = SevenUIPlugin.Settings;
+            List<CharacterMaster> allies = new List<CharacterMaster>();
+            AllyCardChecks.Layout layout = AllyCardChecks.Measure(h);
+            for (int added = 0; added < MaxOverflowPairs && layout.HiddenAllies == 0; added++)
+            {
+                yield return Allies.SummonLoneAllies(h, 1, allies);
+                yield return h.Until(() => (layout = AllyCardChecks.Measure(h)).Problem == null, () => $"cards settled: {layout.Problem}");
+            }
+            yield return h.Until(() => (layout = AllyCardChecks.Measure(h)).Problem == null && layout.HiddenAllies > 0,
+                () => $"a more row before turning the setting off: {layout.Problem ?? "none"} {h.Diagnosis()}");
+            h.SetConfig(settings.CompactAllyCards, false);
+            h.OnCleanup(() => h.SetConfig(settings.CompactAllyCards, true));
+            string problem = null;
+            yield return h.Until(() => (problem = AllyCardChecks.FullSize(h)) == null,
+                () => $"with CompactAllyCards off, {problem} {h.Diagnosis()}");
+            yield return h.Screenshot("off");
+            h.SetConfig(settings.CompactAllyCards, true);
+            yield return h.Until(() => (layout = AllyCardChecks.Measure(h)).Problem == null && layout.HiddenAllies > 0,
+                () => $"with CompactAllyCards back on: {layout.Problem ?? "no more row"} {h.Diagnosis()}");
         }
 
         private static IEnumerator ProtectionBothLooks(Harness h, System.Func<IEnumerable<HealthBar>> bars, string whose)
