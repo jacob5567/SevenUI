@@ -14,7 +14,7 @@ namespace SevenUI
     // bar shows it (KarmaRow) in place of the game's Karma icon, and while any artifact is on, a row under those shows
     // the artifacts' icons (ArtifactRow) in place of the game's artifact panel; the panel and the column under it make
     // room for each. The
-    // panel is the canvas's height, and the timer reads "24:51" without the hundredths (TightTimerFormat). The column
+    // panel is the canvas's height, and the timer reads "24:51", without the hundredths unless TimerHundredths is on (TightTimerFormat). The column
     // it heads, which holds the objective panel, is widened to 300 of the canvas's pixels and starts a gap under it.
     // The game's objects keep running; only their look and places change.
     internal sealed class RunInfoStyler : IStyler
@@ -75,6 +75,8 @@ namespace SevenUI
 
         private readonly Transform root;
         private readonly StyleRecorder recorder = new StyleRecorder();
+        // Each run timer's own format, from before the first restyle.
+        private readonly Dictionary<TimerText, TimerStringFormatter> originals = new Dictionary<TimerText, TimerStringFormatter>();
         private readonly List<DifficultyBarController> bars = new List<DifficultyBarController>();
         private readonly List<Image> karmaImages = new List<Image>();
         // The artifacts' row is null for a panel without the game's artifact panel under it.
@@ -112,6 +114,7 @@ namespace SevenUI
         {
             recorder.Restore();
             styled.Clear();
+            originals.Clear();
             karmaShown = false;
             artifactsShown = false;
         }
@@ -234,17 +237,28 @@ namespace SevenUI
             PlaceRowsDown(panel, column, timer, stage, difficultyBar);
         }
 
+        // Apply runs again, without a restore, when a setting changes, so work out the format from scratch each time:
+        // the game's own with TimerHundredths on, else the tight copy.
         private void TightenTimer(TimerText timer)
         {
-            if (!timer || !timer.format || TightTimerFormat.IsTight(timer.format)) return;
-            TimerStringFormatter format = timer.format;
-            recorder.OnRestore(() =>
+            if (!timer || !timer.format) return;
+            if (!originals.TryGetValue(timer, out TimerStringFormatter original))
             {
-                if (!timer) return;
-                timer.format = format;
-            });
+                if (TightTimerFormat.IsTight(timer.format)) return;
+                original = timer.format;
+                originals[timer] = original;
+                recorder.OnRestore(() =>
+                {
+                    if (!timer) return;
+                    timer.format = original;
+                });
+            }
+            TimerStringFormatter want = SevenUIPlugin.Settings.TimerHundredths.Value ? original : TightTimerFormat.Of(original);
             // The setter writes the text again in the new format.
-            timer.format = TightTimerFormat.Of(format);
+            if (timer.format != want)
+            {
+                timer.format = want;
+            }
         }
 
         // The rows from the top: the timer's row keeps its middle, the right-hand text is centered on it, and the

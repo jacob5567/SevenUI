@@ -61,6 +61,7 @@ Edit `BepInEx/config/sevenstack.SevenUI.cfg`, or use [Risk Of Options](https://t
 | `ScoreboardTabs` | true | Off keeps every scoreboard row and shrinks the items to fit, instead of collapsing the rows to tabs. Only with `FlatPanels` on. |
 | `RestylePauseMenu` | true | Restyle the pause menu. Off keeps the game's look for it. Only with `FlatPanels` on. |
 | `RestyleTooltips` | true | Restyle the tooltips of items, equipment and skills in the HUD. Off keeps the game's look for them. Only with `FlatPanels` on. |
+| `TimerHundredths` | false | On shows the run timer's hundredths, which `TightTimerFormat` removes. Only with `FlatPanels` on. |
 | `DebugLogging` | false | Log extra detail, and enable the dump key. |
 | `DumpKey` | F8 | With `DebugLogging` on, log each HUD's fonts and what the mod restyled. |
 

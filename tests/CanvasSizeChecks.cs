@@ -79,6 +79,7 @@ namespace SevenUI.Tests
         // In shares of a slot; the game's look is drawn turned, so its shares come out a little off.
         private const float UtilityAreaTolerance = 0.06f;
         // The timer's tags hold dots of their own, "<mspace=0.46em>".
+        private const string StageTextName = "Stage Text";
         private static readonly Regex Tags = new Regex("<[^>]*>");
 
         // Canvas pixels per screen pixel, and a rect's box on screen in canvas pixels.
@@ -379,6 +380,31 @@ namespace SevenUI.Tests
                 () => $"the run info {RunInfoHeight}px tall (and the artifacts' row while Rebirth is on) with the column " +
                       $"{ColumnGap}px under it, and the timer without " +
                       $"hundredths ({look}) {h.Diagnosis()}");
+        }
+
+        // The run timer shows its hundredths (or not), and its text, however long, ends left of the stage text.
+        public static IEnumerator ExpectTimerHundredths(this Harness h, bool shown)
+        {
+            string look = null;
+            yield return h.Until(
+                () =>
+                {
+                    Transform cluster = SevenUIChecks.HudRoot(h).Find(UpperRightPath);
+                    TimerText timer = cluster ? cluster.GetComponentInChildren<TimerText>(true) : null;
+                    Transform stage = cluster ? cluster.GetComponentsInChildren<Transform>(true)
+                        .FirstOrDefault(child => child.name == StageTextName) : null;
+                    if (!timer || !timer.targetLabel || !stage) return false;
+                    string text = Tags.Replace(timer.targetLabel.text, "");
+                    bool hasHundredths = text.Contains(".");
+                    (Camera camera, float unit) = Screen(h);
+                    TMP_Text label = timer.targetLabel;
+                    Vector3 end = label.transform.TransformPoint(new Vector3(label.textBounds.max.x, 0f, 0f));
+                    float right = RectTransformUtility.WorldToScreenPoint(camera, end).x / unit;
+                    float stageLeft = Box(h, (RectTransform)stage).xMin;
+                    look = $"timer '{text}' ends at x {right:0.#}, the stage text starts at x {stageLeft:0.#}";
+                    return hasHundredths == shown && (!shown || right <= stageLeft);
+                },
+                () => $"the run timer {(shown ? "with" : "without")} hundredths, ending left of the stage text ({look}) {h.Diagnosis()}");
         }
 
         // Each open objective's box drawn as the mod's outline, on whole screen pixels, and a done one's as the game's check.

@@ -86,6 +86,7 @@ namespace SevenUI.Tests
             yield return new Scenario(1, "pause_menu_as_canvas", Stages.TitanicPlains, PauseMenuAsCanvas);
             yield return new Scenario(1, "pause_menu_follows_flat_panels", Stages.TitanicPlains, PauseMenuFollowsFlatPanels);
             yield return new Scenario(1, "pause_menu_setting_off", Stages.TitanicPlains, PauseMenuSettingOff);
+            yield return new Scenario(1, "timer_hundredths_setting", Stages.TitanicPlains, TimerHundredthsSetting);
             yield return new Scenario(1, "hud_settles", Stages.TitanicPlains, HudSettles);
             yield return new Scenario(1, "protection_striped_on_player", Stages.TitanicPlains, ProtectionStripedOnPlayer);
             yield return new Scenario(1, "protection_tinted_with_infusion", Stages.TitanicPlains, ProtectionTintedWithInfusion);
@@ -98,6 +99,20 @@ namespace SevenUI.Tests
         private static IEnumerator HudFacesScreen(Harness h)
         {
             yield return h.ExpectHudLevel();
+        }
+
+        // With TimerHundredths on, the run timer shows the game's hundredths and still ends left of the stage text; off
+        // again, they are gone. Both with no restart.
+        private static IEnumerator TimerHundredthsSetting(Harness h)
+        {
+            PluginConfig settings = SevenUIPlugin.Settings;
+            h.OnCleanup(() => h.SetConfig(settings.TimerHundredths, false));
+            yield return h.ExpectHudLevel();
+            h.SetConfig(settings.TimerHundredths, true);
+            yield return h.ExpectTimerHundredths(true);
+            yield return h.Screenshot("timer_hundredths_on");
+            h.SetConfig(settings.TimerHundredths, false);
+            yield return h.ExpectTimerHundredths(false);
         }
 
         // Both ways; the top bars keep the canvas's width either way.

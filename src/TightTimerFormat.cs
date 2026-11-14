@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace SevenUI
 {
-    // Copies of the run timer's format as on the design canvas, "24:51": without the hundredths, and with only the
+    // Copies of the run timer's format as on the design canvas, "24:51": without the hundredths (unless TimerHundredths is on), and with only the
     // digits set evenly apart. The game's format sets every character, the colons too, half an em apart, which spaces
     // the colons widely in Barlow Condensed. Its digits differ in width, so they stay evenly set, at the widest one's
     // width, and the timer doesn't shift as it counts. Made once per format and shared by every HUD.
