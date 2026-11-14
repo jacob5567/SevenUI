@@ -22,8 +22,11 @@ namespace SevenUI
 
         private Image stripes;
         private readonly List<Image> bars = new List<Image>();
+        private readonly List<Image> found = new List<Image>();
+        private RectTransform cachedContainer;
+        private int cachedHierarchyCount = -1;
 
-        // LateUpdate, after the bar has placed this frame's images. A few reads of the bar's children.
+        // LateUpdate, after the bar has placed this frame's images. A few reads of the bar's cached child images.
         private void LateUpdate()
         {
             RectTransform container = Bar ? Bar.barContainer : null;
@@ -32,12 +35,14 @@ namespace SevenUI
             {
                 stripes = NewStripes(container);
             }
-            container.GetComponentsInChildren(false, bars);
+            Refresh(container);
             Image marker = null;
             int over = -1;
             foreach (Image image in bars)
             {
-                if (image == stripes || image.transform.parent != container || !image.enabled) continue;
+                // Destroyed since the last refresh; the next hierarchy change drops it. Inactive ones are cached too,
+                // as the game pools and toggles its bar images without changing the hierarchy.
+                if (!image || !image.isActiveAndEnabled) continue;
                 if (image.sprite == FlatSprite.ProtectionHatch)
                 {
                     marker = image;
@@ -48,7 +53,6 @@ namespace SevenUI
                     over = Mathf.Max(over, image.transform.GetSiblingIndex());
                 }
             }
-            bars.Clear();
             stripes.enabled = marker;
             if (!marker) return;
             Tint(Bar.barInfoCollection.trailingOverHealthbarInfo.color);
@@ -71,6 +75,27 @@ namespace SevenUI
             {
                 stripes.transform.SetSiblingIndex(wanted);
             }
+        }
+
+        // Rescans only when the container's descendant count changes, which catches any bar image added or removed at any
+        // depth (a direct child count would miss deeper ones). Toggling or restyling an existing image changes no count,
+        // and is read from the cached image each frame.
+        private void Refresh(RectTransform container)
+        {
+            int count = container.hierarchyCount;
+            if (container == cachedContainer && count == cachedHierarchyCount) return;
+            cachedContainer = container;
+            cachedHierarchyCount = count;
+            bars.Clear();
+            container.GetComponentsInChildren(true, found);
+            foreach (Image image in found)
+            {
+                if (image != stripes && image.transform.parent == container)
+                {
+                    bars.Add(image);
+                }
+            }
+            found.Clear();
         }
 
         // The green pair as chosen for the canvas's health; any other health color tints the neutral pair.
