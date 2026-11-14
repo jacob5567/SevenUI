@@ -52,7 +52,10 @@ namespace SevenUI.Tests
 
         public static IEnumerable<Scenario> Checks() =>
             Checks(Board.Rows).Concat(Checks(Board.Tabs)).Append(CollapseWhileOpenScenario()).Append(HidesAllyCardsScenario())
-                .Append(new Scenario(1, "scoreboard_tabs_off", Stages.TitanicPlains, TabsOff));
+                .Append(new Scenario(1, "scoreboard_panels_off_and_on_at_once", Stages.TitanicPlains, PanelsOffAndOnAtOnce))
+                .Append(TabsOffScenario());
+
+        internal static Scenario TabsOffScenario() => new Scenario(1, "scoreboard_tabs_off", Stages.TitanicPlains, TabsOff);
 
         // Each board's checks, named "scoreboard_..." on the rows and "scoreboard_tabs_..." on the tabs.
         public static IEnumerable<Scenario> Checks(Board board)
@@ -257,6 +260,21 @@ namespace SevenUI.Tests
             yield return h.Wait(SettleSeconds);
             string tabs = board == Board.Tabs ? "_tabs" : "";
             yield return h.Screenshot($"scoreboard{tabs}_{(keyItem ? "key_item" : "equipment")}_pane");
+        }
+
+        // FlatPanels off and on in one frame with the scoreboard open: what the restore destroys is still there for the
+        // rest of that frame, and the row styled again must not take it for its own (an empty picture of the game's
+        // came back into the row's columns and pushed the key item and equipment a gap right).
+        private static IEnumerator PanelsOffAndOnAtOnce(Harness h)
+        {
+            PluginConfig settings = SevenUIPlugin.Settings;
+            ScoreboardSetUp.GiveDifferentItems(h, ManyItems);
+            yield return ScoreboardSetUp.Open(h);
+            yield return h.ExpectScoreboardAsCanvas(false);
+            h.SetConfig(settings.FlatPanels, false);
+            h.SetConfig(settings.FlatPanels, true);
+            yield return h.Wait(SettleSeconds);
+            yield return h.ExpectScoreboardAsCanvas(false);
         }
 
         // With ScoreboardTabs off, the crowd that collapses the rows on the tabs board leaves every row with its items, so

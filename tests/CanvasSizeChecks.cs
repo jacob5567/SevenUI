@@ -637,6 +637,13 @@ namespace SevenUI.Tests
                         .FirstOrDefault(r => r.Strip && r.Strip.master == Harness.LocalBody.master) : null;
                     look = $"board {(bool)board}, items board {(bool)items}, viewer's row {(bool)row}";
                     if (!items || !row) return false;
+                    // The game removes the rows of players who left in its Update, the frame after the scoreboard opens;
+                    // the board drops them in its LateUpdate, after this is read.
+                    if (items.Grids.Any(grid => !grid.Alive))
+                    {
+                        look = "rows removed, not yet dropped by the board";
+                        return false;
+                    }
                     bool collapsed = items.Collapsed;
                     string folded = collapse.HasValue && collapsed != collapse.Value
                         ? $"rows {(collapsed ? "collapsed" : "not collapsed")}, wanted {(collapse.Value ? "collapsed" : "not")}"
