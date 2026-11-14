@@ -95,7 +95,7 @@ namespace SevenUI
 
         public bool Styled => styled;
 
-        public bool Enabled => SevenUIPlugin.Settings.FlatPanels.Value;
+        public bool Enabled => SevenUIPlugin.Settings.FlatPanels.Value && SevenUIPlugin.Settings.RestylePauseMenu.Value;
 
         // The menu is styled as it opens, in Update, not here.
         public void Apply()

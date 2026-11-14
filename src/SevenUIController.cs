@@ -90,6 +90,7 @@ namespace SevenUI
                 SevenUIPlugin.Settings.LevelHud,
                 SevenUIPlugin.Settings.ScoreboardDetailPanel,
                 SevenUIPlugin.Settings.ScoreboardTabs,
+                SevenUIPlugin.Settings.RestylePauseMenu,
             };
             foreach (ConfigEntry<bool> setting in watched)
             {

@@ -85,6 +85,7 @@ namespace SevenUI.Tests
             yield return new Scenario(1, "chat_input_outlined", Stages.TitanicPlains, ChatInputOutlined);
             yield return new Scenario(1, "pause_menu_as_canvas", Stages.TitanicPlains, PauseMenuAsCanvas);
             yield return new Scenario(1, "pause_menu_follows_flat_panels", Stages.TitanicPlains, PauseMenuFollowsFlatPanels);
+            yield return new Scenario(1, "pause_menu_setting_off", Stages.TitanicPlains, PauseMenuSettingOff);
             yield return new Scenario(1, "hud_settles", Stages.TitanicPlains, HudSettles);
             yield return new Scenario(1, "protection_striped_on_player", Stages.TitanicPlains, ProtectionStripedOnPlayer);
             yield return new Scenario(1, "protection_tinted_with_infusion", Stages.TitanicPlains, ProtectionTintedWithInfusion);
@@ -767,6 +768,33 @@ namespace SevenUI.Tests
                 () => $"with the panels off, {PauseMenuVanillaLook() ?? PauseMenuFontProblem()} {h.Diagnosis()}");
             h.SetConfig(SevenUIPlugin.Settings.FlatPanels, true);
             yield return h.Until(() => PauseMenuLook(difficulty) == null, () => $"with the panels back on, {PauseMenuLook(difficulty)} {h.Diagnosis()}");
+            PauseManager.ClosePauseScreen(true);
+            yield return h.Until(() => PauseScreenController.instancesList.Count == 0, () => $"the pause menu is still open {h.Diagnosis()}");
+        }
+
+        // The menu left open while RestylePauseMenu goes off and on: the game's look comes back on it, then the mod's again.
+        private static IEnumerator PauseMenuSettingOff(Harness h)
+        {
+            PluginConfig settings = SevenUIPlugin.Settings;
+            PauseManager.TogglePauseScreen();
+            h.OnCleanup(() =>
+            {
+                if (PauseManager.PauseScreenIsOpen())
+                {
+                    PauseManager.ClosePauseScreen(true);
+                }
+            });
+            string difficulty = RunInfoText.Name(DifficultyCatalog.GetDifficultyDef(Run.instance.selectedDifficulty));
+            yield return h.Until(() => PauseMenuLook(difficulty) == null, () => $"{PauseMenuLook(difficulty)} {h.Diagnosis()}");
+            h.SetConfig(settings.RestylePauseMenu, false);
+            h.OnCleanup(() => h.SetConfig(settings.RestylePauseMenu, true));
+            // BarlowFont is on (the suite requires it), so the menu keeps Barlow when only the restyle goes.
+            yield return h.Until(() => PauseMenuVanillaLook() == null && PauseMenuFontProblem() == null,
+                () => $"with RestylePauseMenu off, {PauseMenuVanillaLook() ?? PauseMenuFontProblem()} {h.Diagnosis()}");
+            yield return h.Wait(PauseSettleSeconds);
+            yield return h.Screenshot("pause_off");
+            h.SetConfig(settings.RestylePauseMenu, true);
+            yield return h.Until(() => PauseMenuLook(difficulty) == null, () => $"with RestylePauseMenu back on, {PauseMenuLook(difficulty)} {h.Diagnosis()}");
             PauseManager.ClosePauseScreen(true);
             yield return h.Until(() => PauseScreenController.instancesList.Count == 0, () => $"the pause menu is still open {h.Diagnosis()}");
         }
