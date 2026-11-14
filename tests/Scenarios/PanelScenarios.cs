@@ -47,6 +47,7 @@ namespace SevenUI.Tests
         private const float DeckCanvasHeight = 1080f;
         // Enough lone allies past the compact rows to need the more row, whatever the room above the chat.
         private const int MaxOverflowPairs = 20;
+        private const int GroupedDroneCount = 3;
         // Barrier decays, so plenty for both looks' checks.
         private const float ProtectionBarrierShare = 0.8f;
 
@@ -67,6 +68,7 @@ namespace SevenUI.Tests
                 VoidTransformationNotificationBlend);
             yield return new Scenario(1, "stocks_in_slot_corners", Stages.TitanicPlains, StocksInSlotCorners);
             yield return new Scenario(1, "ally_cards_not_compact", Stages.TitanicPlains, AllyCardsNotCompact);
+            yield return new Scenario(1, "ally_cards_not_grouped", Stages.TitanicPlains, AllyCardsNotGrouped);
             yield return new Scenario(1, "next_equipment_deck_swaps", Stages.TitanicPlains, NextEquipmentDeckSwaps);
             yield return new Scenario(1, "ntormat_pages_follow_key_item", Stages.TitanicPlains, NtormatPagesFollowKeyItem);
             yield return new Scenario(1, "top_is_flat", Stages.TitanicPlains, TopIsFlat);
@@ -644,6 +646,26 @@ namespace SevenUI.Tests
             h.SetConfig(settings.CompactAllyCards, true);
             yield return h.Until(() => (layout = AllyCardChecks.Measure(h)).Problem == null && layout.HiddenAllies > 0,
                 () => $"with CompactAllyCards back on: {layout.Problem ?? "no more row"} {h.Diagnosis()}");
+        }
+
+        // GroupAllyCards off gives every ally a card of its own with the game's name and bar, no count or segments; on
+        // again shares one card among the Gunner Drones.
+        private static IEnumerator AllyCardsNotGrouped(Harness h)
+        {
+            PluginConfig settings = SevenUIPlugin.Settings;
+            int before = AllyCardChecks.Cards(h).Count;
+            List<CharacterMaster> allies = new List<CharacterMaster>();
+            yield return Allies.SummonDrones(h, Allies.GunnerDroneMaster, GroupedDroneCount, allies);
+            yield return h.Until(() => AllyCardChecks.Cards(h).Count == before + GroupedDroneCount && AllyCardChecks.Grouped(h),
+                () => $"the drones' cards shared before turning the setting off {h.Diagnosis()}");
+            h.SetConfig(settings.GroupAllyCards, false);
+            h.OnCleanup(() => h.SetConfig(settings.GroupAllyCards, true));
+            string problem = null;
+            yield return h.Until(() => (problem = AllyCardChecks.GameLook(h, before + GroupedDroneCount)) == null && !AllyCardChecks.Grouped(h),
+                () => $"with GroupAllyCards off, {problem ?? "segments remain"} {h.Diagnosis()}");
+            yield return h.Screenshot("off");
+            h.SetConfig(settings.GroupAllyCards, true);
+            yield return h.Until(() => AllyCardChecks.Grouped(h), () => $"with GroupAllyCards back on, the cards are shared {h.Diagnosis()}");
         }
 
         private static IEnumerator ProtectionBothLooks(Harness h, System.Func<IEnumerable<HealthBar>> bars, string whose)

@@ -238,6 +238,17 @@ namespace SevenUI.Tests
             return More(h) ? "the more row is still there" : null;
         }
 
+        // True when any card carries the mod's count or segments.
+        public static bool Grouped(Harness h)
+        {
+            foreach (AllyCardController card in Cards(h))
+            {
+                if (card.nameLabel && card.nameLabel.transform.Find(AllyKindParts.CountName)) return true;
+                if (card.healthBar && card.healthBar.transform.parent.Find(AllyKindParts.SegmentsName)) return true;
+            }
+            return false;
+        }
+
         // Null when every kind's first card is shown at the game's height and there is no more row. Shared cards keep
         // their count and segments, and a kind's other cards stay hidden, so unlike GameLook this leaves them be.
         public static string FullSize(Harness h)

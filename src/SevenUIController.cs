@@ -84,6 +84,7 @@ namespace SevenUI
                 SevenUIPlugin.Settings.EquipmentDeck,
                 SevenUIPlugin.Settings.RestyleItemPickers,
                 SevenUIPlugin.Settings.CompactAllyCards,
+                SevenUIPlugin.Settings.GroupAllyCards,
             };
             foreach (ConfigEntry<bool> setting in watched)
             {

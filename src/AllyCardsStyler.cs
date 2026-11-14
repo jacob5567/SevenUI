@@ -16,7 +16,8 @@ namespace SevenUI
     // kind and "+N more", N the allies they hold (AllyMoreRow). The game keeps adding, filling, sorting and removing
     // the cards; this only resizes and hides them and draws over them. While the scoreboard is open, the cards are
     // hidden altogether, as they would otherwise draw over the board's left edge. With CompactAllyCards off, none of the
-    // fitting happens: the cards keep their size and none is folded, though kinds still share cards.
+    // fitting happens: the cards keep their size and none is folded. With GroupAllyCards off, every card stands alone,
+    // as the game has it.
     internal sealed class AllyCardsStyler : IStyler
     {
         // Under each card's health bar.
@@ -311,11 +312,13 @@ namespace SevenUI
                 spareKinds.Push(kind);
             }
             kinds.Clear();
+            bool group = SevenUIPlugin.Settings.GroupAllyCards.Value;
             foreach (AllyCardController card in cards)
             {
                 CharacterMaster master = card.sourceMaster;
-                // Players stand alone, as does an ally between bodies, which has no name to group by.
-                string name = master && !master.playerCharacterMasterController ? NameOf(master) : null;
+                // Players stand alone, as does an ally between bodies, which has no name to group by. With grouping off
+                // no card has a name, so each is a kind of its own and ShowKind takes off any parts it had.
+                string name = group && master && !master.playerCharacterMasterController ? NameOf(master) : null;
                 CharacterMaster leader = master && master.minionOwnership ? master.minionOwnership.ownerMaster : null;
                 Kind found = null;
                 if (name != null)

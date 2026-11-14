@@ -47,6 +47,7 @@ Edit `BepInEx/config/sevenstack.SevenUI.cfg`, or use the in-game settings menu i
 | `EquipmentDeck` | true | Show the next equipment as a deck of icons above the equipment slot with a Functional Coupler. Off shows no deck, only the slot. Only with `FlatPanels` on. |
 | `RestyleItemPickers` | true | Restyle the panels where you pick an item, such as Command and Void Potentials, as cards or a grid in the flat look. Off keeps the game's look for them, open now or opened later. Only with `FlatPanels` on. |
 | `CompactAllyCards` | true | While the ally cards would reach down over the chat, make the cards of single allies compact rows, and fold the cards that still don't fit into one "+N more" row. Off keeps every card at full size and never folds any, so the cards may overlap the chat. Only with `FlatPanels` on. |
+| `GroupAllyCards` | true | Allies of one kind (the same name, following the same leader) share one card, with "×N" after the name and a health segment per ally in place of the bar. Off shows one card per ally, as the game has it, with its own name and health bar. Only with `FlatPanels` on. |
 | `DebugLogging` | false | Log extra detail, and enable the dump key. |
 | `DumpKey` | F8 | With `DebugLogging` on, press to log each HUD's fonts and what the mod restyled. |
 
