@@ -282,7 +282,8 @@ namespace SevenUI
             float spacing = rowsGroup ? rowsGroup.spacing : 0f;
             float size = SlotSize(candidate => ExpandedHeight(candidate, across), limit);
             // A lone player's row has nothing to collapse to, so it shrinks on.
-            bool collapse = grids.Count > 1 && size < SmallestRowsSlot;
+            // The setting is read live, so it applies while the scoreboard is open: off, the rows never collapse.
+            bool collapse = SevenUIPlugin.Settings.ScoreboardTabs.Value && grids.Count > 1 && size < SmallestRowsSlot;
             if (collapse != collapsed)
             {
                 collapsed = collapse;

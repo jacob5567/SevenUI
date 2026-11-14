@@ -51,7 +51,8 @@ namespace SevenUI.Tests
             Checks(board).Append(CollapseWhileOpenScenario()).Append(HidesAllyCardsScenario()).Concat(Screenshots(board));
 
         public static IEnumerable<Scenario> Checks() =>
-            Checks(Board.Rows).Concat(Checks(Board.Tabs)).Append(CollapseWhileOpenScenario()).Append(HidesAllyCardsScenario());
+            Checks(Board.Rows).Concat(Checks(Board.Tabs)).Append(CollapseWhileOpenScenario()).Append(HidesAllyCardsScenario())
+                .Append(new Scenario(1, "scoreboard_tabs_off", Stages.TitanicPlains, TabsOff));
 
         // Each board's checks, named "scoreboard_..." on the rows and "scoreboard_tabs_..." on the tabs.
         public static IEnumerable<Scenario> Checks(Board board)
@@ -256,6 +257,39 @@ namespace SevenUI.Tests
             yield return h.Wait(SettleSeconds);
             string tabs = board == Board.Tabs ? "_tabs" : "";
             yield return h.Screenshot($"scoreboard{tabs}_{(keyItem ? "key_item" : "equipment")}_pane");
+        }
+
+        // With ScoreboardTabs off, the crowd that collapses the rows on the tabs board leaves every row with its items, so
+        // the game's look returns; toggled with the scoreboard open, with the detail panel on or off, the rows follow.
+        private static IEnumerator TabsOff(Harness h)
+        {
+            PluginConfig settings = SevenUIPlugin.Settings;
+            h.SetConfig(settings.FlatPanels, true);
+            h.SetConfig(settings.ScoreboardTabs, false);
+            h.SetConfig(settings.ScoreboardDetailPanel, false);
+            h.OnCleanup(() =>
+            {
+                h.SetConfig(settings.ScoreboardTabs, true);
+                h.SetConfig(settings.ScoreboardDetailPanel, true);
+            });
+            yield return UseBoard(h, Board.Tabs);
+            yield return ScoreboardSetUp.Open(h);
+            ScoreboardItemsBoard board = null;
+            yield return h.Until(() => (board = SevenUIChecks.HudRoot(h).GetComponentInChildren<ScoreboardItemsBoard>()) &&
+                                       board.Grids.Count > CrowdPlayers && !board.Collapsed,
+                () => $"every row kept, not collapsed ({(board ? board.Grids.Count + " rows, collapsed " + board.Collapsed : "no board")})");
+            yield return h.Wait(SettleSeconds);
+            yield return h.Screenshot("scoreboard_tabs_off");
+
+            h.SetConfig(settings.ScoreboardDetailPanel, true);
+            yield return h.Wait(SettleSeconds);
+            yield return h.Until(() => board && !board.Collapsed, () => "the rows still not collapsed with the detail panel on");
+
+            h.SetConfig(settings.ScoreboardTabs, true);
+            yield return h.Until(() => board && board.Collapsed, () => "the rows collapsed to tabs with ScoreboardTabs on");
+
+            h.SetConfig(settings.ScoreboardTabs, false);
+            yield return h.Until(() => board && !board.Collapsed, () => "the rows open again with ScoreboardTabs off");
         }
 
         // With ScoreboardDetailPanel off, the pointer on an item, and on the equipment, in the scoreboard leaves the game's

@@ -36,6 +36,7 @@ namespace SevenUI
             ModSettingsManager.AddOption(new CheckBoxOption(settings.GroupAllyCards));
             ModSettingsManager.AddOption(new CheckBoxOption(settings.LevelHud));
             ModSettingsManager.AddOption(new CheckBoxOption(settings.ScoreboardDetailPanel));
+            ModSettingsManager.AddOption(new CheckBoxOption(settings.ScoreboardTabs));
 
             // The options menu groups these under a "Debug" header, named after their config section.
             ModSettingsManager.AddOption(new CheckBoxOption(settings.DebugLogging));

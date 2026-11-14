@@ -89,6 +89,7 @@ namespace SevenUI
                 SevenUIPlugin.Settings.GroupAllyCards,
                 SevenUIPlugin.Settings.LevelHud,
                 SevenUIPlugin.Settings.ScoreboardDetailPanel,
+                SevenUIPlugin.Settings.ScoreboardTabs,
             };
             foreach (ConfigEntry<bool> setting in watched)
             {
