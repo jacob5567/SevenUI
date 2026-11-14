@@ -127,6 +127,9 @@ namespace SevenUI.Tests
                 float height = compact && kind.Allies <= 1 ? AllyCompactCard.RowHeight : GameHeight;
                 float tall = card.rectTransform.rect.height;
                 if (Mathf.Abs(tall - height) > Tolerance) return $"{Name(card)}'s card is {tall:0.#} units tall, not {height:0.#}";
+                // The portrait is sized by the card's layout, so it can lag behind the card's own height.
+                float portrait = card.portraitIconImage ? card.portraitIconImage.rectTransform.rect.height : 0f;
+                if (portrait > tall + Tolerance) return $"{Name(card)}'s portrait is {portrait:0.#} units tall, more than its {tall:0.#}-unit card";
                 float depth = Depth(cluster, card.rectTransform);
                 if (depth > room + Tolerance) return $"{Name(card)}'s card reaches {depth:0.#} units down, past the {room:0.#} above the chat";
                 TMP_Text count = card.nameLabel ? card.nameLabel.transform.Find(AllyKindParts.CountName)?.GetComponent<TMP_Text>() : null;
