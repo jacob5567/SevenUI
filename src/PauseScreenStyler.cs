@@ -57,6 +57,7 @@ namespace SevenUI
         // What the styling of the open menu changed, put back by Restore. New for each menu, as the game destroys the old.
         private StyleRecorder recorder = new StyleRecorder();
         private PauseScreenController styled;
+        private HudFontSwapper fonts;
         private RectTransform options;
         private TMP_Text title;
         private TMP_Text runLine;
@@ -98,12 +99,38 @@ namespace SevenUI
         public void Restore()
         {
             recorder.Restore();
+            RestoreFonts();
             recorder = new StyleRecorder();
             ForgetMenu();
         }
 
+        // The skin controllers come back on with Restore and then set their button's font from the skin every frame,
+        // unless the label takes the language's font (an HGTextMeshProUGUI that does is skipped; the game reads that
+        // flag only when the text wakes). The swap clears it so Barlow stays, so with BarlowFont on the flag is set
+        // again, which is also how the game has it; with it off the swap is undone, as the skin would have done.
+        private void RestoreFonts()
+        {
+            if (fonts == null) return;
+            if (SevenUIPlugin.Settings.BarlowFont.Value)
+            {
+                foreach (Entry entry in buttons)
+                {
+                    HGTextMeshProUGUI label = entry.Label as HGTextMeshProUGUI;
+                    if (label)
+                    {
+                        label.useLanguageDefaultFont = true;
+                    }
+                }
+            }
+            else
+            {
+                fonts.Restore();
+            }
+        }
+
         private void ForgetMenu()
         {
+            fonts = null;
             buttons.Clear();
             styled = null;
             options = null;
@@ -202,8 +229,8 @@ namespace SevenUI
             timer = timerObject ? timerObject.GetComponent<TMP_Text>() : null;
             if (barlowFont)
             {
-                HudFontSwapper fonts = new HudFontSwapper(hud, menu.transform);
-                // Not restored with the panels: the menu keeps Barlow while BarlowFont is on, as it always has.
+                fonts = new HudFontSwapper(hud, menu.transform);
+                // Not undone with the panels while BarlowFont is on: the menu keeps Barlow, as it always has.
                 fonts.Apply();
             }
         }
