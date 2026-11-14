@@ -832,6 +832,52 @@ namespace SevenUI.Tests
                 () => $"the {what} described in the scoreboard's pane ({look}) {h.Diagnosis()}");
         }
 
+        // With ScoreboardDetailPanel off and the pointer on the provider: the game's own tooltip shown (its canvas on), the
+        // pane not used, and no room for the pane's column right of the rows.
+        public static IEnumerator ExpectGameTooltip(this Harness h, TooltipProvider provider, string what)
+        {
+            string look = null;
+            yield return h.Until(
+                () =>
+                {
+                    MPEventSystem events = EventSystem.current as MPEventSystem;
+                    ScoreboardItemsBoard board = provider ? provider.GetComponentInParent<ScoreboardItemsBoard>() : null;
+                    if (!events || !board || events.currentTooltipProvider != provider || !events.currentTooltip) return false;
+                    Canvas tooltip = events.currentTooltip.GetComponent<Canvas>();
+                    string room = BoardRoom(h, board, false);
+                    look = $"tooltip {(tooltip ? (tooltip.enabled ? "shown" : "hidden") : "no canvas")}, pane " +
+                           $"{(board.Pane.Shown ? "on " + board.Pane.Title : "unused")}, {room ?? "no room for the pane"}";
+                    return tooltip && tooltip.enabled && !board.Pane.Shown && room == null;
+                },
+                () => $"the game's tooltip over {what} in the scoreboard, the pane unused ({look}) {h.Diagnosis()}");
+        }
+
+        // The board holds the pane's column right of its rows: true, as with the setting on; false, as with it off.
+        public static IEnumerator ExpectBoardRoomForPane(this Harness h, bool room)
+        {
+            string look = null;
+            yield return h.Until(
+                () =>
+                {
+                    ScoreboardItemsBoard board = SevenUIChecks.HudRoot(h).GetComponentInChildren<ScoreboardItemsBoard>();
+                    if (!board) return false;
+                    look = BoardRoom(h, board, room);
+                    return look == null;
+                },
+                () => $"the board {(room ? "keeping" : "not keeping")} room for the pane ({look}) {h.Diagnosis()}");
+        }
+
+        // Null when the board's right edge is as far from the rows' as the setting says: at least the pane's column when
+        // there is room for it, under half of it when there is none (the game's own padding is a few pixels).
+        private static string BoardRoom(Harness h, ScoreboardItemsBoard board, bool room)
+        {
+            float column = ScoreboardItemsBoard.PaneColumnWidth / HudUnits.PerCanvasPixel;
+            float rowsRight = board.Grids.Count > 0 ? board.Grids.Max(grid => Box(h, (RectTransform)grid.Strip.transform).xMax) : 0f;
+            float gap = Box(h, (RectTransform)board.transform).xMax - rowsRight;
+            bool fits = room ? gap >= column - SizeTolerance : gap < column / 2f;
+            return fits ? null : $"{gap:0.#}px between the rows and the board's right, the column {column:0.#}px";
+        }
+
         // Null when the pane is right of every row and of the shown items, and inside the board, top and bottom.
         private static string PaneBesideRows(Harness h, ScoreboardItemsBoard board, ScoreboardDetailPane pane)
         {

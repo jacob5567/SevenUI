@@ -38,6 +38,7 @@ namespace SevenUI.Tests
             if (!settings.CompactAllyCards.Value) return "CompactAllyCards is off in the SevenUI config";
             if (!settings.GroupAllyCards.Value) return "GroupAllyCards is off in the SevenUI config";
             if (!settings.LevelHud.Value) return "LevelHud is off in the SevenUI config";
+            if (!settings.ScoreboardDetailPanel.Value) return "ScoreboardDetailPanel is off in the SevenUI config";
             return null;
         }
 

@@ -49,6 +49,10 @@ namespace SevenUI
         private RectTransform strips;
         private VerticalLayoutGroup rowsGroup;
         private RectOffset rowsPadding;
+        // The game's own padding at the right; the pane's column is added to it while the detail panel is on.
+        private int gamePaddingRight;
+        private RectTransform paneColumn;
+        private bool docked;
         private float rowsHeight;
         // Collapsed: the shown player's items, from the first row's top, which the board grows to hold.
         private bool collapsed;
@@ -91,8 +95,9 @@ namespace SevenUI
             // The rows' container keeps laying the rows out, narrower by the column, which takes its right.
             rowsGroup = GetComponent<VerticalLayoutGroup>();
             RectOffset padding = rowsGroup ? rowsGroup.padding : new RectOffset();
-            rowsPadding = new RectOffset(padding.left, padding.right + Mathf.RoundToInt(PaneColumnWidth), padding.top,
-                padding.bottom);
+            gamePaddingRight = padding.right;
+            docked = SevenUIPlugin.Settings.ScoreboardDetailPanel.Value;
+            rowsPadding = new RectOffset(padding.left, RowsPaddingRight(docked), padding.top, padding.bottom);
             if (rowsGroup)
             {
                 recorder.Record(rowsGroup);
@@ -101,6 +106,8 @@ namespace SevenUI
             RectTransform column = UiFactory.NewObject(PaneColumnName, strips);
             recorder.Add(column.gameObject);
             column.gameObject.AddComponent<LayoutIgnorer>();
+            paneColumn = column;
+            column.gameObject.SetActive(docked);
             column.anchorMin = new Vector2(1f, 0f);
             column.anchorMax = Vector2.one;
             column.pivot = Vector2.one;
@@ -155,6 +162,7 @@ namespace SevenUI
         private void LateUpdate()
         {
             if (recorder == null) return;
+            ApplyDocking();
             bool changed = Gather();
             foreach (ScoreboardItemGrid grid in grids)
             {
@@ -183,6 +191,42 @@ namespace SevenUI
                 grid.Highlight(highlighted, !collapsed);
             }
             PlacePane();
+        }
+
+        private int RowsPaddingRight(bool withPane) =>
+            gamePaddingRight + (withPane ? Mathf.RoundToInt(PaneColumnWidth) : 0);
+
+        // The detail panel setting read live, so it applies while the scoreboard is open: off, the board keeps no room
+        // for the pane's column and the game's tooltip is left alone.
+        private void ApplyDocking()
+        {
+            bool on = SevenUIPlugin.Settings.ScoreboardDetailPanel.Value;
+            if (on == docked) return;
+            docked = on;
+            rowsPadding.right = RowsPaddingRight(docked);
+            if (rowsGroup)
+            {
+                rowsGroup.padding = new RectOffset(rowsPadding.left, rowsPadding.right, rowsPadding.top, rowsGroup.padding.bottom);
+            }
+            if (paneColumn)
+            {
+                paneColumn.gameObject.SetActive(docked);
+            }
+            if (!docked)
+            {
+                pane.Hide();
+                described = null;
+                if (hiddenTooltip)
+                {
+                    Canvas canvas = hiddenTooltip.GetComponent<Canvas>();
+                    if (canvas)
+                    {
+                        canvas.enabled = true;
+                    }
+                }
+            }
+            hiddenTooltip = null;
+            stale = true;
         }
 
         // The restyled rows shown, in order; true if they changed. A row stays laid out as it was while it shows.
@@ -424,6 +468,7 @@ namespace SevenUI
             {
                 holdUntil = Time.unscaledTime + HoldSeconds;
                 highlighted = pointed.itemIndex;
+                if (!docked) return;
                 if (changed || pointed != described || pane.Item != pointed.itemIndex)
                 {
                     described = pointed;
@@ -432,7 +477,7 @@ namespace SevenUI
                 HideTooltip(events);
                 return;
             }
-            if (pointedLoadout && DescribeLoadout(changed))
+            if (docked && pointedLoadout && DescribeLoadout(changed))
             {
                 highlighted = ItemIndex.None;
                 HideTooltip(events);
@@ -442,7 +487,7 @@ namespace SevenUI
             {
                 highlighted = ItemIndex.None;
             }
-            if (changed && pane.Item != ItemIndex.None)
+            if (docked && changed && pane.Item != ItemIndex.None)
             {
                 Redescribe();
             }

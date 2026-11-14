@@ -62,6 +62,7 @@ namespace SevenUI.Tests
                 h => CenteredWithoutSetting(h, board));
             yield return new Scenario(1, prefix + "item_pane", Stages.TitanicPlains, h => ItemPane(h, board));
             yield return new Scenario(1, prefix + "equipment_pane", Stages.TitanicPlains, h => LoadoutPane(h, board, false));
+            yield return new Scenario(1, prefix + "detail_panel_off", Stages.TitanicPlains, h => DetailPanelOff(h, board));
             yield return new Scenario(1, prefix + "key_item_pane", Stages.TitanicPlains, h => LoadoutPane(h, board, true));
             yield return new Scenario(1, board == Board.Rows ? "item_bar_item_tooltip" : "item_bar_item_tooltip_over_tabs",
                 Stages.TitanicPlains, h => ItemBarTooltip(h, board));
@@ -255,6 +256,43 @@ namespace SevenUI.Tests
             yield return h.Wait(SettleSeconds);
             string tabs = board == Board.Tabs ? "_tabs" : "";
             yield return h.Screenshot($"scoreboard{tabs}_{(keyItem ? "key_item" : "equipment")}_pane");
+        }
+
+        // With ScoreboardDetailPanel off, the pointer on an item, and on the equipment, in the scoreboard leaves the game's
+        // tooltip showing and the pane unused, and the board keeps no room for the pane; turned on with the scoreboard
+        // open, the pane describes the item again and the room is back. Only what the setting controls is checked.
+        private static IEnumerator DetailPanelOff(Harness h, Board board)
+        {
+            PluginConfig settings = SevenUIPlugin.Settings;
+            h.SetConfig(settings.FlatPanels, true);
+            h.SetConfig(settings.ScoreboardDetailPanel, false);
+            h.OnCleanup(() => h.SetConfig(settings.ScoreboardDetailPanel, true));
+            yield return UseBoard(h, board);
+            ScoreboardSetUp.GiveDifferentItems(h, TooltipItems);
+            ScoreboardSetUp.GiveEquipment(h, RoR2Content.Equipment.Fruit);
+            yield return ScoreboardSetUp.Open(h);
+            ScoreboardRow row = null;
+            yield return h.Until(() => (row = SevenUIChecks.HudRoot(h).GetComponentsInChildren<ScoreboardRow>()
+                .FirstOrDefault(each => each.Strip && each.Strip.master == Harness.LocalBody.master)) != null,
+                "the viewer's row of the scoreboard");
+            ItemIcon icon = FirstIcon(row.Strip.itemInventoryDisplay.transform);
+            TooltipProvider equipment = row.Strip.equipmentIcon ? row.Strip.equipmentIcon.tooltipProvider : null;
+            if (!icon || !equipment) throw h.Fail("no item or equipment tooltip in the viewer's row of the scoreboard");
+            yield return h.Wait(SettleSeconds);
+            PointerEventData pointer = null;
+            PointAt(h, icon.rectTransform, "an item in the scoreboard", made => pointer = made);
+            yield return h.ExpectGameTooltip(icon.tooltipProvider, "the item");
+            yield return h.Wait(SettleSeconds);
+            yield return h.Screenshot(board == Board.Rows ? "scoreboard_pane_off" : "scoreboard_tabs_pane_off");
+            ExecuteEvents.ExecuteHierarchy(icon.gameObject, pointer, ExecuteEvents.pointerExitHandler);
+            PointAt(h, (RectTransform)equipment.transform, "the equipment in the scoreboard");
+            yield return h.ExpectGameTooltip(equipment, "the equipment");
+
+            h.SetConfig(settings.ScoreboardDetailPanel, true);
+            yield return h.Wait(SettleSeconds);
+            PointAt(h, icon.rectTransform, "an item in the scoreboard");
+            yield return h.ExpectItemPane(icon);
+            yield return h.ExpectBoardRoomForPane(true);
         }
 
         // The first item shown under the given part of the HUD.
