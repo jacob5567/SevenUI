@@ -703,7 +703,16 @@ namespace SevenUI.Tests
             if (options.Find(PauseScreenStyler.TitleName)) return "the menu still has the mod's title";
             if (options.Find(PauseScreenStyler.RunLineName)) return "the menu still has the mod's run line";
             Image optionsImage = options.GetComponent<Image>();
-            if (optionsImage && !optionsImage.enabled) return "the options panel's image is still off";
+            // The game's own image may be off in vanilla, so compare with what the mod saw before styling it.
+            if (optionsImage && PauseScreenStyler.OriginalOptionsEnabled.HasValue && optionsImage.enabled != PauseScreenStyler.OriginalOptionsEnabled.Value)
+            {
+                return $"the options panel's image is {optionsImage.enabled}, not the game's {PauseScreenStyler.OriginalOptionsEnabled.Value}";
+            }
+            Image mainImage = menu.mainPanel.GetComponent<Image>();
+            if (mainImage && PauseScreenStyler.OriginalMainPanelEnabled.HasValue && mainImage.enabled != PauseScreenStyler.OriginalMainPanelEnabled.Value)
+            {
+                return $"the main panel's image is {mainImage.enabled}, not the game's {PauseScreenStyler.OriginalMainPanelEnabled.Value}";
+            }
             VerticalLayoutGroup stack = options.GetComponent<VerticalLayoutGroup>();
             if (stack && !stack.enabled) return "the options stack's layout is still off";
             foreach (Transform child in options)

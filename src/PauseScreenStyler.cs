@@ -46,6 +46,11 @@ namespace SevenUI
         // multiplayer pause), as in the item pickers.
         private const float UnavailableAlpha = 0.4f;
 
+        // Whether the game's own panel images were enabled before the last menu was styled (null: no Image). Kept past
+        // Restore, until the next menu is styled, so tests can compare against the game's look, not assume it is on.
+        internal static bool? OriginalMainPanelEnabled { get; private set; }
+        internal static bool? OriginalOptionsEnabled { get; private set; }
+
         private readonly HUD hud;
         private readonly Transform hudRoot;
         private readonly List<Entry> buttons = new List<Entry>();
@@ -153,6 +158,14 @@ namespace SevenUI
             // The panel behind the buttons, and the layout that stacks them; the stack is laid out here instead. The
             // menu's own juice pans and sizes the main panel and this one as it opens, so they keep their places and
             // sizes, and everything is placed from this panel's middle.
+            Image mainImage = menu.mainPanel.GetComponent<Image>();
+            Image optionsImage = options.GetComponent<Image>();
+            OriginalMainPanelEnabled = mainImage ? mainImage.enabled : (bool?)null;
+            OriginalOptionsEnabled = optionsImage ? optionsImage.enabled : (bool?)null;
+            if (SevenUIPlugin.Settings.DebugLogging.Value)
+            {
+                SevenUIPlugin.Log.LogInfo($"Pause menu styled; original image enabled: mainPanel={OriginalMainPanelEnabled?.ToString() ?? "none"}, options={OriginalOptionsEnabled?.ToString() ?? "none"}");
+            }
             DisableImage(menu.mainPanel);
             DisableImage(options);
             VerticalLayoutGroup stack = options.GetComponent<VerticalLayoutGroup>();
@@ -432,7 +445,7 @@ namespace SevenUI
 
         public void Describe(StringBuilder output)
         {
-            output.AppendLine($"  pause menu styled: {(bool)styled} ({buttons.Count} buttons)");
+            output.AppendLine($"  pause menu styled: {(bool)styled} ({buttons.Count} buttons); original image enabled: mainPanel={OriginalMainPanelEnabled?.ToString() ?? "none"}, options={OriginalOptionsEnabled?.ToString() ?? "none"}");
         }
     }
 }
