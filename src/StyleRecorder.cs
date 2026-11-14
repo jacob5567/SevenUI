@@ -468,10 +468,15 @@ namespace SevenUI
             }
             foreach (Object created in added)
             {
-                if (created)
+                if (!created) continue;
+                // Destroy waits for the frame's end, so an object left in place would still be found (by name, say)
+                // by a styler applied again in the same frame, which would then skip adding its own.
+                if (created is GameObject createdObject)
                 {
-                    Object.Destroy(created);
+                    createdObject.SetActive(false);
+                    createdObject.transform.SetParent(null, false);
                 }
+                Object.Destroy(created);
             }
             images.Clear();
             rawImages.Clear();
