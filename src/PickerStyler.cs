@@ -22,7 +22,7 @@ namespace SevenUI
 
         public IReadOnlyList<PickerPanel> Panels => panels;
 
-        public bool Enabled => SevenUIPlugin.Settings.FlatPanels.Value;
+        public bool Enabled => SevenUIPlugin.Settings.FlatPanels.Value && SevenUIPlugin.Settings.RestyleItemPickers.Value;
 
         public void Apply()
         {

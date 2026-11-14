@@ -82,6 +82,7 @@ namespace SevenUI
                 SevenUIPlugin.Settings.FlatPanels,
                 SevenUIPlugin.Settings.TightMargins,
                 SevenUIPlugin.Settings.EquipmentDeck,
+                SevenUIPlugin.Settings.RestyleItemPickers,
             };
             foreach (ConfigEntry<bool> setting in watched)
             {

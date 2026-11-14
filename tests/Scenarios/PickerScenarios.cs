@@ -94,6 +94,7 @@ namespace SevenUI.Tests
         public static IEnumerable<Scenario> All()
         {
             yield return new Scenario(1, "picker_void_potential", Stages.TitanicPlains, VoidPotential);
+            yield return new Scenario(1, "picker_setting_off", Stages.TitanicPlains, SettingOff);
             yield return new Scenario(1, "picker_command_white", Stages.TitanicPlains, CommandWhite);
             foreach ((string name, Func<PickupDef, bool> drops) in CommandGroups)
             {
@@ -116,6 +117,48 @@ namespace SevenUI.Tests
             PickerPanel panel = null;
             yield return OpenStyled(h, picker, found => panel = found);
             yield return CheckStyled(h, picker, panel);
+        }
+
+        // RestyleItemPickers off gives the game's look back on the panel that is open and on one opened after, and on
+        // again restyles a new one.
+        private static IEnumerator SettingOff(Harness h)
+        {
+            PluginConfig settings = SevenUIPlugin.Settings;
+            PickupPickerController picker = null;
+            yield return SpawnVoidPotential(h, spawned => picker = spawned);
+            PickerPanel panel = null;
+            yield return OpenStyled(h, picker, found => panel = found);
+            PickupPickerPanel opened = panel.Panel;
+            h.SetConfig(settings.RestyleItemPickers, false);
+            h.OnCleanup(() => h.SetConfig(settings.RestyleItemPickers, true));
+            yield return h.Wait(SettleSeconds);
+            if (!opened) throw h.Fail("the game closed the open panel as RestyleItemPickers went off");
+            string left = MarksLeft(opened);
+            if (left.Length > 0) throw h.Fail($"with RestyleItemPickers off, the open panel still has the mod's {left}");
+            if (OpenPanel(opened) != null) throw h.Fail("with RestyleItemPickers off, the open panel is still restyled");
+            yield return h.Screenshot("open_off");
+
+            Close(opened);
+            yield return h.Wait(SettleSeconds);
+            PickupPickerController second = null;
+            yield return SpawnVoidPotential(h, spawned => second = spawned);
+            PickupPickerPanel next = null;
+            yield return Open(h, second, found => next = found);
+            yield return h.Wait(SettleSeconds);
+            left = MarksLeft(next);
+            if (left.Length > 0) throw h.Fail($"with RestyleItemPickers off, a new panel has the mod's {left}");
+            if (OpenPanel(next) != null) throw h.Fail("with RestyleItemPickers off, a new panel is restyled");
+            yield return h.Screenshot("new_off");
+
+            h.SetConfig(settings.RestyleItemPickers, true);
+            yield return h.Until(() => OpenPanel(next) is PickerPanel again && again.Styled, "the open panel restyled with RestyleItemPickers on", OpenTimeout);
+        }
+
+        // The names of the mod's parts under a panel.
+        private static string MarksLeft(PickupPickerPanel panel)
+        {
+            return string.Join(", ", panel.GetComponentsInChildren<Transform>(true)
+                .Where(part => part.name.StartsWith(SevenUIPrefix)).Select(part => part.name).Distinct());
         }
 
         private static IEnumerator SpawnVoidPotential(Harness h, Action<PickupPickerController> spawned)

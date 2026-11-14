@@ -33,6 +33,7 @@ namespace SevenUI.Tests
             if (!settings.FlatPanels.Value) return "FlatPanels is off in the SevenUI config";
             if (!settings.MonospaceDamageNumbers.Value) return "MonospaceDamageNumbers is off in the SevenUI config";
             if (!settings.EquipmentDeck.Value) return "EquipmentDeck is off in the SevenUI config";
+            if (!settings.RestyleItemPickers.Value) return "RestyleItemPickers is off in the SevenUI config";
             return null;
         }
 

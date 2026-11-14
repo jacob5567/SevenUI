@@ -12,6 +12,7 @@ namespace SevenUI
         public readonly ConfigEntry<bool> TightMargins;
         public readonly ConfigEntry<bool> ScoreboardBesideRunInfo;
         public readonly ConfigEntry<bool> EquipmentDeck;
+        public readonly ConfigEntry<bool> RestyleItemPickers;
 
         public readonly ConfigEntry<bool> DebugLogging;
         public readonly ConfigEntry<KeyboardShortcut> DumpKey;
@@ -34,6 +35,9 @@ namespace SevenUI
             EquipmentDeck = config.Bind("Panels", "EquipmentDeck", true,
                 "Show the next equipment as a deck of icons above the equipment slot with a Functional Coupler. Off shows no deck, " +
                 "only the slot. Only with FlatPanels on.");
+            RestyleItemPickers = config.Bind("Panels", "RestyleItemPickers", true,
+                "Restyle the panels where you pick an item, such as Command and Void Potentials. Off keeps the game's look for " +
+                "them. Only with FlatPanels on.");
 
             // Risk Of Options uses the section name as the menu header, so keep it exactly "Debug".
             DebugLogging = config.Bind("Debug", "DebugLogging", false,

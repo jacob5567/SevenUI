@@ -53,6 +53,7 @@ Edit `BepInEx/config/sevenstack.SevenUI.cfg`, or use [Risk Of Options](https://t
 | `TightMargins` | true | Keep the HUD near the screen's edges, as on SevenUI's design. Only with `FlatPanels` on. |
 | `ScoreboardBesideRunInfo` | true | Place the scoreboard near the top of the screen, beside the run info. Only with `FlatPanels` on. |
 | `EquipmentDeck` | true | Show the next equipment as a deck of icons above the equipment slot with a Functional Coupler. Off shows no deck. Only with `FlatPanels` on. |
+| `RestyleItemPickers` | true | Restyle the panels where you pick an item, such as Command and Void Potentials. Off keeps the game's look for them. Only with `FlatPanels` on. |
 | `DebugLogging` | false | Log extra detail, and enable the dump key. |
 | `DumpKey` | F8 | With `DebugLogging` on, log each HUD's fonts and what the mod restyled. |
 
