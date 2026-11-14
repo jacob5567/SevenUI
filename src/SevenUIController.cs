@@ -81,6 +81,7 @@ namespace SevenUI
                 SevenUIPlugin.Settings.BarlowFont,
                 SevenUIPlugin.Settings.FlatPanels,
                 SevenUIPlugin.Settings.TightMargins,
+                SevenUIPlugin.Settings.EquipmentDeck,
             };
             foreach (ConfigEntry<bool> setting in watched)
             {

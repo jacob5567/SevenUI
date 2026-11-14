@@ -44,6 +44,7 @@ Edit `BepInEx/config/sevenstack.SevenUI.cfg`, or use the in-game settings menu i
 | `FlatPanels` | true | Draw the HUD flat: facing the screen squarely instead of leaning in, with flat translucent panels, flat bars and slots, and the health numbers as text. Off brings back the game's look. Everything under "What it changes" except the fonts. |
 | `TightMargins` | true | Draw the HUD's corners near the screen's edges, as on SevenUI's design: 2.6% of the screen's height in (2.2% at the top), and the ally cards 2.6% in and 28% down. Off keeps the game's margins, 5% of the screen. Only with `FlatPanels` on. |
 | `ScoreboardBesideRunInfo` | true | Place the scoreboard as on SevenUI's design: near the top of the screen, centered between its left edge and the run info. Off centers it on the screen, where the game puts it. Only with `FlatPanels` on. |
+| `EquipmentDeck` | true | Show the next equipment as a deck of icons above the equipment slot with a Functional Coupler. Off shows no deck, only the slot. Only with `FlatPanels` on. |
 | `DebugLogging` | false | Log extra detail, and enable the dump key. |
 | `DumpKey` | F8 | With `DebugLogging` on, press to log each HUD's fonts and what the mod restyled. |
 

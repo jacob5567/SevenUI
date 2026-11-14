@@ -11,6 +11,7 @@ namespace SevenUI
         public readonly ConfigEntry<bool> FlatPanels;
         public readonly ConfigEntry<bool> TightMargins;
         public readonly ConfigEntry<bool> ScoreboardBesideRunInfo;
+        public readonly ConfigEntry<bool> EquipmentDeck;
 
         public readonly ConfigEntry<bool> DebugLogging;
         public readonly ConfigEntry<KeyboardShortcut> DumpKey;
@@ -30,6 +31,9 @@ namespace SevenUI
             ScoreboardBesideRunInfo = config.Bind("Panels", "ScoreboardBesideRunInfo", true,
                 "Place the scoreboard as on SevenUI's design: near the top of the screen, centered between its left edge " +
                 "and the run info. Off centers it on the screen, where the game puts it. Only with FlatPanels on.");
+            EquipmentDeck = config.Bind("Panels", "EquipmentDeck", true,
+                "Show the next equipment as a deck of icons above the equipment slot with a Functional Coupler. Off shows no deck, " +
+                "only the slot. Only with FlatPanels on.");
 
             // Risk Of Options uses the section name as the menu header, so keep it exactly "Debug".
             DebugLogging = config.Bind("Debug", "DebugLogging", false,

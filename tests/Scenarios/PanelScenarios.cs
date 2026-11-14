@@ -363,6 +363,15 @@ namespace SevenUI.Tests
             h.SetConfig(SevenUIPlugin.Settings.FlatPanels, true);
             yield return h.Until(() => DeckProblem(h, main, alternate, held[0]) == null,
                 () => $"with the panels back on, {DeckProblem(h, main, alternate, held[0])} {h.Diagnosis()}");
+
+            h.SetConfig(SevenUIPlugin.Settings.EquipmentDeck, false);
+            yield return null;
+            yield return h.Until(() => !h.FindUnderHud(EquipmentDeck.Name) &&
+                                       (!alternate.GetComponent<CanvasGroup>() || alternate.GetComponent<CanvasGroup>().alpha >= 1f),
+                () => $"with EquipmentDeck off, the deck is still there or the game's slot hidden {h.Diagnosis()}");
+            h.SetConfig(SevenUIPlugin.Settings.EquipmentDeck, true);
+            yield return h.Until(() => DeckProblem(h, main, alternate, held[0]) == null,
+                () => $"with EquipmentDeck back on, {DeckProblem(h, main, alternate, held[0])} {h.Diagnosis()}");
         }
 
         // Null when the deck shows the alternate slot's icon next and the given equipment fainter behind it, both

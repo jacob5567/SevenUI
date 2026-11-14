@@ -43,6 +43,8 @@ namespace SevenUI
         private readonly HUD hud;
         private readonly Transform root;
         private readonly StyleRecorder recorder = new StyleRecorder();
+        // The deck's own, so the EquipmentDeck setting can take it away without restoring the rest of the row.
+        private readonly StyleRecorder deckRecorder = new StyleRecorder();
         private readonly List<SkillIcon> skills = new List<SkillIcon>();
         private readonly List<EquipmentIcon> equipment = new List<EquipmentIcon>();
         private readonly List<KeyItemIcon> keyItems = new List<KeyItemIcon>();
@@ -116,6 +118,7 @@ namespace SevenUI
 
         public void Restore()
         {
+            deckRecorder.Restore();
             recorder.Restore();
             row = null;
             equipmentFit = null;
@@ -202,8 +205,17 @@ namespace SevenUI
         // On the main slot as fitted, once both slots are found.
         private void AddDeck()
         {
+            if (!SevenUIPlugin.Settings.EquipmentDeck.Value)
+            {
+                if (deck != null)
+                {
+                    deckRecorder.Restore();
+                    deck = null;
+                }
+                return;
+            }
             if (deck != null && deck.Alive || equipmentFit == null || !equipmentFit.Alive || !mainEquipment || !alternateEquipment) return;
-            deck = new EquipmentDeck(mainEquipment, alternateEquipment, equipmentFit.Display, row, recorder);
+            deck = new EquipmentDeck(mainEquipment, alternateEquipment, equipmentFit.Display, row, deckRecorder);
         }
 
         // The equipment and key item slots are drawn at a larger scale than the skills, with their key plates further
