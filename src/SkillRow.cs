@@ -17,8 +17,8 @@ namespace SevenUI
     internal sealed class SkillRow
     {
         public const string DividerName = "SevenUISkillDivider";
-        // An empty slot above the skills that the game parents Operator's (DroneTech in code) drones and Seeker's lotus to, placed for
-        // the game's row (HUD child locator entry RightUtilityArea).
+        // An empty slot above the skills that the game parents Operator's (DroneTech in code) drones and Seeker's lotus
+        // to, placed for the game's row (HUD child locator entry RightUtilityArea).
         private const string UtilityAreaName = "UtilityArea";
         // Operator's display's child holding its queued drones' icons ("Drone 1" to "Drone 3"), and the first icon.
         private const string DroneQueueEntry = "Secondary Queue";
