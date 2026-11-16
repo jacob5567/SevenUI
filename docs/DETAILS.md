@@ -53,7 +53,7 @@ Edit `BepInEx/config/sevenstack.SevenUI.cfg`, or use the in-game settings menu i
 | `ScoreboardTabs` | true | On collapses the scoreboard's rows to tabs when there is more than one player and the items would need to be smaller than 32 pixels to fit. Off never collapses them: every row keeps its items, shrunk to fit. Only with `FlatPanels` on. |
 | `RestylePauseMenu` | true | Restyle the pause menu: the title, the run's line and the outlined buttons. Off keeps the game's look for it, open now or opened later. Only with `FlatPanels` on. |
 | `RestyleTooltips` | true | Restyle the tooltips of items, equipment and skills in the HUD: a dark panel, a strip of the tier color, a header band and the stack count. Off keeps the game's look for them, with the font still following `BarlowFont`. Read as each tooltip opens, so a tooltip already open keeps its look. Only with `FlatPanels` on. |
-| `TimerHundredths` | false | On shows the run timer's hundredths, as in the game, which `TightTimerFormat` removes; the rest of the run info stays restyled. Off shows the timer as `24:51`. Takes effect at once. Only with `FlatPanels` on. |
+| `TimerHundredths` | false | On shows the run timer's hundredths, as in the game, which the restyled run info leaves out; the rest of the run info stays restyled. Off shows the timer as `24:51`. Takes effect at once. Only with `FlatPanels` on. |
 | `ShowHealthRegen` | true | Off hides the health regeneration text, such as `+12.4/s`, beside the player's health numbers; the game's HUD has no such text. Takes effect at once. Only with `FlatPanels` on. |
 | `DebugLogging` | false | Log extra detail, and enable the dump key. |
 | `DumpKey` | F8 | With `DebugLogging` on, press to log each HUD's fonts and what the mod restyled. |
