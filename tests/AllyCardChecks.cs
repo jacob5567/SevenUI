@@ -136,6 +136,14 @@ namespace SevenUI.Tests
                 {
                     return $"{Name(card)}'s compact portrait is {portraitWidth:0.#} units wide, not {portrait.preferredWidth:0.#}. {RowLayout(card)}";
                 }
+                // The barrier fills a compact row's thin bar, and is a strip along the top of a full-size one. Read from
+                // the bar's style, as the host can't hold an ally's barrier steady (it decays).
+                HealthBar healthBar = card.healthBar;
+                if (healthBar && healthBar._style && healthBar._style.name.EndsWith(Texts.FlatStyleSuffix + " (compact)") != (compact && kind.Allies <= 1) &&
+                    healthBar._style.barrierBarStyle.sprite)
+                {
+                    return $"{Name(card)}'s barrier is drawn with '{healthBar._style.barrierBarStyle.sprite.name}' in style '{healthBar._style.name}' on a {(compact && kind.Allies <= 1 ? "compact" : "full-size")} card";
+                }
                 float depth = Depth(cluster, card.rectTransform);
                 if (depth > room + Tolerance) return $"{Name(card)}'s card reaches {depth:0.#} units down, past the {room:0.#} above the chat";
                 TMP_Text count = card.nameLabel ? card.nameLabel.transform.Find(AllyKindParts.CountName)?.GetComponent<TMP_Text>() : null;
