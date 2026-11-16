@@ -17,9 +17,13 @@ namespace SevenUI
     internal sealed class SkillRow
     {
         public const string DividerName = "SevenUISkillDivider";
-        // An empty slot above the skills that the game parents Drone Tech's drones and Seeker's lotus to, placed for
+        // An empty slot above the skills that the game parents Operator's (DroneTech in code) drones and Seeker's lotus to, placed for
         // the game's row (HUD child locator entry RightUtilityArea).
         private const string UtilityAreaName = "UtilityArea";
+        // Operator's display's child holding its queued drones' icons ("Drone 1" to "Drone 3"), and the first icon.
+        private const string DroneQueueEntry = "Secondary Queue";
+        private const string DroneEntry = "Drone 1";
+        private const float FitTolerance = 0.01f;
         public const float SlotSize = 68f;
         public const float Gap = 8f;
         private const float KeyGap = 5f;
@@ -142,13 +146,61 @@ namespace SevenUI
             if (!applied || !hud.targetBodyObject) return;
             JunkController junk = hud.targetBodyObject.GetComponent<JunkController>();
             OverlayController overlay = junk ? junk.overlayController : null;
-            if (overlay == null) return;
-            foreach (GameObject instance in overlay.instancesList)
+            if (overlay != null)
             {
-                RectTransform rect = instance ? instance.transform as RectTransform : null;
-                if (!rect || !rect.IsChildOf(scaler) || !followed.Add(rect)) continue;
-                FollowRow(rect, rowBefore, rowAfter, recorder);
+                foreach (GameObject instance in overlay.instancesList)
+                {
+                    RectTransform rect = instance ? instance.transform as RectTransform : null;
+                    if (!rect || !rect.IsChildOf(scaler) || !followed.Add(rect)) continue;
+                    FollowRow(rect, rowBefore, rowAfter, recorder);
+                }
             }
+            FollowDroneDisplay(hud, recorder);
+        }
+
+        // Operator's (DroneTech in code) display of the drones queued to be commanded. The game hangs it in the utility
+        // area, so it already grew with the slots, but its icons were still larger than the restyled slots, so after
+        // that they are fitted to the slots' size, about the display's bottom middle so it stays over the row. Found
+        // by its "Secondary Queue" child, as the overlay's controller is private; each instance is fitted once, once
+        // its icons have a size.
+        private void FollowDroneDisplay(HUD hud, StyleRecorder recorder)
+        {
+            if (!hud.targetBodyObject || !hud.targetBodyObject.GetComponent<DroneTechController>()) return;
+            RectTransform area = scaler.Find(UtilityAreaName) as RectTransform;
+            foreach (ChildLocator locator in scaler.GetComponentsInChildren<ChildLocator>(true))
+            {
+                RectTransform display = locator.transform as RectTransform;
+                RectTransform icon = locator.FindChild(DroneQueueEntry)?.Find(DroneEntry) as RectTransform;
+                if (!display || !icon || followed.Contains(display)) continue;
+                float size = icon.rect.height * PixelsPer(icon);
+                if (size <= 0f) continue;
+                followed.Add(display);
+                // Hung somewhere else in the scaler, it hasn't grown with the slots yet.
+                if (!area || !display.IsChildOf(area))
+                {
+                    FollowRow(display, rowBefore, rowAfter, recorder);
+                    size = icon.rect.height * PixelsPer(icon);
+                }
+                FitAboutBottom(display, SlotSize / size, recorder);
+            }
+        }
+
+        // Scales a display by a factor about the middle of its bottom edge.
+        private static void FitAboutBottom(RectTransform display, float factor, StyleRecorder recorder)
+        {
+            if (Mathf.Abs(factor - 1f) < FitTolerance) return;
+            Vector3 scale = display.localScale;
+            Vector2 position = display.anchoredPosition;
+            recorder.OnRestore(() =>
+            {
+                if (!display) return;
+                display.localScale = scale;
+                display.anchoredPosition = position;
+            });
+            Vector3 bottom = new Vector3(display.rect.center.x, display.rect.yMin, 0f);
+            Vector3 before = display.TransformPoint(bottom);
+            display.localScale = new Vector3(scale.x * factor, scale.y * factor, scale.z);
+            display.position += before - display.TransformPoint(bottom);
         }
 
         // Scaled with the slots about the row's top middle, so whatever hangs from it sits over the row as the game
