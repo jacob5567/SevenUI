@@ -13,8 +13,6 @@ namespace SevenUI.Tests
     // and what the mod saw at a failure.
     internal sealed class SevenUITests : ModTests
     {
-        // Longer than the runner's settle after a mod's Cleanup, so the next scenario's Precondition gets in first.
-        private const float RestoreDelaySeconds = 2f;
         private const int SettleFrames = 1;
 
         // Each setting and the value the scenarios need it at.
@@ -38,16 +36,9 @@ namespace SevenUI.Tests
             (settings => settings.ScoreboardBesideRunInfo, true),
         };
 
-        private static Dictionary<int, bool> saved;
-        private static int generation;
-        private static int appliedFrame;
-
-        private readonly MonoBehaviour host;
-
-        public SevenUITests(MonoBehaviour host)
-        {
-            this.host = host;
-        }
+        // The user's values, from the run's first scenario until Finish puts them back.
+        private bool[] saved;
+        private int appliedFrame;
 
         public override string Name => SevenUIPlugin.PluginName;
 
@@ -68,17 +59,16 @@ namespace SevenUI.Tests
             yield return new Suite("store", true, StoreScenarios.All());
         }
 
-        // Sets the settings the scenarios assume, once, on the first scenario; the user's values come back a moment after
-        // the last one. Returns null always: a setting never skips a scenario.
+        // Sets the settings the scenarios assume, once, before the run's first scenario; Finish puts the user's values
+        // back. Returns null always: a setting never skips a scenario.
         public override string Precondition(Scenario scenario)
         {
-            generation++;
             if (saved != null)
             {
                 return null;
             }
 
-            saved = new Dictionary<int, bool>();
+            saved = new bool[Needed.Length];
             bool changed = false;
             for (int i = 0; i < Needed.Length; i++)
             {
@@ -107,33 +97,22 @@ namespace SevenUI.Tests
             return SevenUIChecks.Controller && Time.frameCount > appliedFrame + SettleFrames;
         }
 
-        // The mod can't tell which scenario is last, so the user's values go back after a pause, unless another scenario
-        // began in the meantime (its Precondition bumps the generation).
-        public override IEnumerator Cleanup(Harness h)
+        // The user's values back, once the run's last scenario is done.
+        public override IEnumerator Finish(Harness h)
         {
-            generation++;
-            host.StartCoroutine(RestoreLater(generation));
-            yield break;
-        }
-
-        private static IEnumerator RestoreLater(int expected)
-        {
-            yield return new WaitForSecondsRealtime(RestoreDelaySeconds);
-            if (generation != expected || saved == null)
+            if (saved != null)
             {
-                yield break;
-            }
-
-            for (int i = 0; i < Needed.Length; i++)
-            {
-                ConfigEntry<bool> entry = Needed[i].Entry(SevenUIPlugin.Settings);
-                if (entry.Value != saved[i])
+                for (int i = 0; i < Needed.Length; i++)
                 {
-                    entry.Value = saved[i];
+                    ConfigEntry<bool> entry = Needed[i].Entry(SevenUIPlugin.Settings);
+                    if (entry.Value != saved[i])
+                    {
+                        entry.Value = saved[i];
+                    }
                 }
+                saved = null;
             }
-
-            saved = null;
+            yield break;
         }
 
         // The mod's dump-key lines for the HUD.
