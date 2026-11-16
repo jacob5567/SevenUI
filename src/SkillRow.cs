@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using RoR2;
+using RoR2.HudOverlay;
 using RoR2.UI;
 using UnityEngine;
 using UnityEngine.UI;
@@ -32,6 +34,12 @@ namespace SevenUI
         private readonly RectTransform scaler;
         // Canvas pixels per unit of the scaler.
         private readonly float unit;
+        // The row as the game draws it and as SevenUI does, once applied, for the elements that appear later.
+        private Rect rowBefore;
+        private Rect rowAfter;
+        private bool applied;
+        // The survivors' own elements already scaled with the row, which are put back with the row.
+        private readonly HashSet<RectTransform> followed = new HashSet<RectTransform>();
 
         private SkillRow(RectTransform scaler, float unit)
         {
@@ -119,6 +127,28 @@ namespace SevenUI
             Rect after = Rect.MinMaxRect(InScaler((RectTransform)row[0].transform).xMin, lastBox.yMin, lastBox.xMax,
                 InScaler(last).yMax);
             FollowRow(scaler.Find(UtilityAreaName) as RectTransform, before, after, recorder);
+            rowBefore = before;
+            rowAfter = after;
+            applied = true;
+            FollowOverlays(hud, recorder);
+        }
+
+        // Scales the target body's own element beside the row (Drifter's junk meter) as the utility area is. The game
+        // creates it with the body, after the row is applied, and parents it to a child locator entry set in the
+        // prefab, so it is found through its JunkController's overlay and kept if it sits in the row's scaler. Run on
+        // each apply; each instance is scaled once.
+        public void FollowOverlays(HUD hud, StyleRecorder recorder)
+        {
+            if (!applied || !hud.targetBodyObject) return;
+            JunkController junk = hud.targetBodyObject.GetComponent<JunkController>();
+            OverlayController overlay = junk ? junk.overlayController : null;
+            if (overlay == null) return;
+            foreach (GameObject instance in overlay.instancesList)
+            {
+                RectTransform rect = instance ? instance.transform as RectTransform : null;
+                if (!rect || !rect.IsChildOf(scaler) || !followed.Add(rect)) continue;
+                FollowRow(rect, rowBefore, rowAfter, recorder);
+            }
         }
 
         // Scaled with the slots about the row's top middle, so whatever hangs from it sits over the row as the game
