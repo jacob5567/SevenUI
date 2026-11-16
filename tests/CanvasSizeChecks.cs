@@ -688,13 +688,15 @@ namespace SevenUI.Tests
                     string grid = GridProblem(h, items, row.Strip, background);
                     string placed = PlacementProblem(h, board);
                     string portrait = PortraitProblem(h, background);
+                    PixelOutline equipmentOutline = equipment ? equipment.Find("SevenUIEquipmentOutline")?.GetComponent<PixelOutline>() : null;
+                    string outlineLook = equipmentOutline ? CanvasLayoutChecks.PixelOutlineProblem(equipmentOutline) : "missing";
                     look = $"{(collapsed ? "collapsed" : "rows")}, {folded ?? "folded as wanted"}, {headed ?? "no headers"}, row color {row.Background.color}, " +
                            $"survivor '{row.Survivor.text}', counts '{row.Counts.text}', parts {parts ?? "in place"}, " +
-                           $"items {grid ?? "as the grid"}, board {placed ?? "in place"}, portrait {portrait ?? "centered"}";
+                           $"items {grid ?? "as the grid"}, board {placed ?? "in place"}, portrait {portrait ?? "centered"}, equipment outline {outlineLook ?? "on whole pixels"}";
                     return folded == null && headed == null && parts == null && grid == null && placed == null && portrait == null &&
-                           row.Counts.text.Contains(ScoreboardCountsWord) &&
+                           outlineLook == null && row.Counts.text.Contains(ScoreboardCountsWord) &&
                            SevenUIChecks.Near(row.Background.color, tint) && row.Survivor.text.Contains(" · ") &&
-                           equipment && equipment.Find("SevenUIEquipmentOutline");
+                           equipment;
                 },
                 () => $"the scoreboard laid out as on the canvas ({look}) {h.Diagnosis()}");
         }
@@ -836,6 +838,8 @@ namespace SevenUI.Tests
                                     Near(Box(h, (RectTransform)highlight).center.x, slot.center.x) &&
                                     Near(Box(h, (RectTransform)highlight).center.y, slot.center.y);
                     List<ItemIcon> others = icon.transform.parent.GetComponentsInChildren<ItemIcon>().Where(other => other != icon).ToList();
+                    PixelOutline highlightOutline = highlight ? highlight.GetComponentInChildren<PixelOutline>() : null;
+                    string highlightLook = highlightOutline ? CanvasLayoutChecks.PixelOutlineProblem(highlightOutline) : "missing";
                     bool dimmed = others.All(other => other.GetComponent<CanvasGroup>() && other.GetComponent<CanvasGroup>().alpha < 1f);
                     bool undimmed = !icon.GetComponent<CanvasGroup>() || Mathf.Approximately(icon.GetComponent<CanvasGroup>().alpha, 1f);
                     string stack = "×" + icon.itemCount;
@@ -843,13 +847,13 @@ namespace SevenUI.Tests
                     string title = icon.tooltipProvider ? icon.tooltipProvider.titleText : "";
                     string beside = PaneBesideRows(h, board, pane);
                     look = $"pane on {(pane.Shown ? pane.Title : "nothing")} held by [{holders}], tooltip " +
-                           $"{(tooltip ? (tooltip.enabled ? "shown" : "hidden") : "none")}, outlined {outlined}, " +
+                           $"{(tooltip ? (tooltip.enabled ? "shown" : "hidden") : "none")}, outlined {outlined} ({highlightLook ?? "on whole pixels"}), " +
                            $"{others.Count} others dimmed {dimmed}, this one undimmed {undimmed}, {beside ?? "placed"}";
                     return pane.Shown && pane.Item == icon.itemIndex && pane.Title == title && pane.Root.gameObject.activeInHierarchy &&
                            (board.Grids.Count > 1
                                ? Enumerable.Range(0, pane.HolderCount).Any(i => pane.HolderText(i).Contains(stack))
                                : pane.HolderCount == 0) &&
-                           (!tooltip || !tooltip.enabled) && outlined && undimmed && beside == null &&
+                           (!tooltip || !tooltip.enabled) && outlined && highlightLook == null && undimmed && beside == null &&
                            (board.Collapsed || dimmed);
                 },
                 () => $"the item described in the scoreboard's pane, {icon.tooltipProvider?.titleText} at its stack ({look}) " +
