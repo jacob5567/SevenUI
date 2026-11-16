@@ -58,7 +58,8 @@ namespace SevenUI
 
         private sealed class Kind
         {
-            // The kind's first card, which the kind shares.
+            // The card the kind shares: the first of a living ally, so the game's dead mark never shows over allies still
+            // alive, or the first card if none lives.
             public AllyCardController Lead;
             public CharacterMaster Leader;
             // Drones of different upgrade tiers are different kinds, though the name's tier suffix is the only difference.
@@ -279,6 +280,12 @@ namespace SevenUI
                 AllyCompactCard look = LookOf(card);
                 if (card != kind.Lead)
                 {
+                    // A card that was the lead drops its parts, as the kind's lead moved to a living ally.
+                    if (shared.TryGetValue(card, out AllyKindParts old))
+                    {
+                        old.Remove(card);
+                        shared.Remove(card);
+                    }
                     look.Set(false, true);
                     continue;
                 }
@@ -347,11 +354,23 @@ namespace SevenUI
                     kinds.Add(found);
                 }
                 found.Cards.Add(card);
-                if (master)
+                // A dead ally's body lingers for a while, and its card would still be counted and drawn as a segment.
+                if (IsAlive(master))
                 {
                     found.Members.Add(master);
+                    if (!IsAlive(found.Lead.sourceMaster))
+                    {
+                        found.Lead = card;
+                    }
                 }
             }
+        }
+
+        private static bool IsAlive(CharacterMaster master)
+        {
+            if (!master) return false;
+            CharacterBody body = master.GetBody();
+            return body && body.healthComponent && body.healthComponent.alive;
         }
 
         // The name the game's card shows (Util.GetBestBodyName, as AllyCardController reads it), found again only when
