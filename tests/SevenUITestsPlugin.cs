@@ -16,7 +16,7 @@ namespace SevenUI.Tests
 
         private void Awake()
         {
-            TestRegistry.Register(new SevenUITests());
+            TestRegistry.Register(new SevenUITests(this));
         }
     }
 }

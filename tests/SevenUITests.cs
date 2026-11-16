@@ -1,7 +1,11 @@
+using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using BepInEx.Configuration;
 using ModTestRunner;
+using UnityEngine;
 
 namespace SevenUI.Tests
 {
@@ -9,6 +13,42 @@ namespace SevenUI.Tests
     // and what the mod saw at a failure.
     internal sealed class SevenUITests : ModTests
     {
+        // Longer than the runner's settle after a mod's Cleanup, so the next scenario's Precondition gets in first.
+        private const float RestoreDelaySeconds = 2f;
+        private const int SettleFrames = 1;
+
+        // Each setting and the value the scenarios need it at.
+        private static readonly (Func<PluginConfig, ConfigEntry<bool>> Entry, bool Value)[] Needed =
+        {
+            (settings => settings.BarlowFont, true),
+            (settings => settings.FlatPanels, true),
+            (settings => settings.MonospaceDamageNumbers, true),
+            (settings => settings.EquipmentDeck, true),
+            (settings => settings.RestyleItemPickers, true),
+            (settings => settings.CompactAllyCards, true),
+            (settings => settings.GroupAllyCards, true),
+            (settings => settings.LevelHud, true),
+            (settings => settings.ScoreboardDetailPanel, true),
+            (settings => settings.ScoreboardTabs, true),
+            (settings => settings.RestylePauseMenu, true),
+            (settings => settings.RestyleTooltips, true),
+            (settings => settings.TimerHundredths, false),
+            (settings => settings.ShowHealthRegen, true),
+            (settings => settings.TightMargins, true),
+            (settings => settings.ScoreboardBesideRunInfo, true),
+        };
+
+        private static Dictionary<int, bool> saved;
+        private static int generation;
+        private static int appliedFrame;
+
+        private readonly MonoBehaviour host;
+
+        public SevenUITests(MonoBehaviour host)
+        {
+            this.host = host;
+        }
+
         public override string Name => SevenUIPlugin.PluginName;
 
         // Every scenario runs in a plain mod_test; a suite picks a group to run on its own with --suite.
@@ -28,30 +68,72 @@ namespace SevenUI.Tests
             yield return new Suite("store", true, StoreScenarios.All());
         }
 
+        // Sets the settings the scenarios assume, once, on the first scenario; the user's values come back a moment after
+        // the last one. Returns null always: a setting never skips a scenario.
         public override string Precondition(Scenario scenario)
         {
-            PluginConfig settings = SevenUIPlugin.Settings;
-            if (!settings.BarlowFont.Value) return "BarlowFont is off in the SevenUI config";
-            if (!settings.FlatPanels.Value) return "FlatPanels is off in the SevenUI config";
-            if (!settings.MonospaceDamageNumbers.Value) return "MonospaceDamageNumbers is off in the SevenUI config";
-            if (!settings.EquipmentDeck.Value) return "EquipmentDeck is off in the SevenUI config";
-            if (!settings.RestyleItemPickers.Value) return "RestyleItemPickers is off in the SevenUI config";
-            if (!settings.CompactAllyCards.Value) return "CompactAllyCards is off in the SevenUI config";
-            if (!settings.GroupAllyCards.Value) return "GroupAllyCards is off in the SevenUI config";
-            if (!settings.LevelHud.Value) return "LevelHud is off in the SevenUI config";
-            if (!settings.ScoreboardDetailPanel.Value) return "ScoreboardDetailPanel is off in the SevenUI config";
-            if (!settings.ScoreboardTabs.Value) return "ScoreboardTabs is off in the SevenUI config";
-            if (!settings.RestylePauseMenu.Value) return "RestylePauseMenu is off in the SevenUI config";
-            if (!settings.RestyleTooltips.Value) return "RestyleTooltips is off in the SevenUI config";
-            if (settings.TimerHundredths.Value) return "TimerHundredths is on in the SevenUI config";
-            if (!settings.ShowHealthRegen.Value) return "ShowHealthRegen is off in the SevenUI config";
+            generation++;
+            if (saved != null)
+            {
+                return null;
+            }
+
+            saved = new Dictionary<int, bool>();
+            bool changed = false;
+            for (int i = 0; i < Needed.Length; i++)
+            {
+                ConfigEntry<bool> entry = Needed[i].Entry(SevenUIPlugin.Settings);
+                saved[i] = entry.Value;
+                // Assigning fires SettingChanged, so only touch what differs.
+                if (entry.Value != Needed[i].Value)
+                {
+                    entry.Value = Needed[i].Value;
+                    changed = true;
+                }
+            }
+
+            if (changed)
+            {
+                appliedFrame = Time.frameCount;
+            }
+
             return null;
         }
 
-        // The controller attaches when the HUD first gets a body, a little after the stage loads.
+        // The controller attaches when the HUD first gets a body, a little after the stage loads. After a setting
+        // changed, the mod's own handlers get a few frames to settle the look before the first step reads it.
         public override bool Ready()
         {
-            return SevenUIChecks.Controller;
+            return SevenUIChecks.Controller && Time.frameCount > appliedFrame + SettleFrames;
+        }
+
+        // The mod can't tell which scenario is last, so the user's values go back after a pause, unless another scenario
+        // began in the meantime (its Precondition bumps the generation).
+        public override IEnumerator Cleanup(Harness h)
+        {
+            generation++;
+            host.StartCoroutine(RestoreLater(generation));
+            yield break;
+        }
+
+        private static IEnumerator RestoreLater(int expected)
+        {
+            yield return new WaitForSecondsRealtime(RestoreDelaySeconds);
+            if (generation != expected || saved == null)
+            {
+                yield break;
+            }
+
+            for (int i = 0; i < Needed.Length; i++)
+            {
+                ConfigEntry<bool> entry = Needed[i].Entry(SevenUIPlugin.Settings);
+                if (entry.Value != saved[i])
+                {
+                    entry.Value = saved[i];
+                }
+            }
+
+            saved = null;
         }
 
         // The mod's dump-key lines for the HUD.
