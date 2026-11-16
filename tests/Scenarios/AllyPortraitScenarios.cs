@@ -4,6 +4,7 @@ using System.Linq;
 using ModTestRunner;
 using RoR2;
 using RoR2.UI;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -18,6 +19,7 @@ namespace SevenUI.Tests
         private const float Tolerance = 0.5f;
         // Long enough for the game to add or remove a card and the mod to lay it out.
         private const float SettleSeconds = 0.5f;
+        private const float DeathStyleSeconds = 0.1f;
         private const int MaxLoneAllies = 20;
         private const int KindSize = 5;
 
@@ -27,6 +29,7 @@ namespace SevenUI.Tests
             yield return new Scenario(1, "ally_portraits_more_row_and_back", Stages.TitanicPlains, MoreRowAndBack);
             yield return new Scenario(1, "ally_portraits_kind_shrinks", Stages.TitanicPlains, KindShrinks);
             yield return new Scenario(1, "ally_portraits_kind_lead_removed", Stages.TitanicPlains, KindLeadRemoved);
+            yield return new Scenario(1, "ally_portraits_kind_dead_member", Stages.TitanicPlains, KindDeadMember);
             yield return new Scenario(1, "ally_portraits_group_toggle", Stages.TitanicPlains, GroupToggle);
             yield return new Scenario(1, "ally_portraits_compact_toggle", Stages.TitanicPlains, CompactToggle);
             yield return new Scenario(1, "ally_portraits_flat_panels_toggle", Stages.TitanicPlains, FlatPanelsToggle);
@@ -147,6 +150,53 @@ namespace SevenUI.Tests
                 yield return trace.Step($"lead removed, kind of {kind.Count}", kind.Count == 1);
             }
             trace.Finish();
+        }
+
+        // Three Gunner Drones share a card. The first one dies, its body lingering: the card must not show the game's dead
+        // mark while two live, and must count two. Then a Healing Drone, of another kind, is removed, and the same holds.
+        private static IEnumerator KindDeadMember(Harness h)
+        {
+            const int Drones = 3;
+            List<CharacterMaster> kind = new List<CharacterMaster>();
+            List<CharacterMaster> other = new List<CharacterMaster>();
+            yield return Allies.SummonDrones(h, Allies.GunnerDroneMaster, Drones, kind);
+            yield return Allies.SummonDrones(h, Allies.HealingDroneMaster, 1, other);
+            yield return h.Wait(SettleSeconds);
+            CheckSharedCard(h, kind, "before a death");
+            // The master is kept, so the body lingers as it does for a drone killed in play.
+            kind[0].destroyOnBodyDeath = false;
+            kind[0].GetBody().healthComponent.Suicide();
+            yield return h.Until(() => !kind[0].GetBody() || !kind[0].GetBody().healthComponent.alive, "the first drone's death");
+            // A moment for the cards to be styled, before the dead drone's body goes.
+            yield return h.Wait(DeathStyleSeconds);
+            CheckSharedCard(h, kind, "right after the death");
+            yield return h.Wait(SettleSeconds);
+            CheckSharedCard(h, kind, "after the death settled");
+            Allies.Remove(other);
+            other.Clear();
+            yield return h.Wait(SettleSeconds);
+            CheckSharedCard(h, kind, "after another kind's drone was removed");
+        }
+
+        // The card of the kind's living allies shows no dead mark and counts them; the dead drone's card is hidden.
+        private static void CheckSharedCard(Harness h, List<CharacterMaster> kind, string when)
+        {
+            List<CharacterMaster> living = kind.Where(master => master && master.GetBody() &&
+                master.GetBody().healthComponent.alive).ToList();
+            List<AllyCardController> cards = AllyCardChecks.Cards(h).Where(card => card.gameObject.activeSelf &&
+                card.sourceMaster && kind.Contains(card.sourceMaster)).ToList();
+            if (cards.Count != 1) throw h.Fail($"{when}: {cards.Count} cards shown for the kind, not 1 {h.Diagnosis()}");
+            AllyCardController card = cards[0];
+            if (!living.Contains(card.sourceMaster)) throw h.Fail($"{when}: the shared card belongs to a dead drone");
+            Image dead = card.healthBar ? card.healthBar.deadImage : null;
+            if (dead && dead.enabled && dead.gameObject.activeInHierarchy) throw h.Fail($"{when}: the shared card shows the dead mark");
+            TMP_Text count = card.nameLabel ? card.nameLabel.transform.Find(AllyKindParts.CountName)?.GetComponent<TMP_Text>() : null;
+            string expected = living.Count > 1 ? "×" + living.Count : null;
+            if ((count ? count.text : null) != expected)
+            {
+                throw h.Fail($"{when}: the shared card reads '{(count ? count.text : "")}', not '{expected}'");
+            }
+            h.Log($"[ally_portraits] {when}: shared card of {living.Count} living, {(count ? count.text : "no count")}");
         }
 
         // A kind of five shown as one card while the cards are compact, then GroupAllyCards off and on, twice.
