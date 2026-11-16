@@ -163,6 +163,14 @@ namespace SevenUI
             return lines * Step(size) - Gap(size);
         }
 
+        // How wide the items are with slots this size in a cell this wide: slots fill from the left, so a last gap of up
+        // to a slot is left over at the right.
+        public float UsedWidth(float size, float width)
+        {
+            if (slots == 0) return 0f;
+            return Mathf.Min(slots, PerLine(size, width)) * Step(size) - Gap(size);
+        }
+
         public void SetLayout(float size, float width)
         {
             if (Mathf.Approximately(size, slot) && Mathf.Approximately(width, across)) return;

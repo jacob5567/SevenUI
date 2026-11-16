@@ -346,8 +346,11 @@ namespace SevenUI
             float itemsTop = Mathf.Min(rowTop, rowsTop + Mathf.Max(rowsHeight, itemsHeight) - itemsHeight);
             float itemsBottom = Mathf.Max(itemsTop + itemsHeight, rowTop + ScoreboardStyler.RowHeight);
             float stepX = rowsPadding.left + ScoreboardStyler.RowItemsLeft;
-            StatsSection.TopLeft(open.Cell, ScoreboardStyler.RowItemsLeft + TabInset, itemsTop - rowTop + TabInset, across,
-                itemsHeight - 2f * TabInset);
+            // The items are centered in the tab's width: slots fill from the left, so the cell is only as wide as they
+            // are, or the leftover would all land at the right.
+            float used = Mathf.Min(across, open.UsedWidth(size, across));
+            StatsSection.TopLeft(open.Cell, ScoreboardStyler.RowItemsLeft + TabInset + (across - used) / 2f,
+                itemsTop - rowTop + TabInset, used, itemsHeight - 2f * TabInset);
             tab.gameObject.SetActive(true);
             tab.Place(Rect.MinMaxRect(rowsPadding.left, rowTop, stepX, rowTop + ScoreboardStyler.RowHeight),
                 Rect.MinMaxRect(stepX, itemsTop, rowsPadding.left + rowWidth, itemsBottom), rowsTop, rowsTop + rowsHeight);
