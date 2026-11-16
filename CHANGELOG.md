@@ -1,3 +1,25 @@
+## 1.4.0
+
+- Eleven new settings, each in the Panels section and in Risk Of Options, so you can keep parts of the game's look while the rest is restyled:
+  - `EquipmentDeck`: the Functional Coupler's deck of equipment above the equipment slot.
+  - `RestyleItemPickers`: the restyled item pickers, such as Command and Void Potentials.
+  - `CompactAllyCards`: ally cards shrinking to one-line rows and folding into "+N more".
+  - `GroupAllyCards`: allies of one kind sharing a card.
+  - `LevelHud`: the HUD's corners drawn level, instead of with the game's inward lean.
+  - `ScoreboardDetailPanel`: the panel docked on the scoreboard, instead of the game's tooltip.
+  - `ScoreboardTabs`: scoreboard rows collapsing to tabs; off, every row stays and the items shrink to fit.
+  - `RestylePauseMenu`: the restyled pause menu.
+  - `RestyleTooltips`: the restyled tooltips.
+  - `TimerHundredths` (off by default): the run timer's hundredths of a second.
+  - `ShowHealthRegen`: the regeneration text, such as "+12.4/s", beside the health numbers.
+- Turning `FlatPanels` off from the pause menu now restores the pause menu too, and its labels keep Barlow.
+- Turning `MonospaceDamageNumbers` off in the main menu takes effect at once, instead of at the next run.
+- A scoreboard row that couldn't be restyled when it appeared is restyled once it can be.
+- Every ally card lines up on the same left edge, compact names are all one size, and compact portraits stay small after a setting changes.
+- In a solo run, the scoreboard no longer shows how many players hold each item.
+- The `DebugAlwaysShow` setting, which did nothing, is gone.
+- Less work each frame in the HUD.
+
 ## 1.3.0
 
 - The scoreboard keeps every item at full size. Each player's row reads left to right: portrait, name and item counts by tier, key item, equipment, then their items, sorted by tier and wrapping under themselves. With several players and too many items to fit, the rows collapse: your row, or the one you point at, shows as an outlined tab with all its items, and the others as plain rows beside it.
