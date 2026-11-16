@@ -283,6 +283,12 @@ namespace SevenUI
         // layout sums them while the container is stretched to give every card its height.
         private void Place()
         {
+            // The HUD can be destroyed without a Restore (the run ends), and the event is static.
+            if (!root)
+            {
+                Canvas.willRenderCanvases -= Place;
+                return;
+            }
             foreach ((RectTransform rect, float y) in places)
             {
                 if (!rect) continue;
