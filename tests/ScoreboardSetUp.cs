@@ -150,8 +150,28 @@ namespace SevenUI.Tests
         {
             LocalUser user = LocalUserManager.GetFirstLocalUser();
             h.OnCleanup(() => HUD.SetScoreboardActive(user, false, EScoreboardDeactivateReturnContext.Game));
+            float openedAt = Time.unscaledTime;
             HUD.SetScoreboardActive(user, true, EScoreboardDeactivateReturnContext.Game, shouldForceScoreboardToggle: true);
             yield return h.Until(() => HUD.IsScoreboardActive(user), "the scoreboard open");
+
+            // UIJuice fades the panel in to its own (private) original alpha, which may be below 1, so also stop waiting
+            // once the longest transition has had time to finish.
+            GameObject panel = user.cameraRigController.hud.scoreboardPanel;
+            List<UIJuice> juices = panel
+                ? panel.GetComponentsInChildren<UIJuice>(true).Where(juice => juice.canvasGroup).ToList()
+                : new List<UIJuice>();
+            if (juices.Count == 0)
+            {
+                yield break;
+            }
+
+            float fadeEnd = openedAt + juices.Max(juice => juice.transitionDuration) + FadeMarginSeconds;
+            yield return h.Until(
+                () => Time.unscaledTime >= fadeEnd || juices.All(juice => !juice || juice.canvasGroup.alpha >= FadedInAlpha),
+                "the scoreboard faded in");
         }
+
+        private const float FadedInAlpha = 0.99f;
+        private const float FadeMarginSeconds = 0.25f;
     }
 }
