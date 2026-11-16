@@ -4,6 +4,7 @@ using System.Linq;
 using ModTestRunner;
 using RoR2;
 using RoR2.ExpansionManagement;
+using RoR2.Navigation;
 using RoR2.UI;
 using UnityEngine;
 
@@ -59,11 +60,17 @@ namespace SevenUI.Tests
         // For finding open ground for the Beetle Queen: a few directions with a clear view from about her stand
         // distance, measured from her middle (about 4 m up, and as wide).
         private const int ViewDirections = 16;
-        private const int MinClearViews = 4;
+        private const int MaxGroundSamples = 64;
+        private const float StandDistanceStep = 2f;
+        private const int StandDistanceSteps = 3;
+        private const float ViewBlockerMargin = 2f;
         private const float MonsterMiddleHeight = 4f;
         private const float MonsterRadius = 4f;
-        private const float EyeHeight = 1.8f;
-        private const float GroundSearchHeight = 15f;
+        // The same values as the runner's StandBefore, which this predicts.
+        private const float EyeHeight = 1.6f;
+        private const float FeetLift = 0.2f;
+        private const float GroundSearchAbove = 15f;
+        private const float GroundSearchBelow = 40f;
         // Long enough for the new body's HUD overlays to be made and restyled.
         private const float NewBodySeconds = 2f;
         private const float NewBodyTimeout = 10f;
@@ -338,41 +345,72 @@ namespace SevenUI.Tests
             yield return h.Screenshot(look);
         }
 
-        // Somewhere the player can see the monster from its stand distance: the first of the stage's player spawn
-        // points, then where the player stands, with ground and a clear line to the monster from enough of the spots
-        // around it. Earlier scenarios can leave the player in a dip, where every spot around is behind terrain. A
-        // monster's middle and radius are from its feet; a low one is hidden by rocks a tall one shows over.
+        // Somewhere the player can see the monster from its stand distance: the stage's player spawn points, then an
+        // even sample of its ground nodes, each put on the ground, then where the player stands. The first with a
+        // stand spot the runner's StandBefore would accept wins. Earlier scenarios can leave the player in a dip,
+        // where every spot around is behind terrain. A monster's middle and radius are from its feet; a low one is
+        // hidden by rocks a tall one shows over.
         private static Vector3 OpenSpot(Vector3 fallback, float middleHeight, float radius)
         {
             List<Vector3> candidates = SpawnPoint.readOnlyInstancesList.Where(point => point)
                 .Select(point => point.transform.position).ToList();
-            candidates.Add(fallback);
+            // Read-only: positions only, no pathing and no random picks.
+            NodeGraph graph = SceneInfo.instance ? SceneInfo.instance.groundNodes : null;
+            if (graph)
+            {
+                int count = graph.GetNodeCount();
+                int step = Mathf.Max(1, count / MaxGroundSamples);
+                for (int i = 0; i < count; i += step)
+                {
+                    if (graph.GetNodePosition(new NodeGraph.NodeIndex(i), out Vector3 position) &&
+                        FindGround(position, out RaycastHit ground))
+                    {
+                        candidates.Add(ground.point);
+                    }
+                }
+            }
             foreach (Vector3 candidate in candidates)
             {
-                if (ClearViews(candidate, middleHeight, radius) >= MinClearViews) return candidate;
+                if (ClearViews(candidate, middleHeight, radius)) return candidate;
             }
             return fallback;
         }
 
-        // Of the directions around the spot, how many have ground at the stand distance and a clear line from eye
-        // height there to the monster's middle.
-        private static int ClearViews(Vector3 spot, float middleHeight, float radius)
+        // Ground under a point, searched tall as the runner does.
+        private static bool FindGround(Vector3 point, out RaycastHit ground)
         {
-            Vector3 middle = spot + Vector3.up * middleHeight;
-            float distance = DamageNumberStandDistance + radius;
-            int clear = 0;
-            for (int i = 0; i < ViewDirections; i++)
+            return Physics.Raycast(point + Vector3.up * GroundSearchAbove, Vector3.down, out ground,
+                GroundSearchAbove + GroundSearchBelow, LayerIndex.world.mask);
+        }
+
+        // Whether some stand spot has ground and a clear line from eye height to the monster's middle, as the
+        // runner's StandBefore checks: nearest ring first, anything inside the monster's own space ignored.
+        private static bool ClearViews(Vector3 spot, float middleHeight, float radius)
+        {
+            Vector3 target = spot + Vector3.up * middleHeight;
+            Bounds around = new Bounds(target, Vector3.one * radius * 2f);
+            around.Expand(ViewBlockerMargin);
+            for (int ring = 0; ring < StandDistanceSteps; ring++)
             {
-                Vector3 around = spot + Quaternion.Euler(0f, i * 360f / ViewDirections, 0f) * Vector3.forward * distance;
-                if (!Physics.Raycast(around + Vector3.up * GroundSearchHeight, Vector3.down, out RaycastHit ground,
-                        GroundSearchHeight * 2f, LayerIndex.world.mask)) continue;
-                Vector3 eye = ground.point + Vector3.up * EyeHeight;
-                if (!Physics.Linecast(eye, middle, LayerIndex.world.mask))
+                float distance = radius + DamageNumberStandDistance + ring * StandDistanceStep;
+                for (int i = 0; i < ViewDirections; i++)
                 {
-                    clear++;
+                    Vector3 candidate = target + Quaternion.Euler(0f, i * 360f / ViewDirections, 0f) * Vector3.forward * distance;
+                    if (!FindGround(candidate, out RaycastHit ground)) continue;
+                    Vector3 eye = ground.point + Vector3.up * (FeetLift + EyeHeight);
+                    Vector3 toTarget = target - eye;
+                    bool blocked = false;
+                    foreach (RaycastHit hit in Physics.RaycastAll(eye, toTarget.normalized, toTarget.magnitude,
+                                 LayerIndex.world.mask))
+                    {
+                        if (around.Contains(hit.point)) continue;
+                        blocked = true;
+                        break;
+                    }
+                    if (!blocked) return true;
                 }
             }
-            return clear;
+            return false;
         }
 
         // Server methods, as the runner is the host, which sends each hit's number to every player. A number appears
