@@ -179,7 +179,11 @@ namespace SevenUI
 
         // LookingGlass's text in the icon's stack text, or null. The game writes that text from a string builder,
         // which leaves TMP's string stale (and makes reading it build a new one), so it is read only when TMP's string
-        // is the last text written, as it is after LookingGlass sets it.
+        // is the last text written, as it is after LookingGlass sets it. The internals are needed because the public
+        // API can't do this: the text getter, when the string is stale, builds a new string every call, clears the
+        // dirty flag without updating m_text (so later reads are stale) and can't tell whose text it is; and
+        // GetParsedText needs a finished mesh rebuild, allocates and drops the rich-text tags TimerStart looks for.
+        // Without them the timer would be missed or read as the game's own count.
         private static string Timer(BuffIcon icon)
         {
             TMP_Text text = icon.stackCount;
