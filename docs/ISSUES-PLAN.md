@@ -46,7 +46,7 @@ All four edit `AllyCardsStyler` and its cards, so run them in this order on `mai
 
 | # | Task | Est. | Depends on |
 |---|---|---|---|
-| C1 | Drifter's display is too big | 2 h | none |
+| C1 | Operator's and Drifter's displays are too big | 2 h | none |
 | C2 | Check that my other mods fit with SevenUI (audit only) | 3 h | A, B |
 
 - C2 changes no code and produces follow-up tasks. It goes after A and B so the audit looks at the fixed layout, and before the features so its follow-ups can be slotted into Phase D.
