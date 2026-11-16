@@ -6,7 +6,7 @@ using UnityEngine;
 namespace SevenUI
 {
     // The player's health numbers above the health bar, as on the design canvas: "1,240 / 1,520" at the left, the
-    // current health in bold and the rest in grey, and the health regeneration, "+12.4/s", at the right. The numbers
+    // current health in bold and the rest in grey, and the health regeneration, "+12.4/s", at the right (hidden with ShowHealthRegen off). The numbers
     // are the ones the game writes in the bar (its combined health and full health, rounded up), with thousands
     // separators. While health is low the numbers turn pink and the bar switches to a copy of its style with the
     // health in red (FlatHealthStyles.LowHealth).
@@ -26,6 +26,7 @@ namespace SevenUI
         private int shownRegen = int.MinValue;
         private bool shownLow;
         private bool shownEmpty;
+        private bool regenHidden;
         private HealthBarStyle normal;
         private HealthBarStyle low;
         private HealthBarStyle normalAlly;
@@ -69,13 +70,26 @@ namespace SevenUI
                 Health.color = isLow ? Palette.LowHealthText : Palette.Text;
             }
 
-            CharacterBody body = source.body;
-            int regen = body ? Mathf.RoundToInt(body.regen * RegenSteps) : 0;
-            if (regen != shownRegen)
+            if (!SevenUIPlugin.Settings.ShowHealthRegen.Value)
             {
-                shownRegen = regen;
-                Regen.text = (regen / RegenSteps).ToString(RegenFormat) + RegenSuffix;
-                Regen.color = regen < 0 ? Palette.LowHealth : Palette.Regen;
+                if (!regenHidden)
+                {
+                    regenHidden = true;
+                    Regen.text = "";
+                    shownRegen = int.MinValue;
+                }
+            }
+            else
+            {
+                regenHidden = false;
+                CharacterBody body = source.body;
+                int regen = body ? Mathf.RoundToInt(body.regen * RegenSteps) : 0;
+                if (regen != shownRegen)
+                {
+                    shownRegen = regen;
+                    Regen.text = (regen / RegenSteps).ToString(RegenFormat) + RegenSuffix;
+                    Regen.color = regen < 0 ? Palette.LowHealth : Palette.Regen;
+                }
             }
 
             KeepStyle(ref Bar._style, ref normal, ref low, isLow);

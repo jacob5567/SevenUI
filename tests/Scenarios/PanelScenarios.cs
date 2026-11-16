@@ -87,6 +87,7 @@ namespace SevenUI.Tests
             yield return new Scenario(1, "pause_menu_follows_flat_panels", Stages.TitanicPlains, PauseMenuFollowsFlatPanels);
             yield return new Scenario(1, "pause_menu_setting_off", Stages.TitanicPlains, PauseMenuSettingOff);
             yield return new Scenario(1, "timer_hundredths_setting", Stages.TitanicPlains, TimerHundredthsSetting);
+            yield return new Scenario(1, "health_regen_setting", Stages.TitanicPlains, HealthRegenSetting);
             yield return new Scenario(1, "hud_settles", Stages.TitanicPlains, HudSettles);
             yield return new Scenario(1, "protection_striped_on_player", Stages.TitanicPlains, ProtectionStripedOnPlayer);
             yield return new Scenario(1, "protection_tinted_with_infusion", Stages.TitanicPlains, ProtectionTintedWithInfusion);
@@ -113,6 +114,19 @@ namespace SevenUI.Tests
             yield return h.Screenshot("timer_hundredths_on");
             h.SetConfig(settings.TimerHundredths, false);
             yield return h.ExpectTimerHundredths(false);
+        }
+
+        // With ShowHealthRegen off, the regeneration text beside the health numbers is empty while the numbers stay; on
+        // again, it comes back. Both with no restart.
+        private static IEnumerator HealthRegenSetting(Harness h)
+        {
+            PluginConfig settings = SevenUIPlugin.Settings;
+            h.OnCleanup(() => h.SetConfig(settings.ShowHealthRegen, true));
+            yield return h.ExpectHudLevel();
+            h.SetConfig(settings.ShowHealthRegen, false);
+            yield return h.ExpectHealthRegen(false);
+            h.SetConfig(settings.ShowHealthRegen, true);
+            yield return h.ExpectHealthRegen(true);
         }
 
         // Both ways; the top bars keep the canvas's width either way.

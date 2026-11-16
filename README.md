@@ -62,6 +62,7 @@ Edit `BepInEx/config/sevenstack.SevenUI.cfg`, or use [Risk Of Options](https://t
 | `RestylePauseMenu` | true | Restyle the pause menu. Off keeps the game's look for it. Only with `FlatPanels` on. |
 | `RestyleTooltips` | true | Restyle the tooltips of items, equipment and skills in the HUD. Off keeps the game's look for them. Only with `FlatPanels` on. |
 | `TimerHundredths` | false | On shows the run timer's hundredths, which `TightTimerFormat` removes. Only with `FlatPanels` on. |
+| `ShowHealthRegen` | true | Off hides the health regeneration text, such as `+12.4/s`, beside the health numbers. The game has no such text. Only with `FlatPanels` on. |
 | `DebugLogging` | false | Log extra detail, and enable the dump key. |
 | `DumpKey` | F8 | With `DebugLogging` on, log each HUD's fonts and what the mod restyled. |
 

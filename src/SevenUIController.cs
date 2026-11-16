@@ -98,6 +98,7 @@ namespace SevenUI
                 SevenUIPlugin.Settings.RestylePauseMenu,
                 SevenUIPlugin.Settings.RestyleTooltips,
                 SevenUIPlugin.Settings.TimerHundredths,
+                SevenUIPlugin.Settings.ShowHealthRegen,
             };
             foreach (ConfigEntry<bool> setting in watched)
             {

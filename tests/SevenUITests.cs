@@ -44,6 +44,7 @@ namespace SevenUI.Tests
             if (!settings.RestylePauseMenu.Value) return "RestylePauseMenu is off in the SevenUI config";
             if (!settings.RestyleTooltips.Value) return "RestyleTooltips is off in the SevenUI config";
             if (settings.TimerHundredths.Value) return "TimerHundredths is on in the SevenUI config";
+            if (!settings.ShowHealthRegen.Value) return "ShowHealthRegen is off in the SevenUI config";
             return null;
         }
 

@@ -21,6 +21,7 @@ namespace SevenUI
         public readonly ConfigEntry<bool> RestylePauseMenu;
         public readonly ConfigEntry<bool> RestyleTooltips;
         public readonly ConfigEntry<bool> TimerHundredths;
+        public readonly ConfigEntry<bool> ShowHealthRegen;
 
         public readonly ConfigEntry<bool> DebugLogging;
         public readonly ConfigEntry<KeyboardShortcut> DumpKey;
@@ -69,6 +70,9 @@ namespace SevenUI
             TimerHundredths = config.Bind("Panels", "TimerHundredths", false,
                 "On shows the run timer's hundredths of a second, which the restyled run info removes. " +
                 "Only with FlatPanels on.");
+            ShowHealthRegen = config.Bind("Panels", "ShowHealthRegen", true,
+                "Off hides the health regeneration text, such as +12.4/s, beside the health numbers. " +
+                "The game's HUD has no such text. Only with FlatPanels on.");
 
             // Risk Of Options uses the section name as the menu header, so keep it exactly "Debug".
             DebugLogging = config.Bind("Debug", "DebugLogging", false,

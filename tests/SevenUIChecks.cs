@@ -267,6 +267,22 @@ namespace SevenUI.Tests
         private static HealthBar PlayerHealthBar(Harness h) =>
             HudRoot(h).Find(GameNames.PlayerHealthBar)?.GetComponent<HealthBar>();
 
+        // The regeneration text, "+12.4/s", is shown or empty, with the health numbers written either way.
+        public static IEnumerator ExpectHealthRegen(this Harness h, bool shown)
+        {
+            string look = null;
+            yield return h.Until(
+                () =>
+                {
+                    HealthBar bar = PlayerHealthBar(h);
+                    PlayerHealthReadout readout = bar ? bar.GetComponentInChildren<PlayerHealthReadout>(true) : null;
+                    if (!readout || !readout.Regen || !readout.Health) return false;
+                    look = $"regen '{readout.Regen.text}', health '{readout.Health.text}'";
+                    return readout.Health.text.Length > 0 && (readout.Regen.text.Length > 0) == shown;
+                },
+                () => $"the regeneration text {(shown ? "shown" : "empty")} ({look}) {h.Diagnosis()}");
+        }
+
         // The barrier is a strip along the top that stays within the bar, not the game's frame drawn larger than it.
         private static bool UsesFlatStyle(HealthBar bar) =>
             bar._style && bar._style.name.EndsWith(Texts.FlatStyleSuffix) &&
