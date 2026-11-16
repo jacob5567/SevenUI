@@ -19,6 +19,8 @@ namespace SevenUI
         public const string PaneName = "SevenUIItemPane";
         public const string HolderName = "SevenUIItemHolder";
 
+        private static readonly ScoreboardItemGrid[] NoGrids = new ScoreboardItemGrid[0];
+
         private const float Canvas = HudUnits.PerCanvasPixel;
 
         // The canvas's sizes, in its pixels, scaled to the HUD's units (HudUnits).
@@ -180,8 +182,6 @@ namespace SevenUI
             }
             Finish();
         }
-
-        private static readonly ScoreboardItemGrid[] NoGrids = new ScoreboardItemGrid[0];
 
         private static Texture AsyncTexture(AsyncRawImage image) => image && image.renderer ? image.renderer.texture : null;
 

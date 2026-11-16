@@ -8,15 +8,15 @@ using UnityEngine.UI;
 
 namespace SevenUI
 {
-    // Restyles the run info in the top right as one flat panel, laid out as on the design canvas: the timer at the left;
-    // the difficulty's name, and the stage and level under it, at the right; and below them a thin accent bar with the
-    // current difficulty segment's name, in place of the game's scrolling segments. While Karma is on, a row under the
-    // bar shows it (KarmaRow) in place of the game's Karma icon, and while any artifact is on, a row under those shows
-    // the artifacts' icons (ArtifactRow) in place of the game's artifact panel; the panel and the column under it make
-    // room for each. The
-    // panel is the canvas's height, and the timer reads "24:51", without the hundredths unless TimerHundredths is on (TightTimerFormat). The column
-    // it heads, which holds the objective panel, is widened to 300 of the canvas's pixels and starts a gap under it.
-    // The game's objects keep running; only their look and places change.
+    // Restyles the run info in the top right as one flat panel, laid out as on the design canvas: the timer at the
+    // left; the difficulty's name, and the stage and level under it, at the right; and below them a thin accent bar
+    // with the current difficulty segment's name, in place of the game's scrolling segments. While Karma is on, a row
+    // under the bar shows it (KarmaRow) in place of the game's Karma icon, and while any artifact is on, a row under
+    // those shows the artifacts' icons (ArtifactRow) in place of the game's artifact panel; the panel and the column
+    // under it make room for each. The panel is the canvas's height, and the timer reads "24:51", without the
+    // hundredths unless TimerHundredths is on (TightTimerFormat). The column it heads, which holds the objective panel,
+    // is widened to 300 of the canvas's pixels and starts a gap under it. The game's objects keep running; only their
+    // look and places change.
     internal sealed class RunInfoStyler : IStyler
     {
         // Vanilla object names under the run info panel (ClassicRunInfoHudPanel).
@@ -155,7 +155,7 @@ namespace SevenUI
             if (!karmaOn) return;
             // Not GetEffectiveKarma(): its cached value is updated only by SetKarmaServer and the client's SyncKarma
             // hook, so it can lag the synced field.
-            int level = manager.IsKarmaEnabled() ? (int)manager.NetworkactualKarma : 0;
+            int level = (int)manager.NetworkactualKarma;
             foreach ((_, _, KarmaRow karma, _) in styled)
             {
                 karma.Set(level);

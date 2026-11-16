@@ -45,9 +45,9 @@ namespace SevenUI
         private const float Canvas = HudUnits.PerCanvasPixel;
 
         // The design canvas's sizes, in its pixels, scaled to the HUD's units (HudUnits), the layout groups' paddings
-        // rounded to whole units: rows at least 92px tall with
-        // 16px by 20px of padding and 16px between columns; 52px slots; the player's name block 176px wide, its lines
-        // 19px, 14px and 13px, 3px apart; and the money's text 20px.
+        // rounded to whole units: rows at least 92px tall with 16px by 20px of padding and 16px between columns; 52px
+        // slots; the player's name block 176px wide, its lines 19px, 14px and 13px, 3px apart; and the money's text
+        // 20px.
         public const float RowHeight = 92f * Canvas;
         public const int RowPaddingX = (int)(20f * Canvas + 0.5f);
         public const int RowPaddingY = (int)(16f * Canvas + 0.5f);
@@ -441,8 +441,8 @@ namespace SevenUI
                         icon.rectTransform.pivot = pivot;
                     }
                 }
-                // Reads the inventory and draws, then places every icon at the game's size.
-                // Allowed exception to read-only access: these only rebuild this icon display's own local UI, with no run state or network.
+                // Reads the inventory and draws, then places every icon at the game's size. Allowed exception to
+                // read-only access: these only rebuild this icon display's own local UI, with no run state or network.
                 display.UpdateDisplay();
                 display.LayoutAllIcons();
             });

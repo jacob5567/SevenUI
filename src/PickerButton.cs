@@ -49,12 +49,11 @@ namespace SevenUI
         public void Update(Inventory inventory)
         {
             if (!Button) return;
-            bool hovering = Hovered;
-            JustHovered = hovering && !wasHovered;
-            wasHovered = hovering;
+            bool hovered = Hovered;
+            JustHovered = hovered && !wasHovered;
+            wasHovered = hovered;
             if (Outline)
             {
-                bool hovered = Hovered;
                 if (Outline.enabled != hovered)
                 {
                     Outline.enabled = hovered;

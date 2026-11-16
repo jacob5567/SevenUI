@@ -6,11 +6,12 @@ using UnityEngine;
 namespace SevenUI
 {
     // With TightMargins on, draws the HUD's corners as near the screen's edges as on the design canvas: 28 canvas
-    // pixels in at the sides and bottom, 24 at the top, and the ally cards on the left 28 in and 300 down. The game keeps the corner clusters inside its main area, 5% of
-    // the screen in from each edge, and each cluster's panels sit differently in its own box (the run info pokes above
-    // it, the skills' key labels hang below it). So the spring canvas that holds the clusters is stretched over the whole screen, and each
-    // corner cluster is moved until its outermost panel sits at the canvas's margin. The main area itself is left
-    // alone, since the enemies' health bars are placed on it.
+    // pixels in at the sides and bottom, 24 at the top, and the ally cards on the left 28 in and 300 down. The game
+    // keeps the corner clusters inside its main area, 5% of the screen in from each edge, and each cluster's panels sit
+    // differently in its own box (the run info pokes above it, the skills' key labels hang below it). So the spring
+    // canvas that holds the clusters is stretched over the whole screen, and each corner cluster is moved until its
+    // outermost panel sits at the canvas's margin. The main area itself is left alone, since the enemies' health bars
+    // are placed on it.
     //
     // The HUD is drawn by a perspective camera, and the main area sits behind the canvas, so it is drawn smaller than
     // the screen; everything here is measured on screen through the HUD's camera, not in the canvas's units.

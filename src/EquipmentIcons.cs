@@ -10,18 +10,18 @@ namespace SevenUI
     // holds only a few equipment.
     internal static class EquipmentIcons
     {
-        private static readonly Dictionary<EquipmentIndex, AssetOrDirectReference<Sprite>> loading =
+        private static readonly Dictionary<EquipmentIndex, AssetOrDirectReference<Sprite>> Loading =
             new Dictionary<EquipmentIndex, AssetOrDirectReference<Sprite>>();
 
         // The icon, or none while it loads or for no equipment.
         public static Texture Get(EquipmentIndex index)
         {
-            if (!loading.TryGetValue(index, out AssetOrDirectReference<Sprite> icon))
+            if (!Loading.TryGetValue(index, out AssetOrDirectReference<Sprite> icon))
             {
                 EquipmentDef equipment = EquipmentCatalog.GetEquipmentDef(index);
                 if (!equipment) return null;
                 icon = AssetOrDirectReference<Sprite>.GetNewInstance(equipment.GetIconReference(), true, equipment.GetIcon());
-                loading.Add(index, icon);
+                Loading.Add(index, icon);
             }
             Sprite sprite = icon.Result;
             return sprite ? sprite.texture : null;

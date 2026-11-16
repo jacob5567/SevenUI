@@ -105,6 +105,7 @@ namespace SevenUI
             if (allies != shownCount)
             {
                 shownCount = allies;
+                // English only, as the game has no translation of this word.
                 label.text = "+" + allies + " more";
             }
             // A hidden card stops updating its own portrait, so each kind is read from the ally's body.

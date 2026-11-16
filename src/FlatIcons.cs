@@ -6,8 +6,7 @@ namespace SevenUI
     // each with a square marker), a double chevron for sprint, and the same chevrons pointing down for descending,
     // which the sprint button shows while the player flies a remote-operated drone. Also the hairline arrow between the
     // old and new items of a transformation notification, and a single chevron pointing down, from the next equipment
-    // into the equipment slot. Each is a union of square-capped strokes, so the chevrons'
-    // corners come out mitred.
+    // into the equipment slot. Each is a union of square-capped strokes, so the chevrons' corners come out mitred.
     internal static class FlatIcons
     {
         // Each icon is designed on a 30-unit grid, as on the design canvas, and drawn in the middle of a 36-unit

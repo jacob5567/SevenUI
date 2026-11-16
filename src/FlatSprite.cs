@@ -198,7 +198,7 @@ namespace SevenUI
                 return topStrip;
             }
         }
-    
+
         // Dark stripes running up to the right, in the curse's colors, for a tiled image.
         public static Sprite Hatch => hatch ? hatch : hatch = MakeHatch("SevenUIHatch", Palette.CurseStripe, Palette.CurseGap);
 

@@ -96,13 +96,13 @@ namespace SevenUI
             equipment.Clear();
             AddDeck();
             // Before the key item, which is among the extra buttons and whose key is then sized to the skills'.
-            Transform extraButtons = cluster.Find(ExtraButtonsPath);
-            if (extraButtons)
+            Transform buttons = cluster.Find(ExtraButtonsPath);
+            if (buttons)
             {
-                StyleKeys(extraButtons);
-                StyleIcon(extraButtons.Find(ScoreboardIconPath), FlatIcons.Scoreboard);
-                StyleIcon(extraButtons.Find(SprintIconPath), FlatIcons.Sprint);
-                StyleIcon(extraButtons.Find(DescendIconPath), FlatIcons.Descend);
+                StyleKeys(buttons);
+                StyleIcon(buttons.Find(ScoreboardIconPath), FlatIcons.Scoreboard);
+                StyleIcon(buttons.Find(SprintIconPath), FlatIcons.Sprint);
+                StyleIcon(buttons.Find(DescendIconPath), FlatIcons.Descend);
             }
             TutorialPopups.Style(hud, row, recorder);
             cluster.GetComponentsInChildren(true, keyItems);
@@ -318,10 +318,10 @@ namespace SevenUI
         // Past a divider before the first skill (M1) or after the last (R).
         private SlotFitter Fit(GameObject displayRoot, bool leftOfRow, RectTransform follower = null)
         {
-            SkillIcon[] row = hud.skillIcons;
-            if (row == null || row.Length < 2 || !row[0] || !row[1] || !row[row.Length - 1] || !row[row.Length - 2]) return null;
-            Transform end = leftOfRow ? row[0].transform : row[row.Length - 1].transform;
-            Transform inner = leftOfRow ? row[1].transform : row[row.Length - 2].transform;
+            SkillIcon[] icons = hud.skillIcons;
+            if (icons == null || icons.Length < 2 || !icons[0] || !icons[1] || !icons[icons.Length - 1] || !icons[icons.Length - 2]) return null;
+            Transform end = leftOfRow ? icons[0].transform : icons[icons.Length - 1].transform;
+            Transform inner = leftOfRow ? icons[1].transform : icons[icons.Length - 2].transform;
             return new SlotFitter((RectTransform)displayRoot.transform, (RectTransform)end, (RectTransform)inner, leftOfRow,
                 SkillRow.DividedExtraGapShare, recorder, follower);
         }

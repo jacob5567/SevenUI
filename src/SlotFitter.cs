@@ -3,11 +3,11 @@ using UnityEngine;
 namespace SevenUI
 {
     // Draws the equipment or key item slot at a skill slot's size, a skill's spacing from the end of the skill row, and
-    // optionally a further share of a slot past that.
-    // The game draws both larger than the skills, and places the slots themselves (the key item's through a layout
-    // group), so the slot's display root, which holds everything drawn in it, is moved instead. Refitted whenever the
-    // skills move. A follower placed against the slot (the N'tormat's page selector, beside the key item) is moved and
-    // scaled with it, so it keeps its place and size against the slot as drawn.
+    // optionally a further share of a slot past that. The game draws both larger than the skills, and places the slots
+    // themselves (the key item's through a layout group), so the slot's display root, which holds everything drawn in
+    // it, is moved instead. Refitted whenever the skills move. A follower placed against the slot (the N'tormat's page
+    // selector, beside the key item) is moved and scaled with it, so it keeps its place and size against the slot as
+    // drawn.
     internal sealed class SlotFitter
     {
         private readonly RectTransform display;
