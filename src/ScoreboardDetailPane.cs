@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using RoR2;
 using RoR2.UI;
@@ -66,6 +67,8 @@ namespace SevenUI
         private readonly List<Holder> holders = new List<Holder>();
         private readonly TMP_Text style;
         private int holderCount;
+        private int playersListed;
+        private Action rebuild;
         private float laidOutWidth = -1f;
         private TMP_FontAsset laidOutFont;
         private bool stale = true;
@@ -125,8 +128,9 @@ namespace SevenUI
         public int HolderCount => holderCount;
         public string HolderText(int index) => holders[index].Label.text;
 
-        // Describes the item the icon shows, with every row holding it. A lone player's count is already on their icon,
-        // so with one row no holders are listed.
+        // Describes the item the icon shows, with every player holding it. A lone player's count is already on their icon,
+        // so with one player in the run no holders are listed (nor the divider above them), and the list comes back
+        // when another joins: Place notices the count change and builds the pane again.
         public void Show(ItemIcon shown, IReadOnlyList<ScoreboardItemGrid> grids)
         {
             ItemDef item = ItemCatalog.GetItemDef(shown.itemIndex);
@@ -134,8 +138,9 @@ namespace SevenUI
             Describe(TierGroups.ColorOf(TierGroups.Of(shown.itemIndex)), shown.image ? shown.image.texture : null,
                 shown.tooltipProvider, item.nameToken, item.descriptionToken);
             Item = item.itemIndex;
+            rebuild = () => Show(shown, grids);
             holderCount = 0;
-            foreach (ScoreboardItemGrid grid in grids.Count > 1 ? grids : NoGrids)
+            foreach (ScoreboardItemGrid grid in Listed(grids))
             {
                 ItemIcon held = grid.Alive ? grid.Find(Item) : null;
                 if (held)
@@ -153,8 +158,9 @@ namespace SevenUI
             Texture texture = shown.iconImage && shown.iconImage.texture ? shown.iconImage.texture : AsyncTexture(shown.asyncIconImage);
             Describe(color, texture, shown.tooltipProvider, equipment.nameToken, equipment.descriptionToken);
             Equipment = equipment.equipmentIndex;
+            rebuild = () => Show(equipment, shown, grids);
             holderCount = 0;
-            foreach (ScoreboardItemGrid grid in grids)
+            foreach (ScoreboardItemGrid grid in Listed(grids))
             {
                 Inventory inventory = grid.Alive && grid.Strip.master ? grid.Strip.master.inventory : null;
                 if (inventory && inventory.currentEquipmentIndex == Equipment)
@@ -171,8 +177,9 @@ namespace SevenUI
             Describe(ColorCatalog.GetColor(keyItem.colorIndex), AsyncTexture(shown.asyncIconImage), shown.tooltipProvider,
                 keyItem.nameToken, keyItem.descriptionToken);
             KeyItem = keyItem.keyItemIndex;
+            rebuild = () => Show(keyItem, shown, grids);
             holderCount = 0;
-            foreach (ScoreboardItemGrid grid in grids)
+            foreach (ScoreboardItemGrid grid in Listed(grids))
             {
                 Inventory inventory = grid.Alive && grid.Strip.master ? grid.Strip.master.inventory : null;
                 if (inventory && inventory.keyItemIndex == KeyItem)
@@ -181,6 +188,14 @@ namespace SevenUI
                 }
             }
             Finish();
+        }
+
+        // The rows to list holders from: none while the run has one player. Counts the run's players, not the rows or
+        // the holders. Read only (the instances list is the game's, and Count is a cheap read).
+        private IReadOnlyList<ScoreboardItemGrid> Listed(IReadOnlyList<ScoreboardItemGrid> grids)
+        {
+            playersListed = PlayerCharacterMasterController.instances.Count;
+            return playersListed > 1 ? grids : NoGrids;
         }
 
         private static Texture AsyncTexture(AsyncRawImage image) => image && image.renderer ? image.renderer.texture : null;
@@ -232,6 +247,7 @@ namespace SevenUI
             Equipment = EquipmentIndex.None;
             KeyItem = KeyItemIndex.None;
             Shown = false;
+            rebuild = null;
             Root.gameObject.SetActive(false);
         }
 
@@ -239,6 +255,10 @@ namespace SevenUI
         // the font swap reaches its texts) changed.
         public void Place(float x, float y, float width)
         {
+            if (rebuild != null && playersListed != PlayerCharacterMasterController.instances.Count)
+            {
+                rebuild();
+            }
             if (stale || !Mathf.Approximately(width, laidOutWidth) || description.font != laidOutFont)
             {
                 stale = false;
