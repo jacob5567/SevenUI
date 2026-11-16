@@ -37,9 +37,10 @@ namespace SevenUI
         private readonly List<AllyCardController> overflow = new List<AllyCardController>();
         private readonly Dictionary<AllyCardController, AllyCompactCard> looks = new Dictionary<AllyCardController, AllyCompactCard>();
         private readonly Dictionary<AllyCardController, AllyKindParts> shared = new Dictionary<AllyCardController, AllyKindParts>();
-        // Each ally's name as the game shows it, found once per body: a hidden card's own label stops updating.
-        private readonly Dictionary<CharacterMaster, (CharacterBody Body, string Name)> names =
-            new Dictionary<CharacterMaster, (CharacterBody, string)>();
+        // Each ally's name as the game shows it, found again when its body or drone tier changes: a hidden card's own
+        // label stops updating.
+        private readonly Dictionary<CharacterMaster, (CharacterBody Body, int Tier, string Name)> names =
+            new Dictionary<CharacterMaster, (CharacterBody, int, string)>();
         private readonly List<AllyCardController> goneCards = new List<AllyCardController>();
         private readonly List<CharacterMaster> goneMasters = new List<CharacterMaster>();
         private readonly Vector3[] corners = new Vector3[4];
@@ -60,6 +61,8 @@ namespace SevenUI
             // The kind's first card, which the kind shares.
             public AllyCardController Lead;
             public CharacterMaster Leader;
+            // Drones of different upgrade tiers are different kinds, though the name's tier suffix is the only difference.
+            public int Tier;
             // None for a card that stands alone.
             public string Name;
             public readonly List<CharacterMaster> Members = new List<CharacterMaster>();
@@ -306,6 +309,7 @@ namespace SevenUI
             {
                 kind.Lead = null;
                 kind.Leader = null;
+                kind.Tier = 0;
                 kind.Name = null;
                 kind.Members.Clear();
                 kind.Cards.Clear();
@@ -318,14 +322,15 @@ namespace SevenUI
                 CharacterMaster master = card.sourceMaster;
                 // Players stand alone, as does an ally between bodies, which has no name to group by. With grouping off
                 // no card has a name, so each is a kind of its own and ShowKind takes off any parts it had.
-                string name = group && master && !master.playerCharacterMasterController ? NameOf(master) : null;
+                int tier = 0;
+                string name = group && master && !master.playerCharacterMasterController ? NameOf(master, out tier) : null;
                 CharacterMaster leader = master && master.minionOwnership ? master.minionOwnership.ownerMaster : null;
                 Kind found = null;
                 if (name != null)
                 {
                     foreach (Kind kind in kinds)
                     {
-                        if (kind.Name == name && kind.Leader == leader)
+                        if (kind.Name == name && kind.Tier == tier && kind.Leader == leader)
                         {
                             found = kind;
                             break;
@@ -337,6 +342,7 @@ namespace SevenUI
                     found = spareKinds.Count > 0 ? spareKinds.Pop() : new Kind();
                     found.Lead = card;
                     found.Leader = leader;
+                    found.Tier = tier;
                     found.Name = name;
                     kinds.Add(found);
                 }
@@ -349,14 +355,18 @@ namespace SevenUI
         }
 
         // The name the game's card shows (Util.GetBestBodyName, as AllyCardController reads it), found again only when
-        // the ally's body changes.
-        private string NameOf(CharacterMaster master)
+        // the ally's body or drone tier changes. An upgrade adds hidden items to the same body, so the tier is read from
+        // the synced inventory each time rather than assumed from the body.
+        private string NameOf(CharacterMaster master, out int tier)
         {
+            tier = 0;
             CharacterBody body = master.GetBody();
             if (!body) return null;
-            if (names.TryGetValue(master, out (CharacterBody Body, string Name) known) && known.Body == body) return known.Name;
+            tier = body.inventory ? body.inventory.GetItemCountEffective(DLC3Content.Items.DroneUpgradeHidden) : 0;
+            if (names.TryGetValue(master, out (CharacterBody Body, int Tier, string Name) known) && known.Body == body &&
+                known.Tier == tier) return known.Name;
             string name = Util.GetBestBodyName(body.gameObject);
-            names[master] = (body, name);
+            names[master] = (body, tier, name);
             if (names.Count > cards.Count * 2)
             {
                 ForgetGoneMasters();

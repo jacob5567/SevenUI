@@ -52,7 +52,7 @@ namespace SevenUI.Tests
             yield return new Suite("scoreboard_rows", ScoreboardScenarios.All(ScoreboardScenarios.Board.Rows));
             yield return new Suite("scoreboard_tabs", ScoreboardScenarios.All(ScoreboardScenarios.Board.Tabs));
             yield return new Suite("pickers", PickerScenarios.All());
-            yield return new Suite("ally_portraits", AllyPortraitScenarios.All());
+            yield return new Suite("ally_portraits", AllyPortraitScenarios.All().Concat(AllyTierScenarios.All()));
             yield return new Suite("scoreboard_leave", ScoreboardLeaveScenarios.All());
             yield return new Suite("screenshots", ScreenshotScenarios.All().Append(ScoreboardScenarios.SpreadScreenshot()));
             // Changes the run for good, so only when named.
