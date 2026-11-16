@@ -21,8 +21,14 @@ namespace SevenUI.Tests
         private const float DroneSpacing = 2f;
         private const float DroneHeight = 3f;
 
+        // That many drones bought from broken ones, as a player gets them, and removed at cleanup.
         public static IEnumerator BuyDrones(Harness h, int count)
         {
+            CharacterMaster player = Harness.LocalBody.master;
+            HashSet<CharacterMaster> before = new HashSet<CharacterMaster>(Minions(player));
+            List<CharacterMaster> bought = new List<CharacterMaster>();
+            // Bought drones outlive the scenario otherwise, and a later one's drone would share their card.
+            h.OnCleanup(() => Remove(bought));
             h.Cmd($"{Commands.GiveMoney} {Money}");
             for (int i = 0; i < count; i++)
             {
@@ -30,8 +36,18 @@ namespace SevenUI.Tests
                 yield return h.Spawned<PurchaseInteraction>($"{Commands.SpawnInteractable} {GameNames.BrokenDrone}",
                     found => drone = found);
                 yield return h.Interact(drone.gameObject);
+                yield return h.Until(() => Minions(player).Any(minion => !before.Contains(minion)), "the bought drone");
+                foreach (CharacterMaster minion in Minions(player).Where(minion => !before.Contains(minion)).ToList())
+                {
+                    before.Add(minion);
+                    bought.Add(minion);
+                }
             }
         }
+
+        private static IEnumerable<CharacterMaster> Minions(CharacterMaster owner) =>
+            CharacterMaster.readOnlyInstancesList.Where(master =>
+                master && master.minionOwnership && master.minionOwnership.ownerMaster == owner);
 
         // That many drones of the master's kind, the player's minions like bought ones (or the leader's, if given), their
         // AI off so they stay put. They are added to the list and destroyed at cleanup unless removed first (Remove).

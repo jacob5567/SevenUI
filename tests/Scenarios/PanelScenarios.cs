@@ -588,8 +588,11 @@ namespace SevenUI.Tests
             yield return h.Screenshot("infusion");
         }
 
+        // Grouping off: a kind's shared card draws a segment per ally in place of the game's bar, so an ally of a kind
+        // already following the player would leave no bar to check.
         private static IEnumerator ProtectionStripedOnAllies(Harness h)
         {
+            h.SetConfig(SevenUIPlugin.Settings.GroupAllyCards, false);
             yield return Allies.BuyDrones(h, ProtectionAllyCount);
             yield return ProtectionBothLooks(h,
                 () => SevenUIChecks.HudRoot(h).GetComponentsInChildren<AllyCardController>().Select(card => card.healthBar),
