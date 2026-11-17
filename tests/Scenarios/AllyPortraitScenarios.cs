@@ -30,6 +30,7 @@ namespace SevenUI.Tests
             yield return new Scenario(1, "ally_portraits_kind_shrinks", Stages.TitanicPlains, KindShrinks);
             yield return new Scenario(1, "ally_portraits_kind_lead_removed", Stages.TitanicPlains, KindLeadRemoved);
             yield return new Scenario(1, "ally_portraits_kind_dead_member", Stages.TitanicPlains, KindDeadMember);
+            yield return new Scenario(1, "ally_portraits_other_kind_dies", Stages.TitanicPlains, OtherKindDies);
             yield return new Scenario(1, "ally_portraits_group_toggle", Stages.TitanicPlains, GroupToggle);
             yield return new Scenario(1, "ally_portraits_compact_toggle", Stages.TitanicPlains, CompactToggle);
             yield return new Scenario(1, "ally_portraits_flat_panels_toggle", Stages.TitanicPlains, FlatPanelsToggle);
@@ -177,6 +178,33 @@ namespace SevenUI.Tests
             yield return h.Until(() => !kind[0], "the dead drone's master to be destroyed");
             yield return h.Wait(SettleSeconds);
             CheckSharedCard(h, kind, "after another kind's drone was removed");
+        }
+
+        // A Healing Drone on its own card above two Gunner Drones sharing one, as in play. The Healing Drone dies: its card
+        // shows the game's dead mark, and when the game destroys its master it hands the cards on down the list, so the
+        // card with the mark becomes a Gunner Drone's. The shared card must never show the mark.
+        private static IEnumerator OtherKindDies(Harness h)
+        {
+            const int Drones = 2;
+            List<CharacterMaster> other = new List<CharacterMaster>();
+            List<CharacterMaster> kind = new List<CharacterMaster>();
+            yield return Allies.SummonDrones(h, Allies.HealingDroneMaster, 1, other);
+            yield return Allies.SummonDrones(h, Allies.GunnerDroneMaster, Drones, kind);
+            yield return h.Wait(SettleSeconds);
+            CheckSharedCard(h, kind, "before the other drone's death");
+            other[0].GetBody().healthComponent.Suicide();
+            yield return h.Until(() => !other[0].GetBody() || !other[0].GetBody().healthComponent.alive, "the Healing Drone's death");
+            yield return h.Wait(DeathStyleSeconds);
+            CheckSharedCard(h, kind, "right after the other drone's death");
+            yield return h.Until(() => !other[0], "the Healing Drone's master to be destroyed");
+            // Checked every frame while the game hands the cards on, then once settled.
+            float until = Time.time + SettleSeconds;
+            while (Time.time < until)
+            {
+                yield return null;
+                CheckSharedCard(h, kind, "while the cards are handed on");
+            }
+            CheckSharedCard(h, kind, "after the cards settled");
         }
 
         // The card of the kind's living allies shows no dead mark and counts them; the dead drone's card is hidden.
