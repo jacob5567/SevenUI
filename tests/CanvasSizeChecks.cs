@@ -29,6 +29,8 @@ namespace SevenUI.Tests
         // of the tab, which starts 16px after the equipment. The key item and equipment slots are 52px, and a collapsed
         // row 92px tall.
         private const float ScoreboardItemSlot = 40f;
+        // The gap between item slots, as a share of a slot (4px to 40px, ScoreboardItemGrid).
+        private const float ScoreboardItemGapRatio = 4f / 40f;
         private const float ScoreboardItemsAfterEquipment = 16f;
         private const float ScoreboardTabInset = 16f;
         private const float ScoreboardLoadoutSlot = 52f;
@@ -217,7 +219,13 @@ namespace SevenUI.Tests
             Rect name = Box(h, (RectTransform)background.Find(ScoreboardNamePath));
             float after = ScoreboardItemsAfterEquipment + (board.Collapsed ? ScoreboardTabInset : 0f);
             bool top = Near(cell.yMax, name.yMax) || board.Collapsed && cell.yMax > name.yMax;
-            string place = Near(cell.xMin - equipment.xMax, after) && top
+            // In a tab a full line is centered, so the items start up to half a slot step further in (TabProblem checks
+            // that the two sides match).
+            float gap = cell.xMin - equipment.xMax;
+            bool across = board.Collapsed
+                ? gap > after - SizeTolerance && gap < after + (size + size * ScoreboardItemGapRatio) / 2f + SizeTolerance
+                : Near(gap, after);
+            string place = across && top
                 ? null
                 : $"cell {cell.xMin - equipment.xMax:0.#} after the equipment, top {cell.yMax:0.#} beside a name block " +
                   $"from {name.yMax:0.#}";
