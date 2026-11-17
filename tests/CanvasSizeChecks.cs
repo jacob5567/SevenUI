@@ -694,7 +694,7 @@ namespace SevenUI.Tests
         }
 
         // Drifter's display of what it carries hangs in the utility area too, and is shrunk back to the size the game draws
-        // it at: its card keeps the game's size in canvas pixels and its place over the row (the gap above the row's top
+        // it at: its card keeps the game's size in the cluster's plane and its place over the row (the gap above the row's top
         // and its right edge, in shares of a skill slot in the cluster's plane), and is on screen; the game's look puts
         // it back.
         public static IEnumerator ExpectBagDisplayMatchesGame(this Harness h)
@@ -743,16 +743,19 @@ namespace SevenUI.Tests
             public Vector2 Position;
             public Rect Screen;
             public Rect OnScreen;
+            // The card's size in the cluster's plane: the game's look tilts that plane, so sizes on screen differ
+            // between the looks even when the card is drawn at the same size.
+            public Vector2 InPlane;
             public float Gap;
             public float Right;
 
             public string Text() =>
-                $"card {BoxText(OnScreen)}, gap over the row {Gap:F2} slots, right edge {Right:F2} slots right of the row's";
+                $"card {BoxText(OnScreen)}, {InPlane.x:F1} by {InPlane.y:F1} in the plane, gap over the row {Gap:F2} slots, right edge {Right:F2} slots right of the row's";
 
             public string Problem(BagDisplay game)
             {
-                if (Mathf.Abs(OnScreen.width - game.OnScreen.width) > DroneSizeTolerance) return "card's width";
-                if (Mathf.Abs(OnScreen.height - game.OnScreen.height) > DroneSizeTolerance) return "card's height";
+                if (Mathf.Abs(InPlane.x - game.InPlane.x) > DroneSizeTolerance) return "card's width";
+                if (Mathf.Abs(InPlane.y - game.InPlane.y) > DroneSizeTolerance) return "card's height";
                 if (Mathf.Abs(Gap - game.Gap) > UtilityAreaTolerance) return "gap over the row";
                 if (Mathf.Abs(Right - game.Right) > DroneRightTolerance) return "right edge";
                 if (OnScreen.xMin < Screen.xMin || OnScreen.yMin < Screen.yMin || OnScreen.xMax > Screen.xMax ||
@@ -793,6 +796,7 @@ namespace SevenUI.Tests
                 Position = top.anchoredPosition,
                 Screen = Rect.MinMaxRect(screen.xMin / unit, screen.yMin / unit, screen.xMax / unit, screen.yMax / unit),
                 OnScreen = Box(h, cardRect),
+                InPlane = inPlane.size,
                 Gap = (inPlane.yMin - skills.Max(box => box.yMax)) / skill,
                 Right = (inPlane.xMax - skills.Max(box => box.xMax)) / skill
             };
