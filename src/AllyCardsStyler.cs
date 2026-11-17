@@ -44,8 +44,9 @@ namespace SevenUI
         // Every section made, kept with its more row; the first has no player. Active holds those the cards fill now.
         private readonly List<Section> pool = new List<Section>();
         private readonly List<Section> active = new List<Section>();
-        // Where each card shown belongs in the stack, from the top, set again after the game's layout runs.
-        private readonly List<(RectTransform Rect, float Y)> places = new List<(RectTransform, float)>();
+        // Where each card shown belongs in the stack, from the top, and how far in, set again after the game's layout
+        // runs.
+        private readonly List<(RectTransform Rect, float Y, float Indent)> places = new List<(RectTransform, float, float)>();
         private readonly Dictionary<AllyCardController, AllyCompactCard> looks = new Dictionary<AllyCardController, AllyCompactCard>();
         private readonly Dictionary<AllyCardController, AllyKindParts> shared = new Dictionary<AllyCardController, AllyKindParts>();
         // Each ally's name as the game shows it, found again when its body or drone tier changes: a hidden card's own
@@ -237,7 +238,7 @@ namespace SevenUI
                 {
                     ShowKind(section.Player, compact, true, false);
                     tallest = Mathf.Max(tallest, Height(section.Player, compact));
-                    places.Add((section.Player.Lead.rectTransform, -top));
+                    places.Add((section.Player.Lead.rectTransform, -top, 0f));
                     top += Height(section.Player, compact);
                 }
                 section.Overflow.Clear();
@@ -250,7 +251,7 @@ namespace SevenUI
                     if (fits)
                     {
                         tallest = Mathf.Max(tallest, Height(kind, compact));
-                        places.Add((kind.Lead.rectTransform, -top));
+                        places.Add((kind.Lead.rectTransform, -top, section.Player != null ? GameIndent() : 0f));
                         top += Height(kind, compact);
                     }
                     else
@@ -376,8 +377,9 @@ namespace SevenUI
 
         private static bool Compacts(Kind kind, bool compact) => compact && !kind.Shared && !IsPlayer(kind);
 
-        // The game steps each card down in its own order, a player's minions right under the player, so a card is
-        // moved to its place in ours, only when it isn't there. Each card's top is its height above, as the game's
+        // The game steps each card down in its own order, a player's minions right under the player, and writes each
+        // card's left offset from the indent zeroed in Indent, so a card is moved to its place and indent in ours, only
+        // when it isn't there. Each card's top is its height above, as the game's
         // layout sums them while the container is stretched to give every card its height.
         private void Place()
         {
@@ -387,13 +389,18 @@ namespace SevenUI
                 Canvas.willRenderCanvases -= Place;
                 return;
             }
-            foreach ((RectTransform rect, float y) in places)
+            foreach ((RectTransform rect, float y, float indent) in places)
             {
                 if (!rect) continue;
                 Vector2 position = rect.anchoredPosition;
                 if (Mathf.Abs(position.y - y) > SizeTolerance)
                 {
                     rect.anchoredPosition = new Vector2(position.x, y);
+                }
+                if (rect.offsetMin.x != indent || rect.offsetMax.x != 0f)
+                {
+                    rect.offsetMin = new Vector2(indent, rect.offsetMin.y);
+                    rect.offsetMax = new Vector2(0f, rect.offsetMax.y);
                 }
             }
         }
