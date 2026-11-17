@@ -163,8 +163,8 @@ namespace SevenUI.Tests
             yield return Allies.SummonDrones(h, Allies.HealingDroneMaster, 1, other);
             yield return h.Wait(SettleSeconds);
             CheckSharedCard(h, kind, "before a death");
-            // The master is kept, so the body lingers as it does for a drone killed in play.
-            kind[0].destroyOnBodyDeath = false;
+            // The game destroys a dead drone's master a second after its death (CharacterMaster.OnBodyDeath); the two
+            // checks after the death fall inside that second, while its body lingers.
             kind[0].GetBody().healthComponent.Suicide();
             yield return h.Until(() => !kind[0].GetBody() || !kind[0].GetBody().healthComponent.alive, "the first drone's death");
             // A moment for the cards to be styled, before the dead drone's body goes.
@@ -174,6 +174,7 @@ namespace SevenUI.Tests
             CheckSharedCard(h, kind, "after the death settled");
             Allies.Remove(other);
             other.Clear();
+            yield return h.Until(() => !kind[0], "the dead drone's master to be destroyed");
             yield return h.Wait(SettleSeconds);
             CheckSharedCard(h, kind, "after another kind's drone was removed");
         }
