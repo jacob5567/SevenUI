@@ -44,6 +44,7 @@ namespace SevenUI
         private bool applied;
         // The survivors' own displays already fitted, which are put back with the row.
         private readonly HashSet<RectTransform> followed = new HashSet<RectTransform>();
+        private readonly List<BaggedCardController> bagCards = new List<BaggedCardController>();
 
         private SkillRow(RectTransform scaler, float unit)
         {
@@ -134,9 +135,10 @@ namespace SevenUI
             rowBefore = before;
             rowAfter = after;
             applied = true;
-            FollowDroneDisplay(hud, recorder);
+            FollowDisplays(hud, recorder);
         }
 
+        // The displays the game hangs over the row, which grew with it, shrunk back to the size the game draws them at.
         // Operator's (DroneTech in code) display of the drones queued to be commanded: an overlay the game creates with
         // the body, after the row is applied, under the utility area, so FollowRow has grown it with the slots
         // already, in the game's proportion to a skill slot, so a fit to the slots would change nothing. But the slots
@@ -144,12 +146,19 @@ namespace SevenUI
         // shrunk back by the row's growth, to the size the game draws it at, and keeps its bottom right corner where
         // FollowRow put it over the row. Its queues ("Secondary Queue" and "Util Queue") are in
         // it, so they follow. Run on each apply; each instance is fitted once, once its slots have a size.
-        public void FollowDroneDisplay(HUD hud, StyleRecorder recorder)
+        public void FollowDisplays(HUD hud, StyleRecorder recorder)
         {
             if (!applied || rowAfter.height <= 0f || rowBefore.height <= 0f) return;
-            if (!hud.targetBodyObject || !hud.targetBodyObject.GetComponent<DroneTechController>()) return;
             RectTransform area = scaler.Find(UtilityAreaName) as RectTransform;
-            if (!area) return;
+            if (hud.targetBodyObject && hud.targetBodyObject.GetComponent<DroneTechController>() && area)
+            {
+                FollowDroneDisplay(area, recorder);
+            }
+            FollowBagDisplay(area, recorder);
+        }
+
+        private void FollowDroneDisplay(RectTransform area, StyleRecorder recorder)
+        {
             foreach (RectTransform display in area.GetComponentsInChildren<RectTransform>(true))
             {
                 if (!display.name.StartsWith(DroneOverlayName) || followed.Contains(display)) continue;
@@ -160,6 +169,34 @@ namespace SevenUI
                 followed.Add(display);
                 FitAboutCorner(display, slots, rowBefore.height / rowAfter.height, recorder);
             }
+        }
+
+        // Drifter's display of what it carries (an arrow, the portrait, the name and a health bar), an overlay the game
+        // creates when something is bagged. It is found by its BaggedCardController, whichever body is played, and
+        // scaled like Operator's about the bottom right corner of the card.
+        // Only an overlay under the grown scaler is fitted: elsewhere the row's growth doesn't apply to it.
+        private void FollowBagDisplay(RectTransform area, StyleRecorder recorder)
+        {
+            scaler.GetComponentsInChildren(true, bagCards);
+            foreach (BaggedCardController card in bagCards)
+            {
+                RectTransform cardRect = (RectTransform)card.transform;
+                RectTransform root = OverlayRoot(cardRect, area);
+                if (!root || followed.Contains(root) || cardRect.rect.width <= 0f || cardRect.rect.height <= 0f) continue;
+                followed.Add(root);
+                FitAboutCorner(root, new List<RectTransform> { cardRect }, rowBefore.height / rowAfter.height, recorder);
+            }
+            bagCards.Clear();
+        }
+
+        // The top of the overlay a part is in: the child of the utility area, or of the scaler without one.
+        private RectTransform OverlayRoot(RectTransform part, RectTransform area)
+        {
+            for (Transform at = part; at && at != scaler; at = at.parent)
+            {
+                if (at.parent == scaler || (area && at.parent == area)) return at as RectTransform;
+            }
+            return null;
         }
 
         // Scales a display by a factor about the bottom right corner of the box its slots fill. The display's own rect

@@ -30,6 +30,8 @@ namespace SevenUI.Tests
         public const string ShrineOfBlood = "iscShrineBlood";
         public const string LunarPod = "iscLunarChest";
         public const string BrokenDrone = "iscBrokenDrone1";
+        public const string Barrel = "iscBarrel1";
+        public const string ShrineOfChance = "iscShrineChance";
         public const string GunnerDroneBody = "Drone1Body";
         public const string ToughMonster = "BeetleQueen";
         // A monster that can be instakilled. DebugToolkit ranks a name match on the master's name and the body's display

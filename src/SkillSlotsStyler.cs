@@ -82,7 +82,7 @@ namespace SevenUI
                 if (row == null) return;
                 row.Apply(hud, cluster.Find(ExtraButtonsPath), recorder);
             }
-            row.FollowDroneDisplay(hud, recorder);
+            row.FollowDisplays(hud, recorder);
             cluster.GetComponentsInChildren(true, skills);
             foreach (SkillIcon skill in skills)
             {

@@ -102,6 +102,8 @@ namespace SevenUI.Tests
             // Turns the player into Operator like the survivor shots, so it runs here with them: in the panels suite the
             // item icon checks after them found no icons on the item bar.
             yield return Shot("operator_display_fits_slots", OperatorDisplayFitsSlots);
+            // The same for Drifter's display of what it carries, which the game hangs from the same area.
+            yield return Shot("drifter_bag_display_matches_game", DrifterBagDisplayMatchesGame);
             // Starts the teleporter, which changes the stage, so it goes last.
             yield return new Scenario(2, "boss_bar", Stages.TitanicPlains, BossBar);
         }
@@ -149,6 +151,65 @@ namespace SevenUI.Tests
         {
             yield return TurnInto(h, GameNames.DroneTech);
             yield return h.ExpectDroneDisplayFitsSlots();
+        }
+
+        // Drifter grabs several interactables in turn with her Repossess skill, as the game does: each shows its overlay
+        // (arrow, portrait, name and health bar) above the row's right end, which is checked to keep the game's size and
+        // shot in both looks, before she empties the bag with the skill that replaces Repossess. Kinds that can't be
+        // spawned or grabbed are skipped, but at least one must be grabbed. Skipped without Drifter's expansion.
+        private static IEnumerator DrifterBagDisplayMatchesGame(Harness h)
+        {
+            yield return TurnInto(h, GameNames.Drifter);
+            CharacterBody body = Harness.LocalBody;
+            DrifterBagController bag = body.GetComponent<DrifterBagController>();
+            if (!bag) throw h.Fail("the Drifter has no DrifterBagController");
+            GenericSkill repossess = DrifterBag.FindRepossess(h, body);
+            h.OnCleanup(() =>
+            {
+                if (bag && bag.bagFull)
+                {
+                    bag.ResetBaggedObject();
+                }
+            });
+
+            List<string> grabbed = new List<string>();
+            List<string> skipped = new List<string>();
+            foreach (string kind in DrifterBag.Kinds)
+            {
+                SpecialObjectAttributes target = null;
+                yield return DrifterBag.Spawn(h, kind, found => target = found);
+                if (!target)
+                {
+                    skipped.Add($"{kind}: nothing the bag takes spawned");
+                    continue;
+                }
+                SpecialObjectAttributes spawned = target;
+                h.OnCleanup(() => DrifterBag.Discard(spawned));
+
+                string problem = null;
+                yield return DrifterBag.Grab(h, repossess, bag, target, reason => problem = reason);
+                if (problem != null)
+                {
+                    skipped.Add($"{kind}: {problem}");
+                    yield return DrifterBag.Empty(h, repossess, bag);
+                    DrifterBag.Discard(target);
+                    continue;
+                }
+                h.Log($"bagged {kind} (\"{target.bestName}\")");
+                yield return h.ExpectBagDisplayMatchesGame();
+                yield return h.CaptureLooks(kind);
+                grabbed.Add(kind);
+                yield return DrifterBag.Empty(h, repossess, bag);
+                DrifterBag.Discard(target);
+            }
+            foreach (string reason in skipped)
+            {
+                h.Log($"skipped {reason}");
+            }
+            if (grabbed.Count == 0)
+            {
+                throw h.Fail($"Drifter grabbed none of the {DrifterBag.Kinds.Length} kinds: {string.Join("; ", skipped)} {h.Diagnosis()}");
+            }
         }
 
         // A server method; the runner is the host.

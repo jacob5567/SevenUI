@@ -1254,15 +1254,17 @@ namespace SevenUI.Tests
             }
         }
 
-        public static IEnumerator CaptureLooks(this Harness h)
+        // The label, when given, goes before each look's name, for a scenario that shoots several things.
+        public static IEnumerator CaptureLooks(this Harness h, string label = null)
         {
-            yield return h.Screenshot("sevenui");
+            string prefix = label != null ? label + "." : "";
+            yield return h.Screenshot(prefix + "sevenui");
             PluginConfig settings = SevenUIPlugin.Settings;
             h.SetConfig(settings.FlatPanels, false);
             h.SetConfig(settings.BarlowFont, false);
             h.SetConfig(settings.MonospaceDamageNumbers, false);
             yield return h.Wait(LookSwitchSeconds);
-            yield return h.Screenshot("vanilla");
+            yield return h.Screenshot(prefix + "vanilla");
             h.SetConfig(settings.FlatPanels, true);
             h.SetConfig(settings.BarlowFont, true);
             h.SetConfig(settings.MonospaceDamageNumbers, true);
