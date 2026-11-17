@@ -170,6 +170,7 @@ namespace SevenUI
                 description.color = Palette.HeaderText;
                 SetPreferredWidth(description.GetComponent<LayoutElement>());
             }
+            StyleExtraTexts(textArea, notification.titleTMP, description);
 
             HorizontalLayoutGroup row = content.GetComponent<HorizontalLayoutGroup>();
             Transform iconArea = content.Find(NotificationIconAreaName);
@@ -226,6 +227,32 @@ namespace SevenUI
             Color32 x = a;
             Color32 y = b;
             return x.r == y.r && x.g == y.g && x.b == y.b;
+        }
+
+        // Any other text under the text area gets the description's look and the same width. A Drone Tech player's drone
+        // notification has one more, the command the drone can be given (the game shows it in its extra panel), which the
+        // game lets run wider than the title and description; the layout takes its widest child, so it would stretch the
+        // panel past 500px. Each such text and the objects holding it, up to the text area, are capped.
+        private void StyleExtraTexts(Transform textArea, TMP_Text title, TMP_Text description)
+        {
+            if (!textArea) return;
+            foreach (TMP_Text text in textArea.GetComponentsInChildren<TMP_Text>(true))
+            {
+                if (text == title || text == description) continue;
+                recorder.Record(text);
+                text.fontSize = NotificationDescriptionSize;
+                text.color = Palette.HeaderText;
+                for (Transform holder = text.transform; holder && holder != textArea; holder = holder.parent)
+                {
+                    LayoutElement element = holder.GetComponent<LayoutElement>();
+                    if (!element && holder == text.transform)
+                    {
+                        element = holder.gameObject.AddComponent<LayoutElement>();
+                        recorder.Add(element);
+                    }
+                    SetPreferredWidth(element);
+                }
+            }
         }
 
         private void SetPreferredWidth(LayoutElement element)
