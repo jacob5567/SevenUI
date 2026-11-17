@@ -536,6 +536,23 @@ namespace SevenUI.Tests
                       $"{PlaceText(vanilla)}, SevenUI {PlaceText(styled)}) {h.Diagnosis()}");
         }
 
+        // Every UI object in the scene whose name mentions a drone or a queue, with its path, to find Operator's display
+        // when it isn't where the check looks.
+        private static string DroneUiPaths()
+        {
+            IEnumerable<string> paths = Object.FindObjectsOfType<RectTransform>(true)
+                .Where(rect => rect.name.IndexOf("Drone", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+                               rect.name.IndexOf("Queue", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                .Select(rect =>
+                {
+                    string path = rect.name;
+                    for (Transform up = rect.parent; up; up = up.parent) path = up.name + "/" + path;
+                    return $"{path} ({(rect.gameObject.activeInHierarchy ? "active" : "inactive")})";
+                })
+                .Take(30);
+            return "[" + string.Join("; ", paths) + "]";
+        }
+
         private static Vector3? UtilityAreaPlace(Harness h)
         {
             Transform root = SevenUIChecks.HudRoot(h);
@@ -561,7 +578,7 @@ namespace SevenUI.Tests
             h.SetConfig(settings.FlatPanels, false);
             yield return h.Wait(SevenUIChecks.LookSwitchSeconds);
             (RectTransform Display, float Icon, Vector3 Scale, Vector2 Position)? vanilla = DroneDisplayPlace(h);
-            if (vanilla == null) throw h.Fail($"no Operator display in the HUD in the game's look {h.Diagnosis()}");
+            if (vanilla == null) throw h.Fail($"no Operator display in the HUD in the game's look; UI objects named like it: {DroneUiPaths()} {h.Diagnosis()}");
             h.SetConfig(settings.FlatPanels, true);
             (RectTransform Display, float Icon, Vector3 Scale, Vector2 Position)? styled = null;
             yield return h.Until(
