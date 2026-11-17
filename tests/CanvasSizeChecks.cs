@@ -852,7 +852,7 @@ namespace SevenUI.Tests
                            $"{(tooltip ? (tooltip.enabled ? "shown" : "hidden") : "none")}, outlined {outlined} ({highlightLook ?? "on whole pixels"}), " +
                            $"{others.Count} others dimmed {dimmed}, this one undimmed {undimmed}, {beside ?? "placed"}";
                     return pane.Shown && pane.Item == icon.itemIndex && pane.Title == title && pane.Root.gameObject.activeInHierarchy &&
-                           (board.Grids.Count > 1
+                           (PlayerCharacterMasterController.instances.Count > 1
                                ? Enumerable.Range(0, pane.HolderCount).Any(i => pane.HolderText(i).Contains(stack))
                                : pane.HolderCount == 0) &&
                            (!tooltip || !tooltip.enabled) && outlined && highlightLook == null && undimmed && beside == null &&
@@ -891,7 +891,10 @@ namespace SevenUI.Tests
                            $"key item {pane.KeyItem}) held by [{holders}], tooltip " +
                            $"{(tooltip ? (tooltip.enabled ? "shown" : "hidden") : "none")}, lit {board.Highlighted}, {beside ?? "placed"}";
                     return pane.Shown && describes && pane.Item == ItemIndex.None && pane.Title == provider.titleText &&
-                           pane.Root.gameObject.activeInHierarchy && Enumerable.Range(0, pane.HolderCount).Any(i => pane.HolderText(i) == name) &&
+                           pane.Root.gameObject.activeInHierarchy &&
+                           (PlayerCharacterMasterController.instances.Count > 1
+                               ? Enumerable.Range(0, pane.HolderCount).Any(i => pane.HolderText(i) == name)
+                               : pane.HolderCount == 0) &&
                            (!tooltip || !tooltip.enabled) && board.Highlighted == ItemIndex.None && beside == null;
                 },
                 () => $"the {what} described in the scoreboard's pane ({look}) {h.Diagnosis()}");
