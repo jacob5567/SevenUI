@@ -48,15 +48,15 @@ namespace SevenUI.Tests
         public const string SpawnAs = "spawn_as";
 
         // Survivors that add HUD elements of their own, through HudOverlayManager: Railgunner's backpack charge,
-        // Void Fiend's corruption meter, Seeker's, Operator's (DroneTech in code), Drifter's junk meter and Acolyte's.
+        // Void Fiend's corruption meter, Seeker's, Operator's (DroneTech in code), Drifter's junk meter (beside the crosshair) and Acolyte's.
         public const string Railgunner = "RailgunnerBody";
         public const string VoidFiend = "VoidSurvivorBody";
         public const string Seeker = "SeekerBody";
         // Operator's name in the game's text; the code calls it DroneTech.
         public const string DroneTech = "DroneTechBody";
-        // Operator's display: the child holding its queued drones' icons, and the first icon in it.
-        public const string DroneQueue = "Secondary Queue";
-        public const string DroneIcon = "Drone 1";
+        // Operator's display, an overlay in the utility area, and the slots in its two queues (DroneSlot1 to DroneSlot3).
+        public const string DroneOverlay = "DroneTechDronesOverlay";
+        public const string DroneSlot = "DroneSlot";
         public const string Drifter = "DrifterBody";
         public const string Acolyte = "AcolyteBody";
 

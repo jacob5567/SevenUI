@@ -99,9 +99,8 @@ namespace SevenUI.Tests
             yield return Survivor("drone_tech", GameNames.DroneTech);
             yield return Survivor("drifter", GameNames.Drifter);
             yield return Survivor("acolyte", GameNames.Acolyte);
-            // Turn the player into a survivor like the shots, so they run here with them: in the panels suite the
+            // Turns the player into Operator like the survivor shots, so it runs here with them: in the panels suite the
             // item icon checks after them found no icons on the item bar.
-            yield return Shot("drifter_meter_follows_row", DrifterMeterFollowsRow);
             yield return Shot("operator_display_fits_slots", OperatorDisplayFitsSlots);
             // Starts the teleporter, which changes the stage, so it goes last.
             yield return new Scenario(2, "boss_bar", Stages.TitanicPlains, BossBar);
@@ -144,15 +143,7 @@ namespace SevenUI.Tests
             yield return h.Wait(NewBodySeconds);
         }
 
-        // Drifter's junk meter beside the skill row is scaled with it; skipped without Drifter's expansion, or when the
-        // game hangs the meter outside the row's scaler.
-        private static IEnumerator DrifterMeterFollowsRow(Harness h)
-        {
-            yield return TurnInto(h, GameNames.Drifter);
-            yield return h.ExpectOverlayFollowsRow();
-        }
-
-        // Operator's (DroneTech) display of queued drones above the row is fitted to the slots' size; skipped without its
+        // Operator's (DroneTech) display of queued drones above the row is fitted so its widest slot is a skill slot wide; skipped without its
         // expansion.
         private static IEnumerator OperatorDisplayFitsSlots(Harness h)
         {
