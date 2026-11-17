@@ -40,7 +40,8 @@ All four edit `AllyCardsStyler` and its cards, so each branches from the one bef
 - A4 is independent and small. It is here only because it is the same styler.
 
 **Tests:** `panels` and `ally_portraits`, then the full run.
-**Manual check:** with a second player, other players' cards stay full size and on top, in player order (stand-in test players get no ally cards). Scrapping a different drone leaves a shared card alone (the tests can't scrap).
+A3's scenario uses stand-in players, as the `scoreboard_leave` suite does (AI Commandos made players on the host). The game shows a player's ally card only if the player has a network user, so the test links the stand-ins to one.
+**Manual check:** scrapping a different drone leaves a shared card alone (the tests can't scrap).
 
 ## Phase B: scoreboard bugs (10 h)
 
@@ -55,7 +56,8 @@ All four edit `AllyCardsStyler` and its cards, so each branches from the one bef
 - B4 goes last because B1 changes how the hover highlight is drawn and B3 changes what the detail panel builds. Profiling before them would measure code that is about to change.
 
 **Tests:** `scoreboard`, `scoreboard_rows`, `scoreboard_tabs` and `scoreboard_leave`, then the full run. The tests run at 1440p, where B1's uneven outlines showed, and B1's check measures each side. B4 adds a scenario that hovers across the crowded board and logs the time per hover, before and after.
-**Manual check:** the hover feels smooth on the crowded board (B4), and the holders list with a real second player (B3).
+B3's scenario adds and removes a stand-in player.
+**Manual check:** the hover feels smooth on the crowded board (B4).
 
 ## Phase C: last bug and the mod audit (5 h)
 
@@ -142,6 +144,6 @@ One task in Super Productivity; split it in two.
 ## What the tests can't cover
 
 These stay with Jacob, at the phase's manual check:
-- Anything with a real second player (A3, B3), and anything as a client of an unmodded host (D4 reads synced health; D2 reads synced buffs). The runner hosts a single-player run.
+- Anything as a client of an unmodded host (D4 reads synced health; D2 reads synced buffs). The runner hosts the run, and extra players are stand-ins on the host, so nothing is tested as a client.
 - How smooth the hover feels (B4): a scenario can time it but not judge it.
 - Whether the look is right, for every mock-up-led task (E, G) and every new screenshot. The tests check sizes and places, not taste.
