@@ -693,6 +693,111 @@ namespace SevenUI.Tests
             return null;
         }
 
+        // Drifter's display of what it carries hangs in the utility area too, and is shrunk back to the size the game draws
+        // it at: its card keeps the game's size in canvas pixels and its place over the row (the gap above the row's top
+        // and its right edge, in shares of a skill slot in the cluster's plane), and is on screen; the game's look puts
+        // it back.
+        public static IEnumerator ExpectBagDisplayMatchesGame(this Harness h)
+        {
+            PluginConfig settings = SevenUIPlugin.Settings;
+            h.SetConfig(settings.FlatPanels, false);
+            yield return h.Wait(SevenUIChecks.LookSwitchSeconds);
+            BagDisplay? vanilla = BagDisplayPlace(h);
+            if (vanilla == null)
+            {
+                throw h.Fail($"no BaggedCardController with a size under the skill row's scaler in the game's look {h.Diagnosis()}");
+            }
+            h.Log($"bag overlay in the game's look at {ObjectPath(vanilla.Value.Root)}, card {ObjectPath(vanilla.Value.Card)}");
+            h.SetConfig(settings.FlatPanels, true);
+            BagDisplay? styled = null;
+            yield return h.Until(
+                () =>
+                {
+                    styled = BagDisplayPlace(h);
+                    return styled != null && styled.Value.Problem(vanilla.Value) == null;
+                },
+                () => $"Drifter's bag display as in the game's look ({styled?.Problem(vanilla.Value)}); game's look " +
+                      $"{vanilla.Value.Text()}, SevenUI {styled?.Text() ?? "none"}, overlay at " +
+                      $"{(styled != null ? ObjectPath(styled.Value.Root) : "none")} {h.Diagnosis()}");
+            h.Log($"bag overlay in SevenUI's look at {ObjectPath(styled.Value.Root)}");
+            h.SetConfig(settings.FlatPanels, false);
+            yield return h.Until(
+                () =>
+                {
+                    BagDisplay? back = BagDisplayPlace(h);
+                    return back != null && back.Value.Scale == vanilla.Value.Scale && back.Value.Position == vanilla.Value.Position;
+                },
+                () => $"Drifter's bag display back at its size {vanilla.Value.Scale} and place {vanilla.Value.Position} in the " +
+                      $"game's look, now {BagDisplayPlace(h)?.Scale} at {BagDisplayPlace(h)?.Position} {h.Diagnosis()}");
+            // Back in SevenUI's look, for the shots after.
+            h.SetConfig(settings.FlatPanels, true);
+            yield return h.Wait(SevenUIChecks.LookSwitchSeconds);
+        }
+
+        // The bag display's card as measured, like DroneDisplay's slots.
+        private struct BagDisplay
+        {
+            public RectTransform Root;
+            public RectTransform Card;
+            public Vector3 Scale;
+            public Vector2 Position;
+            public Rect Screen;
+            public Rect OnScreen;
+            public float Gap;
+            public float Right;
+
+            public string Text() =>
+                $"card {BoxText(OnScreen)}, gap over the row {Gap:F2} slots, right edge {Right:F2} slots right of the row's";
+
+            public string Problem(BagDisplay game)
+            {
+                if (Mathf.Abs(OnScreen.width - game.OnScreen.width) > DroneSizeTolerance) return "card's width";
+                if (Mathf.Abs(OnScreen.height - game.OnScreen.height) > DroneSizeTolerance) return "card's height";
+                if (Mathf.Abs(Gap - game.Gap) > UtilityAreaTolerance) return "gap over the row";
+                if (Mathf.Abs(Right - game.Right) > DroneRightTolerance) return "right edge";
+                if (OnScreen.xMin < Screen.xMin || OnScreen.yMin < Screen.yMin || OnScreen.xMax > Screen.xMax ||
+                    OnScreen.yMax > Screen.yMax)
+                {
+                    return "not on screen";
+                }
+                return null;
+            }
+        }
+
+        private static BagDisplay? BagDisplayPlace(Harness h)
+        {
+            Transform root = SevenUIChecks.HudRoot(h);
+            HUD hud = root.GetComponent<HUD>();
+            RectTransform area = root.Find(GameNames.UtilityArea) as RectTransform;
+            if (!hud || !area || hud.skillIcons == null || hud.skillIcons.Length == 0 || hud.skillIcons.Any(skill => !skill)) return null;
+            Transform plane = area.parent;
+            List<Rect> skills = hud.skillIcons.Select(skill => InPlane(plane, (RectTransform)skill.transform)).ToList();
+            float skill = skills.Average(box => box.height);
+            BaggedCardController card = plane.GetComponentsInChildren<BaggedCardController>(true)
+                .FirstOrDefault(found => Box(h, (RectTransform)found.transform).width > 0f);
+            if (!card || skill <= 0f) return null;
+            RectTransform cardRect = (RectTransform)card.transform;
+            RectTransform top = cardRect;
+            while (top.parent && top.parent != area && top.parent != plane)
+            {
+                top = (RectTransform)top.parent;
+            }
+            Rect inPlane = InPlane(plane, cardRect);
+            (Camera camera, float unit) = Screen(h);
+            Rect screen = CanvasLayoutChecks.ScreenOf(camera);
+            return new BagDisplay
+            {
+                Root = top,
+                Card = cardRect,
+                Scale = top.localScale,
+                Position = top.anchoredPosition,
+                Screen = Rect.MinMaxRect(screen.xMin / unit, screen.yMin / unit, screen.xMax / unit, screen.yMax / unit),
+                OnScreen = Box(h, cardRect),
+                Gap = (inPlane.yMin - skills.Max(box => box.yMax)) / skill,
+                Right = (inPlane.xMax - skills.Max(box => box.xMax)) / skill
+            };
+        }
+
         // A rect's box in a transform it's drawn in.
         private static Rect InPlane(Transform plane, RectTransform rect)
         {
