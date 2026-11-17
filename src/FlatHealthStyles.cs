@@ -66,7 +66,8 @@ namespace SevenUI
             if (CompactCopies.TryGetValue(style, out HealthBarStyle copy) && copy) return copy;
             copy = Object.Instantiate(style);
             copy.name = style.name + CompactNameSuffix;
-            copy.barrierBarStyle.sprite = FlatSprite.White;
+            // Not White: ProtectionStripes draws just above the last White bar, and the barrier must stay above the stripes.
+            copy.barrierBarStyle.sprite = FlatSprite.BarrierFill;
             copy.barrierBarStyle.imageType = Image.Type.Simple;
             CompactCopies[style] = copy;
             FullOfCompact[copy] = style;

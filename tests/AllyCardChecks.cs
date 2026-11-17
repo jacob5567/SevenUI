@@ -161,6 +161,21 @@ namespace SevenUI.Tests
                 {
                     return $"{Name(card)}'s barrier is drawn with '{healthBar._style.barrierBarStyle.sprite.name}' in style '{healthBar._style.name}' on a {(compactRow ? "compact" : "full-size")} card";
                 }
+                // Stripes drawn above the barrier would hide it (its sprite must not be one ProtectionStripes draws over).
+                // The barrier's image is the one drawn with the style's barrier sprite.
+                Sprite barrierSprite = healthBar && healthBar._style ? healthBar._style.barrierBarStyle.sprite : null;
+                Image barrier = barrierSprite
+                    ? healthBar.GetComponentsInChildren<Image>().FirstOrDefault(image => image.isActiveAndEnabled && image.sprite == barrierSprite)
+                    : null;
+                if (compact && kind.Allies <= 1 && barrier && barrier.isActiveAndEnabled)
+                {
+                    Image stripes = healthBar.GetComponentsInChildren<Image>()
+                        .FirstOrDefault(image => image.isActiveAndEnabled && image.name == ProtectionStripes.StripesName && image.transform.parent == barrier.transform.parent);
+                    if (stripes && stripes.transform.GetSiblingIndex() >= barrier.transform.GetSiblingIndex())
+                    {
+                        return $"{Name(card)}'s protection stripes (index {stripes.transform.GetSiblingIndex()}) are drawn over its barrier (index {barrier.transform.GetSiblingIndex()}, '{barrier.sprite?.name}')";
+                    }
+                }
                 float depth = Depth(cluster, card.rectTransform);
                 // Each card's top is the height of the cards above it, in the order above.
                 float top = depth - card.rectTransform.rect.height;
