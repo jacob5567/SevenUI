@@ -10,14 +10,15 @@ namespace SevenUI
     // Restyles the ally cards on the left: each on a flat panel, with a flat health bar on the dark trough like the
     // player's. Allies of one kind (the same name, following the same leader) always share one card, the kind's first,
     // with "×8" and a bar segment per ally (AllyKindParts); the kind's other cards are hidden and take no room. Players
-    // and allies between bodies keep cards of their own. The cards stay in the game's order, in sections: the viewer's
-    // own allies that follow no player card, then one section per player card, the player and the kinds that follow
-    // that player. A player's card is full size and never folded (see IsPlayer). While the cards would reach down over
+    // and allies between bodies keep cards of their own. The cards stay in the game's order, in sections: one per
+    // player card, the player and the kinds that follow that player, then last the viewer's own allies that follow no
+    // player card. A player's card is full size and never folded (see IsPlayer). While the cards would reach down over
     // the chat, the cards of a single ally become compact rows (AllyCompactCard), while shared cards keep their size
     // and segments. If that is still too tall, each section folds the allies' cards that don't fit into a "+N more"
     // row of its own under the section's last card shown, with a portrait for each kind and N the allies they hold
-    // (AllyMoreRow); the sections are filled top down, each leaving room for the player cards and the rows below it
-    // (FitSections). The game keeps adding, filling, sorting and removing the cards; this only resizes and hides them,
+    // (AllyMoreRow). Room is given out in priority order, not display order: the player cards, a more row for every
+    // section with allies, the viewer's own allies, then the other players' allies top down (FitSections). The
+    // game keeps adding, filling, sorting and removing the cards; this only resizes and hides them,
     // sets them in the order above and draws over them. While the scoreboard is open, the cards are hidden altogether,
     // as they would otherwise draw over the board's left edge. With CompactAllyCards off, none of the fitting happens:
     // the cards keep their size and none is folded. With GroupAllyCards off, every card stands alone, as the game has
@@ -288,48 +289,71 @@ namespace SevenUI
         }
 
         // Decides how many of each section's allies show. Players always show at full size. If the cards must fold,
-        // the sections are filled top down: an ally shows only if, with it, there is still room for its section's more
-        // row (unless it is the section's last ally), every later section's player card and a row for each later
-        // section that has allies. The first ally that doesn't fit ends its section's shown allies; the later sections
-        // go on with their own. If the player cards and a row for each section with allies don't fit together, every
-        // ally folds, and the player cards run on over the chat.
+        // room is given in priority order while the sections stay in display order (players first, the viewer's own
+        // allies last): the player cards, then a more row for each section with allies, then the viewer's own allies,
+        // then the other players' allies top down. An ally shows only if, with it, there is still room for its
+        // section's more row (unless it is the section's last ally) and a row for each later player section that has
+        // allies; the first ally that doesn't fit ends its section's shown allies. If the player cards and a row for
+        // each section with allies (the viewer's own included) don't fit together, every ally folds, and the player
+        // cards run on over the chat, the viewer's own row after them.
         private void FitSections(bool compact, float room, bool fold)
         {
             float playerHeights = 0f;
             int withAllies = 0;
+            int playerRows = 0;
+            Section own = null;
             foreach (Section section in active)
             {
-                playerHeights += section.Player != null ? Height(section.Player, compact) : 0f;
+                if (section.Player != null)
+                {
+                    playerHeights += Height(section.Player, compact);
+                    playerRows += section.Allies.Count > 0 ? 1 : 0;
+                }
+                else
+                {
+                    own = section;
+                }
                 withAllies += section.Allies.Count > 0 ? 1 : 0;
+                section.Shown = fold ? 0 : section.Allies.Count;
             }
-            bool fallback = fold && playerHeights + AllyCompactCard.RowHeight * withAllies > room + SizeTolerance;
-            float used = 0f;
-            float laterPlayers = playerHeights;
-            int laterRows = withAllies;
+            if (!fold) return;
+            if (playerHeights + AllyCompactCard.RowHeight * withAllies > room + SizeTolerance) return;
+            // The viewer's own allies get the room left once the players and every player section's row are kept.
+            float ownUsed = 0f;
+            if (own != null)
+            {
+                float budget = room - playerHeights - AllyCompactCard.RowHeight * playerRows;
+                ownUsed = Fill(own, compact, 0f, budget, 0);
+            }
+            float used = playerHeights + ownUsed;
+            int laterRows = playerRows;
             foreach (Section section in active)
             {
-                float own = section.Player != null ? Height(section.Player, compact) : 0f;
-                used += own;
-                laterPlayers -= own;
+                if (section.Player == null) continue;
                 laterRows -= section.Allies.Count > 0 ? 1 : 0;
-                section.Shown = fold ? 0 : section.Allies.Count;
-                if (fold && !fallback)
-                {
-                    float reserved = laterPlayers + AllyCompactCard.RowHeight * laterRows;
-                    while (section.Shown < section.Allies.Count)
-                    {
-                        float height = Height(section.Allies[section.Shown], compact);
-                        float rowAfter = section.Shown < section.Allies.Count - 1 ? AllyCompactCard.RowHeight : 0f;
-                        if (used + height + rowAfter + reserved > room + SizeTolerance) break;
-                        used += height;
-                        section.Shown++;
-                    }
-                }
-                if (section.Shown < section.Allies.Count)
-                {
-                    used += AllyCompactCard.RowHeight;
-                }
+                used += Fill(section, compact, used, room, laterRows);
             }
+        }
+
+        // Shows the section's allies top down while they fit under limit, with the section's own row and laterRows more
+        // rows after them. Returns the height used, the section's row included.
+        private float Fill(Section section, bool compact, float used, float limit, int laterRows)
+        {
+            float start = used;
+            float reserved = AllyCompactCard.RowHeight * laterRows;
+            while (section.Shown < section.Allies.Count)
+            {
+                float height = Height(section.Allies[section.Shown], compact);
+                float rowAfter = section.Shown < section.Allies.Count - 1 ? AllyCompactCard.RowHeight : 0f;
+                if (used + height + rowAfter + reserved > limit + SizeTolerance) break;
+                used += height;
+                section.Shown++;
+            }
+            if (section.Shown < section.Allies.Count)
+            {
+                used += AllyCompactCard.RowHeight;
+            }
+            return used - start;
         }
 
         // The one rule for cards that stay: a player's card keeps its full size and is never folded under a more row.
@@ -493,9 +517,10 @@ namespace SevenUI
             BuildSections();
         }
 
-        // Sets the kinds in sections, each in the game's order: the viewer's own allies that follow no player card
-        // (the minions of the local player, who may have no card, and of allies between bodies), then one section per
-        // player card, the player and then the kinds that follow that player's master. Kinds is rebuilt in that order.
+        // Sets the kinds in sections, each in the game's order: one section per player card, the player and then the
+        // kinds that follow that player's master, then last the viewer's own allies that follow no player card (the
+        // minions of the local player, who may have no card, and of allies between bodies). Kinds is rebuilt in that
+        // order; a section's Index stays its place in the pool, own first, for its more row's name.
         private void BuildSections()
         {
             unsorted.Clear();
@@ -529,9 +554,9 @@ namespace SevenUI
                 }
                 owner.Allies.Add(kind);
             }
-            for (int i = 0; i < next; i++)
+            for (int n = 1; n <= next; n++)
             {
-                Section section = pool[i];
+                Section section = pool[n % next];
                 if (section.Player == null && section.Allies.Count == 0) continue;
                 active.Add(section);
                 if (section.Player != null)
@@ -701,7 +726,7 @@ namespace SevenUI
             output.AppendLine($"  ally cards: {cards.Count} in {kinds.Count} kinds, {shared.Count} shared, " +
                               $"{(Compact ? "single allies compact" : "full size")}, allies under the more row: {HiddenCount}, " +
                               $"room above the chat: {(container ? Room().ToString("0.#") : "none")}, container stretched {stretch:0.#}");
-            output.AppendLine($"  ally sections: {active.Count}, folded:{(folded.Length > 0 ? folded.ToString() : " none")}");
+            output.AppendLine($"  ally sections: {active.Count} (players, then the viewer's own allies), folded:{(folded.Length > 0 ? folded.ToString() : " none")}");
         }
     }
 }
