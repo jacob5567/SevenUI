@@ -2,7 +2,8 @@ using UnityEngine;
 
 namespace SevenUI
 {
-    // Plain sprites drawn in code: a white one for flat bars, a sliced square outline, a sliced square with rounded
+    // Plain sprites drawn in code: a white one for flat bars, another for the compact barrier (a separate object, so
+    // ProtectionStripes, which draws over bars by their sprite, skips it), a sliced square outline, a sliced square with rounded
     // corners, a sliced strip along the top, the lunar coin, and diagonal stripes to tile, dark for a curse and green
     // for one-shot protection.
     internal static class FlatSprite
@@ -36,6 +37,7 @@ namespace SevenUI
         private const int HatchTextureSize = 10;
 
         private static Sprite white;
+        private static Sprite barrierFill;
         private static Sprite hatch;
         private static Sprite protectionHatch;
         private static Sprite tintedProtectionHatch;
@@ -60,6 +62,23 @@ namespace SevenUI
                     white.name = "SevenUIFlat";
                 }
                 return white;
+            }
+        }
+
+        // A plain white sprite for the compact barrier. It looks like White but is its own object with its own name:
+        // ProtectionStripes finds the layers to draw over by comparing sprites with White, and the barrier is drawn
+        // over the stripes, so it must not match.
+        public static Sprite BarrierFill
+        {
+            get
+            {
+                if (!barrierFill)
+                {
+                    Texture2D texture = Texture2D.whiteTexture;
+                    barrierFill = Sprite.Create(texture, new Rect(0f, 0f, texture.width, texture.height), new Vector2(0.5f, 0.5f));
+                    barrierFill.name = "SevenUIBarrierFill";
+                }
+                return barrierFill;
             }
         }
 
