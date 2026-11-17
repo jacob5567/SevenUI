@@ -79,7 +79,8 @@ namespace SevenUI.Tests
         // In shares of a slot; the game's look is drawn turned, so its shares come out a little off.
         private const float UtilityAreaTolerance = 0.06f;
         // The meter's growth against the slots', as a share.
-        private const float DroneSlotTolerance = 1f;
+        // Operator's display's slots, in canvas pixels, and the share of a skill slot its place over the row may differ.
+        private const float DroneSizeTolerance = 4f;
         private const int DroneUiPathLimit = 30;
         // The timer's tags hold dots of their own, "<mspace=0.46em>".
         private const string StageTextName = "Stage Text";
@@ -575,32 +576,34 @@ namespace SevenUI.Tests
         }
 
         // Operator's (DroneTech in code) display hangs in the utility area, which grows with the slots, and is then
-        // fitted so its widest slot (the big selected one) is as wide as a restyled skill slot: on screen it is, applying
-        // again leaves it, and the game's look puts back the display's size and place.
+        // shrunk back to the size the game draws it at. With SevenUI's look its slots keep their place over the row as
+        // in the game's (the gap above the row's top and the right edge, in shares of a skill slot), keep the game's
+        // size in canvas pixels, and are on screen; applying again leaves the display, and the game's look puts back
+        // its size and place.
         public static IEnumerator ExpectDroneDisplayFitsSlots(this Harness h)
         {
             PluginConfig settings = SevenUIPlugin.Settings;
             h.SetConfig(settings.FlatPanels, false);
             yield return h.Wait(SevenUIChecks.LookSwitchSeconds);
-            (RectTransform Display, float Slot, Vector3 Scale, Vector2 Position)? vanilla = DroneDisplayPlace(h);
+            DroneDisplay? vanilla = DroneDisplayPlace(h);
             if (vanilla == null)
             {
-                throw h.Fail($"no {SkillRow.DroneOverlayName} with {SkillRow.DroneSlotName} slots under the utility area in the " +
-                             $"game's look; UI objects named like it: {DroneUiPaths(h)} {h.Diagnosis()}");
+                throw h.Fail($"no {SkillRow.DroneOverlayName} with {SkillRow.DroneSlotName} slots under the utility area and " +
+                             $"skill row in the game's look; UI objects named like it: {DroneUiPaths(h)} {h.Diagnosis()}");
             }
             h.SetConfig(settings.FlatPanels, true);
-            (RectTransform Display, float Slot, Vector3 Scale, Vector2 Position)? styled = null;
+            DroneDisplay? styled = null;
             yield return h.Until(
                 () =>
                 {
                     styled = DroneDisplayPlace(h);
-                    return styled != null && Mathf.Abs(styled.Value.Slot - SkillRow.SlotSize) < DroneSlotTolerance;
+                    return styled != null && styled.Value.Problem(vanilla.Value) == null;
                 },
-                () => $"Operator's widest drone slot {SkillRow.SlotSize}px wide as a skill slot (game's look " +
-                      $"{vanilla.Value.Slot:F1}px, SevenUI {styled?.Slot:F1}px, display at " +
-                      $"{(styled != null ? ObjectPath(styled.Value.Display) : "none")}) {h.Diagnosis()}");
+                () => $"Operator's display over the skill row as in the game's look ({styled?.Problem(vanilla.Value)}); " +
+                      $"game's look {vanilla.Value.Text()}, SevenUI {styled?.Text() ?? "none"}, display at " +
+                      $"{(styled != null ? ObjectPath(styled.Value.Display) : "none")} {h.Diagnosis()}");
             yield return h.Wait(SevenUIChecks.LookSwitchSeconds);
-            var again = DroneDisplayPlace(h);
+            DroneDisplay? again = DroneDisplayPlace(h);
             if (again == null || again.Value.Scale != styled.Value.Scale || again.Value.Position != styled.Value.Position)
             {
                 throw h.Fail($"Operator's display changed when applied again: scale {styled.Value.Scale} to {again?.Scale}, " +
@@ -610,26 +613,80 @@ namespace SevenUI.Tests
             yield return h.Until(
                 () =>
                 {
-                    var back = DroneDisplayPlace(h);
+                    DroneDisplay? back = DroneDisplayPlace(h);
                     return back != null && back.Value.Scale == vanilla.Value.Scale && back.Value.Position == vanilla.Value.Position;
                 },
                 () => $"Operator's display back at its size {vanilla.Value.Scale} and place {vanilla.Value.Position} in the " +
                       $"game's look, now {DroneDisplayPlace(h)?.Scale} at {DroneDisplayPlace(h)?.Position} {h.Diagnosis()}");
         }
 
-        // The widest slot's width in canvas pixels, in either queue, and the display's own scale and place.
-        private static (RectTransform Display, float Slot, Vector3 Scale, Vector2 Position)? DroneDisplayPlace(Harness h)
+        // Operator's display as measured: its own scale and place, the box its slots fill on canvas pixels on screen,
+        // the widest slot's width there, and, in shares of a skill slot in the skill cluster's plane, the gap from the
+        // skill row's top to the slots' bottom and the slots' right edge's distance right of the row's.
+        private struct DroneDisplay
         {
-            RectTransform area = SevenUIChecks.HudRoot(h).Find(GameNames.UtilityArea) as RectTransform;
-            if (!area) return null;
+            public RectTransform Display;
+            public Vector3 Scale;
+            public Vector2 Position;
+            public Rect Screen;
+            public Rect Slots;
+            public float Widest;
+            public float Gap;
+            public float Right;
+
+            public string Text() =>
+                $"slots {BoxText(Slots)}, widest {Widest:F1}px, gap over the row {Gap:F2} slots, right edge {Right:F2} slots " +
+                $"right of the row's";
+
+            // Null when this display (SevenUI's look) is over the row as the game's is, at the game's size and on screen.
+            public string Problem(DroneDisplay game)
+            {
+                if (Mathf.Abs(Widest - game.Widest) > DroneSizeTolerance) return "widest slot's size";
+                if (Mathf.Abs(Gap - game.Gap) > UtilityAreaTolerance || Gap < -UtilityAreaTolerance) return "gap over the row";
+                if (Mathf.Abs(Right - game.Right) > UtilityAreaTolerance) return "right edge";
+                if (Slots.xMin < Screen.xMin || Slots.yMin < Screen.yMin || Slots.xMax > Screen.xMax || Slots.yMax > Screen.yMax)
+                {
+                    return "not on screen";
+                }
+                return null;
+            }
+        }
+
+        private static DroneDisplay? DroneDisplayPlace(Harness h)
+        {
+            Transform root = SevenUIChecks.HudRoot(h);
+            HUD hud = root.GetComponent<HUD>();
+            RectTransform area = root.Find(GameNames.UtilityArea) as RectTransform;
+            if (!hud || !area || hud.skillIcons == null || hud.skillIcons.Length == 0 || hud.skillIcons.Any(skill => !skill)) return null;
+            Transform plane = area.parent;
+            List<Rect> skills = hud.skillIcons.Select(skill => InPlane(plane, (RectTransform)skill.transform)).ToList();
+            float rowTop = skills.Max(box => box.yMax);
+            float rowRight = skills.Max(box => box.xMax);
+            float skill = skills.Average(box => box.height);
+            if (skill <= 0f) return null;
             foreach (RectTransform display in area.GetComponentsInChildren<RectTransform>(true))
             {
                 if (!display.name.StartsWith(GameNames.DroneOverlay)) continue;
-                float widest = display.GetComponentsInChildren<RectTransform>(true)
-                    .Where(slot => slot.name.StartsWith(GameNames.DroneSlot))
-                    .Select(slot => Box(h, slot).width)
-                    .DefaultIfEmpty(0f).Max();
-                if (widest > 0f) return (display, widest, display.localScale, display.anchoredPosition);
+                List<RectTransform> slots = display.GetComponentsInChildren<RectTransform>(true)
+                    .Where(slot => slot.name.StartsWith(GameNames.DroneSlot) && Box(h, slot).width > 0f)
+                    .ToList();
+                if (slots.Count == 0) continue;
+                List<Rect> onScreen = slots.Select(slot => Box(h, slot)).ToList();
+                List<Rect> inPlane = slots.Select(slot => InPlane(plane, slot)).ToList();
+                (Camera camera, float unit) = Screen(h);
+                Rect screen = CanvasLayoutChecks.ScreenOf(camera);
+                return new DroneDisplay
+                {
+                    Display = display,
+                    Scale = display.localScale,
+                    Position = display.anchoredPosition,
+                    Screen = Rect.MinMaxRect(screen.xMin / unit, screen.yMin / unit, screen.xMax / unit, screen.yMax / unit),
+                    Slots = Rect.MinMaxRect(onScreen.Min(box => box.xMin), onScreen.Min(box => box.yMin),
+                        onScreen.Max(box => box.xMax), onScreen.Max(box => box.yMax)),
+                    Widest = onScreen.Max(box => box.width),
+                    Gap = (inPlane.Min(box => box.yMin) - rowTop) / skill,
+                    Right = (inPlane.Max(box => box.xMax) - rowRight) / skill
+                };
             }
             return null;
         }
