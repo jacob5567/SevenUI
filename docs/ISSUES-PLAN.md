@@ -11,9 +11,22 @@ This plan orders the 23 open tasks in the SevenUI project in Super Productivity 
 5. **Features go cheapest first**, and those that reuse an existing styler go before those that need a new design.
 6. **The three large design jobs go last.** Each needs mock-ups and decisions from Jacob before any code. The mock-ups can be started early, alongside the earlier phases, because they touch no code.
 
+## How each phase is built, tested and merged
+
+ModTestRunner's `run-tests.sh` runs the in-game tests unattended (headless gamescope, 2560x1440 by default), so Claude runs them itself. Jacob is needed only for the manual checks at the end of a phase, which the tests can't do, and to approve the merge.
+
+1. **Develop.** Each task goes to COPE, which works in its own worktree under `.claude/worktrees/` on its own branch, builds the mod and its tests with `-p:CopyToProfile=false`, and commits. A task that depends on another branches from it. Ticket tag: `in-progress`.
+2. **Review.** The main session reads the diff, rebuilds the mod and the tests, and fixes small problems. Ticket tag: `verification`.
+3. **Integrate.** The main session makes a phase branch (`phase/<letter>`) from `main` in the main checkout and merges the phase's task branches into it. Only the main session installs into the r2modman profile, from the main checkout: `dotnet build -c Release` there, then `ModTestRunner/build-tests.sh` on it.
+4. **Test.** The main session runs `run-tests.sh --mod SevenUI --suite <the suites the phase touches>` first, then the full `run-tests.sh --mod SevenUI`, and reads `results.json`, the BepInEx log (no exceptions or warnings from SevenUI) and the screenshots of the new scenarios. A failure goes back to COPE on the task's branch, with the failure message and log lines; the fix is merged into the phase branch again and the tests rerun. This repeats until the full run passes, with every skip explained.
+5. **Manual check.** Jacob gets one short list per phase: the checks the tests can't make (see each phase's "Manual check" line), the screenshots worth a look, and the result of the full run. Everything else is already verified.
+6. **Merge.** With Jacob's approval, `phase/<letter>` merges into `main`, the task worktrees and branches are removed, and the tickets are marked done.
+
+Phases A, B and C1 can be in progress at once: each has its own phase branch, tested one after another (the game runs once at a time).
+
 ## Phase A: ally card bugs (11 h)
 
-All four edit `AllyCardsStyler` and its cards, so run them in this order on `main`.
+All four edit `AllyCardsStyler` and its cards, so each branches from the one before it where they overlap.
 
 | # | Task | Est. | Depends on |
 |---|---|---|---|
@@ -26,7 +39,8 @@ All four edit `AllyCardsStyler` and its cards, so run them in this order on `mai
 - A3 changes the fitting (which cards go compact or fold into "+N more"). Do it after A2 so the two don't both rewrite the card ordering.
 - A4 is independent and small. It is here only because it is the same styler.
 
-**Checkpoint A:** install, run the `panels` and `ally_portraits` suites, then play a stage with upgraded drones and a scrapper. A3 needs a second player, or the test players the `scoreboard_leave` suite sets up if they also get ally cards.
+**Tests:** `panels` and `ally_portraits`, then the full run.
+**Manual check:** with a second player, other players' cards stay full size and on top, in player order (stand-in test players get no ally cards). Scrapping a different drone leaves a shared card alone (the tests can't scrap).
 
 ## Phase B: scoreboard bugs (10 h)
 
@@ -40,7 +54,8 @@ All four edit `AllyCardsStyler` and its cards, so run them in this order on `mai
 - B1 replaces the sliced outline sprite with `PixelOutline`. The same sprite is still used at `ScoreboardStyler.cs:509` and `:548`, `ScoreboardItemGrid.cs:268` (the hovered item highlight) and `SkillSlotsStyler.cs:180` and `:266`. Check all five in this task.
 - B4 goes last because B1 changes how the hover highlight is drawn and B3 changes what the detail panel builds. Profiling before them would measure code that is about to change.
 
-**Checkpoint B:** install, run the `scoreboard` and `scoreboard_tabs` suites, and hover across the crowded board (100 items per player). B1 needs a look at 1440p, which the tests can't set.
+**Tests:** `scoreboard`, `scoreboard_rows`, `scoreboard_tabs` and `scoreboard_leave`, then the full run. The tests run at 1440p, where B1's uneven outlines showed, and B1's check measures each side. B4 adds a scenario that hovers across the crowded board and logs the time per hover, before and after.
+**Manual check:** the hover feels smooth on the crowded board (B4), and the holders list with a real second player (B3).
 
 ## Phase C: last bug and the mod audit (5 h)
 
@@ -50,7 +65,11 @@ All four edit `AllyCardsStyler` and its cards, so run them in this order on `mai
 | C2 | Check that my other mods fit with SevenUI (audit only) | 3 h | A, B |
 
 - C2 changes no code and produces follow-up tasks. It goes after A and B so the audit looks at the fixed layout, and before the features so its follow-ups can be slotted into Phase D.
-- C2 is mostly in-game time for Jacob. Claude can prepare the checklist and read each mod's code for what it attaches to.
+- C2 is mostly in-game time for Jacob. Claude can prepare the checklist, read each mod's code for what it attaches to, and take screenshots with each mod's own test scenarios while SevenUI is installed.
+- Operator is `DroneTech` in code (`DRONETECH_BODY_NAME`).
+
+**Tests for C1:** `panels` and `screenshots`, then the full run.
+**Manual check for C1:** the Operator and Drifter screenshots look right beside the skill row.
 
 **Release point:** a bug-fix release (1.4.1) with A, B and C1.
 
@@ -71,7 +90,8 @@ These are independent of each other. They are listed cheapest first.
 - D4, D5 and D6 each start with a list made from the assembly (what the vanilla boss bar shows, every HUD countdown, every dialog reachable in a run). Agree the list before the styling starts.
 - Follow-up tasks from C2 that belong in SevenUI go in this phase.
 
-**Checkpoint D:** install and run the full suite plus each task's new scenario. D3 needs MusicDisplay installed. D4 as a client and D5's escape sequence need a check by hand if the host can't set them up.
+**Tests:** each task's new scenario, then the full run. D3's scenario skips without MusicDisplay, so install it in the profile for the phase's run.
+**Manual check:** the new screenshots, and D2 and D4 as a client of an unmodded host. D5's escape sequence by hand only if the host can't start it.
 
 ## Phase E: new panels (19 h)
 
@@ -121,9 +141,7 @@ One task in Super Productivity; split it in two.
 
 ## What the tests can't cover
 
-Check these by hand:
-- Outline thickness at 1440p (B1).
-- Player cards with real players in multiplayer (A3), and anything as a client of an unmodded host (D4 reads synced health; D2 reads synced buffs).
-- The frame rate itself (B4): a scenario can count rebuilds per hover but not measure lag.
-- Panels of other mods (C2, D3, E2), which need those mods installed.
-- The look of every mock-up-led task (E, G), which is judged from screenshots.
+These stay with Jacob, at the phase's manual check:
+- Anything with a real second player (A3, B3), and anything as a client of an unmodded host (D4 reads synced health; D2 reads synced buffs). The runner hosts a single-player run.
+- How smooth the hover feels (B4): a scenario can time it but not judge it.
+- Whether the look is right, for every mock-up-led task (E, G) and every new screenshot. The tests check sizes and places, not taste.
