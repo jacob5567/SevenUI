@@ -15,8 +15,8 @@ namespace SevenUI.Tests
     // their own); while every card at the game's height doesn't fit, the cards of a single ally are compact rows; if
     // that still doesn't fit, the cards that don't go under a "+N more" row. Players are exempt: always first, full
     // size and shown, their height taken off the room before the allies are fitted. (The game's ally cards skip a
-    // player without a network user, so the stand-in players of the scoreboard tests get none, and this is checked
-    // against real players or the mod's own order only.)
+    // player without a network user, so the stand-in players of the scoreboard tests get no card unless they are
+    // linked to the viewer's, as ScoreboardSetUp.AddPlayers can.)
     internal static class AllyCardChecks
     {
         private const string ClusterPath = "MainContainer/MainUIArea/SpringCanvas/LeftCluster";
@@ -341,7 +341,7 @@ namespace SevenUI.Tests
         }
 
         // How far below the cluster's top the rect ends, in the cluster's units.
-        private static float Depth(RectTransform cluster, RectTransform rect)
+        internal static float Depth(RectTransform cluster, RectTransform rect)
         {
             rect.GetWorldCorners(Corners);
             return cluster.rect.yMax - cluster.InverseTransformPoint(Corners[0]).y;

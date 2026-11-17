@@ -84,8 +84,10 @@ namespace SevenUI.Tests
         // no command for another player, and DebugToolkit's allies (spawn_ai) are AI, which the scoreboard doesn't list:
         // it lists masters with a player's controller and a body. So each is Commando's AI master on the player's team,
         // its AI off so it stands still, given a player's controller without a network user, which the scoreboard names
-        // by the survivor. The players made are added to the list, if one is given.
-        public static IEnumerator AddPlayers(Harness h, int count, int items, List<CharacterMaster> made = null)
+        // by the survivor. The players made are added to the list, if one is given. With linkToViewer each also has the
+        // viewer's network user, as the game's ally cards need to show a player (see LinkToViewer).
+        public static IEnumerator AddPlayers(Harness h, int count, int items, List<CharacterMaster> made = null,
+            bool linkToViewer = false)
         {
             GameObject prefab = MasterCatalog.GetMasterPrefab(
                 MasterCatalog.FindAiMasterIndexForBody(BodyCatalog.FindBodyIndex(StandInBody)));
@@ -96,6 +98,7 @@ namespace SevenUI.Tests
             {
                 foreach (CharacterMaster player in players.Where(player => player))
                 {
+                    if (linkToViewer) Unlink(player);
                     player.DestroyBody();
                     NetworkServer.Destroy(player.gameObject);
                 }
@@ -114,11 +117,34 @@ namespace SevenUI.Tests
                 if (!player) throw h.Fail("the stand-in player wasn't made");
                 players.Add(player);
                 made?.Add(player);
+                if (linkToViewer) LinkToViewer(player);
                 GiveDifferentItems(h, items, player.inventory);
             }
             yield return h.Until(() => players.All(player => player && player.GetBody()) &&
                                        PlayerCharacterMasterController.instances.Count > count,
                 $"{count} stand-in players with bodies");
+        }
+
+        // The game's ally cards skip a player without a network user, so a stand-in meant to have one is given the
+        // viewer's. Only the controller's resolved copies are set, as its getter returns them, so nothing is synced, the
+        // viewer's own link stays as it is, and the controller doesn't set its body from the viewer's preference. While
+        // linked, the stand-in counts as a connected player, and its controller reads the viewer's input for its body.
+        private static void LinkToViewer(CharacterMaster player)
+        {
+            NetworkUser viewer = Harness.LocalBody.master.playerCharacterMasterController.networkUser;
+            PlayerCharacterMasterController controller = player.playerCharacterMasterController;
+            controller.resolvedNetworkUserGameObjectInstance = viewer.gameObject;
+            controller.resolvedNetworkUserInstance = viewer;
+            controller.networkUserResolved = true;
+        }
+
+        // Back to no network user, before the stand-in goes.
+        private static void Unlink(CharacterMaster player)
+        {
+            PlayerCharacterMasterController controller = player.playerCharacterMasterController;
+            if (!controller) return;
+            controller.resolvedNetworkUserGameObjectInstance = null;
+            controller.resolvedNetworkUserInstance = null;
         }
 
         // Before the master is spawned, so its controller is among its networked parts.

@@ -22,6 +22,8 @@ namespace SevenUI.Tests
         private const float DeathStyleSeconds = 0.1f;
         private const int MaxLoneAllies = 20;
         private const int KindSize = 5;
+        private const int StandInPlayers = 2;
+        private const int DronesPerStandIn = 2;
 
         public static IEnumerable<Scenario> All()
         {
@@ -30,6 +32,7 @@ namespace SevenUI.Tests
             yield return new Scenario(1, "ally_portraits_kind_shrinks", Stages.TitanicPlains, KindShrinks);
             yield return new Scenario(1, "ally_portraits_kind_lead_removed", Stages.TitanicPlains, KindLeadRemoved);
             yield return new Scenario(1, "ally_portraits_kind_dead_member", Stages.TitanicPlains, KindDeadMember);
+            yield return new Scenario(1, "ally_portraits_players_stay_full", Stages.TitanicPlains, PlayersStayFull);
             yield return new Scenario(1, "ally_portraits_group_toggle", Stages.TitanicPlains, GroupToggle);
             yield return new Scenario(1, "ally_portraits_compact_toggle", Stages.TitanicPlains, CompactToggle);
             yield return new Scenario(1, "ally_portraits_flat_panels_toggle", Stages.TitanicPlains, FlatPanelsToggle);
@@ -198,6 +201,70 @@ namespace SevenUI.Tests
                 throw h.Fail($"{when}: the shared card reads '{(count ? count.text : "")}', not '{expected}'");
             }
             h.Log($"[ally_portraits] {when}: shared card of {living.Count} living, {(count ? count.text : "no count")}");
+        }
+
+        // Two stand-in players, each with drones of their own, and enough lone allies of the viewer's for compact cards and
+        // the more row: every player's card must stay full size and shown, above every ally's card, in the game's player
+        // order, and the second player's card above the first player's drones.
+        private static IEnumerator PlayersStayFull(Harness h)
+        {
+            Trace trace = new Trace(h);
+            List<CharacterMaster> players = new List<CharacterMaster>();
+            yield return ScoreboardSetUp.AddPlayers(h, StandInPlayers, 0, players, true);
+            List<CharacterMaster> drones = new List<CharacterMaster>();
+            foreach (CharacterMaster player in players)
+            {
+                yield return Allies.SummonDrones(h, Allies.GunnerDroneMaster, DronesPerStandIn, drones, player.GetBody());
+            }
+            List<CharacterMaster> allies = new List<CharacterMaster>();
+            yield return trace.Step("players with drones");
+            CheckPlayers(h, players, "players with drones");
+            yield return GrowUntil(h, trace, allies, () => AnyCompact(h), "compact");
+            CheckPlayers(h, players, "compact");
+            yield return GrowUntil(h, trace, allies, () => MoreShown(h), "more row");
+            yield return trace.Step("more row", true);
+            CheckPlayers(h, players, "more row");
+            yield return Allies.SummonLoneAllies(h, 1, allies);
+            yield return trace.Step("one more under the more row");
+            CheckPlayers(h, players, "one more under the more row");
+            trace.Finish();
+        }
+
+        // Each stand-in's card is shown at the game's height, and sits above every ally's card and the first player's
+        // drones, the players in the game's order; the mod's own layout check agrees.
+        private static void CheckPlayers(Harness h, List<CharacterMaster> players, string when)
+        {
+            RectTransform cluster = AllyCardChecks.Cluster(h);
+            List<AllyCardController> cards = AllyCardChecks.Cards(h).Where(card => card.sourceMaster).ToList();
+            List<CharacterMaster> inOrder = CharacterMaster.readOnlyInstancesList.Where(players.Contains).ToList();
+            float previous = -1f;
+            foreach (CharacterMaster player in inOrder)
+            {
+                AllyCardController card = cards.FirstOrDefault(found => found.sourceMaster == player);
+                if (!card) throw h.Fail($"{when}: no ally card for a stand-in player {h.Diagnosis()}");
+                if (!card.gameObject.activeSelf) throw h.Fail($"{when}: a player's card is hidden or folded away");
+                float tall = card.rectTransform.rect.height;
+                if (Mathf.Abs(tall - AllyCardChecks.GameHeight) > Tolerance)
+                {
+                    throw h.Fail($"{when}: a player's card is {tall:0.#} units tall, not {AllyCardChecks.GameHeight:0.#}");
+                }
+                float depth = AllyCardChecks.Depth(cluster, card.rectTransform);
+                if (depth <= previous) throw h.Fail($"{when}: the players' cards are not in the game's order");
+                previous = depth;
+            }
+            float lastPlayer = previous;
+            foreach (AllyCardController card in cards.Where(card => card.gameObject.activeSelf && !players.Contains(card.sourceMaster)))
+            {
+                float top = AllyCardChecks.Depth(cluster, card.rectTransform) - card.rectTransform.rect.height;
+                if (top < lastPlayer - Tolerance)
+                {
+                    throw h.Fail($"{when}: {Name(card)}'s card starts {top:0.#} units down, above the last player's card ends at {lastPlayer:0.#}");
+                }
+            }
+            AllyCardChecks.Layout layout = AllyCardChecks.Measure(h);
+            if (layout.Problem != null) throw h.Fail($"{when}: {layout.Problem}");
+            h.Log($"[ally_portraits] {when}: {players.Count} player cards full size above {layout.Cards - players.Count} ally cards, " +
+                  $"{(layout.Compact ? "compact" : "full size")}, {layout.HiddenAllies} hidden");
         }
 
         // A kind of five shown as one card while the cards are compact, then GroupAllyCards off and on, twice.
