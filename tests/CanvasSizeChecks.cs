@@ -770,10 +770,10 @@ namespace SevenUI.Tests
         }
 
         // Null when the shown player's row and items are drawn as one tab: the tab's row part on the row and the rest
-        // from the row's right to the rows' right edge, the items 16px in from that part's edges, which reach no further
-        // than the row does at its top and bottom. It follows the row down from its top, or, if the items would run past
-        // the rows' bottom, sits on that bottom, or on the first row's top when it is taller than the rows. The row's
-        // own tint is cleared for the tab's.
+        // from the row's right to the rows' right edge, the items centered across that part at least 16px in from its
+        // sides and 16px down from its top, which reach no further than the row does at its top and bottom. It follows
+        // the row down from its top, or, if the items would run past the rows' bottom, sits on that bottom, or on the
+        // first row's top when it is taller than the rows. The row's own tint is cleared for the tab's.
         private static string TabProblem(Harness h, ScoreboardItemsBoard board, ScoreboardStrip strip)
         {
             ScoreboardTabShape tab = board.Tab;
@@ -789,7 +789,9 @@ namespace SevenUI.Tests
             float rowsBottom = rows.Min(box => box.yMin);
             bool onRow = Near(rowPart.xMin, row.xMin) && Near(rowPart.yMin, row.yMin) && Near(rowPart.yMax, row.yMax) &&
                          Near(itemsPart.xMin, rowPart.xMax) && Near(itemsPart.xMax, row.xMax);
-            bool inset = Near(cell.xMin - itemsPart.xMin, ScoreboardTabInset) && Near(itemsPart.xMax - cell.xMax, ScoreboardTabInset) &&
+            float padLeft = cell.xMin - itemsPart.xMin;
+            float padRight = itemsPart.xMax - cell.xMax;
+            bool inset = Near(padLeft, padRight) && padLeft >= ScoreboardTabInset - SizeTolerance &&
                          Near(itemsPart.yMax - cell.yMax, ScoreboardTabInset) &&
                          Near(itemsPart.yMin, Mathf.Min(cell.yMin - ScoreboardTabInset, row.yMin));
             bool placed = Near(itemsPart.yMax, row.yMax) ||
