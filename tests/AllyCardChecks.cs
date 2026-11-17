@@ -14,9 +14,11 @@ namespace SevenUI.Tests
     // cluster's bottom. Allies of one name following one leader share a card (players and allies between bodies keep
     // their own); while every card at the game's height doesn't fit, the cards of a single ally are compact rows; if
     // that still doesn't fit, each section's cards that don't go under a "+N more" row of its own. The cards are in
-    // sections, in the game's order: the viewer's allies that follow no player card, then each player's card and the
-    // kinds following that player. Players are exempt: full size and shown, their height taken off the room before
-    // the allies are fitted top down, each section leaving room for the rest. (The game's ally cards skip a player
+    // sections: each player's card in the game's order with the kinds following that player, then last the viewer's
+    // allies that follow no player card. Players are exempt: full size and shown. Room goes out in priority order:
+    // the players' height, a more row for each section with allies, the viewer's own allies, then the players' allies
+    // top down, each leaving room for the rows of the player sections below it. If the players and a row for every
+    // section with allies don't fit, every ally folds and the cards run on over the chat. (The game's ally cards skip a player
     // without a network user, so the stand-in players of the scoreboard tests get no card unless they are linked to
     // the viewer's, as ScoreboardSetUp.AddPlayers can.)
     internal static class AllyCardChecks
@@ -36,6 +38,8 @@ namespace SevenUI.Tests
             public int Cards;
             public int Kinds;
             public bool Compact;
+            // Every ally folded because the players and a row per section alone don't fit; the cards run past the room.
+            public bool Fallback;
             public int HiddenAllies;
             public List<Section> Sections;
         }
@@ -122,40 +126,56 @@ namespace SevenUI.Tests
             bool fold = kinds.Sum(Height) > room + Tolerance;
             float playerHeights = sections.Sum(section => section.Player != null ? Height(section.Player) : 0f);
             int withAllies = sections.Count(section => section.Allies.Count > 0);
+            int playerRows = sections.Count(section => section.Player != null && section.Allies.Count > 0);
             // Cards that fit with the rows alone: otherwise every ally folds and the players run over the chat.
             bool fallback = fold && playerHeights + row * withAllies > room + Tolerance;
-            float used = 0f;
-            float laterPlayers = playerHeights;
-            int laterRows = withAllies;
             foreach (Section section in sections)
             {
-                float own = section.Player != null ? Height(section.Player) : 0f;
-                used += own;
-                laterPlayers -= own;
-                laterRows -= section.Allies.Count > 0 ? 1 : 0;
                 section.Shown = fold ? 0 : section.Allies.Count;
-                while (fold && !fallback && section.Shown < section.Allies.Count)
+            }
+            if (fold && !fallback)
+            {
+                // The viewer's own allies take the room left after the players and their rows, then the players' allies
+                // follow top down, each leaving room for the rows of the player sections below.
+                Section own = sections.FirstOrDefault(section => section.Player == null);
+                float ownUsed = own != null ? Fill(own, 0f, room - playerHeights - row * playerRows, 0, Height, row) : 0f;
+                float used = playerHeights + ownUsed;
+                int laterRows = playerRows;
+                foreach (Section section in sections.Where(section => section.Player != null))
                 {
-                    float height = Height(section.Allies[section.Shown]);
-                    float rowAfter = section.Shown < section.Allies.Count - 1 ? row : 0f;
-                    if (used + height + rowAfter + laterPlayers + row * laterRows > room + Tolerance) break;
-                    used += height;
-                    section.Shown++;
-                }
-                if (section.Shown < section.Allies.Count)
-                {
-                    used += row;
+                    laterRows -= section.Allies.Count > 0 ? 1 : 0;
+                    used += Fill(section, used, room, laterRows, Height, row);
                 }
             }
             layout.Compact = compact;
+            layout.Fallback = fallback;
             layout.Sections = sections;
             layout.HiddenAllies = sections.Sum(section => section.Hidden);
-            layout.Problem = Compare(cluster, room, kinds, sections, sharing, compact, cards, h);
+            layout.Problem = Compare(cluster, room, kinds, sections, sharing, compact, fallback, cards, h);
             return layout;
         }
 
-        // The sections as the mod sets them: the viewer's allies that follow no player card, then each player card in
-        // the game's order with the kinds that follow that player's master.
+        // Shows the section's allies top down while they fit under limit, with the section's own more row and laterRows
+        // more rows after them; returns the height used, the section's row included.
+        private static float Fill(Section section, float used, float limit, int laterRows, System.Func<Kind, float> height, float row)
+        {
+            float start = used;
+            while (section.Shown < section.Allies.Count)
+            {
+                float rowAfter = section.Shown < section.Allies.Count - 1 ? row : 0f;
+                if (used + height(section.Allies[section.Shown]) + rowAfter + row * laterRows > limit + Tolerance) break;
+                used += height(section.Allies[section.Shown]);
+                section.Shown++;
+            }
+            if (section.Shown < section.Allies.Count)
+            {
+                used += row;
+            }
+            return used - start;
+        }
+
+        // The sections as the mod sets them: each player card in the game's order with the kinds that follow that
+        // player's master, then last the viewer's allies that follow no player card.
         private static List<Section> Sections(List<Kind> kinds)
         {
             List<Section> players = kinds.Where(kind => kind.Player).Select(kind => new Section { Player = kind }).ToList();
@@ -165,17 +185,16 @@ namespace SevenUI.Tests
                 Section owner = kind.Leader ? players.FirstOrDefault(section => section.Player.Master == kind.Leader) : null;
                 (owner ?? own).Allies.Add(kind);
             }
-            List<Section> sections = new List<Section>();
+            List<Section> sections = new List<Section>(players);
             if (own.Allies.Count > 0)
             {
                 sections.Add(own);
             }
-            sections.AddRange(players);
             return sections;
         }
 
         private static string Compare(RectTransform cluster, float room, List<Kind> kinds, List<Section> sections,
-            HashSet<AllyCardController> sharing, bool compact, List<AllyCardController> cards, Harness h)
+            HashSet<AllyCardController> sharing, bool compact, bool fallback, List<AllyCardController> cards, Harness h)
         {
             foreach (AllyCardController card in sharing)
             {
@@ -212,7 +231,7 @@ namespace SevenUI.Tests
                 if (Mathf.Abs(moreTop - above) > Tolerance) return $"{owner} more row starts {moreTop:0.#} units down, not {above:0.#}";
                 above += AllyCompactCard.RowHeight;
                 float moreDepth = Depth(cluster, more);
-                if (moreDepth > room + Tolerance && section.Player == null) return $"{owner} more row reaches {moreDepth:0.#} units down, past the {room:0.#} above the chat";
+                if (moreDepth > room + Tolerance && !fallback) return $"{owner} more row reaches {moreDepth:0.#} units down, past the {room:0.#} above the chat";
                 TMP_Text label = more.GetComponentInChildren<TMP_Text>(true);
                 string text = $"+{section.Hidden} more";
                 if (!label || label.text != text) return $"{owner} more row reads '{(label ? label.text : "")}', not '{text}'";

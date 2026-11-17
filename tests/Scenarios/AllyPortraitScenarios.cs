@@ -204,7 +204,8 @@ namespace SevenUI.Tests
 
         // Two stand-in players, each with drones of their own, and enough lone allies of the viewer's for compact cards and
         // the more row: every player's card must stay full size, shown and above the chat, in the game's player order, with
-        // the player's own allies and more row between that card and the next player's. Then each stand-in gets a second
+        // the player's own allies and more row between that card and the next section's, and the viewer's own allies
+        // below every player's section. Then each stand-in gets a second
         // kind, and lone allies are added until at least two sections fold, each into a more row counting its own allies.
         private static IEnumerator PlayersStayFull(Harness h)
         {
@@ -246,7 +247,7 @@ namespace SevenUI.Tests
 
         // Each stand-in's card is shown at the game's height, fully above the chat's top and in the game's order; no card
         // or more row overlaps another; each player's shown allies and more row lie between that player's card and the
-        // next player's. The mod's own layout check agrees, which also compares each more row's count with its section.
+        // next section's; the viewer's own allies lie below the last player's. The mod's own layout check agrees, which also compares each more row's count with its section.
         private static void CheckPlayers(Harness h, List<CharacterMaster> players, string when)
         {
             RectTransform cluster = AllyCardChecks.Cluster(h);
@@ -282,12 +283,24 @@ namespace SevenUI.Tests
                     throw h.Fail($"{when}: {shown[i].Name} starts {shown[i].Top:0.#} units down, over {shown[i - 1].Name}, which ends at {shown[i - 1].Bottom:0.#}");
                 }
             }
+            // The viewer's own allies, which have no player card, come after every player's section.
+            for (int i = 0; i < sections.Count - 1; i++)
+            {
+                if (sections[i].Player == null) throw h.Fail($"{when}: the viewer's own allies are in section {i + 1} of {sections.Count}, above a player's {h.Diagnosis()}");
+            }
             for (int i = 0; i < sections.Count; i++)
             {
                 AllyCardChecks.Section section = sections[i];
-                float lower = section.Player != null ? AllyCardChecks.Depth(cluster, section.Player.Lead.rectTransform) : 0f;
-                AllyCardChecks.Section next = i + 1 < sections.Count ? sections[i + 1] : null;
-                float upper = next != null ? Extent(cluster, next.Player.Lead.rectTransform, "").Top : float.MaxValue;
+                float lower = 0f;
+                if (section.Player != null)
+                {
+                    lower = AllyCardChecks.Depth(cluster, section.Player.Lead.rectTransform);
+                }
+                else if (i > 0)
+                {
+                    lower = Items(cluster, sections[i - 1]).Max(item => item.Bottom);
+                }
+                float upper = i + 1 < sections.Count ? Items(cluster, sections[i + 1]).Min(item => item.Top) : float.MaxValue;
                 List<(string Name, float Top, float Bottom)> own = section.ShownKinds
                     .Select(kind => Extent(cluster, kind.Lead.rectTransform, Name(kind.Lead))).ToList();
                 if (section.Row) own.Add(Extent(cluster, section.Row, section.Row.name));
@@ -302,6 +315,22 @@ namespace SevenUI.Tests
             h.Log($"[ally_portraits] {when}: {players.Count} player cards full size in {sections.Count} sections, " +
                   $"{(layout.Compact ? "compact" : "full size")}, hidden per section: " +
                   string.Join(", ", sections.Select(section => section.Hidden)));
+        }
+
+        // The player's card, the allies shown and the more row of a section.
+        private static List<(string Name, float Top, float Bottom)> Items(RectTransform cluster, AllyCardChecks.Section section)
+        {
+            List<(string Name, float Top, float Bottom)> items = section.ShownKinds
+                .Select(kind => Extent(cluster, kind.Lead.rectTransform, Name(kind.Lead))).ToList();
+            if (section.Player != null)
+            {
+                items.Add(Extent(cluster, section.Player.Lead.rectTransform, Name(section.Player.Lead)));
+            }
+            if (section.Row)
+            {
+                items.Add(Extent(cluster, section.Row, section.Row.name));
+            }
+            return items;
         }
 
         private static (string Name, float Top, float Bottom) Extent(RectTransform cluster, RectTransform rect, string name)
