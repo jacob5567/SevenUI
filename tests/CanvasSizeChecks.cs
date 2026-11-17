@@ -621,6 +621,9 @@ namespace SevenUI.Tests
                 },
                 () => $"Operator's display back at its size {vanilla.Value.Scale} and place {vanilla.Value.Position} in the " +
                       $"game's look, now {DroneDisplayPlace(h)?.Scale} at {DroneDisplayPlace(h)?.Position} {h.Diagnosis()}");
+            // Back in SevenUI's look, for the shots after.
+            h.SetConfig(settings.FlatPanels, true);
+            yield return h.Wait(SevenUIChecks.LookSwitchSeconds);
         }
 
         // Operator's display as measured: its own scale and place, the box its slots fill on canvas pixels on screen,
