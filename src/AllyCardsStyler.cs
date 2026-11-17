@@ -10,11 +10,13 @@ namespace SevenUI
     // Restyles the ally cards on the left: each on a flat panel, with a flat health bar on the dark trough like the
     // player's. Allies of one kind (the same name, following the same leader) always share one card, the kind's first,
     // with "×8" and a bar segment per ally (AllyKindParts); the kind's other cards are hidden and take no room. Players
-    // and allies between bodies keep cards of their own. While the cards would reach down over the chat, the cards of
-    // a single ally become compact rows (AllyCompactCard), while shared cards keep their size and segments. If that is
-    // still too tall, the cards that don't fit are hidden and one more row stands in for them, with a portrait for each
-    // kind and "+N more", N the allies they hold (AllyMoreRow). The game keeps adding, filling, sorting and removing
-    // the cards; this only resizes and hides them and draws over them. While the scoreboard is open, the cards are
+    // and allies between bodies keep cards of their own. Other players' cards are pinned (see IsPinned): full size,
+    // never folded, above every ally, and their room comes off first. While the cards would reach down over the chat,
+    // the cards of a single ally become compact rows (AllyCompactCard), while shared cards keep their size and
+    // segments. If that is still too tall, the allies' cards that don't fit are hidden and one more row stands in for
+    // them, with a portrait for each kind and "+N more", N the allies they hold (AllyMoreRow). The game keeps adding,
+    // filling, sorting and removing the cards; this only resizes and hides them, sets them in the order above (the
+    // game puts a player's minions between players) and draws over them. While the scoreboard is open, the cards are
     // hidden altogether, as they would otherwise draw over the board's left edge. With CompactAllyCards off, none of the
     // fitting happens: the cards keep their size and none is folded. With GroupAllyCards off, every card stands alone,
     // as the game has it.
@@ -35,11 +37,14 @@ namespace SevenUI
         private readonly List<Kind> kinds = new List<Kind>();
         private readonly Stack<Kind> spareKinds = new Stack<Kind>();
         private readonly List<AllyCardController> overflow = new List<AllyCardController>();
+        // Where each card shown belongs in the stack, from the top, set again after the game's layout runs.
+        private readonly List<(RectTransform Rect, float Y)> places = new List<(RectTransform, float)>();
         private readonly Dictionary<AllyCardController, AllyCompactCard> looks = new Dictionary<AllyCardController, AllyCompactCard>();
         private readonly Dictionary<AllyCardController, AllyKindParts> shared = new Dictionary<AllyCardController, AllyKindParts>();
-        // Each ally's name as the game shows it, found once per body: a hidden card's own label stops updating.
-        private readonly Dictionary<CharacterMaster, (CharacterBody Body, string Name)> names =
-            new Dictionary<CharacterMaster, (CharacterBody, string)>();
+        // Each ally's name as the game shows it, found again when its body or drone tier changes: a hidden card's own
+        // label stops updating.
+        private readonly Dictionary<CharacterMaster, (CharacterBody Body, int Tier, string Name)> names =
+            new Dictionary<CharacterMaster, (CharacterBody, int, string)>();
         private readonly List<AllyCardController> goneCards = new List<AllyCardController>();
         private readonly List<CharacterMaster> goneMasters = new List<CharacterMaster>();
         private readonly Vector3[] corners = new Vector3[4];
@@ -57,9 +62,12 @@ namespace SevenUI
 
         private sealed class Kind
         {
-            // The kind's first card, which the kind shares.
+            // The card the kind shares: the first of a living ally, so the game's dead mark never shows over allies still
+            // alive, or the first card if none lives.
             public AllyCardController Lead;
             public CharacterMaster Leader;
+            // Drones of different upgrade tiers are different kinds, though the name's tier suffix is the only difference.
+            public int Tier;
             // None for a card that stands alone.
             public string Name;
             public readonly List<CharacterMaster> Members = new List<CharacterMaster>();
@@ -87,6 +95,9 @@ namespace SevenUI
             {
                 StyleCard(card);
             }
+            // After the canvas lays the cards out in the game's order, so a frame never draws them in it.
+            Canvas.willRenderCanvases -= Place;
+            Canvas.willRenderCanvases += Place;
             if (!container)
             {
                 AllyCardManager manager = cluster.GetComponentInChildren<AllyCardManager>(true);
@@ -114,6 +125,8 @@ namespace SevenUI
 
         public void Restore()
         {
+            Canvas.willRenderCanvases -= Place;
+            places.Clear();
             foreach (KeyValuePair<AllyCardController, AllyKindParts> entry in shared)
             {
                 entry.Value.Remove(entry.Key);
@@ -170,9 +183,16 @@ namespace SevenUI
             SortIntoKinds();
             float room = Room();
             float fullHeight = 0f;
+            int pinned = 0;
+            float pinnedHeight = 0f;
             foreach (Kind kind in kinds)
             {
                 fullHeight += LookOf(kind.Lead).FullHeight;
+                if (IsPinned(kind))
+                {
+                    pinned++;
+                    pinnedHeight += LookOf(kind.Lead).FullHeight;
+                }
             }
             // With the setting off the cards keep their size and none is folded away, whatever the room.
             bool fold = SevenUIPlugin.Settings.CompactAllyCards.Value;
@@ -186,6 +206,10 @@ namespace SevenUI
             }
             if (fold && total > room + SizeTolerance)
             {
+                // The pinned cards come first and always show, so the allies fit in what they leave; if they leave
+                // none, every ally goes under the more row and the pinned cards run on over the chat.
+                shown = pinned;
+                used = pinnedHeight;
                 // The more row takes a compact row's room under the cards that fit.
                 while (shown < kinds.Count && used + Height(kinds[shown], compact) + AllyCompactCard.RowHeight <= room + SizeTolerance)
                 {
@@ -201,7 +225,9 @@ namespace SevenUI
 
             float tallest = 0f;
             int hiddenAllies = 0;
+            float top = 0f;
             overflow.Clear();
+            places.Clear();
             for (int i = 0; i < kinds.Count; i++)
             {
                 Kind kind = kinds[i];
@@ -210,6 +236,8 @@ namespace SevenUI
                 if (fits)
                 {
                     tallest = Mathf.Max(tallest, Height(kind, compact));
+                    places.Add((kind.Lead.rectTransform, -top));
+                    top += Height(kind, compact);
                 }
                 else
                 {
@@ -232,12 +260,45 @@ namespace SevenUI
             {
                 more?.Hide();
             }
+            Place();
         }
 
-        // A shared card keeps the game's height, with its segments; a card of one ally becomes a compact row when the
-        // cards must be compact.
+        // The one rule for cards that stay: pinned cards keep their full size, are never folded under the more row,
+        // and sit above every other card. Today that is a player; a later pin of a kind goes here.
+        private static bool IsPinned(Kind kind)
+        {
+            CharacterMaster master = kind.Lead.sourceMaster;
+            return master && master.playerCharacterMasterController;
+        }
+
+        // A shared or pinned card keeps the game's height, with its segments; a card of one ally becomes a compact row
+        // when the cards must be compact.
         private float Height(Kind kind, bool compact) =>
-            compact && !kind.Shared ? AllyCompactCard.RowHeight : LookOf(kind.Lead).FullHeight;
+            Compacts(kind, compact) ? AllyCompactCard.RowHeight : LookOf(kind.Lead).FullHeight;
+
+        private static bool Compacts(Kind kind, bool compact) => compact && !kind.Shared && !IsPinned(kind);
+
+        // The game steps each card down in its own order, a player's minions right under the player, so a card is
+        // moved to its place in ours, only when it isn't there. Each card's top is its height above, as the game's
+        // layout sums them while the container is stretched to give every card its height.
+        private void Place()
+        {
+            // The HUD can be destroyed without a Restore (the run ends), and the event is static.
+            if (!root)
+            {
+                Canvas.willRenderCanvases -= Place;
+                return;
+            }
+            foreach ((RectTransform rect, float y) in places)
+            {
+                if (!rect) continue;
+                Vector2 position = rect.anchoredPosition;
+                if (Mathf.Abs(position.y - y) > SizeTolerance)
+                {
+                    rect.anchoredPosition = new Vector2(position.x, y);
+                }
+            }
+        }
 
         // The left padding of a card's row, where its portrait starts inside it.
         private static int PaddingLeft(AllyCardController card)
@@ -276,6 +337,12 @@ namespace SevenUI
                 AllyCompactCard look = LookOf(card);
                 if (card != kind.Lead)
                 {
+                    // A card that was the lead drops its parts, as the kind's lead moved to a living ally.
+                    if (shared.TryGetValue(card, out AllyKindParts old))
+                    {
+                        old.Remove(card);
+                        shared.Remove(card);
+                    }
                     look.Set(false, true);
                     continue;
                 }
@@ -286,7 +353,7 @@ namespace SevenUI
                     shared.Remove(card);
                 }
                 // The compact look comes off before a kind's parts go on: they share the bars' column.
-                look.Set(compact && !kind.Shared, !fits);
+                look.Set(Compacts(kind, compact), !fits);
                 if (!kind.Shared || !fits) continue;
                 if (!hasParts)
                 {
@@ -306,6 +373,7 @@ namespace SevenUI
             {
                 kind.Lead = null;
                 kind.Leader = null;
+                kind.Tier = 0;
                 kind.Name = null;
                 kind.Members.Clear();
                 kind.Cards.Clear();
@@ -318,14 +386,15 @@ namespace SevenUI
                 CharacterMaster master = card.sourceMaster;
                 // Players stand alone, as does an ally between bodies, which has no name to group by. With grouping off
                 // no card has a name, so each is a kind of its own and ShowKind takes off any parts it had.
-                string name = group && master && !master.playerCharacterMasterController ? NameOf(master) : null;
+                int tier = 0;
+                string name = group && master && !master.playerCharacterMasterController ? NameOf(master, out tier) : null;
                 CharacterMaster leader = master && master.minionOwnership ? master.minionOwnership.ownerMaster : null;
                 Kind found = null;
                 if (name != null)
                 {
                     foreach (Kind kind in kinds)
                     {
-                        if (kind.Name == name && kind.Leader == leader)
+                        if (kind.Name == name && kind.Tier == tier && kind.Leader == leader)
                         {
                             found = kind;
                             break;
@@ -337,26 +406,52 @@ namespace SevenUI
                     found = spareKinds.Count > 0 ? spareKinds.Pop() : new Kind();
                     found.Lead = card;
                     found.Leader = leader;
+                    found.Tier = tier;
                     found.Name = name;
                     kinds.Add(found);
                 }
                 found.Cards.Add(card);
-                if (master)
+                // A dead ally's body lingers for a while, and its card would still be counted and drawn as a segment.
+                if (IsAlive(master))
                 {
                     found.Members.Add(master);
+                    if (!IsAlive(found.Lead.sourceMaster))
+                    {
+                        found.Lead = card;
+                    }
                 }
+            }
+            // Pinned kinds first, each group in the game's order, which lists players in their own order.
+            int pinnedAt = 0;
+            for (int i = 0; i < kinds.Count; i++)
+            {
+                if (!IsPinned(kinds[i])) continue;
+                Kind pinned = kinds[i];
+                kinds.RemoveAt(i);
+                kinds.Insert(pinnedAt++, pinned);
             }
         }
 
-        // The name the game's card shows (Util.GetBestBodyName, as AllyCardController reads it), found again only when
-        // the ally's body changes.
-        private string NameOf(CharacterMaster master)
+        private static bool IsAlive(CharacterMaster master)
         {
+            if (!master) return false;
+            CharacterBody body = master.GetBody();
+            return body && body.healthComponent && body.healthComponent.alive;
+        }
+
+        // The name the game's card shows (Util.GetBestBodyName, as AllyCardController reads it), found again only when
+        // the ally's body or drone tier changes. An upgrade adds hidden items to the same body, so the tier is read from
+        // the synced inventory each time rather than assumed from the body.
+        private string NameOf(CharacterMaster master, out int tier)
+        {
+            tier = 0;
             CharacterBody body = master.GetBody();
             if (!body) return null;
-            if (names.TryGetValue(master, out (CharacterBody Body, string Name) known) && known.Body == body) return known.Name;
+            tier = body.inventory ? body.inventory.GetItemCountEffective(DLC3Content.Items.DroneUpgradeHidden) : 0;
+            if (names.TryGetValue(master, out (CharacterBody Body, int Tier, string Name) known) && known.Body == body &&
+                known.Tier == tier) return known.Name;
             string name = Util.GetBestBodyName(body.gameObject);
-            names[master] = (body, name);
+            names[master] = (body, tier, name);
             if (names.Count > cards.Count * 2)
             {
                 ForgetGoneMasters();

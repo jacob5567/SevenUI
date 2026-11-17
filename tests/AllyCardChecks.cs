@@ -13,7 +13,10 @@ namespace SevenUI.Tests
     // room runs from the cards' cluster's top down to the chat's message area, less the mod's gap, and never past the
     // cluster's bottom. Allies of one name following one leader share a card (players and allies between bodies keep
     // their own); while every card at the game's height doesn't fit, the cards of a single ally are compact rows; if
-    // that still doesn't fit, the cards that don't go under a "+N more" row.
+    // that still doesn't fit, the cards that don't go under a "+N more" row. Players are exempt: always first, full
+    // size and shown, their height taken off the room before the allies are fitted. (The game's ally cards skip a
+    // player without a network user, so the stand-in players of the scoreboard tests get none, and this is checked
+    // against real players or the mod's own order only.)
     internal static class AllyCardChecks
     {
         private const string ClusterPath = "MainContainer/MainUIArea/SpringCanvas/LeftCluster";
@@ -40,6 +43,7 @@ namespace SevenUI.Tests
             public string Name;
             public CharacterMaster Leader;
             public int Allies;
+            public bool Player;
         }
 
         public static RectTransform Cluster(Harness h) => SevenUIChecks.HudRoot(h).Find(ClusterPath) as RectTransform;
@@ -81,7 +85,11 @@ namespace SevenUI.Tests
                 Kind kind = name == null ? null : kinds.FirstOrDefault(found => found.Name == name && found.Leader == leader);
                 if (kind == null)
                 {
-                    kinds.Add(new Kind { Lead = card, Name = name, Leader = leader, Allies = master ? 1 : 0 });
+                    kinds.Add(new Kind
+                    {
+                        Lead = card, Name = name, Leader = leader, Allies = master ? 1 : 0,
+                        Player = master && master.playerCharacterMasterController,
+                    });
                 }
                 else
                 {
@@ -89,15 +97,19 @@ namespace SevenUI.Tests
                     sharing.Add(card);
                 }
             }
+            // Players first, each group in the game's order.
+            kinds = kinds.Where(kind => kind.Player).Concat(kinds.Where(kind => !kind.Player)).ToList();
+            int players = kinds.Count(kind => kind.Player);
             layout.Kinds = kinds.Count;
             bool compact = kinds.Count * GameHeight > room + Tolerance;
-            float Height(Kind kind) => compact && kind.Allies <= 1 ? row : GameHeight;
+            float Height(Kind kind) => compact && kind.Allies <= 1 && !kind.Player ? row : GameHeight;
             int shown = kinds.Count;
             float used = kinds.Sum(Height);
             if (used > room + Tolerance)
             {
-                shown = 0;
-                used = 0f;
+                // The players always show; the allies fit in what they leave.
+                shown = players;
+                used = kinds.Take(players).Sum(Height);
                 while (shown < kinds.Count && used + Height(kinds[shown]) + row <= room + Tolerance)
                 {
                     used += Height(kinds[shown++]);
@@ -118,14 +130,17 @@ namespace SevenUI.Tests
             }
             string edges = CompareEdges(cluster, kinds, compact, cards, More(h));
             if (edges != null) return edges;
+            float above = 0f;
             for (int i = 0; i < kinds.Count; i++)
             {
                 Kind kind = kinds[i];
                 AllyCardController card = kind.Lead;
                 bool fits = i < shown;
+                if (kind.Player && !fits) return $"player {Name(card)}'s card is folded away";
+                if (!kind.Player && i < kinds.Count(found => found.Player)) return $"{Name(card)} sorted above a player";
                 if (card.gameObject.activeSelf != fits) return $"{Name(card)}'s card is {(fits ? "hidden" : "shown")} (kind {i + 1} of {kinds.Count}, {shown} fit)";
                 if (!fits) continue;
-                float height = compact && kind.Allies <= 1 ? AllyCompactCard.RowHeight : GameHeight;
+                float height = compact && kind.Allies <= 1 && !kind.Player ? AllyCompactCard.RowHeight : GameHeight;
                 float tall = card.rectTransform.rect.height;
                 if (Mathf.Abs(tall - height) > Tolerance) return $"{Name(card)}'s card is {tall:0.#} units tall, not {height:0.#}";
                 // The card's row gives the portrait any spare width, so a compact row's portrait can grow past the
@@ -137,7 +152,11 @@ namespace SevenUI.Tests
                     return $"{Name(card)}'s compact portrait is {portraitWidth:0.#} units wide, not {portrait.preferredWidth:0.#}. {RowLayout(card)}";
                 }
                 float depth = Depth(cluster, card.rectTransform);
-                if (depth > room + Tolerance) return $"{Name(card)}'s card reaches {depth:0.#} units down, past the {room:0.#} above the chat";
+                // Each card's top is the height of the cards above it, in the order above.
+                float top = depth - card.rectTransform.rect.height;
+                if (Mathf.Abs(top - above) > Tolerance) return $"{Name(card)}'s card starts {top:0.#} units down, not {above:0.#} (kind {i + 1})";
+                above += height;
+                if (!kind.Player && depth > room + Tolerance) return $"{Name(card)}'s card reaches {depth:0.#} units down, past the {room:0.#} above the chat";
                 TMP_Text count = card.nameLabel ? card.nameLabel.transform.Find(AllyKindParts.CountName)?.GetComponent<TMP_Text>() : null;
                 if (kind.Allies > 1)
                 {
