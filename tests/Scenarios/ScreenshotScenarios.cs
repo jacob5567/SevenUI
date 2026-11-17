@@ -147,15 +147,57 @@ namespace SevenUI.Tests
 
         // Operator's (DroneTech) display of queued drones above the row is fitted so its widest slot is a skill slot wide; skipped without its
         // expansion.
+        // It is checked and shot under each combination of the tight margins and the level HUD, which move the row.
         private static IEnumerator OperatorDisplayFitsSlots(Harness h)
         {
             yield return TurnInto(h, GameNames.DroneTech);
-            yield return h.ExpectDroneDisplayFitsSlots();
+            foreach (LayoutCombo combo in LayoutCombos)
+            {
+                yield return SetLayout(h, combo);
+                yield return h.ExpectDroneDisplayFitsSlots();
+                yield return h.CaptureLooks(combo.Label);
+            }
+            yield return SetLayout(h, LayoutCombos[0]);
+        }
+
+        // Tight margins and the level HUD, each on or off; the first is the defaults.
+        private readonly struct LayoutCombo
+        {
+            public readonly string Label;
+            public readonly bool TightMargins;
+            public readonly bool LevelHud;
+
+            public LayoutCombo(string label, bool tightMargins, bool levelHud)
+            {
+                Label = label;
+                TightMargins = tightMargins;
+                LevelHud = levelHud;
+            }
+        }
+
+        private static readonly LayoutCombo[] LayoutCombos =
+        {
+            new LayoutCombo("tight_level", true, true),
+            new LayoutCombo("tight_nolevel", true, false),
+            new LayoutCombo("loose_level", false, true),
+            new LayoutCombo("loose_nolevel", false, false)
+        };
+
+        // The kinds Drifter's card is also checked for under the other combinations; the rest only under the defaults.
+        private static readonly string[] AllLayoutKinds = { GameNames.SmallChest, GameNames.ShrineOfChance };
+
+        private static IEnumerator SetLayout(Harness h, LayoutCombo combo)
+        {
+            PluginConfig settings = SevenUIPlugin.Settings;
+            h.SetConfig(settings.TightMargins, combo.TightMargins);
+            h.SetConfig(settings.LevelHud, combo.LevelHud);
+            yield return h.Wait(SevenUIChecks.LookSwitchSeconds);
         }
 
         // Drifter grabs several interactables in turn with her Repossess skill, as the game does: each shows its overlay
         // (arrow, portrait, name and health bar) above the row's right end, which is checked to keep the game's size and
-        // shot in both looks, before she empties the bag with the skill that replaces Repossess. Kinds that can't be
+        // shot in both looks (all five kinds under the defaults, SmallChest and ShrineOfChance also under the other
+        // combinations of tight margins and level HUD), before she empties the bag with the skill that replaces Repossess. Kinds that can't be
         // spawned or grabbed are skipped, but at least one must be grabbed. Skipped without Drifter's expansion.
         private static IEnumerator DrifterBagDisplayMatchesGame(Harness h)
         {
@@ -196,9 +238,15 @@ namespace SevenUI.Tests
                     continue;
                 }
                 h.Log($"bagged {kind} (\"{target.bestName}\")");
-                // Shot first, so a failing check still leaves the pictures to compare.
-                yield return h.CaptureLooks(kind);
-                yield return h.ExpectBagDisplayMatchesGame();
+                int combos = System.Array.IndexOf(AllLayoutKinds, kind) >= 0 ? LayoutCombos.Length : 1;
+                for (int i = 0; i < combos; i++)
+                {
+                    yield return SetLayout(h, LayoutCombos[i]);
+                    // Shot first, so a failing check still leaves the pictures to compare.
+                    yield return h.CaptureLooks($"{kind}_{LayoutCombos[i].Label}");
+                    yield return h.ExpectBagDisplayMatchesGame();
+                }
+                yield return SetLayout(h, LayoutCombos[0]);
                 grabbed.Add(kind);
                 yield return DrifterBag.Empty(h, repossess, bag);
                 DrifterBag.Discard(target);
