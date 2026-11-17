@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using RoR2;
-using RoR2.HudOverlay;
 using RoR2.UI;
 using UnityEngine;
 using UnityEngine.UI;
@@ -20,9 +19,9 @@ namespace SevenUI
         // An empty slot above the skills that the game parents Operator's (DroneTech in code) drones and Seeker's lotus
         // to, placed for the game's row (HUD child locator entry RightUtilityArea).
         private const string UtilityAreaName = "UtilityArea";
-        // Operator's display's child holding its queued drones' icons ("Drone 1" to "Drone 3"), and the first icon.
-        private const string DroneQueueEntry = "Secondary Queue";
-        private const string DroneEntry = "Drone 1";
+        // Operator's display, hung in the utility area, and the slots in its queues ("DroneSlot1" to "DroneSlot3").
+        public const string DroneOverlayName = "DroneTechDronesOverlay";
+        public const string DroneSlotName = "DroneSlot";
         private const float FitTolerance = 0.01f;
         public const float SlotSize = 68f;
         public const float Gap = 8f;
@@ -42,10 +41,8 @@ namespace SevenUI
         private Rect rowBefore;
         private Rect rowAfter;
         private bool applied;
-        // The survivors' own elements already scaled with the row, which are put back with the row.
+        // The survivors' own displays already fitted, which are put back with the row.
         private readonly HashSet<RectTransform> followed = new HashSet<RectTransform>();
-        // Operator's display once fitted, so the HUD isn't searched for it every apply; destroyed with its body.
-        private RectTransform droneDisplay;
 
         private SkillRow(RectTransform scaler, float unit)
         {
@@ -136,57 +133,33 @@ namespace SevenUI
             rowBefore = before;
             rowAfter = after;
             applied = true;
-            FollowOverlays(hud, recorder);
-        }
-
-        // Scales the target body's own element beside the row (Drifter's junk meter) as the utility area is. The game
-        // creates it with the body, after the row is applied, and parents it to a child locator entry set in the
-        // prefab, so it is found through its JunkController's overlay and kept if it sits in the row's scaler. Run on
-        // each apply; each instance is scaled once.
-        public void FollowOverlays(HUD hud, StyleRecorder recorder)
-        {
-            if (!applied || !hud.targetBodyObject) return;
-            JunkController junk = hud.targetBodyObject.GetComponent<JunkController>();
-            OverlayController overlay = junk ? junk.overlayController : null;
-            if (overlay != null)
-            {
-                foreach (GameObject instance in overlay.instancesList)
-                {
-                    RectTransform rect = instance ? instance.transform as RectTransform : null;
-                    if (!rect || !rect.IsChildOf(scaler) || !followed.Add(rect)) continue;
-                    FollowRow(rect, rowBefore, rowAfter, recorder);
-                }
-            }
             FollowDroneDisplay(hud, recorder);
         }
 
-        // Operator's (DroneTech in code) display of the drones queued to be commanded. The game hangs it from its own
-        // HUD locator entry, which is not in the skills' scaler (it sits above the row's right end), so it is looked
-        // for through the whole HUD, by its "Secondary Queue" child as the overlay's controller is private. Its icons
-        // were larger than the restyled slots, so they are fitted to the slots' size about the display's bottom
-        // middle, which keeps it over the row. Each instance is fitted once, once its icons have a size.
-        private void FollowDroneDisplay(HUD hud, StyleRecorder recorder)
+        // Operator's (DroneTech in code) display of the drones queued to be commanded: an overlay the game creates with
+        // the body, after the row is applied, under the utility area, so it has grown with the slots already. Its
+        // big selected slot is then wider than a skill slot, so the overlay is fitted to a slot's width about its
+        // bottom middle, which keeps it over the row; its queues ("Secondary Queue" and "Util Queue") are in it, so they
+        // follow. Run on each apply; each instance is fitted once, once its slots have a size.
+        public void FollowDroneDisplay(HUD hud, StyleRecorder recorder)
         {
-            if (!hud.targetBodyObject || !hud.targetBodyObject.GetComponent<DroneTechController>()) return;
-            if (droneDisplay) return;
+            if (!applied || !hud.targetBodyObject || !hud.targetBodyObject.GetComponent<DroneTechController>()) return;
             RectTransform area = scaler.Find(UtilityAreaName) as RectTransform;
-            foreach (ChildLocator locator in hud.GetComponentsInChildren<ChildLocator>(true))
+            if (!area) return;
+            foreach (RectTransform display in area.GetComponentsInChildren<RectTransform>(true))
             {
-                RectTransform display = locator.transform as RectTransform;
-                RectTransform icon = locator.FindChild(DroneQueueEntry)?.Find(DroneEntry) as RectTransform;
-                if (!display || !icon || followed.Contains(display)) continue;
-                float size = icon.rect.height * PixelsPer(icon);
-                if (size <= 0f) continue;
-                followed.Add(display);
-                droneDisplay = display;
-                // Hung in the scaler but outside the utility area, it hasn't grown with the slots yet.
-                if (display.IsChildOf(scaler) && (!area || !display.IsChildOf(area)))
+                if (!display.name.StartsWith(DroneOverlayName) || followed.Contains(display)) continue;
+                float width = 0f;
+                foreach (RectTransform slot in display.GetComponentsInChildren<RectTransform>(true))
                 {
-                    FollowRow(display, rowBefore, rowAfter, recorder);
-                    size = icon.rect.height * PixelsPer(icon);
+                    if (slot.name.StartsWith(DroneSlotName))
+                    {
+                        width = Mathf.Max(width, slot.rect.width * PixelsPer(slot));
+                    }
                 }
-                FitAboutBottom(display, SlotSize / size, recorder);
-                return;
+                if (width <= 0f) continue;
+                followed.Add(display);
+                FitAboutBottom(display, SlotSize / width, recorder);
             }
         }
 
