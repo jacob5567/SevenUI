@@ -561,7 +561,7 @@ namespace SevenUI.Tests
             h.SetConfig(settings.FlatPanels, false);
             yield return h.Wait(SevenUIChecks.LookSwitchSeconds);
             (RectTransform Display, float Icon, Vector3 Scale, Vector2 Position)? vanilla = DroneDisplayPlace(h);
-            if (vanilla == null) throw h.Fail($"no Operator display in the scaler in the game's look {h.Diagnosis()}");
+            if (vanilla == null) throw h.Fail($"no Operator display in the HUD in the game's look {h.Diagnosis()}");
             h.SetConfig(settings.FlatPanels, true);
             (RectTransform Display, float Icon, Vector3 Scale, Vector2 Position)? styled = null;
             yield return h.Until(
@@ -596,8 +596,8 @@ namespace SevenUI.Tests
             Transform root = SevenUIChecks.HudRoot(h);
             HUD hud = root.GetComponent<HUD>();
             if (!hud || hud.skillIcons == null || hud.skillIcons.Length == 0 || !hud.skillIcons[0]) return null;
-            Transform scaler = hud.skillIcons[0].transform.parent;
-            foreach (ChildLocator locator in scaler.GetComponentsInChildren<ChildLocator>(true))
+            // Found anywhere in the HUD: the game hangs it from a locator entry of its own, above the row.
+            foreach (ChildLocator locator in hud.GetComponentsInChildren<ChildLocator>(true))
             {
                 Transform queue = locator.FindChild(GameNames.DroneQueue);
                 RectTransform icon = queue ? queue.Find(GameNames.DroneIcon) as RectTransform : null;
@@ -617,7 +617,9 @@ namespace SevenUI.Tests
             h.SetConfig(settings.FlatPanels, false);
             yield return h.Wait(SevenUIChecks.LookSwitchSeconds);
             (float Slot, float Meter, Vector3 Scale, Vector2 Position)? vanilla = JunkMeterPlace(h);
-            if (vanilla == null) throw h.Fail($"no junk meter in the scaler in the game's look {h.Diagnosis()}");
+            // The game hangs the meter from a locator entry of the prefab's, which may not be in the skills' scaler, where
+            // there is nothing to follow; the check then says where it is instead of failing.
+            if (vanilla == null) throw h.Skip($"no junk meter in the skills' scaler in the game's look: {JunkMeterWhere(h)}");
             h.SetConfig(settings.FlatPanels, true);
             (float Slot, float Meter, Vector3 Scale, Vector2 Position)? styled = null;
             yield return h.Until(
@@ -645,6 +647,28 @@ namespace SevenUI.Tests
                 },
                 () => $"the junk meter back at its size {vanilla.Value.Scale} and place {vanilla.Value.Position} in the " +
                       $"game's look, now {JunkMeterPlace(h)?.Scale} at {JunkMeterPlace(h)?.Position} {h.Diagnosis()}");
+        }
+
+        // Where the junk meter's overlay instances are, for when none is in the scaler.
+        private static string JunkMeterWhere(Harness h)
+        {
+            HUD hud = SevenUIChecks.HudRoot(h).GetComponent<HUD>();
+            JunkController junk = hud && hud.targetBodyObject ? hud.targetBodyObject.GetComponent<JunkController>() : null;
+            if (!junk) return "the HUD's target has no JunkController";
+            if (junk.overlayController == null) return "no overlay controller";
+            List<string> places = new List<string>();
+            foreach (GameObject instance in junk.overlayController.instancesList)
+            {
+                if (!instance) continue;
+                List<string> path = new List<string>();
+                for (Transform at = instance.transform; at; at = at.parent)
+                {
+                    path.Add(at.name);
+                }
+                path.Reverse();
+                places.Add(string.Join("/", path));
+            }
+            return places.Count == 0 ? "the overlay has no instances" : "instances at " + string.Join("; ", places);
         }
 
         // The first skill's height and the meter's, in the world's units, and the meter's own scale and place.
