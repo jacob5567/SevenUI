@@ -113,6 +113,14 @@ namespace SevenUI.Tests
         // cleanup.
         private static IEnumerator AsSurvivor(Harness h, string bodyName, System.Action<CharacterBody> setUp)
         {
+            yield return TurnInto(h, bodyName, setUp);
+            yield return h.AimAway();
+            yield return h.CaptureLooks();
+        }
+
+        // Turns the player into the survivor, skipping when the body or its expansion is missing, and back at cleanup.
+        public static IEnumerator TurnInto(Harness h, string bodyName, System.Action<CharacterBody> setUp = null)
+        {
             GameObject prefab = BodyCatalog.FindBodyPrefab(bodyName);
             if (!prefab) throw h.Skip($"no body called {bodyName}");
             CharacterMaster master = Harness.LocalBody.master;
@@ -130,8 +138,6 @@ namespace SevenUI.Tests
                 NewBodyTimeout);
             setUp?.Invoke(Harness.LocalBody);
             yield return h.Wait(NewBodySeconds);
-            yield return h.AimAway();
-            yield return h.CaptureLooks();
         }
 
         // A server method; the runner is the host.

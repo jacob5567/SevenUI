@@ -62,6 +62,8 @@ namespace SevenUI.Tests
             yield return new Scenario(1, "player_bars_are_flat", Stages.TitanicPlains, PlayerBarsAreFlat);
             yield return new Scenario(1, "buffs_wrap_in_rows", Stages.TitanicPlains, BuffsWrapInRows);
             yield return new Scenario(1, "skill_slots_are_flat", Stages.TitanicPlains, SkillSlotsAreFlat);
+            yield return new Scenario(1, "drifter_meter_follows_row", Stages.TitanicPlains, DrifterMeterFollowsRow);
+            yield return new Scenario(1, "operator_display_fits_slots", Stages.TitanicPlains, OperatorDisplayFitsSlots);
             yield return new Scenario(1, "notification_icons_in_slot", Stages.TitanicPlains, NotificationIconsInSlot);
             yield return new Scenario(1, "transformation_notification_blend", Stages.TitanicPlains, TransformationNotificationBlend);
             yield return new Scenario(1, "void_transformation_notification_blend", Stages.TitanicPlains,
@@ -276,6 +278,21 @@ namespace SevenUI.Tests
             yield return h.ExpectSlotsSkillSized();
             yield return h.ExpectSkillRowAsCanvas();
             yield return h.ExpectUtilityAreaFollowsRow();
+        }
+
+        // Drifter's junk meter beside the skill row is scaled with it; skipped without Drifter's expansion.
+        private static IEnumerator DrifterMeterFollowsRow(Harness h)
+        {
+            yield return ScreenshotScenarios.TurnInto(h, GameNames.Drifter);
+            yield return h.ExpectOverlayFollowsRow();
+        }
+
+        // Operator's (DroneTech) display of queued drones above the row is fitted to the slots' size; skipped without its
+        // expansion.
+        private static IEnumerator OperatorDisplayFitsSlots(Harness h)
+        {
+            yield return ScreenshotScenarios.TurnInto(h, GameNames.DroneTech);
+            yield return h.ExpectDroneDisplayFitsSlots();
         }
 
         // A Winnowing trial's notification and a repaired drone's, which the game draws from prefabs of their own with

@@ -78,6 +78,9 @@ namespace SevenUI.Tests
         private const float StockBaseline = 3f + 18f * 0.1f;
         // In shares of a slot; the game's look is drawn turned, so its shares come out a little off.
         private const float UtilityAreaTolerance = 0.06f;
+        // The meter's growth against the slots', as a share.
+        private const float JunkMeterTolerance = 0.02f;
+        private const float DroneIconTolerance = 1f;
         // The timer's tags hold dots of their own, "<mspace=0.46em>".
         private const string StageTextName = "Stage Text";
         private static readonly Regex Tags = new Regex("<[^>]*>");
@@ -508,7 +511,7 @@ namespace SevenUI.Tests
             return RectTransformUtility.WorldToScreenPoint(camera, world) / unit;
         }
 
-        // The slot some survivors' meters hang from keeps its place over the skill row from the game's look, in shares
+        // The slot some survivors' displays hang from (Operator's drones, Seeker's lotus) keeps its place over the skill row from the game's look, in shares
         // of a slot: the gap under it, its middle's distance right of the row's, and its height. Measured in the
         // cluster's plane, which the game's look turns slightly away from the screen, so on screen its row's left
         // slots sit higher than its right ones; SevenUI's look draws the same plane facing the screen.
@@ -547,6 +550,119 @@ namespace SevenUI.Tests
             Rect place = InPlane(plane, area);
             if (slot <= 0f) return null;
             return new Vector3((place.yMin - row.yMax) / slot, (place.center.x - row.center.x) / slot, place.height / slot);
+        }
+
+        // Operator's (DroneTech in code) display hangs in the utility area, which grows with the slots, and its first
+        // drone icon is then fitted to the restyled slot's size: on screen it is as tall as a slot, applying again
+        // leaves it, and the game's look puts back the display's size and place.
+        public static IEnumerator ExpectDroneDisplayFitsSlots(this Harness h)
+        {
+            PluginConfig settings = SevenUIPlugin.Settings;
+            h.SetConfig(settings.FlatPanels, false);
+            yield return h.Wait(SevenUIChecks.LookSwitchSeconds);
+            (RectTransform Display, float Icon, Vector3 Scale, Vector2 Position)? vanilla = DroneDisplayPlace(h);
+            if (vanilla == null) throw h.Fail($"no Operator display in the scaler in the game's look {h.Diagnosis()}");
+            h.SetConfig(settings.FlatPanels, true);
+            (RectTransform Display, float Icon, Vector3 Scale, Vector2 Position)? styled = null;
+            yield return h.Until(
+                () =>
+                {
+                    styled = DroneDisplayPlace(h);
+                    return styled != null && Mathf.Abs(styled.Value.Icon - SkillRow.SlotSize) < DroneIconTolerance;
+                },
+                () => $"Operator's drone icon {SkillRow.SlotSize}px tall as a slot (game's look {vanilla.Value.Icon:F1}px, " +
+                      $"SevenUI {styled?.Icon:F1}px) {h.Diagnosis()}");
+            yield return h.Wait(SevenUIChecks.LookSwitchSeconds);
+            var again = DroneDisplayPlace(h);
+            if (again == null || again.Value.Scale != styled.Value.Scale || again.Value.Position != styled.Value.Position)
+            {
+                throw h.Fail($"Operator's display changed when applied again: scale {styled.Value.Scale} to {again?.Scale}, " +
+                             $"position {styled.Value.Position} to {again?.Position}");
+            }
+            h.SetConfig(settings.FlatPanels, false);
+            yield return h.Until(
+                () =>
+                {
+                    var back = DroneDisplayPlace(h);
+                    return back != null && back.Value.Scale == vanilla.Value.Scale && back.Value.Position == vanilla.Value.Position;
+                },
+                () => $"Operator's display back at its size {vanilla.Value.Scale} and place {vanilla.Value.Position} in the " +
+                      $"game's look, now {DroneDisplayPlace(h)?.Scale} at {DroneDisplayPlace(h)?.Position} {h.Diagnosis()}");
+        }
+
+        // The display's first drone icon's height in canvas pixels, and the display's own scale and place.
+        private static (RectTransform Display, float Icon, Vector3 Scale, Vector2 Position)? DroneDisplayPlace(Harness h)
+        {
+            Transform root = SevenUIChecks.HudRoot(h);
+            HUD hud = root.GetComponent<HUD>();
+            if (!hud || hud.skillIcons == null || hud.skillIcons.Length == 0 || !hud.skillIcons[0]) return null;
+            Transform scaler = hud.skillIcons[0].transform.parent;
+            foreach (ChildLocator locator in scaler.GetComponentsInChildren<ChildLocator>(true))
+            {
+                Transform queue = locator.FindChild(GameNames.DroneQueue);
+                RectTransform icon = queue ? queue.Find(GameNames.DroneIcon) as RectTransform : null;
+                if (!icon || !(locator.transform is RectTransform display)) continue;
+                Rect box = Box(h, icon);
+                return (display, box.height, display.localScale, display.anchoredPosition);
+            }
+            return null;
+        }
+
+        // Drifter's junk meter, which the game draws beside the row, is scaled with the slots as the utility area is: its
+        // size grows as the slots' do, applying again leaves it, and the game's look puts back its size and place. Found
+        // through the JunkController's overlay, as SevenUI does, as its child locator entry isn't known.
+        public static IEnumerator ExpectOverlayFollowsRow(this Harness h)
+        {
+            PluginConfig settings = SevenUIPlugin.Settings;
+            h.SetConfig(settings.FlatPanels, false);
+            yield return h.Wait(SevenUIChecks.LookSwitchSeconds);
+            (float Slot, float Meter, Vector3 Scale, Vector2 Position)? vanilla = JunkMeterPlace(h);
+            if (vanilla == null) throw h.Fail($"no junk meter in the scaler in the game's look {h.Diagnosis()}");
+            h.SetConfig(settings.FlatPanels, true);
+            (float Slot, float Meter, Vector3 Scale, Vector2 Position)? styled = null;
+            yield return h.Until(
+                () =>
+                {
+                    styled = JunkMeterPlace(h);
+                    return styled != null && Mathf.Abs(styled.Value.Meter / vanilla.Value.Meter -
+                                                       styled.Value.Slot / vanilla.Value.Slot) < JunkMeterTolerance;
+                },
+                () => $"the junk meter grown as the slots (slot {vanilla.Value.Slot:F3} to {styled?.Slot:F3}, meter " +
+                      $"{vanilla.Value.Meter:F3} to {styled?.Meter:F3}) {h.Diagnosis()}");
+            yield return h.Wait(SevenUIChecks.LookSwitchSeconds);
+            (float Slot, float Meter, Vector3 Scale, Vector2 Position)? again = JunkMeterPlace(h);
+            if (again == null || again.Value.Scale != styled.Value.Scale || again.Value.Position != styled.Value.Position)
+            {
+                throw h.Fail($"the junk meter changed when applied again: scale {styled.Value.Scale} to {again?.Scale}, " +
+                             $"position {styled.Value.Position} to {again?.Position}");
+            }
+            h.SetConfig(settings.FlatPanels, false);
+            yield return h.Until(
+                () =>
+                {
+                    var back = JunkMeterPlace(h);
+                    return back != null && back.Value.Scale == vanilla.Value.Scale && back.Value.Position == vanilla.Value.Position;
+                },
+                () => $"the junk meter back at its size {vanilla.Value.Scale} and place {vanilla.Value.Position} in the " +
+                      $"game's look, now {JunkMeterPlace(h)?.Scale} at {JunkMeterPlace(h)?.Position} {h.Diagnosis()}");
+        }
+
+        // The first skill's height and the meter's, in the world's units, and the meter's own scale and place.
+        private static (float Slot, float Meter, Vector3 Scale, Vector2 Position)? JunkMeterPlace(Harness h)
+        {
+            Transform root = SevenUIChecks.HudRoot(h);
+            HUD hud = root.GetComponent<HUD>();
+            if (!hud || !hud.targetBodyObject || hud.skillIcons == null || hud.skillIcons.Length == 0 || !hud.skillIcons[0]) return null;
+            JunkController junk = hud.targetBodyObject.GetComponent<JunkController>();
+            if (!junk || junk.overlayController == null) return null;
+            Transform scaler = hud.skillIcons[0].transform.parent;
+            foreach (GameObject instance in junk.overlayController.instancesList)
+            {
+                if (!instance || !(instance.transform is RectTransform meter) || !meter.IsChildOf(scaler)) continue;
+                RectTransform skill = (RectTransform)hud.skillIcons[0].transform;
+                return (skill.rect.height * skill.lossyScale.y, meter.lossyScale.y, meter.localScale, meter.anchoredPosition);
+            }
+            return null;
         }
 
         // A rect's box in a transform it's drawn in.
