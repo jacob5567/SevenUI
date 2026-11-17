@@ -56,10 +56,10 @@ namespace SevenUI.Tests
                 List<AllyCardController> cards = AllyCardChecks.Cards(h);
                 List<AllyCardController> shown = cards.Where(card => card.gameObject.activeSelf).ToList();
                 int compact = shown.Count(IsCompact);
-                RectTransform more = AllyCardChecks.More(h);
+                int more = AllyCardChecks.More(h).Count;
                 List<AllyCardController> wrong = shown.Where(card => IsCompact(card) && PortraitOff(card)).ToList();
                 string summary = $"{step}: {cards.Count} cards, {shown.Count} shown, {compact} compact, " +
-                                 $"more row {(more && more.gameObject.activeSelf ? "shown" : "hidden")}, " +
+                                 $"{more} more rows, " +
                                  (wrong.Count == 0 ? "portraits right" : $"{wrong.Count} compact portraits too wide");
                 h.Log("[ally_portraits] " + summary);
                 if (wrong.Count > 0)
@@ -204,8 +204,9 @@ namespace SevenUI.Tests
         }
 
         // Two stand-in players, each with drones of their own, and enough lone allies of the viewer's for compact cards and
-        // the more row: every player's card must stay full size and shown, above every ally's card, in the game's player
-        // order, and the second player's card above the first player's drones.
+        // the more row: every player's card must stay full size, shown and above the chat, in the game's player order, with
+        // the player's own allies and more row between that card and the next player's. Then each stand-in gets a second
+        // kind, and lone allies are added until at least two sections fold, each into a more row counting its own allies.
         private static IEnumerator PlayersStayFull(Harness h)
         {
             Trace trace = new Trace(h);
@@ -227,21 +228,41 @@ namespace SevenUI.Tests
             yield return Allies.SummonLoneAllies(h, 1, allies);
             yield return trace.Step("one more under the more row");
             CheckPlayers(h, players, "one more under the more row");
+            foreach (CharacterMaster player in players)
+            {
+                yield return Allies.SummonDrones(h, Allies.HealingDroneMaster, 1, drones, player.GetBody());
+            }
+            yield return GrowUntil(h, trace, allies, () => FoldedSections(h) >= 2, "two folded sections");
+            yield return trace.Step("crowded", true);
+            CheckPlayers(h, players, "crowded");
+            if (FoldedSections(h) < 2) throw h.Fail($"crowded: {FoldedSections(h)} sections fold, not 2 or more {h.Diagnosis()}");
             trace.Finish();
         }
 
-        // Each stand-in's card is shown at the game's height, and sits above every ally's card and the first player's
-        // drones, the players in the game's order; the mod's own layout check agrees.
+        private static int FoldedSections(Harness h)
+        {
+            AllyCardChecks.Layout layout = AllyCardChecks.Measure(h);
+            return layout.Problem == null ? layout.Sections.Count(section => section.Hidden > 0) : 0;
+        }
+
+        // Each stand-in's card is shown at the game's height, fully above the chat's top and in the game's order; no card
+        // or more row overlaps another; each player's shown allies and more row lie between that player's card and the
+        // next player's. The mod's own layout check agrees, which also compares each more row's count with its section.
         private static void CheckPlayers(Harness h, List<CharacterMaster> players, string when)
         {
             RectTransform cluster = AllyCardChecks.Cluster(h);
-            List<AllyCardController> cards = AllyCardChecks.Cards(h).Where(card => card.sourceMaster).ToList();
+            float room = AllyCardChecks.Room(h);
+            AllyCardChecks.Layout layout = AllyCardChecks.Measure(h);
+            if (layout.Problem != null) throw h.Fail($"{when}: {layout.Problem}");
+            List<AllyCardChecks.Section> sections = layout.Sections;
             List<CharacterMaster> inOrder = CharacterMaster.readOnlyInstancesList.Where(players.Contains).ToList();
-            float previous = -1f;
-            foreach (CharacterMaster player in inOrder)
+            List<CharacterMaster> cardOrder = sections.Where(section => section.Player != null && players.Contains(section.Player.Master))
+                .Select(section => section.Player.Master).ToList();
+            if (cardOrder.Count != inOrder.Count) throw h.Fail($"{when}: {cardOrder.Count} cards for {inOrder.Count} stand-in players {h.Diagnosis()}");
+            if (!cardOrder.SequenceEqual(inOrder)) throw h.Fail($"{when}: the players' cards are not in the game's order");
+            foreach (AllyCardChecks.Section section in sections.Where(section => section.Player != null))
             {
-                AllyCardController card = cards.FirstOrDefault(found => found.sourceMaster == player);
-                if (!card) throw h.Fail($"{when}: no ally card for a stand-in player {h.Diagnosis()}");
+                AllyCardController card = section.Player.Lead;
                 if (!card.gameObject.activeSelf) throw h.Fail($"{when}: a player's card is hidden or folded away");
                 float tall = card.rectTransform.rect.height;
                 if (Mathf.Abs(tall - AllyCardChecks.GameHeight) > Tolerance)
@@ -249,22 +270,45 @@ namespace SevenUI.Tests
                     throw h.Fail($"{when}: a player's card is {tall:0.#} units tall, not {AllyCardChecks.GameHeight:0.#}");
                 }
                 float depth = AllyCardChecks.Depth(cluster, card.rectTransform);
-                if (depth <= previous) throw h.Fail($"{when}: the players' cards are not in the game's order");
-                previous = depth;
+                if (depth > room + Tolerance) throw h.Fail($"{when}: a player's card reaches {depth:0.#} units down, past the {room:0.#} above the chat");
             }
-            float lastPlayer = previous;
-            foreach (AllyCardController card in cards.Where(card => card.gameObject.activeSelf && !players.Contains(card.sourceMaster)))
+            // Nothing overlaps: every card and row shown, from the top, starts where the one before ends.
+            List<(string Name, float Top, float Bottom)> shown = AllyCardChecks.Cards(h).Where(card => card.gameObject.activeSelf)
+                .Select(card => Extent(cluster, card.rectTransform, Name(card)))
+                .Concat(AllyCardChecks.More(h).Select(row => Extent(cluster, row, row.name))).OrderBy(extent => extent.Top).ToList();
+            for (int i = 1; i < shown.Count; i++)
             {
-                float top = AllyCardChecks.Depth(cluster, card.rectTransform) - card.rectTransform.rect.height;
-                if (top < lastPlayer - Tolerance)
+                if (shown[i].Top < shown[i - 1].Bottom - Tolerance)
                 {
-                    throw h.Fail($"{when}: {Name(card)}'s card starts {top:0.#} units down, above the last player's card ends at {lastPlayer:0.#}");
+                    throw h.Fail($"{when}: {shown[i].Name} starts {shown[i].Top:0.#} units down, over {shown[i - 1].Name}, which ends at {shown[i - 1].Bottom:0.#}");
                 }
             }
-            AllyCardChecks.Layout layout = AllyCardChecks.Measure(h);
-            if (layout.Problem != null) throw h.Fail($"{when}: {layout.Problem}");
-            h.Log($"[ally_portraits] {when}: {players.Count} player cards full size above {layout.Cards - players.Count} ally cards, " +
-                  $"{(layout.Compact ? "compact" : "full size")}, {layout.HiddenAllies} hidden");
+            for (int i = 0; i < sections.Count; i++)
+            {
+                AllyCardChecks.Section section = sections[i];
+                float lower = section.Player != null ? AllyCardChecks.Depth(cluster, section.Player.Lead.rectTransform) : 0f;
+                AllyCardChecks.Section next = i + 1 < sections.Count ? sections[i + 1] : null;
+                float upper = next != null ? Extent(cluster, next.Player.Lead.rectTransform, "").Top : float.MaxValue;
+                List<(string Name, float Top, float Bottom)> own = section.ShownKinds
+                    .Select(kind => Extent(cluster, kind.Lead.rectTransform, Name(kind.Lead))).ToList();
+                if (section.Row) own.Add(Extent(cluster, section.Row, section.Row.name));
+                foreach ((string name, float top, float bottom) in own)
+                {
+                    if (top < lower - Tolerance || bottom > upper + Tolerance)
+                    {
+                        throw h.Fail($"{when}: {name} lies {top:0.#} to {bottom:0.#} units down, not between {lower:0.#} and {upper:0.#}");
+                    }
+                }
+            }
+            h.Log($"[ally_portraits] {when}: {players.Count} player cards full size in {sections.Count} sections, " +
+                  $"{(layout.Compact ? "compact" : "full size")}, hidden per section: " +
+                  string.Join(", ", sections.Select(section => section.Hidden)));
+        }
+
+        private static (string Name, float Top, float Bottom) Extent(RectTransform cluster, RectTransform rect, string name)
+        {
+            float bottom = AllyCardChecks.Depth(cluster, rect);
+            return (name, bottom - rect.rect.height, bottom);
         }
 
         // A kind of five shown as one card while the cards are compact, then GroupAllyCards off and on, twice.
@@ -359,8 +403,7 @@ namespace SevenUI.Tests
 
         private static bool MoreShown(Harness h)
         {
-            RectTransform more = AllyCardChecks.More(h);
-            return more && more.gameObject.activeSelf;
+            return AllyCardChecks.More(h).Count > 0;
         }
 
         private static string Name(AllyCardController card) => card.nameLabel ? card.nameLabel.text : card.name;

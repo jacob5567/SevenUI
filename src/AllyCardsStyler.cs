@@ -10,16 +10,18 @@ namespace SevenUI
     // Restyles the ally cards on the left: each on a flat panel, with a flat health bar on the dark trough like the
     // player's. Allies of one kind (the same name, following the same leader) always share one card, the kind's first,
     // with "×8" and a bar segment per ally (AllyKindParts); the kind's other cards are hidden and take no room. Players
-    // and allies between bodies keep cards of their own. Other players' cards are pinned (see IsPinned): full size,
-    // never folded, above every ally, and their room comes off first. While the cards would reach down over the chat,
-    // the cards of a single ally become compact rows (AllyCompactCard), while shared cards keep their size and
-    // segments. If that is still too tall, the allies' cards that don't fit are hidden and one more row stands in for
-    // them, with a portrait for each kind and "+N more", N the allies they hold (AllyMoreRow). The game keeps adding,
-    // filling, sorting and removing the cards; this only resizes and hides them, sets them in the order above (the
-    // game puts a player's minions between players) and draws over them. While the scoreboard is open, the cards are
-    // hidden altogether, as they would otherwise draw over the board's left edge. With CompactAllyCards off, none of the
-    // fitting happens: the cards keep their size and none is folded. With GroupAllyCards off, every card stands alone,
-    // as the game has it.
+    // and allies between bodies keep cards of their own. The cards stay in the game's order, in sections: the viewer's
+    // own allies that follow no player card, then one section per player card, the player and the kinds that follow
+    // that player. A player's card is full size and never folded (see IsPlayer). While the cards would reach down over
+    // the chat, the cards of a single ally become compact rows (AllyCompactCard), while shared cards keep their size
+    // and segments. If that is still too tall, each section folds the allies' cards that don't fit into a "+N more"
+    // row of its own under the section's last card shown, with a portrait for each kind and N the allies they hold
+    // (AllyMoreRow); the sections are filled top down, each leaving room for the player cards and the rows below it
+    // (FitSections). The game keeps adding, filling, sorting and removing the cards; this only resizes and hides them,
+    // sets them in the order above and draws over them. While the scoreboard is open, the cards are hidden altogether,
+    // as they would otherwise draw over the board's left edge. With CompactAllyCards off, none of the fitting happens:
+    // the cards keep their size and none is folded. With GroupAllyCards off, every card stands alone, as the game has
+    // it, and the sections still apply.
     internal sealed class AllyCardsStyler : IStyler
     {
         // Under each card's health bar.
@@ -36,7 +38,11 @@ namespace SevenUI
         // Each card shown, in that order: a kind's shared card, or a card of its own.
         private readonly List<Kind> kinds = new List<Kind>();
         private readonly Stack<Kind> spareKinds = new Stack<Kind>();
-        private readonly List<AllyCardController> overflow = new List<AllyCardController>();
+        // Kinds as sorted from the cards, before they are set in sections.
+        private readonly List<Kind> unsorted = new List<Kind>();
+        // Every section made, kept with its more row; the first has no player. Active holds those the cards fill now.
+        private readonly List<Section> pool = new List<Section>();
+        private readonly List<Section> active = new List<Section>();
         // Where each card shown belongs in the stack, from the top, set again after the game's layout runs.
         private readonly List<(RectTransform Rect, float Y)> places = new List<(RectTransform, float)>();
         private readonly Dictionary<AllyCardController, AllyCompactCard> looks = new Dictionary<AllyCardController, AllyCompactCard>();
@@ -51,7 +57,6 @@ namespace SevenUI
         // The cards' container (the game's AllyCardManager, which stacks them) and the chat's message area.
         private RectTransform container;
         private RectTransform chat;
-        private AllyMoreRow more;
         // Fades the whole stack out while the scoreboard is open.
         private CanvasGroup hider;
         // How far the container's bottom is pulled down past its own (see Stretch).
@@ -73,6 +78,20 @@ namespace SevenUI
             public readonly List<CharacterMaster> Members = new List<CharacterMaster>();
             public readonly List<AllyCardController> Cards = new List<AllyCardController>();
             public bool Shared => Members.Count > 1;
+        }
+
+        // A player's card and the allies that follow that player, which fold into a more row of their own, or the
+        // viewer's allies with no player card.
+        private sealed class Section
+        {
+            public int Index;
+            public Kind Player;
+            public readonly List<Kind> Allies = new List<Kind>();
+            // How many of Allies show; the rest are under the more row, which has their cards in Overflow.
+            public int Shown;
+            public int HiddenAllies;
+            public readonly List<AllyCardController> Overflow = new List<AllyCardController>();
+            public AllyMoreRow Row;
         }
 
         public AllyCardsStyler(HUD hud, Transform root)
@@ -137,8 +156,13 @@ namespace SevenUI
                 look.Revert();
             }
             looks.Clear();
-            more?.Destroy();
-            more = null;
+            foreach (Section section in pool)
+            {
+                section.Row?.Destroy();
+            }
+            pool.Clear();
+            active.Clear();
+            kinds.Clear();
             foreach (KeyValuePair<AllyCardManager, float> entry in savedIndents)
             {
                 if (entry.Key)
@@ -177,106 +201,151 @@ namespace SevenUI
             ForgetGoneCards();
             if (!container || cards.Count == 0)
             {
-                more?.Hide();
+                foreach (Section section in pool)
+                {
+                    section.Row?.Hide();
+                }
                 return;
             }
             SortIntoKinds();
             float room = Room();
             float fullHeight = 0f;
-            int pinned = 0;
-            float pinnedHeight = 0f;
             foreach (Kind kind in kinds)
             {
                 fullHeight += LookOf(kind.Lead).FullHeight;
-                if (IsPinned(kind))
-                {
-                    pinned++;
-                    pinnedHeight += LookOf(kind.Lead).FullHeight;
-                }
             }
             // With the setting off the cards keep their size and none is folded away, whatever the room.
             bool fold = SevenUIPlugin.Settings.CompactAllyCards.Value;
             bool compact = fold && fullHeight > room + SizeTolerance;
-            float used = 0f;
-            int shown = 0;
             float total = 0f;
             foreach (Kind kind in kinds)
             {
                 total += Height(kind, compact);
             }
-            if (fold && total > room + SizeTolerance)
-            {
-                // The pinned cards come first and always show, so the allies fit in what they leave; if they leave
-                // none, every ally goes under the more row and the pinned cards run on over the chat.
-                shown = pinned;
-                used = pinnedHeight;
-                // The more row takes a compact row's room under the cards that fit.
-                while (shown < kinds.Count && used + Height(kinds[shown], compact) + AllyCompactCard.RowHeight <= room + SizeTolerance)
-                {
-                    used += Height(kinds[shown], compact);
-                    shown++;
-                }
-            }
-            else
-            {
-                shown = kinds.Count;
-                used = total;
-            }
+            FitSections(compact, room, fold && total > room + SizeTolerance);
 
             float tallest = 0f;
             int hiddenAllies = 0;
             float top = 0f;
-            overflow.Clear();
             places.Clear();
-            for (int i = 0; i < kinds.Count; i++)
+            foreach (Section section in active)
             {
-                Kind kind = kinds[i];
-                bool fits = i < shown;
-                ShowKind(kind, compact, fits);
-                if (fits)
+                if (section.Player != null)
                 {
-                    tallest = Mathf.Max(tallest, Height(kind, compact));
-                    places.Add((kind.Lead.rectTransform, -top));
-                    top += Height(kind, compact);
+                    ShowKind(section.Player, compact, true);
+                    tallest = Mathf.Max(tallest, Height(section.Player, compact));
+                    places.Add((section.Player.Lead.rectTransform, -top));
+                    top += Height(section.Player, compact);
+                }
+                section.Overflow.Clear();
+                int hiddenHere = 0;
+                for (int i = 0; i < section.Allies.Count; i++)
+                {
+                    Kind kind = section.Allies[i];
+                    bool fits = i < section.Shown;
+                    ShowKind(kind, compact, fits);
+                    if (fits)
+                    {
+                        tallest = Mathf.Max(tallest, Height(kind, compact));
+                        places.Add((kind.Lead.rectTransform, -top));
+                        top += Height(kind, compact);
+                    }
+                    else
+                    {
+                        hiddenHere += Mathf.Max(1, kind.Members.Count);
+                        section.Overflow.Add(kind.Lead);
+                    }
+                }
+                section.HiddenAllies = hiddenHere;
+                hiddenAllies += hiddenHere;
+                if (hiddenHere > 0)
+                {
+                    int padding = PaddingLeft(kinds[0].Lead);
+                    if (section.Row == null || !section.Row.Alive)
+                    {
+                        section.Row = new AllyMoreRow(container, cards[0].nameLabel, padding, section.Index);
+                    }
+                    section.Row.Show(top, section.Overflow, hiddenHere, padding);
+                    top += AllyCompactCard.RowHeight;
                 }
                 else
                 {
-                    hiddenAllies += Mathf.Max(1, kind.Members.Count);
-                    overflow.Add(kind.Lead);
+                    section.Row?.Hide();
+                }
+            }
+            // Sections the cards no longer fill have no row to show.
+            foreach (Section section in pool)
+            {
+                if (!active.Contains(section))
+                {
+                    section.Row?.Hide();
                 }
             }
             Compact = compact;
             HiddenCount = hiddenAllies;
             Stretch(cards.Count * tallest);
-            if (overflow.Count > 0)
-            {
-                if (more == null || !more.Alive)
-                {
-                    more = new AllyMoreRow(container, cards[0].nameLabel, PaddingLeft(kinds[0].Lead));
-                }
-                more.Show(used, overflow, hiddenAllies, PaddingLeft(kinds[0].Lead));
-            }
-            else
-            {
-                more?.Hide();
-            }
             Place();
         }
 
-        // The one rule for cards that stay: pinned cards keep their full size, are never folded under the more row,
-        // and sit above every other card. Today that is a player; a later pin of a kind goes here.
-        private static bool IsPinned(Kind kind)
+        // Decides how many of each section's allies show. Players always show at full size. If the cards must fold,
+        // the sections are filled top down: an ally shows only if, with it, there is still room for its section's more
+        // row (unless it is the section's last ally), every later section's player card and a row for each later
+        // section that has allies. The first ally that doesn't fit ends its section's shown allies; the later sections
+        // go on with their own. If the player cards and a row for each section with allies don't fit together, every
+        // ally folds, and the player cards run on over the chat.
+        private void FitSections(bool compact, float room, bool fold)
+        {
+            float playerHeights = 0f;
+            int withAllies = 0;
+            foreach (Section section in active)
+            {
+                playerHeights += section.Player != null ? Height(section.Player, compact) : 0f;
+                withAllies += section.Allies.Count > 0 ? 1 : 0;
+            }
+            bool fallback = fold && playerHeights + AllyCompactCard.RowHeight * withAllies > room + SizeTolerance;
+            float used = 0f;
+            float laterPlayers = playerHeights;
+            int laterRows = withAllies;
+            foreach (Section section in active)
+            {
+                float own = section.Player != null ? Height(section.Player, compact) : 0f;
+                used += own;
+                laterPlayers -= own;
+                laterRows -= section.Allies.Count > 0 ? 1 : 0;
+                section.Shown = fold ? 0 : section.Allies.Count;
+                if (fold && !fallback)
+                {
+                    float reserved = laterPlayers + AllyCompactCard.RowHeight * laterRows;
+                    while (section.Shown < section.Allies.Count)
+                    {
+                        float height = Height(section.Allies[section.Shown], compact);
+                        float rowAfter = section.Shown < section.Allies.Count - 1 ? AllyCompactCard.RowHeight : 0f;
+                        if (used + height + rowAfter + reserved > room + SizeTolerance) break;
+                        used += height;
+                        section.Shown++;
+                    }
+                }
+                if (section.Shown < section.Allies.Count)
+                {
+                    used += AllyCompactCard.RowHeight;
+                }
+            }
+        }
+
+        // The one rule for cards that stay: a player's card keeps its full size and is never folded under a more row.
+        // A later pin of a kind goes here.
+        private static bool IsPlayer(Kind kind)
         {
             CharacterMaster master = kind.Lead.sourceMaster;
             return master && master.playerCharacterMasterController;
         }
 
-        // A shared or pinned card keeps the game's height, with its segments; a card of one ally becomes a compact row
+        // A shared card or a player's keeps the game's height, with its segments; a card of one ally becomes a compact row
         // when the cards must be compact.
         private float Height(Kind kind, bool compact) =>
             Compacts(kind, compact) ? AllyCompactCard.RowHeight : LookOf(kind.Lead).FullHeight;
 
-        private static bool Compacts(Kind kind, bool compact) => compact && !kind.Shared && !IsPinned(kind);
+        private static bool Compacts(Kind kind, bool compact) => compact && !kind.Shared && !IsPlayer(kind);
 
         // The game steps each card down in its own order, a player's minions right under the player, so a card is
         // moved to its place in ours, only when it isn't there. Each card's top is its height above, as the game's
@@ -421,15 +490,65 @@ namespace SevenUI
                     }
                 }
             }
-            // Pinned kinds first, each group in the game's order, which lists players in their own order.
-            int pinnedAt = 0;
-            for (int i = 0; i < kinds.Count; i++)
+            BuildSections();
+        }
+
+        // Sets the kinds in sections, each in the game's order: the viewer's own allies that follow no player card
+        // (the minions of the local player, who may have no card, and of allies between bodies), then one section per
+        // player card, the player and then the kinds that follow that player's master. Kinds is rebuilt in that order.
+        private void BuildSections()
+        {
+            unsorted.Clear();
+            unsorted.AddRange(kinds);
+            kinds.Clear();
+            active.Clear();
+            foreach (Section section in pool)
             {
-                if (!IsPinned(kinds[i])) continue;
-                Kind pinned = kinds[i];
-                kinds.RemoveAt(i);
-                kinds.Insert(pinnedAt++, pinned);
+                section.Player = null;
+                section.Allies.Clear();
             }
+            int next = 1;
+            foreach (Kind kind in unsorted)
+            {
+                if (!IsPlayer(kind)) continue;
+                Section section = SectionAt(next++);
+                section.Player = kind;
+            }
+            Section own = SectionAt(0);
+            foreach (Kind kind in unsorted)
+            {
+                if (IsPlayer(kind)) continue;
+                Section owner = own;
+                for (int i = 1; i < next; i++)
+                {
+                    if (kind.Leader && pool[i].Player.Lead.sourceMaster == kind.Leader)
+                    {
+                        owner = pool[i];
+                        break;
+                    }
+                }
+                owner.Allies.Add(kind);
+            }
+            for (int i = 0; i < next; i++)
+            {
+                Section section = pool[i];
+                if (section.Player == null && section.Allies.Count == 0) continue;
+                active.Add(section);
+                if (section.Player != null)
+                {
+                    kinds.Add(section.Player);
+                }
+                kinds.AddRange(section.Allies);
+            }
+        }
+
+        private Section SectionAt(int index)
+        {
+            while (pool.Count <= index)
+            {
+                pool.Add(new Section { Index = pool.Count });
+            }
+            return pool[index];
         }
 
         private static bool IsAlive(CharacterMaster master)
@@ -570,9 +689,19 @@ namespace SevenUI
         public void Describe(StringBuilder output)
         {
             output.AppendLine($"  restyled ally card values: {recorder.Count}");
+            StringBuilder folded = new StringBuilder();
+            foreach (Section section in active)
+            {
+                if (section.HiddenAllies == 0) continue;
+                CharacterBody owner = section.Player != null && section.Player.Lead.sourceMaster ?
+                    section.Player.Lead.sourceMaster.GetBody() : null;
+                folded.Append($" [{(owner ? owner.GetUserName() : "viewer's own")}: {section.HiddenAllies} allies in " +
+                              $"{section.Allies.Count - section.Shown} of {section.Allies.Count} kinds folded]");
+            }
             output.AppendLine($"  ally cards: {cards.Count} in {kinds.Count} kinds, {shared.Count} shared, " +
                               $"{(Compact ? "single allies compact" : "full size")}, allies under the more row: {HiddenCount}, " +
                               $"room above the chat: {(container ? Room().ToString("0.#") : "none")}, container stretched {stretch:0.#}");
+            output.AppendLine($"  ally sections: {active.Count}, folded:{(folded.Length > 0 ? folded.ToString() : " none")}");
         }
     }
 }
