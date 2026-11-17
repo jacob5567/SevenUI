@@ -63,7 +63,7 @@ namespace SevenUI
         // How far the container's bottom is pulled down past its own (see Stretch).
         private float stretch;
         // The game indents a minion's card under its leader by its manager's indentWidth; zero while the cards are
-        // restyled, so every card starts at the same edge. The values are kept for Restore, per manager touched.
+        // restyled, so the mod decides the indent (see Indent). The values are kept for Restore, per manager touched.
         private readonly Dictionary<AllyCardManager, float> savedIndents = new Dictionary<AllyCardManager, float>();
         // AllyCardManager.indentWidth's value in the game, for when no manager's has been saved yet.
         private const float DefaultIndent = 16f;
@@ -235,7 +235,7 @@ namespace SevenUI
             {
                 if (section.Player != null)
                 {
-                    ShowKind(section.Player, compact, true);
+                    ShowKind(section.Player, compact, true, false);
                     tallest = Mathf.Max(tallest, Height(section.Player, compact));
                     places.Add((section.Player.Lead.rectTransform, -top));
                     top += Height(section.Player, compact);
@@ -246,7 +246,7 @@ namespace SevenUI
                 {
                     Kind kind = section.Allies[i];
                     bool fits = i < section.Shown;
-                    ShowKind(kind, compact, fits);
+                    ShowKind(kind, compact, fits, section.Player != null);
                     if (fits)
                     {
                         tallest = Mathf.Max(tallest, Height(kind, compact));
@@ -268,7 +268,7 @@ namespace SevenUI
                     {
                         section.Row = new AllyMoreRow(container, cards[0].nameLabel, padding, section.Index);
                     }
-                    // Indented under another player, like the game's minion cards; the viewer's own allies have no
+                    // Indented under another player like that player's ally cards; the viewer's own allies have no
                     // card above them to hang under.
                     float indent = section.Player != null ? GameIndent() : 0f;
                     section.Row.Show(top, section.Overflow, hiddenHere, padding, indent);
@@ -405,7 +405,7 @@ namespace SevenUI
             return row ? row.padding.left : 0;
         }
 
-        // The indent the game gives a minion's card, from the managers zeroed by Unindent.
+        // The indent the game gives a minion's card, from the managers zeroed by Indent.
         private float GameIndent()
         {
             foreach (float width in savedIndents.Values)
@@ -416,9 +416,10 @@ namespace SevenUI
         }
 
         // The game indents a minion's card under its leader by its manager's indentWidth, writing the card's offsets
-        // only when it lays the cards out. The manager that holds the card may not be the one found first, so each
-        // card's own parent is zeroed, and the card's offsets are put right whenever they differ.
-        private void Unindent(AllyCardController card)
+        // only when it lays the cards out, and by its own rules. The manager that holds the card may not be the one
+        // found first, so each card's own parent is zeroed, and the card's offsets are put right whenever they differ:
+        // in by the game's indent for an ally of another player, under that player's card, else at the edge.
+        private void Indent(AllyCardController card, bool underPlayer)
         {
             AllyCardManager manager = card.transform.parent ? card.transform.parent.GetComponent<AllyCardManager>() : null;
             if (manager && manager.indentWidth != 0f)
@@ -429,19 +430,20 @@ namespace SevenUI
                 }
                 manager.indentWidth = 0f;
             }
+            float indent = underPlayer ? GameIndent() : 0f;
             RectTransform rect = card.rectTransform;
-            if (rect.offsetMin.x != 0f || rect.offsetMax.x != 0f)
+            if (rect.offsetMin.x != indent || rect.offsetMax.x != 0f)
             {
-                rect.offsetMin = new Vector2(0f, rect.offsetMin.y);
+                rect.offsetMin = new Vector2(indent, rect.offsetMin.y);
                 rect.offsetMax = new Vector2(0f, rect.offsetMax.y);
             }
         }
 
-        private void ShowKind(Kind kind, bool compact, bool fits)
+        private void ShowKind(Kind kind, bool compact, bool fits, bool underPlayer)
         {
             foreach (AllyCardController card in kind.Cards)
             {
-                Unindent(card);
+                Indent(card, underPlayer);
                 AllyCompactCard look = LookOf(card);
                 if (card != kind.Lead)
                 {
