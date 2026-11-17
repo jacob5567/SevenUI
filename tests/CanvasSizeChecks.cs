@@ -78,9 +78,11 @@ namespace SevenUI.Tests
         private const float StockBaseline = 3f + 18f * 0.1f;
         // In shares of a slot; the game's look is drawn turned, so its shares come out a little off.
         private const float UtilityAreaTolerance = 0.06f;
-        // The meter's growth against the slots', as a share.
-        // Operator's display's slots, in canvas pixels, and the share of a skill slot its place over the row may differ.
-        private const float DroneSizeTolerance = 4f;
+        // Operator's display's widest slot, in the skill cluster's plane (the game's look is drawn turned, so on screen
+        // the two looks' sizes differ), and how far its right edge may sit from the game's, in shares of a skill slot:
+        // the restyled row's gaps differ from the game's, so the row's right edge doesn't move with the display.
+        private const float DroneSizeTolerance = 2f;
+        private const float DroneRightTolerance = 0.15f;
         private const int DroneUiPathLimit = 30;
         // The timer's tags hold dots of their own, "<mspace=0.46em>".
         private const string StageTextName = "Stage Text";
@@ -621,7 +623,7 @@ namespace SevenUI.Tests
         }
 
         // Operator's display as measured: its own scale and place, the box its slots fill on canvas pixels on screen,
-        // the widest slot's width there, and, in shares of a skill slot in the skill cluster's plane, the gap from the
+        // the widest slot's width in the skill cluster's plane, and, in shares of a skill slot in the skill cluster's plane, the gap from the
         // skill row's top to the slots' bottom and the slots' right edge's distance right of the row's.
         private struct DroneDisplay
         {
@@ -635,7 +637,7 @@ namespace SevenUI.Tests
             public float Right;
 
             public string Text() =>
-                $"slots {BoxText(Slots)}, widest {Widest:F1}px, gap over the row {Gap:F2} slots, right edge {Right:F2} slots " +
+                $"slots {BoxText(Slots)}, widest {Widest:F1} in the plane, gap over the row {Gap:F2} slots, right edge {Right:F2} slots " +
                 $"right of the row's";
 
             // Null when this display (SevenUI's look) is over the row as the game's is, at the game's size and on screen.
@@ -643,7 +645,7 @@ namespace SevenUI.Tests
             {
                 if (Mathf.Abs(Widest - game.Widest) > DroneSizeTolerance) return "widest slot's size";
                 if (Mathf.Abs(Gap - game.Gap) > UtilityAreaTolerance || Gap < -UtilityAreaTolerance) return "gap over the row";
-                if (Mathf.Abs(Right - game.Right) > UtilityAreaTolerance) return "right edge";
+                if (Mathf.Abs(Right - game.Right) > DroneRightTolerance) return "right edge";
                 if (Slots.xMin < Screen.xMin || Slots.yMin < Screen.yMin || Slots.xMax > Screen.xMax || Slots.yMax > Screen.yMax)
                 {
                     return "not on screen";
@@ -683,7 +685,7 @@ namespace SevenUI.Tests
                     Screen = Rect.MinMaxRect(screen.xMin / unit, screen.yMin / unit, screen.xMax / unit, screen.yMax / unit),
                     Slots = Rect.MinMaxRect(onScreen.Min(box => box.xMin), onScreen.Min(box => box.yMin),
                         onScreen.Max(box => box.xMax), onScreen.Max(box => box.yMax)),
-                    Widest = onScreen.Max(box => box.width),
+                    Widest = inPlane.Max(box => box.width),
                     Gap = (inPlane.Min(box => box.yMin) - rowTop) / skill,
                     Right = (inPlane.Max(box => box.xMax) - rowRight) / skill
                 };
