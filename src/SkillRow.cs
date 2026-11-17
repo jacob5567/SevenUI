@@ -44,6 +44,8 @@ namespace SevenUI
         private bool applied;
         // The survivors' own elements already scaled with the row, which are put back with the row.
         private readonly HashSet<RectTransform> followed = new HashSet<RectTransform>();
+        // Operator's display once fitted, so the HUD isn't searched for it every apply; destroyed with its body.
+        private RectTransform droneDisplay;
 
         private SkillRow(RectTransform scaler, float unit)
         {
@@ -158,16 +160,17 @@ namespace SevenUI
             FollowDroneDisplay(hud, recorder);
         }
 
-        // Operator's (DroneTech in code) display of the drones queued to be commanded. The game hangs it in the utility
-        // area, so it already grew with the slots, but its icons were still larger than the restyled slots, so after
-        // that they are fitted to the slots' size, about the display's bottom middle so it stays over the row. Found
-        // by its "Secondary Queue" child, as the overlay's controller is private; each instance is fitted once, once
-        // its icons have a size.
+        // Operator's (DroneTech in code) display of the drones queued to be commanded. The game hangs it from its own
+        // HUD locator entry, which is not in the skills' scaler (it sits above the row's right end), so it is looked
+        // for through the whole HUD, by its "Secondary Queue" child as the overlay's controller is private. Its icons
+        // were larger than the restyled slots, so they are fitted to the slots' size about the display's bottom
+        // middle, which keeps it over the row. Each instance is fitted once, once its icons have a size.
         private void FollowDroneDisplay(HUD hud, StyleRecorder recorder)
         {
             if (!hud.targetBodyObject || !hud.targetBodyObject.GetComponent<DroneTechController>()) return;
+            if (droneDisplay) return;
             RectTransform area = scaler.Find(UtilityAreaName) as RectTransform;
-            foreach (ChildLocator locator in scaler.GetComponentsInChildren<ChildLocator>(true))
+            foreach (ChildLocator locator in hud.GetComponentsInChildren<ChildLocator>(true))
             {
                 RectTransform display = locator.transform as RectTransform;
                 RectTransform icon = locator.FindChild(DroneQueueEntry)?.Find(DroneEntry) as RectTransform;
@@ -175,13 +178,15 @@ namespace SevenUI
                 float size = icon.rect.height * PixelsPer(icon);
                 if (size <= 0f) continue;
                 followed.Add(display);
-                // Hung somewhere else in the scaler, it hasn't grown with the slots yet.
-                if (!area || !display.IsChildOf(area))
+                droneDisplay = display;
+                // Hung in the scaler but outside the utility area, it hasn't grown with the slots yet.
+                if (display.IsChildOf(scaler) && (!area || !display.IsChildOf(area)))
                 {
                     FollowRow(display, rowBefore, rowAfter, recorder);
                     size = icon.rect.height * PixelsPer(icon);
                 }
                 FitAboutBottom(display, SlotSize / size, recorder);
+                return;
             }
         }
 
