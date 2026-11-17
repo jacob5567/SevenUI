@@ -196,8 +196,9 @@ namespace SevenUI.Tests
                     continue;
                 }
                 h.Log($"bagged {kind} (\"{target.bestName}\")");
-                yield return h.ExpectBagDisplayMatchesGame();
+                // Shot first, so a failing check still leaves the pictures to compare.
                 yield return h.CaptureLooks(kind);
+                yield return h.ExpectBagDisplayMatchesGame();
                 grabbed.Add(kind);
                 yield return DrifterBag.Empty(h, repossess, bag);
                 DrifterBag.Discard(target);
