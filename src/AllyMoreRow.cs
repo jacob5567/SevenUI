@@ -7,11 +7,13 @@ using UnityEngine.UI;
 
 namespace SevenUI
 {
-    // The row under the ally cards that stands in for the cards hidden because they would reach the chat: a small
-    // portrait for each kind of ally hidden, up to a few, and "+N more" at its right, N the allies those cards hold.
-    // As tall as a compact row, on the cards' flat panel; placed by AllyCardsStyler under the last card shown.
+    // The row under a section's ally cards that stands in for the cards hidden because they would reach the chat: a
+    // small portrait for each kind of ally hidden, up to a few, and "+N more" at its right, N the allies those cards
+    // hold. As tall as a compact row, on the cards' flat panel; placed by AllyCardsStyler under the section's last card
+    // shown.
     internal sealed class AllyMoreRow
     {
+        // Each section's row is named this with its index after it.
         public const string Name = "SevenUIAllyMore";
         public const string IconName = "Kind";
         // The design canvas's sizes, in its pixels, scaled to the HUD's units.
@@ -32,9 +34,9 @@ namespace SevenUI
 
         // In the font and material of a card's name, so the font swap gives it Barlow if the name is still in the
         // game's font.
-        public AllyMoreRow(RectTransform container, TMP_Text style, int paddingLeft)
+        public AllyMoreRow(RectTransform container, TMP_Text style, int paddingLeft, int index)
         {
-            rect = UiFactory.NewObject(Name, container);
+            rect = UiFactory.NewObject(Name + index, container);
             // Pinned to the container's top across its width, like the cards the game places.
             rect.anchorMin = new Vector2(0f, 1f);
             rect.anchorMax = Vector2.one;
