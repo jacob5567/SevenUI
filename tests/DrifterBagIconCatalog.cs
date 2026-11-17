@@ -28,6 +28,7 @@ namespace SevenUI.Tests
         private const string AttributeSource = "attribute field";
         private const string InspectSource = "inspect info";
         private const string BodySource = "body portrait";
+        private const string PickupSource = "held pickup";
         private const string NoSource = "none";
 
         private sealed class Row
@@ -88,9 +89,7 @@ namespace SevenUI.Tests
         {
             SpecialObjectAttributes attributes = prefab.GetComponent<SpecialObjectAttributes>();
             CharacterBody body = prefab.GetComponent<CharacterBody>();
-            // Awake takes the token and texture from the provider's InspectInfo when the fields are empty; the field is
-            // read here and not GetInfo, which some providers answer by changing shared data.
-            InspectInfo info = prefab.GetComponent<GenericInspectInfoProvider>()?.InspectInfo?.Info;
+            InspectInfo info = ProviderInfo(prefab, out bool pickupDependent);
             string token = attributes ? attributes.bestName : null;
             if (string.IsNullOrEmpty(token))
             {
@@ -113,6 +112,10 @@ namespace SevenUI.Tests
                 portrait = body.portraitIcon;
                 source = BodySource;
             }
+            else if (pickupDependent)
+            {
+                source = PickupSource;
+            }
             return new Row
             {
                 Prefab = prefab.name,
@@ -121,6 +124,33 @@ namespace SevenUI.Tests
                 Source = source,
                 Mass = Mass(prefab, attributes)
             };
+        }
+
+        // SpecialObjectAttributes.Awake fills an empty name or portrait from the first IInspectInfoProvider on the
+        // object, except that for a ShopTerminalBehavior it asks the GenericInspectInfoProvider instead. The serialized
+        // defs are read here rather than calling GetInfo, which some providers answer by changing shared pickup data.
+        // Providers that answer from the pickup they hold at run time have no fixed icon; pickupDependent marks them.
+        private static InspectInfo ProviderInfo(GameObject prefab, out bool pickupDependent)
+        {
+            pickupDependent = false;
+            if (!prefab.TryGetComponent(out IInspectInfoProvider provider)) return null;
+            switch (provider)
+            {
+                case GenericInspectInfoProvider generic:
+                    return generic.InspectInfo ? generic.InspectInfo.Info : null;
+                case ShopTerminalBehavior _:
+                    GenericInspectInfoProvider shopInfo = prefab.GetComponent<GenericInspectInfoProvider>();
+                    return shopInfo && shopInfo.InspectInfo ? shopInfo.InspectInfo.Info : null;
+                case SummonMasterBehavior summon:
+                    return summon.inspectDef ? summon.inspectDef.Info : null;
+                case TrialGongInteraction gong:
+                    return gong.inspectDef ? gong.inspectDef.Info : null;
+                case PickupDistributorBehavior distributor when distributor.inspectDef:
+                    return distributor.inspectDef.Info;
+                default:
+                    pickupDependent = true;
+                    return null;
+            }
         }
 
         // As DrifterBagController.CalcBaggedMass does, without the bagged inner object's.
