@@ -65,6 +65,8 @@ namespace SevenUI
         // The game indents a minion's card under its leader by its manager's indentWidth; zero while the cards are
         // restyled, so every card starts at the same edge. The values are kept for Restore, per manager touched.
         private readonly Dictionary<AllyCardManager, float> savedIndents = new Dictionary<AllyCardManager, float>();
+        // AllyCardManager.indentWidth's value in the game, for when no manager's has been saved yet.
+        private const float DefaultIndent = 16f;
 
         private sealed class Kind
         {
@@ -266,7 +268,10 @@ namespace SevenUI
                     {
                         section.Row = new AllyMoreRow(container, cards[0].nameLabel, padding, section.Index);
                     }
-                    section.Row.Show(top, section.Overflow, hiddenHere, padding);
+                    // Indented under another player, like the game's minion cards; the viewer's own allies have no
+                    // card above them to hang under.
+                    float indent = section.Player != null ? GameIndent() : 0f;
+                    section.Row.Show(top, section.Overflow, hiddenHere, padding, indent);
                     top += AllyCompactCard.RowHeight;
                 }
                 else
@@ -398,6 +403,16 @@ namespace SevenUI
         {
             HorizontalLayoutGroup row = card ? card.GetComponent<HorizontalLayoutGroup>() : null;
             return row ? row.padding.left : 0;
+        }
+
+        // The indent the game gives a minion's card, from the managers zeroed by Unindent.
+        private float GameIndent()
+        {
+            foreach (float width in savedIndents.Values)
+            {
+                return width;
+            }
+            return DefaultIndent;
         }
 
         // The game indents a minion's card under its leader by its manager's indentWidth, writing the card's offsets
