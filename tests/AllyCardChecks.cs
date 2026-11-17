@@ -23,6 +23,8 @@ namespace SevenUI.Tests
     // the viewer's, as ScoreboardSetUp.AddPlayers can.)
     internal static class AllyCardChecks
     {
+        // AllyCardManager.indentWidth in the game: how far a minion's card sits in under its leader's.
+        private const float GameIndent = 16f;
         private const string ClusterPath = "MainContainer/MainUIArea/SpringCanvas/LeftCluster";
         // The game's ally card (Prefabs/UI/AllyCard) asks for this height.
         public const float GameHeight = 48f;
@@ -201,7 +203,9 @@ namespace SevenUI.Tests
                 if (card.gameObject.activeSelf) return $"a second {Name(card)} has a card of its own";
             }
             List<RectTransform> rows = More(h);
-            string edges = CompareEdges(cluster, kinds, compact, cards, rows);
+            // The rows come in the sections' order, top to bottom, and a row under a player is indented.
+            List<bool> underPlayer = sections.Where(section => section.Hidden > 0).Select(section => section.Player != null).ToList();
+            string edges = CompareEdges(cluster, kinds, compact, cards, rows, underPlayer);
             if (edges != null) return edges;
             float above = 0f;
             int rowsSeen = 0;
@@ -317,10 +321,11 @@ namespace SevenUI.Tests
         }
 
         // Every row drawn (the first card shown, the other cards, the more rows) must start at the first's backdrop
-        // edge, with its icon the same distance in. Measured from the world corners, as drawn: the game indents a
-        // minion's card under its leader by moving the card's rect, which a portrait's edge alone would hide.
+        // edge, with its icon the same distance in, except that a more row under a player starts the game's minion
+        // indent further in. Measured from the world corners, as drawn: the game indents a minion's card under its
+        // leader by moving the card's rect, which a portrait's edge alone would hide.
         private static string CompareEdges(RectTransform cluster, List<Kind> kinds, bool compact, List<AllyCardController> cards,
-            List<RectTransform> rows)
+            List<RectTransform> rows, List<bool> underPlayer)
         {
             float? backdrop = null;
             float? inset = null;
@@ -332,28 +337,35 @@ namespace SevenUI.Tests
                 float icon = LeftEdge(cluster, card.portraitIconImage ? card.portraitIconImage.rectTransform : card.rectTransform);
                 bool isShared = kinds.Any(kind => kind.Lead == card && kind.Allies > 1);
                 string look = isShared ? "shared" : compact ? "compact" : "full";
-                string problem = CompareRow($"{Name(card)}'s {look} card", back, icon, ref backdrop, ref inset);
+                string problem = CompareRow($"{Name(card)}'s {look} card", back, icon, 0f, ref backdrop, ref inset);
                 if (problem != null) return problem;
             }
-            foreach (RectTransform more in rows)
+            for (int i = 0; i < rows.Count; i++)
             {
+                RectTransform more = rows[i];
+                // The game's indent is in the cards' container's units; measured here in the cluster's.
+                float indent = i < underPlayer.Count && underPlayer[i]
+                    ? cluster.InverseTransformVector(more.parent.TransformVector(new Vector3(GameIndent, 0f, 0f))).x
+                    : 0f;
                 RectTransform slot = more.Cast<Transform>()
                     .FirstOrDefault(child => child.name == AllyMoreRow.IconName && child.gameObject.activeSelf) as RectTransform;
                 float back = LeftEdge(cluster, more);
                 float icon = LeftEdge(cluster, slot ? slot : more);
-                string problem = CompareRow($"the more row {more.name}", back, icon, ref backdrop, ref inset);
+                string problem = CompareRow($"the more row {more.name}", back, icon, indent, ref backdrop, ref inset);
                 if (problem != null) return problem;
             }
             return null;
         }
 
-        private static string CompareRow(string row, float back, float icon, ref float? backdrop, ref float? inset)
+        private static string CompareRow(string row, float back, float icon, float indent, ref float? backdrop, ref float? inset)
         {
-            backdrop = backdrop ?? back;
+            backdrop = backdrop ?? back - indent;
             inset = inset ?? icon - back;
-            if (Mathf.Abs(back - backdrop.Value) > Tolerance)
+            if (Mathf.Abs(back - backdrop.Value - indent) > Tolerance)
             {
-                return $"{row} has its backdrop {back:0.#} units across, not {backdrop.Value:0.#} like the first";
+                return indent == 0f
+                    ? $"{row} has its backdrop {back:0.#} units across, not {backdrop.Value:0.#} like the first"
+                    : $"{row} has its backdrop {back:0.#} units across, not {backdrop.Value + indent:0.#}, the first's {backdrop.Value:0.#} indented {indent:0.#} like a minion card";
             }
             if (Mathf.Abs(icon - back - inset.Value) > Tolerance)
             {

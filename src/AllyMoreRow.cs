@@ -82,8 +82,9 @@ namespace SevenUI
         public bool Alive => rect;
 
         // Under the cards shown, standing in for the cards given, which hold that many allies. Only what changed is set.
-        // The row's icons start where the cards' content does, so the row takes the cards' left padding.
-        public void Show(float top, List<AllyCardController> hidden, int allies, int paddingLeft)
+        // The row's icons start where the cards' content does, so the row takes the cards' left padding. indent moves
+        // the row's left edge in, as the game indents a minion's card under its leader.
+        public void Show(float top, List<AllyCardController> hidden, int allies, int paddingLeft, float indent)
         {
             if (!rect.gameObject.activeSelf)
             {
@@ -94,15 +95,15 @@ namespace SevenUI
                 // Assigned whole, as that is what marks the layout for a rebuild.
                 layout.padding = new RectOffset(paddingLeft, layout.padding.right, 0, 0);
             }
-            // No card indent: the row stands at the container's left edge, like the cards.
-            if (rect.offsetMin.x != 0f || rect.offsetMax.x != 0f)
-            {
-                rect.offsetMin = new Vector2(0f, rect.offsetMin.y);
-                rect.offsetMax = new Vector2(0f, rect.offsetMax.y);
-            }
+            // The top first: with the row stretched across, anchoredPosition.x is the left offset, set after it.
             if (rect.anchoredPosition.y != -top)
             {
-                rect.anchoredPosition = new Vector2(0f, -top);
+                rect.anchoredPosition = new Vector2(rect.anchoredPosition.x, -top);
+            }
+            if (rect.offsetMin.x != indent || rect.offsetMax.x != 0f)
+            {
+                rect.offsetMin = new Vector2(indent, rect.offsetMin.y);
+                rect.offsetMax = new Vector2(0f, rect.offsetMax.y);
             }
             if (allies != shownCount)
             {

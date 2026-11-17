@@ -15,7 +15,7 @@ Found a bug or have an idea? Open an issue on [GitHub](https://github.com/jacob5
 - **Items, buffs and skills:** dark slots with tier colors, and a cooldown cover that shrinks as a skill recharges.
 - **Functional Coupler:** the equipment you can switch to shows above the equipment slot, next first with your keys, the rest fading behind it.
 - **Prompts and notifications:** keycaps, with a strip in the color of the cost or the item's tier.
-- **Ally cards:** allies of one kind share a card, "Gunner Drone ×8", with a bar segment for each, and the cards stay clear of the chat: when they would reach it, the cards of single allies shrink to one-line rows, and if that is still too tall, the last allies' cards fold into a "+N more" row with an icon for each kind it holds. Other players' cards stay full size at the top and are never folded.
+- **Ally cards:** allies of one kind share a card, "Gunner Drone ×8", with a bar segment for each, and the cards stay clear of the chat: when they would reach it, the cards of single allies shrink to one-line rows, and if that is still too tall, the last allies' cards fold into a "+N more" row with an icon for each kind it holds. Other players' cards stay full size at the top and are never folded; their allies fold into a "+N more" row indented under them.
 - **Scoreboard:** a row or a tab per player, with item counts per tier and the items at full size sorted by tier. The item or equipment you point at is described in a panel docked on the board, with who else holds it.
 - **Tooltips, item pickers and pause menu:** restyled to match.
 
