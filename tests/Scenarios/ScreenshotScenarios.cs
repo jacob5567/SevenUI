@@ -80,6 +80,7 @@ namespace SevenUI.Tests
         public static IEnumerable<Scenario> All()
         {
             yield return Shot("hud", Hud);
+            yield return DrifterBagIconCatalog.Scenario();
             yield return Shot("barrier_and_low_health", BarrierAndLowHealth);
             yield return Shot("full_health_and_shield", FullHealthAndShield);
             yield return Shot("cooldowns", Cooldowns);
