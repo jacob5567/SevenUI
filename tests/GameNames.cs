@@ -47,6 +47,9 @@ namespace SevenUI.Tests
         // changes the body the player respawns as, so the scenarios switch back.
         public const string SpawnAs = "spawn_as";
 
+        // The default survivor, whose HUD has nothing of its own.
+        public const string Commando = "CommandoBody";
+
         // Survivors that add HUD elements of their own, through HudOverlayManager: Railgunner's backpack charge,
         // Void Fiend's corruption meter, Seeker's, Drone Tech's, Drifter's junk meter and Acolyte's.
         public const string Railgunner = "RailgunnerBody";

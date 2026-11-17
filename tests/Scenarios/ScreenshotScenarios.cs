@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using ModTestRunner;
 using RoR2;
-using RoR2.ExpansionManagement;
 using RoR2.Navigation;
 using RoR2.UI;
 using UnityEngine;
@@ -73,7 +72,6 @@ namespace SevenUI.Tests
         private const float GroundSearchBelow = 40f;
         // Long enough for the new body's HUD overlays to be made and restyled.
         private const float NewBodySeconds = 2f;
-        private const float NewBodyTimeout = 10f;
         // Half of Void Fiend's corruption, so the meter shows a level and not empty.
         private const float VoidFiendCorruption = 50f;
 
@@ -113,21 +111,7 @@ namespace SevenUI.Tests
         // cleanup.
         private static IEnumerator AsSurvivor(Harness h, string bodyName, System.Action<CharacterBody> setUp)
         {
-            GameObject prefab = BodyCatalog.FindBodyPrefab(bodyName);
-            if (!prefab) throw h.Skip($"no body called {bodyName}");
-            CharacterMaster master = Harness.LocalBody.master;
-            ExpansionRequirementComponent expansion = prefab.GetComponent<ExpansionRequirementComponent>();
-            if (expansion && !expansion.PlayerCanUseBody(master.playerCharacterMasterController))
-            {
-                throw h.Skip($"{bodyName} needs an expansion the player doesn't have");
-            }
-
-            string original = master.bodyPrefab.name;
-            h.OnCleanup(() => h.Cmd($"{GameNames.SpawnAs} {original}"));
-            h.Cmd($"{GameNames.SpawnAs} {bodyName}");
-            BodyIndex index = BodyCatalog.FindBodyIndex(bodyName);
-            yield return h.Until(() => Harness.LocalBody && Harness.LocalBody.bodyIndex == index, $"the player as {bodyName}",
-                NewBodyTimeout);
+            yield return h.TurnInto(bodyName);
             setUp?.Invoke(Harness.LocalBody);
             yield return h.Wait(NewBodySeconds);
             yield return h.AimAway();

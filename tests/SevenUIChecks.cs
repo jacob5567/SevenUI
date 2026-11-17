@@ -5,6 +5,7 @@ using System.Linq;
 using BepInEx.Bootstrap;
 using ModTestRunner;
 using RoR2;
+using RoR2.ExpansionManagement;
 using RoR2.Items;
 using RoR2.UI;
 using TMPro;
@@ -19,6 +20,7 @@ namespace SevenUI.Tests
     {
         // How long LookingGlass may take to add its stats panel; it builds it once the body's stats are known.
         private const float LookingGlassPanelTimeout = 10f;
+        private const float NewBodyTimeout = 10f;
         private const float ColorTolerance = 0.01f;
         // A canvas pixel, in HUD units: how far a key's letters may sit from its face's middle, and the rows' actions
         // from one x.
@@ -1248,6 +1250,29 @@ namespace SevenUI.Tests
                     },
                     () => $"the selector on page {picked + 1} {h.Diagnosis()}");
             }
+        }
+
+        // Turns the player into the body, and back at cleanup (the command also changes the body the player respawns
+        // as). Skips when the game has no such body or the player lacks the expansion it needs. Does nothing when the
+        // player already is that body.
+        public static IEnumerator TurnInto(this Harness h, string bodyName)
+        {
+            GameObject prefab = BodyCatalog.FindBodyPrefab(bodyName);
+            if (!prefab) throw h.Skip($"no body called {bodyName}");
+            CharacterMaster master = Harness.LocalBody.master;
+            ExpansionRequirementComponent expansion = prefab.GetComponent<ExpansionRequirementComponent>();
+            if (expansion && !expansion.PlayerCanUseBody(master.playerCharacterMasterController))
+            {
+                throw h.Skip($"{bodyName} needs an expansion the player doesn't have");
+            }
+
+            BodyIndex index = BodyCatalog.FindBodyIndex(bodyName);
+            if (Harness.LocalBody.bodyIndex == index) yield break;
+            string original = master.bodyPrefab.name;
+            h.OnCleanup(() => h.Cmd($"{GameNames.SpawnAs} {original}"));
+            h.Cmd($"{GameNames.SpawnAs} {bodyName}");
+            yield return h.Until(() => Harness.LocalBody && Harness.LocalBody.bodyIndex == index, $"the player as {bodyName}",
+                NewBodyTimeout);
         }
 
         public static IEnumerator CaptureLooks(this Harness h)
