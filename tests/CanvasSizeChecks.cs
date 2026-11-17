@@ -79,10 +79,11 @@ namespace SevenUI.Tests
         // In shares of a slot; the game's look is drawn turned, so its shares come out a little off.
         private const float UtilityAreaTolerance = 0.06f;
         // Operator's display's widest slot, in the skill cluster's plane (the game's look is drawn turned, so on screen
-        // the two looks' sizes differ), and how far its right edge may sit from the game's, in shares of a skill slot:
-        // the restyled row's gaps differ from the game's, so the row's right edge doesn't move with the display.
+        // the two looks' sizes differ), and how far its right edge may sit from the game's, in shares of a skill slot.
         private const float DroneSizeTolerance = 2f;
-        private const float DroneRightTolerance = 0.15f;
+        private const float DroneRightTolerance = 0.03f;
+        // How far the display's gap over the row may differ from the game's, in shares of a skill slot.
+        private const float DroneGapTolerance = 0.03f;
         private const int DroneUiPathLimit = 30;
         // The timer's tags hold dots of their own, "<mspace=0.46em>".
         private const string StageTextName = "Stage Text";
@@ -644,7 +645,7 @@ namespace SevenUI.Tests
             public string Problem(DroneDisplay game)
             {
                 if (Mathf.Abs(Widest - game.Widest) > DroneSizeTolerance) return "widest slot's size";
-                if (Mathf.Abs(Gap - game.Gap) > UtilityAreaTolerance || Gap < -UtilityAreaTolerance) return "gap over the row";
+                if (Mathf.Abs(Gap - game.Gap) > DroneGapTolerance || Gap < -DroneGapTolerance) return "gap over the row";
                 if (Mathf.Abs(Right - game.Right) > DroneRightTolerance) return "right edge";
                 if (Slots.xMin < Screen.xMin || Slots.yMin < Screen.yMin || Slots.xMax > Screen.xMax || Slots.yMax > Screen.yMax)
                 {
@@ -756,7 +757,7 @@ namespace SevenUI.Tests
             {
                 if (Mathf.Abs(InPlane.x - game.InPlane.x) > DroneSizeTolerance) return "card's width";
                 if (Mathf.Abs(InPlane.y - game.InPlane.y) > DroneSizeTolerance) return "card's height";
-                if (Mathf.Abs(Gap - game.Gap) > UtilityAreaTolerance) return "gap over the row";
+                if (Mathf.Abs(Gap - game.Gap) > DroneGapTolerance) return "gap over the row";
                 if (Mathf.Abs(Right - game.Right) > DroneRightTolerance) return "right edge";
                 if (OnScreen.xMin < Screen.xMin || OnScreen.yMin < Screen.yMin || OnScreen.xMax > Screen.xMax ||
                     OnScreen.yMax > Screen.yMax)

@@ -98,6 +98,7 @@ namespace SevenUI
             Rect lastBox = InScaler(last);
             float rowLeft = InScaler((RectTransform)row[0].transform).xMin;
             Rect before = Rect.MinMaxRect(rowLeft, lastBox.yMin, lastBox.xMax, lastBox.yMax);
+            followed.Clear();
             float slot = SlotSize / unit;
             float pitch = (SlotSize + Gap) / unit;
             for (int i = 0; i < row.Length; i++)
@@ -144,7 +145,7 @@ namespace SevenUI
         // already, in the game's proportion to a skill slot, so a fit to the slots would change nothing. But the slots
         // are larger than the game's, which makes the display larger on screen than the game's own. It is therefore
         // shrunk back by the row's growth, to the size the game draws it at, and keeps its bottom right corner where
-        // FollowRow put it over the row. Its queues ("Secondary Queue" and "Util Queue") are in
+        // FollowRow put it over the row, less the drift FollowRow leaves in x (AreaDrift). Its queues ("Secondary Queue" and "Util Queue") are in
         // it, so they follow. Run on each apply; each instance is fitted once, once its slots have a size.
         public void FollowDisplays(HUD hud, StyleRecorder recorder)
         {
@@ -167,7 +168,7 @@ namespace SevenUI
                     .ToList();
                 if (slots.Count == 0) continue;
                 followed.Add(display);
-                FitAboutCorner(display, slots, rowBefore.height / rowAfter.height, recorder);
+                FitAboutCorner(display, slots, rowBefore.height / rowAfter.height, AreaDrift(), recorder);
             }
         }
 
@@ -184,7 +185,8 @@ namespace SevenUI
                 RectTransform root = OverlayRoot(cardRect, area);
                 if (!root || followed.Contains(root) || cardRect.rect.width <= 0f || cardRect.rect.height <= 0f) continue;
                 followed.Add(root);
-                FitAboutCorner(root, new List<RectTransform> { cardRect }, rowBefore.height / rowAfter.height, recorder);
+                float drift = area && root.parent == area ? AreaDrift() : 0f;
+                FitAboutCorner(root, new List<RectTransform> { cardRect }, rowBefore.height / rowAfter.height, drift, recorder);
             }
             bagCards.Clear();
         }
@@ -199,11 +201,23 @@ namespace SevenUI
             return null;
         }
 
-        // Scales a display by a factor about the bottom right corner of the box its slots fill. The display's own rect
-        // is no guide: it reaches well below the slots, so scaling about it slides them down past the row.
-        private void FitAboutCorner(RectTransform display, List<RectTransform> slots, float factor, StyleRecorder recorder)
+        // How far right of the game's look FollowRow leaves what hangs in the utility area, in the scaler's units.
+        // FollowRow scales the area about the row's top middle, but the row keeps its right end while it grows left, so
+        // a point a distance e right of the row's end moves to e * growth plus this.
+        private float AreaDrift()
         {
-            if (Mathf.Abs(factor - 1f) < FitTolerance) return;
+            float growth = rowAfter.height / rowBefore.height;
+            return growth * rowBefore.width / 2f - rowAfter.width / 2f;
+        }
+
+        // Scales a display by a factor about the bottom right corner of the box its slots fill, then moves it left by
+        // the drift. The display's own rect is no guide: it reaches well below the slots, so scaling about it slides
+        // them down past the row.
+        private void FitAboutCorner(RectTransform display, List<RectTransform> slots, float factor, float drift,
+            StyleRecorder recorder)
+        {
+            bool scales = Mathf.Abs(factor - 1f) >= FitTolerance;
+            if (!scales && Mathf.Abs(drift) < FitTolerance / unit) return;
             Vector3 scale = display.localScale;
             Vector2 position = display.anchoredPosition;
             recorder.OnRestore(() =>
@@ -212,10 +226,14 @@ namespace SevenUI
                 display.localScale = scale;
                 display.anchoredPosition = position;
             });
-            Rect before = InScaler(slots);
-            display.localScale = new Vector3(scale.x * factor, scale.y * factor, scale.z);
-            Rect after = InScaler(slots);
-            Vector2 shift = new Vector2(before.xMax - after.xMax, before.yMin - after.yMin);
+            Vector2 shift = new Vector2(-drift, 0f);
+            if (scales)
+            {
+                Rect before = InScaler(slots);
+                display.localScale = new Vector3(scale.x * factor, scale.y * factor, scale.z);
+                Rect after = InScaler(slots);
+                shift += new Vector2(before.xMax - after.xMax, before.yMin - after.yMin);
+            }
             display.position += scaler.TransformVector(shift);
         }
 
