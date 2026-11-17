@@ -140,24 +140,26 @@ namespace SevenUI.Tests
                 if (!kind.Player && i < kinds.Count(found => found.Player)) return $"{Name(card)} sorted above a player";
                 if (card.gameObject.activeSelf != fits) return $"{Name(card)}'s card is {(fits ? "hidden" : "shown")} (kind {i + 1} of {kinds.Count}, {shown} fit)";
                 if (!fits) continue;
-                float height = compact && kind.Allies <= 1 && !kind.Player ? AllyCompactCard.RowHeight : GameHeight;
+                // Players keep full-size cards whatever the room.
+                bool compactRow = compact && kind.Allies <= 1 && !kind.Player;
+                float height = compactRow ? AllyCompactCard.RowHeight : GameHeight;
                 float tall = card.rectTransform.rect.height;
                 if (Mathf.Abs(tall - height) > Tolerance) return $"{Name(card)}'s card is {tall:0.#} units tall, not {height:0.#}";
                 // The card's row gives the portrait any spare width, so a compact row's portrait can grow past the
                 // row (the game's own portrait is a little taller than its card, so only its width is compared).
                 LayoutElement portrait = card.portraitIconImage ? card.portraitIconImage.GetComponent<LayoutElement>() : null;
                 float portraitWidth = portrait ? card.portraitIconImage.rectTransform.rect.width : 0f;
-                if (compact && kind.Allies <= 1 && portrait && Mathf.Abs(portraitWidth - portrait.preferredWidth) > Tolerance)
+                if (compactRow && portrait && Mathf.Abs(portraitWidth - portrait.preferredWidth) > Tolerance)
                 {
                     return $"{Name(card)}'s compact portrait is {portraitWidth:0.#} units wide, not {portrait.preferredWidth:0.#}. {RowLayout(card)}";
                 }
                 // The barrier fills a compact row's thin bar, and is a strip along the top of a full-size one. Read from
                 // the bar's style, as the host can't hold an ally's barrier steady (it decays).
                 HealthBar healthBar = card.healthBar;
-                if (healthBar && healthBar._style && healthBar._style.name.EndsWith(Texts.FlatStyleSuffix + " (compact)") != (compact && kind.Allies <= 1) &&
+                if (healthBar && healthBar._style && healthBar._style.name.EndsWith(Texts.FlatStyleSuffix + " (compact)") != compactRow &&
                     healthBar._style.barrierBarStyle.sprite)
                 {
-                    return $"{Name(card)}'s barrier is drawn with '{healthBar._style.barrierBarStyle.sprite.name}' in style '{healthBar._style.name}' on a {(compact && kind.Allies <= 1 ? "compact" : "full-size")} card";
+                    return $"{Name(card)}'s barrier is drawn with '{healthBar._style.barrierBarStyle.sprite.name}' in style '{healthBar._style.name}' on a {(compactRow ? "compact" : "full-size")} card";
                 }
                 float depth = Depth(cluster, card.rectTransform);
                 // Each card's top is the height of the cards above it, in the order above.
