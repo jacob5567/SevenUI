@@ -700,9 +700,13 @@ namespace SevenUI.Tests
                       $"wakes to language font={(name as HGTextMeshProUGUI)?.useLanguageDefaultFont}) {h.Diagnosis()}");
         }
 
-        private static List<ItemIcon> BarItemIcons(Harness h) =>
-            HudRoot(h).GetComponentsInChildren<ItemInventoryDisplay>(true).Take(1)
-                .SelectMany(display => display.GetComponentsInChildren<ItemIcon>(false)).ToList();
+        // The item bar in the HUD's top center, not whichever inventory display the HUD holds first.
+        private static List<ItemIcon> BarItemIcons(Harness h)
+        {
+            Transform topCenter = HudRoot(h).Find(HudPaths.TopCenterCluster);
+            ItemInventoryDisplay bar = topCenter ? topCenter.GetComponentInChildren<ItemInventoryDisplay>(true) : null;
+            return bar ? bar.GetComponentsInChildren<ItemIcon>(false).ToList() : new List<ItemIcon>();
+        }
 
         private static string ItemsLook(List<ItemIcon> icons) =>
             icons.Count == 0
