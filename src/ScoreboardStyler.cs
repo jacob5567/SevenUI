@@ -503,15 +503,9 @@ namespace SevenUI
 
         private void AddEquipmentOutline(Transform equipment)
         {
-            GameObject outline = UiFactory.NewObject(OutlineName, equipment).gameObject;
-            UiFactory.Stretch((RectTransform)outline.transform);
-            Image image = outline.AddComponent<Image>();
-            image.sprite = FlatSprite.Outline;
-            image.type = Image.Type.Sliced;
-            image.pixelsPerUnitMultiplier = HudUnits.OutlineEdgePixels / OutlineEdge;
-            image.color = Palette.Equipment;
-            image.raycastTarget = false;
-            recorder.Add(outline);
+            PixelOutline outline = PixelOutline.Add(equipment, OutlineName, Palette.Equipment, OutlineEdge);
+            outline.enabled = true;
+            recorder.Add(outline.gameObject);
         }
 
         // A thin line along the row's top, outside its layout.

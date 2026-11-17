@@ -264,12 +264,8 @@ namespace SevenUI
         {
             RectTransform rect = UiFactory.NewObject(HighlightName, Cell);
             recorder.Add(rect.gameObject);
-            Image image = rect.gameObject.AddComponent<Image>();
-            image.sprite = FlatSprite.Outline;
-            image.type = Image.Type.Sliced;
-            image.pixelsPerUnitMultiplier = HudUnits.OutlineEdgePixels / HighlightEdge;
-            image.color = Palette.Accent;
-            image.raycastTarget = false;
+            PixelOutline outline = PixelOutline.Add(rect, "Outline", Palette.Accent, HighlightEdge);
+            outline.enabled = true;
             return rect;
         }
 

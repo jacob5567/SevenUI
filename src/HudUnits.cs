@@ -9,8 +9,6 @@ namespace SevenUI
         public const float PerCanvasPixel = 1f / 0.977f;
         // The design canvas's height, in its pixels.
         public const float CanvasHeight = 1080f;
-        // The outline sprite's edge, in its pixels (FlatSprite.Outline).
-        public const float OutlineEdgePixels = 2f;
         // The thin lines between a panel's parts.
         public const float DividerHeight = 1f * PerCanvasPixel;
     }
