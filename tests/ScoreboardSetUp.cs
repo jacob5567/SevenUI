@@ -129,10 +129,13 @@ namespace SevenUI.Tests
         // viewer's. Only the controller's resolved copies are set, as its getter returns them, so nothing is synced, the
         // viewer's own link stays as it is, and the controller doesn't set its body from the viewer's preference. While
         // linked, the stand-in counts as a connected player, and its controller reads the viewer's input for its body.
+        // The master finds its player controller in Awake, before StandIn adds it, so the master is first told it is
+        // a player's: the game's ally cards, and SevenUI, read it from there.
         private static void LinkToViewer(CharacterMaster player)
         {
             NetworkUser viewer = Harness.LocalBody.master.playerCharacterMasterController.networkUser;
-            PlayerCharacterMasterController controller = player.playerCharacterMasterController;
+            PlayerCharacterMasterController controller = player.GetComponent<PlayerCharacterMasterController>();
+            player.playerCharacterMasterController = controller;
             controller.resolvedNetworkUserGameObjectInstance = viewer.gameObject;
             controller.resolvedNetworkUserInstance = viewer;
             controller.networkUserResolved = true;
@@ -145,6 +148,7 @@ namespace SevenUI.Tests
             if (!controller) return;
             controller.resolvedNetworkUserGameObjectInstance = null;
             controller.resolvedNetworkUserInstance = null;
+            player.playerCharacterMasterController = null;
         }
 
         // Before the master is spawned, so its controller is among its networked parts.
