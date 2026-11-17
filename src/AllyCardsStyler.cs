@@ -376,14 +376,22 @@ namespace SevenUI
         // The name the game's card shows (Util.GetBestBodyName, as AllyCardController reads it), found again only when
         // the ally's body or drone tier changes. An upgrade adds hidden items to the same body, so the tier is read from
         // the synced inventory each time rather than assumed from the body.
+        // A master whose body died keeps its last name: the game destroys a dead ally's master a second after its body
+        // goes, and until then it would otherwise stand alone, its own card showing the dead mark beside its kind's.
+        // (lostBodyToDeath is in the master's synced flags, so a client sees it too.)
         private string NameOf(CharacterMaster master, out int tier)
         {
             tier = 0;
             CharacterBody body = master.GetBody();
-            if (!body) return null;
+            names.TryGetValue(master, out (CharacterBody Body, int Tier, string Name) known);
+            if (!body)
+            {
+                if (!master.lostBodyToDeath || known.Name == null) return null;
+                tier = known.Tier;
+                return known.Name;
+            }
             tier = body.inventory ? body.inventory.GetItemCountEffective(DLC3Content.Items.DroneUpgradeHidden) : 0;
-            if (names.TryGetValue(master, out (CharacterBody Body, int Tier, string Name) known) && known.Body == body &&
-                known.Tier == tier) return known.Name;
+            if (known.Name != null && known.Body == body && known.Tier == tier) return known.Name;
             string name = Util.GetBestBodyName(body.gameObject);
             names[master] = (body, tier, name);
             if (names.Count > cards.Count * 2)
