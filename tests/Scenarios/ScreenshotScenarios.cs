@@ -328,17 +328,10 @@ namespace SevenUI.Tests
             // Server state; the runner is the host. Low, so a slam or two kills it before it can break out.
             monster.healthComponent.Networkhealth = monster.healthComponent.fullHealth * MonsterHealthFraction;
             string monsterName = Util.GetBestBodyName(monster.gameObject);
-            yield return DrifterBag.Grab(h, repossess, bag, monster.gameObject, monster.corePosition, monsterName, reason => problem = reason);
-            if (problem != null)
-            {
-                // What's checked is the display and the slams, not the grab, so a missed grab is put right by hand.
-                h.Log($"Repossess didn't take the Lemurian ({problem}); putting it in the bag as the skill would");
-                if (bag.bagFull)
-                {
-                    bag.ResetBaggedObject();
-                }
-                yield return DrifterBag.Put(h, body, bag, monster.gameObject, monsterName);
-            }
+            // Put in the bag the way Repossess's last state does: what's checked is the display and the slams, and the
+            // real grab never reached a monster in a test (StandBefore left her tens of meters off, and once lost it).
+            if (!monster || !monster.healthComponent.alive) throw h.Fail($"the Lemurian was gone before Drifter could bag it {h.Diagnosis()}");
+            yield return DrifterBag.Put(h, body, bag, monster.gameObject, monsterName);
             yield return h.AimAway();
             yield return DrifterBag.ExpectBar(h, null, monster, false, "Lemurian at low health");
             yield return h.CaptureLooks("monster_low");
