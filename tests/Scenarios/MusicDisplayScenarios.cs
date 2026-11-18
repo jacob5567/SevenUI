@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using BepInEx.Bootstrap;
 using ModTestRunner;
 using RoR2;
@@ -15,6 +16,7 @@ namespace SevenUI.Tests
     // The scenarios set the text themselves, so they don't wait for a track, and put it back after.
     internal static class MusicDisplayScenarios
     {
+        private const string CreateDisplayMethod = "CreateDisplay";
         // How long to wait for the mod to make its text.
         private const float TextTimeout = 30f;
         private const float SettleSeconds = 0.5f;
@@ -50,13 +52,29 @@ namespace SevenUI.Tests
             return found ? found.GetComponent<TMP_Text>() : null;
         }
 
+        // Calls MusicDisplay's own CreateDisplay, which it runs on each track's start. Test-only reflection.
+        private static void MakeText(Harness h)
+        {
+            BepInEx.BaseUnityPlugin plugin = Chainloader.PluginInfos[GameNames.MusicDisplayGUID].Instance;
+            MethodInfo create = plugin ? plugin.GetType().GetMethod(CreateDisplayMethod,
+                BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public) : null;
+            if (create == null) throw h.Skip($"MusicDisplay has no {CreateDisplayMethod} to make its text with");
+            create.Invoke(null, null);
+        }
+
         // The mod's text once made, skipping if MusicDisplay is absent or never makes it. Its string is put back at
         // cleanup, and what it says is set by the scenario.
         private static IEnumerator WaitForText(Harness h, System.Action<TMP_Text> found)
         {
             if (!Chainloader.PluginInfos.ContainsKey(GameNames.MusicDisplayGUID)) throw h.Skip("MusicDisplay isn't installed");
 
-            TMP_Text text = null;
+            TMP_Text text = FindText();
+            if (!text)
+            {
+                // MusicDisplay makes its text when a track starts, and none may have started in this run (the
+                // runner's game may play no music), so make it the way the mod does then.
+                MakeText(h);
+            }
             float deadline = Time.time + TextTimeout;
             while (Time.time < deadline && !text)
             {
