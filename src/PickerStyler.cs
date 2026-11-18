@@ -68,7 +68,7 @@ namespace SevenUI
             foreach (PickerPanel panel in panels)
             {
                 if (!panel.Alive) continue;
-                output.AppendLine($"  picker {panel.Panel.name}: options={panel.Buttons.Count} cards={panel.Cards} " +
+                output.AppendLine($"  picker {panel.Panel.name}: options={panel.Buttons.Count} cards={panel.Cards} empty={panel.Empty} " +
                                   $"size={panel.MainPanel.sizeDelta}");
             }
         }
