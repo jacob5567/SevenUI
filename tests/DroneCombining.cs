@@ -16,6 +16,7 @@ namespace SevenUI.Tests
         private const string DroneCombiner = "iscDroneCombinerStation";
         // The station's delays add up to a few seconds.
         private const float CombineTimeout = 15f;
+        private static readonly WaitForEndOfFrame EndOfFrame = new WaitForEndOfFrame();
 
         public static int Tier(CharacterMaster drone) =>
             drone && drone.inventory ? drone.inventory.GetItemCountEffective(DLC3Content.Items.DroneUpgradeHidden) : 0;
@@ -47,7 +48,8 @@ namespace SevenUI.Tests
             float end = Time.realtimeSinceStartup + CombineTimeout;
             while (Time.realtimeSinceStartup < end)
             {
-                yield return null;
+                // As drawn: the game hands its cards on in Update and SevenUI restyles them in LateUpdate.
+                yield return EndOfFrame;
                 check();
                 upgraded = before.Keys.FirstOrDefault(drone => drone && Tier(drone) > before[drone]);
                 if (upgraded && upgraded.GetBody() && !upgraded.GetBody().currentVehicle) break;
