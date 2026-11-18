@@ -57,6 +57,7 @@ namespace SevenUI.Tests
             List<CharacterMaster> drones = new List<CharacterMaster>();
             List<string> marks = new List<string>();
             System.Action noDeadMark = () => RecordDeadMarks(h, drones, marks);
+            DroneCombining.RemoveOtherDrones(h, drones);
             yield return Allies.SummonDrones(h, Allies.GunnerDroneMaster, 2, drones);
             yield return Settled(h, drones, "two tier 1");
             yield return DroneCombining.Combine(h, drones, noDeadMark);
