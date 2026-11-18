@@ -9,6 +9,7 @@ using RoR2.Skills;
 using RoR2.UI;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace SevenUI.Tests
 {
@@ -18,6 +19,9 @@ namespace SevenUI.Tests
     {
         // The name the mod gives the count's object, read by the tests.
         private const string CountName = "SevenUIDesperadoCount";
+        private const string IconName = "SevenUIDesperadoIcon";
+        // The icon's side and its space from the number, in canvas pixels.
+        private const float IconGap = 4f;
         // In canvas pixels. The count sits a few pixels above the slot; a pixel or so is perspective.
         private const float Tolerance = 1.5f;
         private const float MaxGap = 12f;
@@ -27,6 +31,9 @@ namespace SevenUI.Tests
 
         public static TMP_Text Count(Harness h) =>
             SevenUIChecks.HudRoot(h).GetComponentsInChildren<TMP_Text>(true).FirstOrDefault(text => text.name == CountName);
+
+        public static Image Icon(Harness h) =>
+            SevenUIChecks.HudRoot(h).GetComponentsInChildren<Image>(true).FirstOrDefault(image => image.name == IconName);
 
         private static SkillIcon SpecialIcon(Harness h)
         {
@@ -52,13 +59,14 @@ namespace SevenUI.Tests
                 () =>
                 {
                     TMP_Text count = Count(h);
-                    return count && !count.gameObject.activeInHierarchy;
+                    Image icon = Icon(h);
+                    return count && !count.gameObject.activeInHierarchy && (!icon || !icon.gameObject.activeInHierarchy);
                 },
-                () => $"no Desperado count {when} ({Look(h)}) {h.Diagnosis()}");
+                () => $"no Desperado count or icon {when} ({Look(h)}) {h.Diagnosis()}");
         }
 
-        // The number showing the stacks, centered over the special slot, above it without touching its cooldown or stock,
-        // and on screen.
+        // The buff's icon and the number showing the stacks, side by side and centered as a pair over the special slot, above
+        // it without touching its cooldown or stock, and on screen.
         public static IEnumerator ExpectCountShows(this Harness h, int stacks)
         {
             string look = "";
@@ -78,18 +86,35 @@ namespace SevenUI.Tests
                     Rect drawn = DrawnBox(h, count);
                     Rect screen = CanvasLayoutChecks.ScreenOf(camera);
                     Rect screenBox = ScreenBox(camera, count);
+                    Sprite expected = RoR2Content.Buffs.BanditSkull.iconSprite;
+                    Image icon = Icon(h);
+                    bool iconOk = !expected || (icon && icon.gameObject.activeInHierarchy && icon.sprite == expected &&
+                                                SevenUIChecks.Near(icon.color, Palette.Text));
+                    Rect pair = CanvasSizeChecks.Box(h, count.rectTransform);
+                    float iconGap = 0f;
+                    if (expected && icon)
+                    {
+                        Rect iconBox = CanvasSizeChecks.Box(h, icon.rectTransform);
+                        iconGap = pair.xMin - iconBox.xMax;
+                        pair = Rect.MinMaxRect(Mathf.Min(pair.xMin, iconBox.xMin), pair.yMin, pair.xMax, pair.yMax);
+                        Rect iconScreen = ScreenBox(camera, icon.rectTransform);
+                        screenBox = Rect.MinMaxRect(Mathf.Min(screenBox.xMin, iconScreen.xMin), Mathf.Min(screenBox.yMin, iconScreen.yMin),
+                            Mathf.Max(screenBox.xMax, iconScreen.xMax), Mathf.Max(screenBox.yMax, iconScreen.yMax));
+                    }
+                    bool gapOk = !expected || Mathf.Abs(iconGap - IconGap) <= Tolerance;
                     float gap = drawn.yMin - slot.yMax;
-                    float offCenter = drawn.center.x - slot.center.x;
+                    float offCenter = pair.center.x - slot.center.x;
                     bool above = gap >= -Tolerance && gap <= MaxGap;
                     bool centered = Mathf.Abs(offCenter) <= Tolerance;
                     bool onScreen = screenBox.xMin >= screen.xMin && screenBox.xMax <= screen.xMax &&
                                     screenBox.yMin >= screen.yMin && screenBox.yMax <= screen.yMax;
                     string clash = Overlaps(h, drawn, special.cooldownText) ?? Overlaps(h, drawn, special.stockText);
                     look = $"{Look(h)}; digits {drawn.width:0.#}x{drawn.height:0.#}px, {gap:0.#}px above the slot, " +
-                           $"{offCenter:0.#}px off its center, on screen={onScreen}, overlaps {clash ?? "nothing"}";
-                    return above && centered && onScreen && clash == null;
+                           $"{offCenter:0.#}px off its center, icon ok={iconOk}, icon gap {iconGap:0.#}px, on screen={onScreen}, " +
+                           $"overlaps {clash ?? "nothing"}";
+                    return above && centered && onScreen && clash == null && iconOk && gapOk;
                 },
-                () => $"the Desperado count '{stacks}' centered above the special slot, on screen, clear of its cooldown and " +
+                () => $"the Desperado icon and count '{stacks}' centered above the special slot, on screen, clear of its cooldown and " +
                       $"stock ({look}) {h.Diagnosis()}");
         }
 
@@ -110,6 +135,16 @@ namespace SevenUI.Tests
         }
 
         private const float CanvasHeight = 1080f;
+
+        private static Rect ScreenBox(Camera camera, RectTransform rect)
+        {
+            Vector3[] corners = new Vector3[4];
+            rect.GetWorldCorners(corners);
+            Vector2 min = RectTransformUtility.WorldToScreenPoint(camera, corners[0]);
+            Vector2 max = RectTransformUtility.WorldToScreenPoint(camera, corners[2]);
+            return Rect.MinMaxRect(Mathf.Min(min.x, max.x), Mathf.Min(min.y, max.y), Mathf.Max(min.x, max.x),
+                Mathf.Max(min.y, max.y));
+        }
 
         // The glyphs' bounds on screen.
         private static Rect ScreenBox(Camera camera, TMP_Text text)
