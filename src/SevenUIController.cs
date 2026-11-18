@@ -66,28 +66,29 @@ namespace SevenUI
             PromptsStyler prompts = new PromptsStyler(hud, root);
             pickers = new PickerStyler(hud, root);
             NowPlaying nowPlaying = new NowPlaying();
-            ScoreboardStyler scoreboard = new ScoreboardStyler(hud, root, nowPlaying);
+            ScoreboardStyler scoreboard = new ScoreboardStyler(hud, root);
             ChatStyler chat = new ChatStyler(root);
             tilt = new TiltFlattener(root);
             tooltips = new TooltipStyler(hud, root);
             // The pause menu is its own canvas, outside the HUD, made each time it opens.
             pause = new PauseScreenStyler(hud, root);
             MusicDisplayStyler music = new MusicDisplayStyler(nowPlaying);
+            NowPlayingPanel nowPlayingPanel = new NowPlayingPanel(root, nowPlaying);
             TopBarsWidth topBars = new TopBarsWidth(root);
             HudMargins margins = new HudMargins(hud, root, skillSlots);
             stylers = new IStyler[]
             {
                 tilt, runInfo, rightInfoBar, playerBars, skillSlots, top, countdowns, itemIcons, allyCards, prompts, pickers,
-                scoreboard, chat, topBars, margins, fontSwapper, pause, music,
+                scoreboard, chat, topBars, margins, fontSwapper, pause, music, nowPlayingPanel,
             };
             restoreOrder = new IStyler[]
             {
                 runInfo, rightInfoBar, playerBars, skillSlots, top, countdowns, itemIcons, allyCards, prompts, pickers, scoreboard,
-                chat, tilt, topBars, margins, fontSwapper, pause, music,
+                chat, tilt, topBars, margins, fontSwapper, pause, music, nowPlayingPanel,
             };
             updateOrder = new IStyler[]
             {
-                runInfo, prompts, pickers, playerBars, top, countdowns, skillSlots, scoreboard, chat, allyCards, pause, music, margins, topBars,
+                runInfo, prompts, pickers, playerBars, top, countdowns, skillSlots, scoreboard, chat, allyCards, pause, music, nowPlayingPanel, margins, topBars,
             };
             watched = new[]
             {

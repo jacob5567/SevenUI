@@ -7,9 +7,9 @@ using UnityEngine;
 
 namespace SevenUI
 {
-    // Takes the MusicDisplay mod's now-playing text, when it is installed, off the screen and into the scoreboard's
-    // footer (ScoreboardItemsBoard): the text's rendering is turned off, nothing else of it touched, and what it says
-    // is published as NowPlaying. MusicDisplay makes one text object on the local user's notification canvas, outside
+    // Takes the MusicDisplay mod's now-playing text, when it is installed, off the screen, to be drawn in the right info
+    // bar's now-playing panel (NowPlayingPanel): the text's rendering is turned off, nothing else of it touched, and
+    // what it says is published as NowPlaying. MusicDisplay makes one text object on the local user's notification canvas, outside
     // the HUD, and fades its alpha. Nothing of MusicDisplay is referenced, only the object's name; the text is only
     // read, and turned back on in Restore.
     internal sealed class MusicDisplayStyler : IStyler

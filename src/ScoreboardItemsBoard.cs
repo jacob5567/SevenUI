@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Globalization;
 using RoR2;
 using RoR2.UI;
 using TMPro;
@@ -35,15 +34,6 @@ namespace SevenUI
         public const float TabInset = ScoreboardStyler.RowPaddingY;
         // With more than one player, the smallest slot the rows keep before they collapse.
         private const float SmallestRowsSlot = 32f * Canvas;
-        // The footer along the panel's bottom: one line, 28px high, its label's capitals spaced as the headers'.
-        public const string FooterName = "SevenUINowPlaying";
-        private const float FooterHeight = 28f * Canvas;
-        private const float FooterFontSize = 12f;
-        private const string FooterLabel = "NOW PLAYING";
-        private const string FooterSeparator = " \u00b7 ";
-        private const string FooterLabelGap = "<space=0.8em>";
-        // TMP character spacing in ems, the headers' tracking (HeaderStyle.Tracking) as a fraction.
-        private const float FooterTrackingEms = HeaderStyle.Tracking / 100f;
         private static readonly float[] SlotSizes = { 40f * Canvas, 36f * Canvas, SmallestRowsSlot, 28f * Canvas, 24f * Canvas };
         // Moving between two slots, the pointer leaves one before it reaches the next; the light holds over the gap.
         private const float HoldSeconds = 0.15f;
@@ -85,12 +75,6 @@ namespace SevenUI
         private ItemIcon described;
         private float holdUntil;
         private ItemIndex highlighted = ItemIndex.None;
-        private NowPlaying nowPlaying;
-        private RectTransform footer;
-        private TMP_Text footerText;
-        private string footerShown = string.Empty;
-        // The room the footer takes at the panel's bottom: none while there is no track.
-        private float footerHeight;
 
         // Read by the SevenUI.Tests plugin.
         public bool Collapsed => collapsed;
@@ -99,15 +83,11 @@ namespace SevenUI
         public IReadOnlyList<ScoreboardItemGrid> Grids => grids;
         public ScoreboardStrip ShownStrip => shown;
         public ItemIndex Highlighted => highlighted;
-        public RectTransform Footer => footer;
-        public float FooterReserved => footerHeight;
-        public string FooterString => footerText ? footerText.text : string.Empty;
 
         // 'styled' holds the rows the styler has restyled for this layout, the only ones laid out.
         public void Init(StyleRecorder recorder, HashSet<ScoreboardStrip> styled, HUD hud,
-            RectTransform panel, TMP_Text style, NowPlaying nowPlaying)
+            RectTransform panel, TMP_Text style)
         {
-            this.nowPlaying = nowPlaying;
             this.recorder = recorder;
             this.styled = styled;
             this.hud = hud;
@@ -157,91 +137,6 @@ namespace SevenUI
             tab = shape.gameObject.AddComponent<ScoreboardTabShape>();
             tab.raycastTarget = false;
             shape.gameObject.SetActive(false);
-            MakeFooter();
-        }
-
-        // Along the panel's bottom, inside it, drawn over the rows' container; off until there is a track.
-        private void MakeFooter()
-        {
-            if (!panel) return;
-            footer = UiFactory.NewObject(FooterName, panel);
-            recorder.Add(footer.gameObject);
-            footer.gameObject.AddComponent<LayoutIgnorer>();
-            footer.anchorMin = footer.anchorMax = footer.pivot = Vector2.zero;
-            TextMeshProUGUI line = footer.gameObject.AddComponent<TextMeshProUGUI>();
-            footerText = line;
-            if (style)
-            {
-                line.font = style.font;
-                line.fontSharedMaterial = style.fontSharedMaterial;
-                line.spriteAsset = style.spriteAsset;
-                Material template = style.fontSharedMaterial;
-                TMP_FontAsset barlow = SevenUIPlugin.Settings.BarlowFont.Value && template ? FontLibrary.Body(template) : null;
-                if (barlow)
-                {
-                    line.font = barlow;
-                    line.fontSharedMaterial = FontLibrary.Retarget(template, barlow);
-                }
-            }
-            line.fontSize = FooterFontSize;
-            line.color = Palette.Text;
-            line.richText = true;
-            line.alignment = TextAlignmentOptions.MidlineLeft;
-            line.enableWordWrapping = false;
-            line.overflowMode = TextOverflowModes.Ellipsis;
-            line.raycastTarget = false;
-            footer.gameObject.SetActive(false);
-        }
-
-        // The footer for the track as it is now: its text built only when the track changed, its place followed from the
-        // rows' left and the pane column's left. True if the room it takes changed.
-        private bool UpdateFooter()
-        {
-            if (!footer || nowPlaying == null) return false;
-            bool show = nowPlaying.Present;
-            float wanted = show ? FooterHeight : 0f;
-            bool changed = !Mathf.Approximately(wanted, footerHeight);
-            if (footer.gameObject.activeSelf != show)
-            {
-                footer.gameObject.SetActive(show);
-            }
-            footerHeight = wanted;
-            if (!show) return changed;
-            string track = nowPlaying.Name + "\n" + nowPlaying.Author;
-            if (track != footerShown)
-            {
-                footerShown = track;
-                footerText.text = FooterMarkup(nowPlaying);
-            }
-            Vector3 left = panel.InverseTransformPoint(strips.TransformPoint(new Vector3(strips.rect.xMin + rowsPadding.left, 0f, 0f)));
-            Vector3 right = panel.InverseTransformPoint(strips.TransformPoint(new Vector3(strips.rect.xMax - rowsPadding.right, 0f, 0f)));
-            Vector2 position = new Vector2(left.x - panel.rect.xMin, 0f);
-            Vector2 size = new Vector2(Mathf.Max(0f, right.x - left.x), FooterHeight);
-            if ((footer.anchoredPosition - position).sqrMagnitude > 0f)
-            {
-                footer.anchoredPosition = position;
-            }
-            if ((footer.sizeDelta - size).sqrMagnitude > 0f)
-            {
-                footer.sizeDelta = size;
-            }
-            return changed;
-        }
-
-        // The label in small spaced capitals, the track's name, and its author after a dot. The names are not parsed as
-        // tags.
-        private static string FooterMarkup(NowPlaying track)
-        {
-            string subtle = ColorUtility.ToHtmlStringRGB(Palette.HeaderSubtle);
-            string text = ColorUtility.ToHtmlStringRGB(Palette.Text);
-            string header = ColorUtility.ToHtmlStringRGB(Palette.HeaderText);
-            string markup = $"<size={HeaderStyle.FontSize.ToString(CultureInfo.InvariantCulture)}><cspace={FooterTrackingEms.ToString(CultureInfo.InvariantCulture)}em><color=#{subtle}>{FooterLabel}</color></cspace></size>" +
-                            $"{FooterLabelGap}<color=#{text}><noparse>{track.Name}</noparse></color>";
-            if (track.Author.Length > 0)
-            {
-                markup += $"<color=#{header}>{FooterSeparator}<noparse>{track.Author}</noparse></color>";
-            }
-            return markup;
         }
 
         // Each time the scoreboard opens: on the viewer's own row, with nothing described yet.
@@ -285,10 +180,6 @@ namespace SevenUI
             if (collapsed)
             {
                 FollowSelection();
-            }
-            if (UpdateFooter())
-            {
-                stale = true;
             }
             float limit = AvailableHeight();
             float width = strips.rect.width;
@@ -380,13 +271,12 @@ namespace SevenUI
             return true;
         }
 
-        // From the rows' top down to the bottom of the scoreboard's panel, which the game keeps above the skills, less the
-        // footer's room.
+        // From the rows' top down to the bottom of the scoreboard's panel, which the game keeps above the skills.
         private float AvailableHeight()
         {
             if (!panel) return float.PositiveInfinity;
             Vector3 top = panel.InverseTransformPoint(strips.TransformPoint(new Vector3(0f, strips.rect.yMax, 0f)));
-            return top.y - panel.rect.yMin - footerHeight;
+            return top.y - panel.rect.yMin;
         }
 
         // The rows, each with its items or collapsed. Whether they collapse is decided from the items and the room
@@ -715,8 +605,7 @@ namespace SevenUI
             }
             // The container grows under the rows to hold the pane, or the collapsed rows' shown items.
             float extra = Mathf.Max(paneHeight - rowsPadding.top - rowsPadding.bottom, itemsHeight) - rowsHeight;
-            // The footer's room at the panel's bottom, under the pane's and the shown items' too.
-            int bottom = rowsPadding.bottom + Mathf.CeilToInt(footerHeight) + Mathf.CeilToInt(Mathf.Max(0f, extra));
+            int bottom = rowsPadding.bottom + Mathf.CeilToInt(Mathf.Max(0f, extra));
             if (rowsGroup && rowsGroup.padding.bottom != bottom)
             {
                 rowsGroup.padding = new RectOffset(rowsPadding.left, rowsPadding.right, rowsPadding.top, bottom);
