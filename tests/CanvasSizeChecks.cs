@@ -80,6 +80,13 @@ namespace SevenUI.Tests
         private const float StockBaseline = 3f + 18f * 0.1f;
         // In shares of a slot; the game's look is drawn turned, so its shares come out a little off.
         private const float UtilityAreaTolerance = 0.06f;
+        // Operator's display's widest slot, in the skill cluster's plane (the game's look is drawn turned, so on screen
+        // the two looks' sizes differ), and how far its right edge may sit from the game's, in shares of a skill slot.
+        private const float DroneSizeTolerance = 2f;
+        private const float DroneRightTolerance = 0.03f;
+        // How far the display's gap over the row may differ from the game's, in shares of a skill slot.
+        private const float DroneGapTolerance = 0.03f;
+        private const int DroneUiPathLimit = 30;
         // The timer's tags hold dots of their own, "<mspace=0.46em>".
         private const string StageTextName = "Stage Text";
         private static readonly Regex Tags = new Regex("<[^>]*>");
@@ -516,7 +523,7 @@ namespace SevenUI.Tests
             return RectTransformUtility.WorldToScreenPoint(camera, world) / unit;
         }
 
-        // The slot some survivors' meters hang from keeps its place over the skill row from the game's look, in shares
+        // The slot some survivors' displays hang from (Operator's drones, Seeker's lotus) keeps its place over the skill row from the game's look, in shares
         // of a slot: the gap under it, its middle's distance right of the row's, and its height. Measured in the
         // cluster's plane, which the game's look turns slightly away from the screen, so on screen its row's left
         // slots sit higher than its right ones; SevenUI's look draws the same plane facing the screen.
@@ -555,6 +562,256 @@ namespace SevenUI.Tests
             Rect place = InPlane(plane, area);
             if (slot <= 0f) return null;
             return new Vector3((place.yMin - row.yMax) / slot, (place.center.x - row.center.x) / slot, place.height / slot);
+        }
+
+        // Every UI object under the HUD whose name mentions a drone or a queue, with its path, to find Operator's display
+        // when it isn't where the check looks.
+        private static string DroneUiPaths(Harness h)
+        {
+            IEnumerable<string> paths = SevenUIChecks.HudRoot(h).GetComponentsInChildren<RectTransform>(true)
+                .Where(rect => rect.name.IndexOf("Drone", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+                               rect.name.IndexOf("Queue", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                .Select(rect => $"{ObjectPath(rect)} ({(rect.gameObject.activeInHierarchy ? "active" : "inactive")})")
+                .Take(DroneUiPathLimit);
+            return "[" + string.Join("; ", paths) + "]";
+        }
+
+        private static string ObjectPath(Transform at)
+        {
+            string path = at.name;
+            for (Transform up = at.parent; up; up = up.parent)
+            {
+                path = up.name + "/" + path;
+            }
+            return path;
+        }
+
+        // Operator's (DroneTech in code) display hangs in the utility area, which grows with the slots, and is then
+        // shrunk back to the size the game draws it at. With SevenUI's look its slots keep their place over the row as
+        // in the game's (the gap above the row's top and the right edge, in shares of a skill slot), keep the game's
+        // size in canvas pixels, and are on screen; applying again leaves the display, and the game's look puts back
+        // its size and place.
+        public static IEnumerator ExpectDroneDisplayFitsSlots(this Harness h)
+        {
+            PluginConfig settings = SevenUIPlugin.Settings;
+            h.SetConfig(settings.FlatPanels, false);
+            yield return h.Wait(SevenUIChecks.LookSwitchSeconds);
+            DroneDisplay? vanilla = DroneDisplayPlace(h);
+            if (vanilla == null)
+            {
+                throw h.Fail($"no {SkillRow.DroneOverlayName} with {SkillRow.DroneSlotName} slots under the utility area and " +
+                             $"skill row in the game's look; UI objects named like it: {DroneUiPaths(h)} {h.Diagnosis()}");
+            }
+            h.SetConfig(settings.FlatPanels, true);
+            DroneDisplay? styled = null;
+            yield return h.Until(
+                () =>
+                {
+                    styled = DroneDisplayPlace(h);
+                    return styled != null && styled.Value.Problem(vanilla.Value) == null;
+                },
+                () => $"Operator's display over the skill row as in the game's look ({styled?.Problem(vanilla.Value)}); " +
+                      $"game's look {vanilla.Value.Text()}, SevenUI {styled?.Text() ?? "none"}, display at " +
+                      $"{(styled != null ? ObjectPath(styled.Value.Display) : "none")} {h.Diagnosis()}");
+            yield return h.Wait(SevenUIChecks.LookSwitchSeconds);
+            DroneDisplay? again = DroneDisplayPlace(h);
+            if (again == null || again.Value.Scale != styled.Value.Scale || again.Value.Position != styled.Value.Position)
+            {
+                throw h.Fail($"Operator's display changed when applied again: scale {styled.Value.Scale} to {again?.Scale}, " +
+                             $"position {styled.Value.Position} to {again?.Position}");
+            }
+            h.SetConfig(settings.FlatPanels, false);
+            yield return h.Until(
+                () =>
+                {
+                    DroneDisplay? back = DroneDisplayPlace(h);
+                    return back != null && back.Value.Scale == vanilla.Value.Scale && back.Value.Position == vanilla.Value.Position;
+                },
+                () => $"Operator's display back at its size {vanilla.Value.Scale} and place {vanilla.Value.Position} in the " +
+                      $"game's look, now {DroneDisplayPlace(h)?.Scale} at {DroneDisplayPlace(h)?.Position} {h.Diagnosis()}");
+            // Back in SevenUI's look, for the shots after.
+            h.SetConfig(settings.FlatPanels, true);
+            yield return h.Wait(SevenUIChecks.LookSwitchSeconds);
+        }
+
+        // Operator's display as measured: its own scale and place, the box its slots fill on canvas pixels on screen,
+        // the widest slot's width in the skill cluster's plane, and, in shares of a skill slot in the skill cluster's plane, the gap from the
+        // skill row's top to the slots' bottom and the slots' right edge's distance right of the row's.
+        private struct DroneDisplay
+        {
+            public RectTransform Display;
+            public Vector3 Scale;
+            public Vector2 Position;
+            public Rect Screen;
+            public Rect Slots;
+            public float Widest;
+            public float Gap;
+            public float Right;
+
+            public string Text() =>
+                $"slots {BoxText(Slots)}, widest {Widest:F1} in the plane, gap over the row {Gap:F2} slots, right edge {Right:F2} slots " +
+                $"right of the row's";
+
+            // Null when this display (SevenUI's look) is over the row as the game's is, at the game's size and on screen.
+            public string Problem(DroneDisplay game)
+            {
+                if (Mathf.Abs(Widest - game.Widest) > DroneSizeTolerance) return "widest slot's size";
+                if (Mathf.Abs(Gap - game.Gap) > DroneGapTolerance || Gap < -DroneGapTolerance) return "gap over the row";
+                if (Mathf.Abs(Right - game.Right) > DroneRightTolerance) return "right edge";
+                if (Slots.xMin < Screen.xMin || Slots.yMin < Screen.yMin || Slots.xMax > Screen.xMax || Slots.yMax > Screen.yMax)
+                {
+                    return "not on screen";
+                }
+                return null;
+            }
+        }
+
+        private static DroneDisplay? DroneDisplayPlace(Harness h)
+        {
+            Transform root = SevenUIChecks.HudRoot(h);
+            HUD hud = root.GetComponent<HUD>();
+            RectTransform area = root.Find(GameNames.UtilityArea) as RectTransform;
+            if (!hud || !area || hud.skillIcons == null || hud.skillIcons.Length == 0 || hud.skillIcons.Any(skill => !skill)) return null;
+            Transform plane = area.parent;
+            List<Rect> skills = hud.skillIcons.Select(skill => InPlane(plane, (RectTransform)skill.transform)).ToList();
+            float rowTop = skills.Max(box => box.yMax);
+            float rowRight = skills.Max(box => box.xMax);
+            float skill = skills.Average(box => box.height);
+            if (skill <= 0f) return null;
+            foreach (RectTransform display in area.GetComponentsInChildren<RectTransform>(true))
+            {
+                if (!display.name.StartsWith(GameNames.DroneOverlay)) continue;
+                List<RectTransform> slots = display.GetComponentsInChildren<RectTransform>(true)
+                    .Where(slot => slot.name.StartsWith(GameNames.DroneSlot) && Box(h, slot).width > 0f)
+                    .ToList();
+                if (slots.Count == 0) continue;
+                List<Rect> onScreen = slots.Select(slot => Box(h, slot)).ToList();
+                List<Rect> inPlane = slots.Select(slot => InPlane(plane, slot)).ToList();
+                (Camera camera, float unit) = Screen(h);
+                Rect screen = CanvasLayoutChecks.ScreenOf(camera);
+                return new DroneDisplay
+                {
+                    Display = display,
+                    Scale = display.localScale,
+                    Position = display.anchoredPosition,
+                    Screen = Rect.MinMaxRect(screen.xMin / unit, screen.yMin / unit, screen.xMax / unit, screen.yMax / unit),
+                    Slots = Rect.MinMaxRect(onScreen.Min(box => box.xMin), onScreen.Min(box => box.yMin),
+                        onScreen.Max(box => box.xMax), onScreen.Max(box => box.yMax)),
+                    Widest = inPlane.Max(box => box.width),
+                    Gap = (inPlane.Min(box => box.yMin) - rowTop) / skill,
+                    Right = (inPlane.Max(box => box.xMax) - rowRight) / skill
+                };
+            }
+            return null;
+        }
+
+        // Drifter's display of what it carries hangs in the utility area too, and is shrunk back to the size the game draws
+        // it at: its card keeps the game's size in the cluster's plane and its place over the row (the gap above the row's top
+        // and its right edge, in shares of a skill slot in the cluster's plane), and is on screen; the game's look puts
+        // it back.
+        public static IEnumerator ExpectBagDisplayMatchesGame(this Harness h)
+        {
+            PluginConfig settings = SevenUIPlugin.Settings;
+            h.SetConfig(settings.FlatPanels, false);
+            yield return h.Wait(SevenUIChecks.LookSwitchSeconds);
+            BagDisplay? vanilla = BagDisplayPlace(h);
+            if (vanilla == null)
+            {
+                throw h.Fail($"no BaggedCardController with a size under the skill row's scaler in the game's look {h.Diagnosis()}");
+            }
+            h.Log($"bag overlay in the game's look at {ObjectPath(vanilla.Value.Root)}, card {ObjectPath(vanilla.Value.Card)}");
+            h.SetConfig(settings.FlatPanels, true);
+            BagDisplay? styled = null;
+            yield return h.Until(
+                () =>
+                {
+                    styled = BagDisplayPlace(h);
+                    return styled != null && styled.Value.Problem(vanilla.Value) == null;
+                },
+                () => $"Drifter's bag display as in the game's look ({styled?.Problem(vanilla.Value)}); game's look " +
+                      $"{vanilla.Value.Text()}, SevenUI {styled?.Text() ?? "none"}, overlay at " +
+                      $"{(styled != null ? ObjectPath(styled.Value.Root) : "none")} {h.Diagnosis()}");
+            h.Log($"bag overlay in SevenUI's look at {ObjectPath(styled.Value.Root)}");
+            h.SetConfig(settings.FlatPanels, false);
+            yield return h.Until(
+                () =>
+                {
+                    BagDisplay? back = BagDisplayPlace(h);
+                    return back != null && back.Value.Scale == vanilla.Value.Scale && back.Value.Position == vanilla.Value.Position;
+                },
+                () => $"Drifter's bag display back at its size {vanilla.Value.Scale} and place {vanilla.Value.Position} in the " +
+                      $"game's look, now {BagDisplayPlace(h)?.Scale} at {BagDisplayPlace(h)?.Position} {h.Diagnosis()}");
+            // Back in SevenUI's look, for the shots after.
+            h.SetConfig(settings.FlatPanels, true);
+            yield return h.Wait(SevenUIChecks.LookSwitchSeconds);
+        }
+
+        // The bag display's card as measured, like DroneDisplay's slots.
+        private struct BagDisplay
+        {
+            public RectTransform Root;
+            public RectTransform Card;
+            public Vector3 Scale;
+            public Vector2 Position;
+            public Rect Screen;
+            public Rect OnScreen;
+            // The card's size in the cluster's plane: the game's look tilts that plane, so sizes on screen differ
+            // between the looks even when the card is drawn at the same size.
+            public Vector2 InPlane;
+            public float Gap;
+            public float Right;
+
+            public string Text() =>
+                $"card {BoxText(OnScreen)}, {InPlane.x:F1} by {InPlane.y:F1} in the plane, gap over the row {Gap:F2} slots, right edge {Right:F2} slots right of the row's";
+
+            public string Problem(BagDisplay game)
+            {
+                if (Mathf.Abs(InPlane.x - game.InPlane.x) > DroneSizeTolerance) return "card's width";
+                if (Mathf.Abs(InPlane.y - game.InPlane.y) > DroneSizeTolerance) return "card's height";
+                if (Mathf.Abs(Gap - game.Gap) > DroneGapTolerance) return "gap over the row";
+                if (Mathf.Abs(Right - game.Right) > DroneRightTolerance) return "right edge";
+                if (OnScreen.xMin < Screen.xMin || OnScreen.yMin < Screen.yMin || OnScreen.xMax > Screen.xMax ||
+                    OnScreen.yMax > Screen.yMax)
+                {
+                    return "not on screen";
+                }
+                return null;
+            }
+        }
+
+        private static BagDisplay? BagDisplayPlace(Harness h)
+        {
+            Transform root = SevenUIChecks.HudRoot(h);
+            HUD hud = root.GetComponent<HUD>();
+            RectTransform area = root.Find(GameNames.UtilityArea) as RectTransform;
+            if (!hud || !area || hud.skillIcons == null || hud.skillIcons.Length == 0 || hud.skillIcons.Any(skill => !skill)) return null;
+            Transform plane = area.parent;
+            List<Rect> skills = hud.skillIcons.Select(skill => InPlane(plane, (RectTransform)skill.transform)).ToList();
+            float skill = skills.Average(box => box.height);
+            BaggedCardController card = plane.GetComponentsInChildren<BaggedCardController>(true)
+                .FirstOrDefault(found => Box(h, (RectTransform)found.transform).width > 0f);
+            if (!card || skill <= 0f) return null;
+            RectTransform cardRect = (RectTransform)card.transform;
+            RectTransform top = cardRect;
+            while (top.parent && top.parent != area && top.parent != plane)
+            {
+                top = (RectTransform)top.parent;
+            }
+            Rect inPlane = InPlane(plane, cardRect);
+            (Camera camera, float unit) = Screen(h);
+            Rect screen = CanvasLayoutChecks.ScreenOf(camera);
+            return new BagDisplay
+            {
+                Root = top,
+                Card = cardRect,
+                Scale = top.localScale,
+                Position = top.anchoredPosition,
+                Screen = Rect.MinMaxRect(screen.xMin / unit, screen.yMin / unit, screen.xMax / unit, screen.yMax / unit),
+                OnScreen = Box(h, cardRect),
+                InPlane = inPlane.size,
+                Gap = (inPlane.yMin - skills.Max(box => box.yMax)) / skill,
+                Right = (inPlane.xMax - skills.Max(box => box.xMax)) / skill
+            };
         }
 
         // A rect's box in a transform it's drawn in.

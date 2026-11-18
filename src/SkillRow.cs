@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Linq;
 using RoR2;
 using RoR2.UI;
 using UnityEngine;
@@ -15,9 +17,13 @@ namespace SevenUI
     internal sealed class SkillRow
     {
         public const string DividerName = "SevenUISkillDivider";
-        // An empty slot above the skills that the game parents Drone Tech's drones and Seeker's lotus to, placed for
-        // the game's row (HUD child locator entry RightUtilityArea).
+        // An empty slot above the skills that the game parents Operator's (DroneTech in code) drones and Seeker's lotus
+        // to, placed for the game's row (HUD child locator entry RightUtilityArea).
         private const string UtilityAreaName = "UtilityArea";
+        // Operator's display, hung in the utility area, and the slots in its queues ("DroneSlot1" to "DroneSlot3").
+        public const string DroneOverlayName = "DroneTechDronesOverlay";
+        public const string DroneSlotName = "DroneSlot";
+        private const float FitTolerance = 0.01f;
         public const float SlotSize = 68f;
         public const float Gap = 8f;
         private const float KeyGap = 5f;
@@ -32,6 +38,13 @@ namespace SevenUI
         private readonly RectTransform scaler;
         // Canvas pixels per unit of the scaler.
         private readonly float unit;
+        // The row as the game draws it and as SevenUI does, once applied, for the elements that appear later.
+        private Rect rowBefore;
+        private Rect rowAfter;
+        private bool applied;
+        // The survivors' own displays already fitted, which are put back with the row.
+        private readonly HashSet<RectTransform> followed = new HashSet<RectTransform>();
+        private readonly List<BaggedCardController> bagCards = new List<BaggedCardController>();
 
         private SkillRow(RectTransform scaler, float unit)
         {
@@ -85,6 +98,7 @@ namespace SevenUI
             Rect lastBox = InScaler(last);
             float rowLeft = InScaler((RectTransform)row[0].transform).xMin;
             Rect before = Rect.MinMaxRect(rowLeft, lastBox.yMin, lastBox.xMax, lastBox.yMax);
+            followed.Clear();
             float slot = SlotSize / unit;
             float pitch = (SlotSize + Gap) / unit;
             for (int i = 0; i < row.Length; i++)
@@ -119,6 +133,120 @@ namespace SevenUI
             Rect after = Rect.MinMaxRect(InScaler((RectTransform)row[0].transform).xMin, lastBox.yMin, lastBox.xMax,
                 InScaler(last).yMax);
             FollowRow(scaler.Find(UtilityAreaName) as RectTransform, before, after, recorder);
+            rowBefore = before;
+            rowAfter = after;
+            applied = true;
+            FollowDisplays(hud, recorder);
+        }
+
+        // The displays the game hangs over the row, which grew with it, shrunk back to the size the game draws them at.
+        // Operator's (DroneTech in code) display of the drones queued to be commanded: an overlay the game creates with
+        // the body, after the row is applied, under the utility area, so FollowRow has grown it with the slots
+        // already, in the game's proportion to a skill slot, so a fit to the slots would change nothing. But the slots
+        // are larger than the game's, which makes the display larger on screen than the game's own. It is therefore
+        // shrunk back by the row's growth, to the size the game draws it at, and keeps its bottom right corner where
+        // FollowRow put it over the row, less the drift FollowRow leaves in x (AreaDrift). Its queues ("Secondary Queue" and "Util Queue") are in
+        // it, so they follow. Run on each apply; each instance is fitted once, once its slots have a size.
+        public void FollowDisplays(HUD hud, StyleRecorder recorder)
+        {
+            if (!applied || rowAfter.height <= 0f || rowBefore.height <= 0f) return;
+            RectTransform area = scaler.Find(UtilityAreaName) as RectTransform;
+            if (hud.targetBodyObject && hud.targetBodyObject.GetComponent<DroneTechController>() && area)
+            {
+                FollowDroneDisplay(area, recorder);
+            }
+            FollowBagDisplay(area, recorder);
+        }
+
+        private void FollowDroneDisplay(RectTransform area, StyleRecorder recorder)
+        {
+            foreach (RectTransform display in area.GetComponentsInChildren<RectTransform>(true))
+            {
+                if (!display.name.StartsWith(DroneOverlayName) || followed.Contains(display)) continue;
+                List<RectTransform> slots = display.GetComponentsInChildren<RectTransform>(true)
+                    .Where(slot => slot.name.StartsWith(DroneSlotName) && slot.rect.width > 0f && slot.rect.height > 0f)
+                    .ToList();
+                if (slots.Count == 0) continue;
+                followed.Add(display);
+                FitAboutCorner(display, slots, rowBefore.height / rowAfter.height, AreaDrift(), recorder);
+            }
+        }
+
+        // Drifter's display of what it carries (an arrow, the portrait, the name and a health bar), an overlay the game
+        // creates when something is bagged. It is found by its BaggedCardController, whichever body is played, and
+        // scaled like Operator's about the bottom right corner of the card.
+        // Only an overlay under the grown scaler is fitted: elsewhere the row's growth doesn't apply to it.
+        private void FollowBagDisplay(RectTransform area, StyleRecorder recorder)
+        {
+            scaler.GetComponentsInChildren(true, bagCards);
+            foreach (BaggedCardController card in bagCards)
+            {
+                RectTransform cardRect = (RectTransform)card.transform;
+                RectTransform root = OverlayRoot(cardRect, area);
+                if (!root || followed.Contains(root) || cardRect.rect.width <= 0f || cardRect.rect.height <= 0f) continue;
+                followed.Add(root);
+                float drift = area && root.parent == area ? AreaDrift() : 0f;
+                FitAboutCorner(root, new List<RectTransform> { cardRect }, rowBefore.height / rowAfter.height, drift, recorder);
+            }
+            bagCards.Clear();
+        }
+
+        // The top of the overlay a part is in: the child of the utility area, or of the scaler without one.
+        private RectTransform OverlayRoot(RectTransform part, RectTransform area)
+        {
+            for (Transform at = part; at && at != scaler; at = at.parent)
+            {
+                if (at.parent == scaler || (area && at.parent == area)) return at as RectTransform;
+            }
+            return null;
+        }
+
+        // How far right of the game's look FollowRow leaves what hangs in the utility area, in the scaler's units.
+        // FollowRow scales the area about the row's top middle, but the row keeps its right end while it grows left, so
+        // a point a distance e right of the row's end moves to e * growth plus this.
+        private float AreaDrift()
+        {
+            float growth = rowAfter.height / rowBefore.height;
+            return growth * rowBefore.width / 2f - rowAfter.width / 2f;
+        }
+
+        // Scales a display by a factor about the bottom right corner of the box its slots fill, then moves it left by
+        // the drift. The display's own rect is no guide: it reaches well below the slots, so scaling about it slides
+        // them down past the row.
+        private void FitAboutCorner(RectTransform display, List<RectTransform> slots, float factor, float drift,
+            StyleRecorder recorder)
+        {
+            bool scales = Mathf.Abs(factor - 1f) >= FitTolerance;
+            if (!scales && Mathf.Abs(drift) < FitTolerance / unit) return;
+            Vector3 scale = display.localScale;
+            Vector2 position = display.anchoredPosition;
+            recorder.OnRestore(() =>
+            {
+                if (!display) return;
+                display.localScale = scale;
+                display.anchoredPosition = position;
+            });
+            Vector2 shift = new Vector2(-drift, 0f);
+            if (scales)
+            {
+                Rect before = InScaler(slots);
+                display.localScale = new Vector3(scale.x * factor, scale.y * factor, scale.z);
+                Rect after = InScaler(slots);
+                shift += new Vector2(before.xMax - after.xMax, before.yMin - after.yMin);
+            }
+            display.position += scaler.TransformVector(shift);
+        }
+
+        private Rect InScaler(List<RectTransform> rects)
+        {
+            Rect box = InScaler(rects[0]);
+            foreach (RectTransform rect in rects)
+            {
+                Rect next = InScaler(rect);
+                box = Rect.MinMaxRect(Mathf.Min(box.xMin, next.xMin), Mathf.Min(box.yMin, next.yMin),
+                    Mathf.Max(box.xMax, next.xMax), Mathf.Max(box.yMax, next.yMax));
+            }
+            return box;
         }
 
         // Scaled with the slots about the row's top middle, so whatever hangs from it sits over the row as the game

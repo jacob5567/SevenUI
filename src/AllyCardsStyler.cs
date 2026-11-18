@@ -117,6 +117,8 @@ namespace SevenUI
             Transform cluster = root.Find(HudPaths.LeftCluster);
             if (!cluster) return;
             cluster.GetComponentsInChildren(true, cards);
+            // Drifter's card for what it carries is an ally card too, but a part of its own display, at the game's size.
+            cards.RemoveAll(card => card is BaggedCardController);
             foreach (AllyCardController card in cards)
             {
                 StyleCard(card);

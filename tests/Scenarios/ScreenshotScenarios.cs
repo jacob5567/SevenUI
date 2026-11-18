@@ -76,10 +76,16 @@ namespace SevenUI.Tests
         private const float NewBodyTimeout = 10f;
         // Half of Void Fiend's corruption, so the meter shows a level and not empty.
         private const float VoidFiendCorruption = 50f;
+        // How hurt the Lemurian Drifter bags is, as a fraction of its health: low enough to show as low on the bar.
+        private const float MonsterHealthFraction = 0.2f;
+        // DebugToolkit's switch for the combat directors, and how long the killed monsters take to go.
+        private const string NoEnemies = "no_enemies";
+        private const float ClearSeconds = 1f;
 
         public static IEnumerable<Scenario> All()
         {
             yield return Shot("hud", Hud);
+            yield return DrifterBagIconCatalog.Scenario();
             yield return Shot("barrier_and_low_health", BarrierAndLowHealth);
             yield return Shot("full_health_and_shield", FullHealthAndShield);
             yield return Shot("cooldowns", Cooldowns);
@@ -99,6 +105,12 @@ namespace SevenUI.Tests
             yield return Survivor("drone_tech", GameNames.DroneTech);
             yield return Survivor("drifter", GameNames.Drifter);
             yield return Survivor("acolyte", GameNames.Acolyte);
+            // Turns the player into Operator like the survivor shots, so it runs here with them: in the panels suite the
+            // item icon checks after them found no icons on the item bar.
+            yield return Shot("operator_display_fits_slots", OperatorDisplayFitsSlots);
+            // The same for Drifter's display of what it carries, which the game hangs from the same area.
+            yield return Shot("drifter_bag_display_matches_game", DrifterBagDisplayMatchesGame);
+            yield return Shot("drifter_bag_slams", DrifterBagSlams);
             // Starts the teleporter, which changes the stage, so it goes last.
             yield return new Scenario(2, "boss_bar", Stages.TitanicPlains, BossBar);
         }
@@ -112,6 +124,14 @@ namespace SevenUI.Tests
         // Turns the player into the survivor, shoots the HUD with its own elements, and turns the player back at
         // cleanup.
         private static IEnumerator AsSurvivor(Harness h, string bodyName, System.Action<CharacterBody> setUp)
+        {
+            yield return TurnInto(h, bodyName, setUp);
+            yield return h.AimAway();
+            yield return h.CaptureLooks();
+        }
+
+        // Turns the player into the survivor, skipping when the body or its expansion is missing, and back at cleanup.
+        public static IEnumerator TurnInto(Harness h, string bodyName, System.Action<CharacterBody> setUp = null)
         {
             GameObject prefab = BodyCatalog.FindBodyPrefab(bodyName);
             if (!prefab) throw h.Skip($"no body called {bodyName}");
@@ -130,8 +150,218 @@ namespace SevenUI.Tests
                 NewBodyTimeout);
             setUp?.Invoke(Harness.LocalBody);
             yield return h.Wait(NewBodySeconds);
+        }
+
+        // Operator's (DroneTech) display of queued drones above the row is fitted so its widest slot is a skill slot wide; skipped without its
+        // expansion.
+        // It is checked and shot under each combination of the tight margins and the level HUD, which move the row.
+        private static IEnumerator OperatorDisplayFitsSlots(Harness h)
+        {
+            yield return TurnInto(h, GameNames.DroneTech);
+            foreach (LayoutCombo combo in LayoutCombos)
+            {
+                yield return SetLayout(h, combo);
+                yield return h.ExpectDroneDisplayFitsSlots();
+                yield return h.CaptureLooks(combo.Label);
+            }
+            yield return SetLayout(h, LayoutCombos[0]);
+        }
+
+        // Tight margins and the level HUD, each on or off; the first is the defaults.
+        private readonly struct LayoutCombo
+        {
+            public readonly string Label;
+            public readonly bool TightMargins;
+            public readonly bool LevelHud;
+
+            public LayoutCombo(string label, bool tightMargins, bool levelHud)
+            {
+                Label = label;
+                TightMargins = tightMargins;
+                LevelHud = levelHud;
+            }
+        }
+
+        private static readonly LayoutCombo[] LayoutCombos =
+        {
+            new LayoutCombo("tight_level", true, true),
+            new LayoutCombo("tight_nolevel", true, false),
+            new LayoutCombo("loose_level", false, true),
+            new LayoutCombo("loose_nolevel", false, false)
+        };
+
+        // The kinds Drifter's card is also checked for under the other combinations; the rest only under the defaults.
+        private static readonly string[] AllLayoutKinds = { GameNames.SmallChest, GameNames.ShrineOfChance };
+
+        private static IEnumerator SetLayout(Harness h, LayoutCombo combo)
+        {
+            PluginConfig settings = SevenUIPlugin.Settings;
+            h.SetConfig(settings.TightMargins, combo.TightMargins);
+            h.SetConfig(settings.LevelHud, combo.LevelHud);
+            yield return h.Wait(SevenUIChecks.LookSwitchSeconds);
+        }
+
+        // Drifter grabs several interactables in turn with her Repossess skill, as the game does: each shows its overlay
+        // (arrow, portrait, name and health bar) above the row's right end, which is checked to keep the game's size and
+        // shot in both looks (all five kinds under the defaults, SmallChest and ShrineOfChance also under the other
+        // combinations of tight margins and level HUD), before she empties the bag with the skill that replaces Repossess. Kinds that can't be
+        // spawned or grabbed are skipped, but at least one must be grabbed. Skipped without Drifter's expansion.
+        private static IEnumerator DrifterBagDisplayMatchesGame(Harness h)
+        {
+            yield return TurnInto(h, GameNames.Drifter);
+            CharacterBody body = Harness.LocalBody;
+            DrifterBagController bag = body.GetComponent<DrifterBagController>();
+            if (!bag) throw h.Fail("the Drifter has no DrifterBagController");
+            GenericSkill repossess = DrifterBag.FindRepossess(h, body);
+            h.OnCleanup(() =>
+            {
+                if (bag && bag.bagFull)
+                {
+                    bag.ResetBaggedObject();
+                }
+            });
+
+            List<string> grabbed = new List<string>();
+            List<string> skipped = new List<string>();
+            foreach (string kind in DrifterBag.Kinds)
+            {
+                SpecialObjectAttributes target = null;
+                yield return DrifterBag.Spawn(h, kind, found => target = found);
+                if (!target)
+                {
+                    skipped.Add($"{kind}: nothing the bag takes spawned");
+                    continue;
+                }
+                SpecialObjectAttributes spawned = target;
+                h.OnCleanup(() => DrifterBag.Discard(spawned));
+
+                string problem = null;
+                yield return DrifterBag.Grab(h, repossess, bag, target, reason => problem = reason);
+                if (problem != null)
+                {
+                    skipped.Add($"{kind}: {problem}");
+                    yield return DrifterBag.Empty(h, repossess, bag);
+                    DrifterBag.Discard(target);
+                    continue;
+                }
+                h.Log($"bagged {kind} (\"{target.bestName}\")");
+                int combos = System.Array.IndexOf(AllLayoutKinds, kind) >= 0 ? LayoutCombos.Length : 1;
+                for (int i = 0; i < combos; i++)
+                {
+                    yield return SetLayout(h, LayoutCombos[i]);
+                    // Shot first, so a failing check still leaves the pictures to compare.
+                    yield return h.CaptureLooks($"{kind}_{LayoutCombos[i].Label}");
+                    yield return h.ExpectBagDisplayMatchesGame();
+                }
+                yield return SetLayout(h, LayoutCombos[0]);
+                grabbed.Add(kind);
+                yield return DrifterBag.Empty(h, repossess, bag);
+                DrifterBag.Discard(target);
+            }
+            foreach (string reason in skipped)
+            {
+                h.Log($"skipped {reason}");
+            }
+            if (grabbed.Count == 0)
+            {
+                throw h.Fail($"Drifter grabbed none of the {DrifterBag.Kinds.Length} kinds: {string.Join("; ", skipped)} {h.Diagnosis()}");
+            }
+        }
+
+        // Drifter slams what she carries with her primary until it breaks, each step shot in both looks: a Small Chest
+        // from full durability, after the first slam, at the low durability where the game draws its low-health marks on
+        // the bar, and as it breaks and empties the bag; then a Lemurian, hurt to low health before she bags it, slammed
+        // until it dies. The bag display's bar must follow each, with the low-health marks on only at low durability (a
+        // body's marks come only from the viewer's low-health items, so the Lemurian's stay off), and the display must go
+        // once the bag is empty. Skipped without Drifter's expansion.
+        private static IEnumerator DrifterBagSlams(Harness h)
+        {
+            yield return TurnInto(h, GameNames.Drifter);
+            CharacterBody body = Harness.LocalBody;
+            DrifterBagController bag = body.GetComponent<DrifterBagController>();
+            if (!bag) throw h.Fail("the Drifter has no DrifterBagController");
+            GenericSkill repossess = DrifterBag.FindRepossess(h, body);
+            h.OnCleanup(() =>
+            {
+                if (bag && bag.bagFull)
+                {
+                    bag.ResetBaggedObject();
+                }
+            });
+
+            SpecialObjectAttributes chest = null;
+            yield return DrifterBag.Spawn(h, GameNames.SmallChest, found => chest = found);
+            if (!chest) throw h.Fail($"no {GameNames.SmallChest} spawned for the bag {h.Diagnosis()}");
+            SpecialObjectAttributes spawned = chest;
+            h.OnCleanup(() => DrifterBag.Discard(spawned));
+            string problem = null;
+            yield return DrifterBag.Grab(h, repossess, bag, chest, reason => problem = reason);
+            if (problem != null) throw h.Fail($"Drifter couldn't bag the {GameNames.SmallChest}: {problem} {h.Diagnosis()}");
+            int full = chest.maxDurability;
+            h.Log($"bagged the {GameNames.SmallChest} at {chest.durability}/{full} durability");
             yield return h.AimAway();
-            yield return h.CaptureLooks();
+            yield return DrifterBag.ExpectBar(h, chest, null, full <= DrifterBag.LowDurability, "chest at full durability");
+            yield return h.CaptureLooks("chest_full");
+
+            yield return DrifterBag.Slam(h, body, () => chest.durability < full, "the chest's first slam");
+            yield return DrifterBag.ExpectBar(h, chest, null, chest.durability <= DrifterBag.LowDurability, "chest after one slam");
+            yield return h.CaptureLooks("chest_hit");
+
+            yield return DrifterBag.Slam(h, body, () => chest.durability <= DrifterBag.LowDurability, "the chest's low durability");
+            yield return DrifterBag.ExpectBar(h, chest, null, true, "chest at low durability");
+            yield return h.CaptureLooks("chest_low");
+
+            yield return DrifterBag.Slam(h, body, () => !bag.bagFull, "the chest breaking");
+            // Shot first, so a display left behind is in the picture.
+            yield return h.CaptureLooks("chest_broken");
+            yield return DrifterBag.ExpectCardGone(h, "chest broken");
+
+            // The stage's own monsters would be grabbed in its place if nearer her aim, so they are stopped and cleared.
+            h.Cmd($"{NoEnemies} 1");
+            h.OnCleanup(() => h.Cmd($"{NoEnemies} 0"));
+            h.Cmd(Commands.KillAll);
+            yield return h.Wait(ClearSeconds);
+            CharacterBody monster = null;
+            yield return h.Spawned<CharacterBody>($"{Commands.SpawnAi} {GameNames.ExecutableMonster} 1", found => monster = found);
+            h.OnCleanup(() =>
+            {
+                if (monster && monster.healthComponent && monster.healthComponent.alive)
+                {
+                    monster.healthComponent.Suicide();
+                }
+            });
+            // A new body gets its inventory from its master a moment after it appears.
+            yield return h.Until(() => monster && monster.inventory, "the Lemurian's inventory");
+            // It climbs out of the ground first, which Repossess can't grab, then would wander off out of her aim.
+            EntityStateMachine monsterBody = EntityStateMachine.FindByCustomName(monster.gameObject, BodyStateMachine);
+            yield return h.Until(() => !monster || !monsterBody || monsterBody.IsInMainState(), "the Lemurian out of the ground",
+                SpawnTimeout);
+            foreach (RoR2.CharacterAI.BaseAI ai in monster.master.GetComponents<RoR2.CharacterAI.BaseAI>())
+            {
+                ai.enabled = false;
+            }
+            // Server state; the runner is the host. Low, so a slam or two kills it before it can break out.
+            monster.healthComponent.Networkhealth = monster.healthComponent.fullHealth * MonsterHealthFraction;
+            string monsterName = Util.GetBestBodyName(monster.gameObject);
+            yield return DrifterBag.Grab(h, repossess, bag, monster.gameObject, monster.corePosition, monsterName, reason => problem = reason);
+            if (problem != null)
+            {
+                // What's checked is the display and the slams, not the grab, so a missed grab is put right by hand.
+                h.Log($"Repossess didn't take the Lemurian ({problem}); putting it in the bag as the skill would");
+                if (bag.bagFull)
+                {
+                    bag.ResetBaggedObject();
+                }
+                yield return DrifterBag.Put(h, body, bag, monster.gameObject, monsterName);
+            }
+            yield return h.AimAway();
+            yield return DrifterBag.ExpectBar(h, null, monster, false, "Lemurian at low health");
+            yield return h.CaptureLooks("monster_low");
+
+            yield return DrifterBag.Slam(h, body, () => !monster || !monster.healthComponent.alive || !bag.bagFull, "the Lemurian dying");
+            if (monster && monster.healthComponent.alive) throw h.Fail($"the Lemurian broke out of the bag alive {h.Diagnosis()}");
+            yield return h.CaptureLooks("monster_killed");
+            yield return DrifterBag.ExpectCardGone(h, "Lemurian killed");
         }
 
         // A server method; the runner is the host.

@@ -700,9 +700,13 @@ namespace SevenUI.Tests
                       $"wakes to language font={(name as HGTextMeshProUGUI)?.useLanguageDefaultFont}) {h.Diagnosis()}");
         }
 
-        private static List<ItemIcon> BarItemIcons(Harness h) =>
-            HudRoot(h).GetComponentsInChildren<ItemInventoryDisplay>(true).Take(1)
-                .SelectMany(display => display.GetComponentsInChildren<ItemIcon>(false)).ToList();
+        // The item bar in the HUD's top center, not whichever inventory display the HUD holds first.
+        private static List<ItemIcon> BarItemIcons(Harness h)
+        {
+            Transform topCenter = HudRoot(h).Find(HudPaths.TopCenterCluster);
+            ItemInventoryDisplay bar = topCenter ? topCenter.GetComponentInChildren<ItemInventoryDisplay>(true) : null;
+            return bar ? bar.GetComponentsInChildren<ItemIcon>(false).ToList() : new List<ItemIcon>();
+        }
 
         private static string ItemsLook(List<ItemIcon> icons) =>
             icons.Count == 0
@@ -1250,15 +1254,17 @@ namespace SevenUI.Tests
             }
         }
 
-        public static IEnumerator CaptureLooks(this Harness h)
+        // The label, when given, goes before each look's name, for a scenario that shoots several things.
+        public static IEnumerator CaptureLooks(this Harness h, string label = null)
         {
-            yield return h.Screenshot("sevenui");
+            string prefix = label != null ? label + "." : "";
+            yield return h.Screenshot(prefix + "sevenui");
             PluginConfig settings = SevenUIPlugin.Settings;
             h.SetConfig(settings.FlatPanels, false);
             h.SetConfig(settings.BarlowFont, false);
             h.SetConfig(settings.MonospaceDamageNumbers, false);
             yield return h.Wait(LookSwitchSeconds);
-            yield return h.Screenshot("vanilla");
+            yield return h.Screenshot(prefix + "vanilla");
             h.SetConfig(settings.FlatPanels, true);
             h.SetConfig(settings.BarlowFont, true);
             h.SetConfig(settings.MonospaceDamageNumbers, true);
