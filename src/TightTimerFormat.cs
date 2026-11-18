@@ -14,6 +14,8 @@ namespace SevenUI
         // Barlow Condensed's widest digit, 4, is 0.459 em.
         private const string DigitSpacing = "<mspace=0.46em>";
         private const string DigitSpacingEnd = "</mspace>";
+        private const double SecondsPerMinute = 60.0;
+        private const uint MinuteDigits = 4;
         private const string NameSuffix = " (SevenUI)";
         private static readonly Regex SpacingTags = new Regex("</?mspace[^>]*>");
 
@@ -21,7 +23,39 @@ namespace SevenUI
             new Dictionary<TimerStringFormatter, TimerStringFormatter>();
         private static readonly HashSet<TimerStringFormatter> Made = new HashSet<TimerStringFormatter>();
 
+        private static TimerStringFormatter minutesSeconds;
+
         public static bool IsTight(TimerStringFormatter format) => format && Made.Contains(format);
+
+        // "02:05" for 125 seconds, always two digits of minutes, as the countdown panels show it: the tight copy of a
+        // format of the mod's own, since the game's countdown formats are each prefab's and may not pad the minutes.
+        public static TimerStringFormatter MinutesSeconds()
+        {
+            if (minutesSeconds) return minutesSeconds;
+            TimerStringFormatter source = ScriptableObject.CreateInstance<TimerStringFormatter>();
+            source.name = "SevenUI mm:ss";
+            source.hideFlags = HideFlags.HideAndDontSave;
+            source.format = new TimerStringFormatter.Format
+            {
+                prefix = "",
+                suffix = "",
+                units = new[]
+                {
+                    new TimerStringFormatter.Format.Unit
+                    {
+                        name = "minutes", conversionRate = SecondsPerMinute, minDigits = 2, maxDigits = MinuteDigits,
+                        prefix = "", suffix = "",
+                    },
+                    new TimerStringFormatter.Format.Unit
+                    {
+                        name = "seconds", conversionRate = 1.0, minDigits = 2, maxDigits = 2, prefix = ":", suffix = "",
+                    },
+                },
+            };
+            minutesSeconds = Of(source);
+            minutesSeconds.hideFlags = HideFlags.HideAndDontSave;
+            return minutesSeconds;
+        }
 
         public static TimerStringFormatter Of(TimerStringFormatter original)
         {
