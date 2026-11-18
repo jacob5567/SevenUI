@@ -20,6 +20,8 @@ namespace SevenUI.Tests
         // Long enough for the game to add or remove a card and the mod to lay it out.
         private const float SettleSeconds = 0.5f;
         private const float DeathStyleSeconds = 0.1f;
+        // The game destroys a dead drone's master a second after its death; well past that.
+        private const float WatchTimeout = 5f;
         private const int MaxLoneAllies = 20;
         private const int KindSize = 5;
 
@@ -31,6 +33,8 @@ namespace SevenUI.Tests
             yield return new Scenario(1, "ally_portraits_kind_lead_removed", Stages.TitanicPlains, KindLeadRemoved);
             yield return new Scenario(1, "ally_portraits_kind_dead_member", Stages.TitanicPlains, KindDeadMember);
             yield return new Scenario(1, "ally_portraits_other_kind_dies", Stages.TitanicPlains, OtherKindDies);
+            yield return new Scenario(1, "ally_portraits_kind_member_dies", Stages.TitanicPlains, KindMemberDies);
+            yield return new Scenario(1, "ally_portraits_drone_scrapped", Stages.TitanicPlains, DroneScrapped);
             yield return new Scenario(1, "ally_portraits_group_toggle", Stages.TitanicPlains, GroupToggle);
             yield return new Scenario(1, "ally_portraits_compact_toggle", Stages.TitanicPlains, CompactToggle);
             yield return new Scenario(1, "ally_portraits_flat_panels_toggle", Stages.TitanicPlains, FlatPanelsToggle);
@@ -205,6 +209,65 @@ namespace SevenUI.Tests
                 CheckSharedCard(h, kind, "while the cards are handed on");
             }
             CheckSharedCard(h, kind, "after the cards settled");
+        }
+
+        // Three Gunner Drones share a card and the last, not the one whose card is shared, dies: its own hidden card shows
+        // the game's dead mark until its master goes, and the shared card must never show it, checked every frame from
+        // the death until the cards have settled after the master is destroyed.
+        private static IEnumerator KindMemberDies(Harness h)
+        {
+            const int Drones = 3;
+            List<CharacterMaster> kind = new List<CharacterMaster>();
+            yield return Allies.SummonDrones(h, Allies.GunnerDroneMaster, Drones, kind);
+            yield return h.Wait(SettleSeconds);
+            CheckSharedCard(h, kind, "before a member's death");
+            CharacterMaster member = kind[Drones - 1];
+            member.GetBody().healthComponent.Suicide();
+            yield return WatchSharedCard(h, kind, () => !member, "while the dead member lingers");
+            yield return h.Screenshot("member_died");
+            yield return WatchSharedCard(h, kind, null, "while the cards are handed on");
+            CheckSharedCard(h, kind, "after the cards settled");
+        }
+
+        // Scrapping, as a player does at a Drone Scrapper, destroys a drone at once with no death. A Healing Drone on its
+        // own card above two Gunner Drones sharing one is scrapped, so its card goes and the cards below are handed on;
+        // then, with a third Gunner Drone, the kind's lead is scrapped, so the shared card passes to another member. The
+        // shared card must never show the dead mark and must count the living, checked every frame after each scrap.
+        private static IEnumerator DroneScrapped(Harness h)
+        {
+            List<CharacterMaster> other = new List<CharacterMaster>();
+            List<CharacterMaster> kind = new List<CharacterMaster>();
+            yield return Allies.SummonDrones(h, Allies.HealingDroneMaster, 1, other);
+            yield return Allies.SummonDrones(h, Allies.GunnerDroneMaster, 2, kind);
+            yield return h.Wait(SettleSeconds);
+            CheckSharedCard(h, kind, "before the Healing Drone is scrapped");
+            yield return DroneScrapping.Scrap(h, other[0]);
+            yield return WatchSharedCard(h, kind, () => !other[0], "while the Healing Drone is scrapped");
+            yield return WatchSharedCard(h, kind, null, "while the cards are handed on after the Healing Drone's scrap");
+
+            yield return Allies.SummonDrones(h, Allies.GunnerDroneMaster, 1, kind);
+            yield return h.Wait(SettleSeconds);
+            CheckSharedCard(h, kind, "with a third Gunner Drone");
+            CharacterMaster lead = AllyCardChecks.Cards(h).Where(card => card.gameObject.activeSelf && kind.Contains(card.sourceMaster))
+                .Select(card => card.sourceMaster).FirstOrDefault();
+            if (!lead) throw h.Fail($"no shown card for the Gunner Drones {h.Diagnosis()}");
+            yield return DroneScrapping.Scrap(h, lead);
+            yield return WatchSharedCard(h, kind, () => !lead, "while the kind's lead is scrapped");
+            yield return h.Screenshot("lead_scrapped");
+            yield return WatchSharedCard(h, kind, null, "while the cards are handed on after the lead's scrap");
+            CheckSharedCard(h, kind, "after the cards settled");
+        }
+
+        // Checks the kind's shared card every frame until done holds, or for SettleSeconds without one.
+        private static IEnumerator WatchSharedCard(Harness h, List<CharacterMaster> kind, System.Func<bool> done, string when)
+        {
+            float until = Time.time + (done == null ? SettleSeconds : WatchTimeout);
+            while (Time.time < until && (done == null || !done()))
+            {
+                yield return null;
+                CheckSharedCard(h, kind, when);
+            }
+            if (done != null && !done()) throw h.Fail($"{when}: not done after {WatchTimeout:0} s {h.Diagnosis()}");
         }
 
         // The card of the kind's living allies shows no dead mark and counts them; the dead drone's card is hidden.
