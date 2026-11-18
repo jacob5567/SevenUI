@@ -36,7 +36,10 @@ namespace SevenUI.Tests
             });
             Interactor interactor = Harness.LocalBody.GetComponent<Interactor>();
             EntityStateMachine machine = station.GetComponent<EntityStateMachine>();
-            h.Log($"combiner {station.GetInteractability(interactor)} for the player, in {machine?.state?.GetType().Name}");
+            // Its state machine starts in its first frame; an interaction before that is lost to the initial state.
+            yield return h.Until(() => machine && machine.state != null && !(machine.state is EntityStates.Uninitialized),
+                "the combiner's first state");
+            h.Log($"combiner {station.GetInteractability(interactor)} for the player, in {machine.state.GetType().Name}");
             station.OnInteractionBegin(interactor);
             yield return null;
             h.Log($"combiner after the interaction: {machine?.state?.GetType().Name}");
