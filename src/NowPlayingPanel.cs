@@ -179,6 +179,13 @@ namespace SevenUI
         private static TMP_Text NewLine(string name, Transform parent, TMP_Text like, float size, Color color)
         {
             TMP_Text text = UiFactory.NewText(name, parent, like, size, color);
+            // In the game's font even when the text it is made like is already in Barlow, so turning Barlow off puts
+            // this one back in the game's font too.
+            if (HudFontSwapper.GameFont && text.font != HudFontSwapper.GameFont)
+            {
+                text.font = HudFontSwapper.GameFont;
+                text.fontSharedMaterial = HudFontSwapper.GameMaterial ? HudFontSwapper.GameMaterial : HudFontSwapper.GameFont.material;
+            }
             text.enableWordWrapping = false;
             text.overflowMode = TextOverflowModes.Ellipsis;
             text.alignment = TextAlignmentOptions.MidlineLeft;
