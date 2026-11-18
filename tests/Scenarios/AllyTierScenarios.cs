@@ -1,7 +1,11 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using ModTestRunner;
 using RoR2;
+using RoR2.UI;
+using TMPro;
+using UnityEngine.UI;
 
 namespace SevenUI.Tests
 {
@@ -15,6 +19,7 @@ namespace SevenUI.Tests
         public static IEnumerable<Scenario> All()
         {
             yield return new Scenario(1, "ally_tiers_split_kind", Stages.TitanicPlains, SplitKind);
+            yield return new Scenario(1, "ally_tiers_combined_then_new", Stages.TitanicPlains, CombinedThenNew);
         }
 
         // Two Gunner Drones share one card; one is given a drone upgrade, which must split them into two cards, and the
@@ -40,5 +45,85 @@ namespace SevenUI.Tests
             if (split.Problem != null) throw h.Fail($"cards wrong with two tiers: {split.Problem}");
             if (merged != together) throw h.Fail($"the kinds should merge again: {together} before, {merged} after");
         }
+
+        // The ticket's case, through the game's own Drone Combiner: two Gunner Drones are combined into one of tier 2,
+        // then new tier 1 Gunner Drones join, one and then a second; the two tier 1s are combined into a second tier 2,
+        // which must share the first's card, and the two tier 2s into a tier 3. After each step every tier present has
+        // exactly one card, counting that tier's drones, and while a combine runs no card of theirs shows the dead mark.
+        private static IEnumerator CombinedThenNew(Harness h)
+        {
+            List<CharacterMaster> drones = new List<CharacterMaster>();
+            System.Action noDeadMark = () => CheckNoDeadMark(h, drones, "while combining");
+            yield return Allies.SummonDrones(h, Allies.GunnerDroneMaster, 2, drones);
+            yield return Settled(h, drones, "two tier 1");
+            yield return DroneCombining.Combine(h, drones, noDeadMark);
+            yield return Settled(h, drones, "one tier 2");
+            yield return Allies.SummonDrones(h, Allies.GunnerDroneMaster, 1, drones);
+            yield return Settled(h, drones, "tier 2 and a new tier 1", "new_tier_one");
+            yield return Allies.SummonDrones(h, Allies.GunnerDroneMaster, 1, drones);
+            yield return Settled(h, drones, "tier 2 and two tier 1", "two_tier_one");
+            yield return DroneCombining.Combine(h, drones, noDeadMark);
+            yield return Settled(h, drones, "two tier 2", "two_tier_two");
+            yield return DroneCombining.Combine(h, drones, noDeadMark);
+            yield return Settled(h, drones, "one tier 3", "tier_three");
+        }
+
+        private static IEnumerator Settled(Harness h, List<CharacterMaster> drones, string when, string screenshot = null)
+        {
+            yield return h.Wait(SettleSeconds);
+            if (screenshot != null)
+            {
+                yield return h.Screenshot(screenshot);
+            }
+            CheckTiers(h, drones, when);
+        }
+
+        // One shown card per tier among the living drones, reading "×N" for N of that tier (nothing for one), with no dead
+        // mark, and the stack's layout as the checks work it out.
+        private static void CheckTiers(Harness h, List<CharacterMaster> drones, string when)
+        {
+            List<CharacterMaster> living = drones.Where(Alive).ToList();
+            List<AllyCardController> shown = Shown(h, drones);
+            List<string> seen = new List<string>();
+            foreach (IGrouping<int, CharacterMaster> tier in living.GroupBy(DroneCombining.Tier).OrderBy(group => group.Key))
+            {
+                List<AllyCardController> cards = shown.Where(card => DroneCombining.Tier(card.sourceMaster) == tier.Key).ToList();
+                if (cards.Count != 1)
+                {
+                    throw h.Fail($"{when}: {cards.Count} cards for the {tier.Count()} tier {tier.Key + 1} drones, not 1 {h.Diagnosis()}");
+                }
+                TMP_Text count = cards[0].nameLabel ? cards[0].nameLabel.transform.Find(AllyKindParts.CountName)?.GetComponent<TMP_Text>() : null;
+                string text = count && count.gameObject.activeInHierarchy ? count.text : null;
+                string expected = tier.Count() > 1 ? "×" + tier.Count() : null;
+                if (text != expected)
+                {
+                    throw h.Fail($"{when}: the tier {tier.Key + 1} card \"{cards[0].nameLabel.text}\" reads '{text}', not '{expected}' {h.Diagnosis()}");
+                }
+                seen.Add($"{cards[0].nameLabel.text} {text}".Trim());
+            }
+            if (shown.Count != seen.Count) throw h.Fail($"{when}: {shown.Count} cards for {seen.Count} tiers {h.Diagnosis()}");
+            CheckNoDeadMark(h, drones, when);
+            AllyCardChecks.Layout layout = AllyCardChecks.Measure(h);
+            if (layout.Problem != null) throw h.Fail($"{when}: {layout.Problem}");
+            h.Log($"[ally_tiers] {when}: {string.Join(" | ", seen)}");
+        }
+
+        private static void CheckNoDeadMark(Harness h, List<CharacterMaster> drones, string when)
+        {
+            foreach (AllyCardController card in Shown(h, drones))
+            {
+                Image dead = card.healthBar ? card.healthBar.deadImage : null;
+                if (dead && dead.enabled && dead.gameObject.activeInHierarchy && Alive(card.sourceMaster))
+                {
+                    throw h.Fail($"{when}: {card.nameLabel.text}'s card shows the dead mark over a living drone");
+                }
+            }
+        }
+
+        private static List<AllyCardController> Shown(Harness h, List<CharacterMaster> drones) =>
+            AllyCardChecks.Cards(h).Where(card => card.gameObject.activeSelf && card.sourceMaster && drones.Contains(card.sourceMaster)).ToList();
+
+        private static bool Alive(CharacterMaster master) =>
+            master && master.GetBody() && master.GetBody().healthComponent.alive;
     }
 }
