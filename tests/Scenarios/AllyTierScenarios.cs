@@ -35,6 +35,7 @@ namespace SevenUI.Tests
             Inventory inventory = drones[0].GetBody().inventory;
             inventory.GiveItemPermanent(DLC3Content.Items.DroneUpgradeHidden, 1);
             yield return h.Wait(SettleSeconds);
+            yield return h.Screenshot("upgraded");
             AllyCardChecks.Layout split = AllyCardChecks.Measure(h);
             inventory.RemoveItemPermanent(DLC3Content.Items.DroneUpgradeHidden, 1);
             yield return h.Wait(SettleSeconds);

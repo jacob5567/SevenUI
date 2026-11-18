@@ -266,6 +266,8 @@ namespace SevenUI.Tests
             if (!icon) throw h.Fail("no item in the viewer's row of the scoreboard");
             yield return h.Wait(SettleSeconds);
             PointAt(h, icon.rectTransform, "an item in the scoreboard");
+            yield return h.Wait(SettleSeconds);
+            yield return h.Screenshot("alone");
             yield return h.ExpectItemPane(icon);
             ScoreboardItemsBoard board = icon.GetComponentInParent<ScoreboardItemsBoard>();
             yield return h.Until(() => board && board.Pane.Shown && board.Pane.HolderCount == 0,

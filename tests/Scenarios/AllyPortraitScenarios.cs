@@ -26,6 +26,8 @@ namespace SevenUI.Tests
         private const int MaxLoneAllies = 20;
         private const int KindSize = 5;
         private const int StandInPlayers = 2;
+        // The share of an ally's health given to it as barrier.
+        private const float BarrierShare = 0.5f;
         private const int DronesPerStandIn = 2;
 
         public static IEnumerable<Scenario> All()
@@ -39,6 +41,7 @@ namespace SevenUI.Tests
             yield return new Scenario(1, "ally_portraits_kind_member_dies", Stages.TitanicPlains, KindMemberDies);
             yield return new Scenario(1, "ally_portraits_drone_scrapped", Stages.TitanicPlains, DroneScrapped);
             yield return new Scenario(1, "ally_portraits_players_stay_full", Stages.TitanicPlains, PlayersStayFull);
+            yield return new Scenario(1, "ally_portraits_compact_barrier", Stages.TitanicPlains, CompactBarrier);
             yield return new Scenario(1, "ally_portraits_group_toggle", Stages.TitanicPlains, GroupToggle);
             yield return new Scenario(1, "ally_portraits_compact_toggle", Stages.TitanicPlains, CompactToggle);
             yield return new Scenario(1, "ally_portraits_flat_panels_toggle", Stages.TitanicPlains, FlatPanelsToggle);
@@ -178,8 +181,10 @@ namespace SevenUI.Tests
             yield return h.Until(() => !kind[0].GetBody() || !kind[0].GetBody().healthComponent.alive, "the first drone's death");
             // A moment for the cards to be styled, before the dead drone's body goes.
             yield return h.Wait(DeathStyleSeconds);
+            yield return h.Screenshot("right_after_death");
             CheckSharedCard(h, kind, "right after the death");
             yield return h.Wait(SettleSeconds);
+            yield return h.Screenshot("death_settled");
             CheckSharedCard(h, kind, "after the death settled");
             Allies.Remove(other);
             other.Clear();
@@ -316,6 +321,22 @@ namespace SevenUI.Tests
             h.Log($"[ally_portraits] {when}: shared card of {living.Count} living, {(count ? count.text : "no count")}");
         }
 
+        // Lone allies until the cards turn compact, then each shown ally given a barrier of half its health: a screenshot
+        // of the compact rows' barriers (the style check is in AllyCardChecks, as a barrier decays too fast to measure).
+        private static IEnumerator CompactBarrier(Harness h)
+        {
+            Trace trace = new Trace(h);
+            List<CharacterMaster> allies = new List<CharacterMaster>();
+            yield return GrowUntil(h, trace, allies, () => AnyCompact(h), "compact");
+            foreach (CharacterMaster ally in allies)
+            {
+                HealthComponent health = ally && ally.GetBody() ? ally.GetBody().healthComponent : null;
+                if (health) health.AddBarrier(health.fullCombinedHealth * BarrierShare);
+            }
+            yield return h.Wait(DeathStyleSeconds);
+            yield return h.Screenshot("barriers");
+        }
+
         // Two stand-in players, each with drones of their own, and enough lone allies of the viewer's for compact cards and
         // the more row: every player's card must stay full size, shown and above the chat, in the game's player order, with
         // the player's own allies and more row between that card and the next section's, and the viewer's own allies
@@ -335,9 +356,10 @@ namespace SevenUI.Tests
             // indented under its drone's card as the game indents any minion whose leader has a card.
             yield return Allies.SummonDrones(h, Allies.HealingDroneMaster, 1, drones, drones[0].GetBody());
             List<CharacterMaster> allies = new List<CharacterMaster>();
-            yield return trace.Step("players with drones");
+            yield return trace.Step("players with drones", true);
             CheckPlayers(h, players, "players with drones");
             yield return GrowUntil(h, trace, allies, () => AnyCompact(h), "compact");
+            yield return trace.Step("compact", true);
             CheckPlayers(h, players, "compact");
             yield return GrowUntil(h, trace, allies, () => MoreShown(h), "more row");
             yield return trace.Step("more row", true);
