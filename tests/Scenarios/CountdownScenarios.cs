@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using ModTestRunner;
 using RoR2;
 using RoR2.UI;
@@ -121,7 +122,7 @@ namespace SevenUI.Tests
                 }
 
                 // The time as mm:ss, and following the timer.
-                yield return h.Until(() => panel.Time.text == FullText, () => $"{name}: '{FullText}' (shows '{panel.Time.text}')", StyleTimeout);
+                yield return h.Until(() => Shown(panel) == FullText, () => $"{name}: '{FullText}' (shows '{Shown(panel)}')", StyleTimeout);
                 if (panel.Time.preferredWidth > panel.Root.rect.width) throw h.Fail($"{name}: the time is wider than the panel");
                 if (panel.Time.font.name.IndexOf("Condensed", StringComparison.OrdinalIgnoreCase) < 0)
                 {
@@ -134,7 +135,7 @@ namespace SevenUI.Tests
                 // The bar drains with the time left.
                 double total = panel.Total;
                 timer.seconds = HalfSeconds;
-                yield return h.Until(() => panel.Time.text == "01:00", () => $"{name}: '01:00' (shows '{panel.Time.text}')", StyleTimeout);
+                yield return h.Until(() => Shown(panel) == "01:00", () => $"{name}: '01:00' (shows '{Shown(panel)}')", StyleTimeout);
                 float share = (float)(HalfSeconds / total);
                 if (Mathf.Abs(panel.Fill.anchorMax.x - Mathf.Clamp01(share)) > Tolerance || panel.FillImage.color == Palette.LowHealth)
                 {
@@ -143,7 +144,7 @@ namespace SevenUI.Tests
 
                 // Red under ten seconds, and still readable on a trial's warning.
                 timer.seconds = LowSeconds;
-                yield return h.Until(() => panel.Time.text == LowText, () => $"{name}: '{LowText}' (shows '{panel.Time.text}')", StyleTimeout);
+                yield return h.Until(() => Shown(panel) == LowText, () => $"{name}: '{LowText}' (shows '{Shown(panel)}')", StyleTimeout);
                 if (!SevenUIChecks.Near(panel.FillImage.color, Palette.LowHealth)) throw h.Fail($"{name}: the bar is not red under 10 s");
                 Color shown = panel.Time.color;
                 if (!trial && !SevenUIChecks.Near(shown, Palette.LowHealth)) throw h.Fail($"{name}: the time is not red under 10 s ({shown})");
@@ -162,7 +163,7 @@ namespace SevenUI.Tests
                 if (!timer.targetLabel.enabled) throw h.Fail($"{name}: the game's time text is still hidden");
                 yield return h.Screenshot($"{name}_off");
                 h.SetConfig(SevenUIPlugin.Settings.FlatPanels, true);
-                yield return h.Until(() => (panel = Find(h, root)) != null && panel.Time.text == LowText, $"{name}: restyled with FlatPanels on", StyleTimeout);
+                yield return h.Until(() => (panel = Find(h, root)) != null && Shown(panel) == LowText, $"{name}: restyled with FlatPanels on", StyleTimeout);
 
                 // Destroyed with the game's panel, it leaves nothing.
                 Object.Destroy(instance);
@@ -231,5 +232,11 @@ namespace SevenUI.Tests
                 if (Overlap(box, In(canvas, rect))) throw h.Fail($"{name}: the panel overlaps the {what}");
             }
         }
+    
+
+        // The time as read, without the tags that give each digit the same width.
+        private static readonly Regex Tags = new Regex("<[^>]*>");
+
+        private static string Shown(CountdownPanel panel) => Tags.Replace(panel.Time.text, "");
     }
 }
