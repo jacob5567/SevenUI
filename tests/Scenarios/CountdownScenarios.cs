@@ -159,7 +159,8 @@ namespace SevenUI.Tests
                 h.SetConfig(SevenUIPlugin.Settings.FlatPanels, false);
                 yield return h.Until(() => !root.Find(CountdownPanel.HolderName), $"{name}: the mod's panel removed with FlatPanels off", StyleTimeout);
                 if (timer.format == styledFormat || TightTimerFormat.IsTight(timer.format)) throw h.Fail($"{name}: the timer's format was not restored");
-                if (root.GetComponent<LayoutIgnorer>()) throw h.Fail($"{name}: the panel is still taken out of its layout");
+                // The recorder destroys added components at the frame's end.
+                yield return h.Until(() => !root.GetComponent<LayoutIgnorer>(), $"{name}: the panel taken back into its layout", StyleTimeout);
                 if (!timer.targetLabel.enabled) throw h.Fail($"{name}: the game's time text is still hidden");
                 yield return h.Screenshot($"{name}_off");
                 h.SetConfig(SevenUIPlugin.Settings.FlatPanels, true);
