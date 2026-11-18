@@ -55,16 +55,11 @@ Do: `PromptsStyler` passes `RunInfoPanel()` to `PromptPanel` once, at constructi
 **A6. Settle the two calls against the read-only principle** (finding 2.8)
 Do: Decompile `EquipmentState.GetEquipmentDisabled` (or wherever it is defined) and confirm it is a pure read. If it is, add a comment saying so at `src/EquipmentDeck.cs:165`. If it isn't, re-implement the check from synced fields. At `src/ScoreboardStyler.cs:404-411`, add a comment explaining why calling `UpdateDisplay()` and `LayoutAllIcons()` is an allowed exception: they touch only local UI, with no run state and no network.
 
-**A7. Drop the per-frame ally card unindent if it is redundant** (AUDIT section 1)
-Do: `f2cbe07` sets `AllyCardManager.indentWidth` to 0, and `3dbd56e` added a per-frame `Unindent` and its dictionary to `src/AllyCardsStyler.cs` (around line 247). There is one manager per HUD, so the first is likely enough. Confirm from the decompiled `AllyCardManager.SetLayoutHorizontal` that `indentWidth` is the only source of the indent, and that the game does not reset it. If so, remove `Unindent` and its state.
-Do this one only after Jacob agrees, because it removes a fix that is known to work.
-
 **Checkpoint A:**
 - Install with a plain `dotnet build -c Release`.
 - Run `mod_test --mod SevenUI`.
 - Start a run with Karma on.
 - Toggle `MonospaceDamageNumbers` in the main menu.
-- If A7 was done, look at the ally screenshots.
 
 ## Phase B: structure
 
