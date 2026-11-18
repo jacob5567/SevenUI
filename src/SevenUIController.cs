@@ -40,6 +40,8 @@ namespace SevenUI
         private SkillSlotsStyler skillSlots;
         private PickerStyler pickers;
         private CountdownStyler countdowns;
+        // Restored when the HUD goes: the text it hides is MusicDisplay's, which outlives the HUD.
+        private MusicDisplayStyler music;
         // Not in the list: it runs whether or not FlatPanels is on (it restyles only the font then), and has nothing to
         // restore, as the game makes each tooltip new.
         private TooltipStyler tooltips;
@@ -72,7 +74,7 @@ namespace SevenUI
             tooltips = new TooltipStyler(hud, root);
             // The pause menu is its own canvas, outside the HUD, made each time it opens.
             pause = new PauseScreenStyler(hud, root);
-            MusicDisplayStyler music = new MusicDisplayStyler(nowPlaying);
+            music = new MusicDisplayStyler(nowPlaying);
             NowPlayingPanel nowPlayingPanel = new NowPlayingPanel(root, nowPlaying);
             TopBarsWidth topBars = new TopBarsWidth(root);
             HudMargins margins = new HudMargins(hud, root, skillSlots);
@@ -215,6 +217,8 @@ namespace SevenUI
             {
                 setting.SettingChanged -= OnSettingChanged;
             }
+            // Everything else restyled lies under the HUD and goes with it.
+            music?.Restore();
         }
     }
 }
