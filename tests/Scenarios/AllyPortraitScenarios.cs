@@ -267,9 +267,29 @@ namespace SevenUI.Tests
             while (Time.time < until && (done == null || !done()))
             {
                 yield return EndOfFrame;
+                // The frame a drone is destroyed, its card still names it until the game hands the cards on in the next
+                // Update; only the dead mark can be checked then.
+                if (AllyCardChecks.Cards(h).Any(card => card.gameObject.activeSelf && (object)card.sourceMaster != null && !card.sourceMaster))
+                {
+                    CheckNoDeadMark(h, when);
+                    continue;
+                }
                 CheckSharedCard(h, kind, when);
             }
             if (done != null && !done()) throw h.Fail($"{when}: not done after {WatchTimeout:0} s {h.Diagnosis()}");
+        }
+
+        private static void CheckNoDeadMark(Harness h, string when)
+        {
+            foreach (AllyCardController card in AllyCardChecks.Cards(h).Where(card => card.gameObject.activeSelf))
+            {
+                Image dead = card.healthBar ? card.healthBar.deadImage : null;
+                Transform count = card.nameLabel ? card.nameLabel.transform.Find(AllyKindParts.CountName) : null;
+                if (dead && dead.enabled && dead.gameObject.activeInHierarchy && count && count.gameObject.activeInHierarchy)
+                {
+                    throw h.Fail($"{when}: the shared card {card.nameLabel.text} shows the dead mark");
+                }
+            }
         }
 
         // The card of the kind's living allies shows no dead mark and counts them; the dead drone's card is hidden.
