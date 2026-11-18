@@ -11,11 +11,18 @@ namespace SevenUI
     {
         private const string NameSuffix = " (SevenUI)";
 
+        private const string CompactNameSuffix = " (compact)";
+
         private const string LowNameSuffix = " (SevenUI, low health)";
 
         private static readonly Dictionary<HealthBarStyle, HealthBarStyle> Copies =
             new Dictionary<HealthBarStyle, HealthBarStyle>();
         private static readonly Dictionary<HealthBarStyle, HealthBarStyle> LowCopies =
+            new Dictionary<HealthBarStyle, HealthBarStyle>();
+        // The flat styles' copies with the barrier over the bar's full height, for compact ally rows, and the way back.
+        private static readonly Dictionary<HealthBarStyle, HealthBarStyle> CompactCopies =
+            new Dictionary<HealthBarStyle, HealthBarStyle>();
+        private static readonly Dictionary<HealthBarStyle, HealthBarStyle> FullOfCompact =
             new Dictionary<HealthBarStyle, HealthBarStyle>();
         private static readonly HashSet<HealthBarStyle> Flat = new HashSet<HealthBarStyle>();
 
@@ -36,6 +43,36 @@ namespace SevenUI
                 bar._style = style;
                 bar._allyStyle = allyStyle;
             });
+        }
+
+        // Switches a flat-styled bar between the strip along the top and the barrier over the bar's full height, which
+        // a compact row's 5px bar needs to show it. A bar without the flat styles (restored, or not restyled) is left
+        // alone.
+        public static void SetCompact(HealthBar bar, bool compact)
+        {
+            if (!bar) return;
+            bar._style = Switch(bar._style, compact);
+            bar._allyStyle = Switch(bar._allyStyle, compact);
+        }
+
+        private static HealthBarStyle Switch(HealthBarStyle style, bool compact)
+        {
+            if (!style || !Flat.Contains(style)) return style;
+            if (!compact)
+            {
+                return FullOfCompact.TryGetValue(style, out HealthBarStyle full) && full ? full : style;
+            }
+            if (FullOfCompact.ContainsKey(style) || LowCopies.ContainsValue(style)) return style;
+            if (CompactCopies.TryGetValue(style, out HealthBarStyle copy) && copy) return copy;
+            copy = Object.Instantiate(style);
+            copy.name = style.name + CompactNameSuffix;
+            // Not White: ProtectionStripes draws just above the last White bar, and the barrier must stay above the stripes.
+            copy.barrierBarStyle.sprite = FlatSprite.BarrierFill;
+            copy.barrierBarStyle.imageType = Image.Type.Simple;
+            CompactCopies[style] = copy;
+            FullOfCompact[copy] = style;
+            Flat.Add(copy);
+            return copy;
         }
 
         // The flat style's copy for health that is low (under 25%), with the health in the canvas's steady red where the

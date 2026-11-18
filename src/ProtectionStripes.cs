@@ -49,7 +49,8 @@ namespace SevenUI
                 }
                 else if (image.sprite == FlatSprite.White || image.sprite == FlatSprite.Hatch)
                 {
-                    // The health, its trailing parts, the shield and the curse: the layers the stripes go over.
+                    // The health, its trailing parts, the shield and the curse: the layers the stripes go over. Not the
+                    // barrier, whose compact sprite (BarrierFill) differs from White so it stays above the stripes.
                     over = Mathf.Max(over, image.transform.GetSiblingIndex());
                 }
             }

@@ -74,6 +74,14 @@ namespace SevenUI
 
         public void Update(AllyCardController card, List<CharacterMaster> members)
         {
+            // The game's dead mark sits outside the hidden bar, which alone turns it off, and only while active. The
+            // game hands its cards to other allies as allies die, so a dead drone's card, mark shown, can become this
+            // shared card of living allies; the mark is kept off here instead.
+            Image dead = card.healthBar ? card.healthBar.deadImage : null;
+            if (dead && dead.enabled)
+            {
+                dead.enabled = false;
+            }
             int allies = members.Count;
             string name = card.nameLabel ? card.nameLabel.text : "";
             if (allies != shownCount || name != shownName)
@@ -111,6 +119,17 @@ namespace SevenUI
             if (card && card.healthBar)
             {
                 card.healthBar.gameObject.SetActive(true);
+                // The bar turns the mark on or off only when its ally's state changes from what it last saw, which
+                // may be from before it was hidden, so the mark is set to the ally's state now. That is the state of the
+                // card's ally, not of the bar's source: when the game hands a destroyed ally's card on (a scrap, or a
+                // Drone Combiner taking one of a pair), the bar may still follow the destroyed body this frame, and a
+                // mark set from it would stay, as the bar then sees a living ally again, unchanged from what it last saw.
+                HealthBar bar = card.healthBar;
+                if (bar.deadImage && !bar.altSource)
+                {
+                    CharacterBody body = card.sourceMaster ? card.sourceMaster.GetBody() : null;
+                    bar.deadImage.enabled = !(body && body.healthComponent && body.healthComponent.alive);
+                }
             }
         }
 

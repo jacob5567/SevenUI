@@ -174,6 +174,8 @@ namespace SevenUI
             bar.anchorMax = new Vector2(1f, 0.5f);
             bar.offsetMin = new Vector2(BarGap, -BarHeight / 2f);
             bar.offsetMax = new Vector2(-BarRight, BarHeight / 2f);
+            // The 5px bar is too thin for the strip along the top that the barrier is on a full-size bar.
+            FlatHealthStyles.SetCompact(Card.healthBar, true);
             LayoutRebuilder.MarkLayoutForRebuild(Card.rectTransform);
         }
 
@@ -199,6 +201,7 @@ namespace SevenUI
                 barsElement.flexibleWidth = barsFlexibleWidth;
             }
             barsElement = null;
+            FlatHealthStyles.SetCompact(Card.healthBar, false);
             if (row)
             {
                 row.childAlignment = rowAlignment;

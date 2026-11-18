@@ -15,7 +15,7 @@ Found a bug or have an idea? Open an issue on [GitHub](https://github.com/jacob5
 - **Items, buffs and skills:** dark slots with tier colors, and a cooldown cover that shrinks as a skill recharges.
 - **Functional Coupler:** the equipment you can switch to shows above the equipment slot, next first with your keys, the rest fading behind it.
 - **Prompts and notifications:** keycaps, with a strip in the color of the cost or the item's tier.
-- **Ally cards:** allies of one kind share a card, "Gunner Drone ×8", with a bar segment for each, and the cards stay clear of the chat: when they would reach it, the cards of single allies shrink to one-line rows, and if that is still too tall, the last cards fold into a "+N more" row with an icon for each kind it holds.
+- **Ally cards:** allies of one kind share a card, "Gunner Drone ×8", with a bar segment for each, and the cards stay clear of the chat: when they would reach it, the cards of single allies shrink to one-line rows, and if that is still too tall, the last allies' cards fold into a "+N more" row with an icon for each kind it holds. Other players' cards stay full size at the top and are never folded; their allies' cards sit indented under them, as in the game, and fold into a "+N more" row of their own.
 - **Scoreboard:** a row or a tab per player, with item counts per tier and the items at full size sorted by tier. The item or equipment you point at is described in a panel docked on the board, with who else holds it.
 - **Tooltips, item pickers and pause menu:** restyled to match.
 
@@ -54,7 +54,7 @@ Edit `BepInEx/config/sevenstack.SevenUI.cfg`, or use [Risk Of Options](https://t
 | `ScoreboardBesideRunInfo` | true | Place the scoreboard near the top of the screen, beside the run info. Only with `FlatPanels` on. |
 | `EquipmentDeck` | true | Show the next equipment as a deck of icons above the equipment slot with a Functional Coupler. Off shows no deck. Only with `FlatPanels` on. |
 | `RestyleItemPickers` | true | Restyle the panels where you pick an item, such as Command and Void Potentials. Off keeps the game's look for them. Only with `FlatPanels` on. |
-| `CompactAllyCards` | true | Shrink the ally cards to compact rows, and fold the ones that don't fit above the chat into "+N more". Off keeps the cards at full size, never folded. Only with `FlatPanels` on. |
+| `CompactAllyCards` | true | Shrink the ally cards to compact rows, and fold the ones that don't fit above the chat into "+N more". Other players' cards are never shrunk or folded. Off keeps the cards at full size, never folded. Only with `FlatPanels` on. |
 | `GroupAllyCards` | true | Group allies of one kind into a single card with a count and a health segment each. Off shows one card per ally, as the game has it. Only with `FlatPanels` on. |
 | `LevelHud` | true | Off keeps the game's inward lean of the HUD's corners, with everything else flat. Only with `FlatPanels` on. |
 | `ScoreboardDetailPanel` | true | Off shows the game's tooltip over the pointed-at scoreboard item, instead of the docked panel, and the board keeps no room for the panel. Only with `FlatPanels` on. |
