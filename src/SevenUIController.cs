@@ -39,12 +39,15 @@ namespace SevenUI
         private TiltFlattener tilt;
         private SkillSlotsStyler skillSlots;
         private PickerStyler pickers;
+        private CountdownStyler countdowns;
         // Not in the list: it runs whether or not FlatPanels is on (it restyles only the font then), and has nothing to
         // restore, as the game makes each tooltip new.
         private TooltipStyler tooltips;
         private int lastHierarchyCount = -1;
 
         public PickerStyler Pickers => pickers;
+        // Read by the SevenUI.Tests plugin.
+        public CountdownStyler Countdowns => countdowns;
 
         private void Awake()
         {
@@ -57,6 +60,7 @@ namespace SevenUI
             PlayerBarsStyler playerBars = new PlayerBarsStyler(root);
             skillSlots = new SkillSlotsStyler(hud, root);
             TopStyler top = new TopStyler(hud, root);
+            countdowns = new CountdownStyler(root);
             ItemIconsStyler itemIcons = new ItemIconsStyler(root);
             AllyCardsStyler allyCards = new AllyCardsStyler(hud, root);
             PromptsStyler prompts = new PromptsStyler(hud, root);
@@ -71,17 +75,17 @@ namespace SevenUI
             HudMargins margins = new HudMargins(hud, root, skillSlots);
             stylers = new IStyler[]
             {
-                tilt, runInfo, rightInfoBar, playerBars, skillSlots, top, itemIcons, allyCards, prompts, pickers,
+                tilt, runInfo, rightInfoBar, playerBars, skillSlots, top, countdowns, itemIcons, allyCards, prompts, pickers,
                 scoreboard, chat, topBars, margins, fontSwapper, pause,
             };
             restoreOrder = new IStyler[]
             {
-                runInfo, rightInfoBar, playerBars, skillSlots, top, itemIcons, allyCards, prompts, pickers, scoreboard,
+                runInfo, rightInfoBar, playerBars, skillSlots, top, countdowns, itemIcons, allyCards, prompts, pickers, scoreboard,
                 chat, tilt, topBars, margins, fontSwapper, pause,
             };
             updateOrder = new IStyler[]
             {
-                runInfo, prompts, pickers, playerBars, top, skillSlots, scoreboard, chat, allyCards, pause, margins, topBars,
+                runInfo, prompts, pickers, playerBars, top, countdowns, skillSlots, scoreboard, chat, allyCards, pause, margins, topBars,
             };
             watched = new[]
             {
