@@ -38,6 +38,7 @@ namespace SevenUI.Tests
             public Color HeaderColor;
             public string BodyFont;
             public Color BodyColor;
+            public string Backings;
             public readonly List<(Sprite Sprite, Color Color, string Font, bool Skin)> Buttons = new List<(Sprite, Color, string, bool)>();
         }
 
@@ -220,6 +221,17 @@ namespace SevenUI.Tests
             if (!panel) return "the dialog has no panel image";
             if (panel.sprite) return $"the panel still has the sprite {panel.sprite.name}";
             if (!Near(panel.color, Palette.Panel)) return $"the panel is {panel.color}, not the flat panel color";
+            Image header = box.headerLabel.transform.parent.GetComponent<Image>();
+            if (!header || !header.enabled) return "the title has no header strip";
+            if (header.sprite) return $"the header strip still has the sprite {header.sprite.name}";
+            if (!Near(header.color, DialogBoxStyler.HeaderColor) || !Near(header.canvasRenderer.GetColor(), Color.white))
+                return $"the header strip is {header.color} (drawn x{header.canvasRenderer.GetColor()}), not the faint strip color";
+            // Nothing else may draw behind the text and buttons, such as the game's lavender band behind the buttons.
+            foreach (Image image in panel.GetComponentsInChildren<Image>(false))
+            {
+                if (image != panel && image != header && image.enabled && !DialogBoxStyler.InButton(box, image.transform))
+                    return $"{image.name} still draws a {image.color} backing";
+            }
             string text = TextProblem(box.headerLabel, panel, Palette.Text) ?? TextProblem(box.descriptionLabel, panel, Palette.HeaderText);
             if (text != null) return text;
             Canvas root = panel.canvas ? panel.canvas.rootCanvas : null;
@@ -307,6 +319,7 @@ namespace SevenUI.Tests
                 HeaderColor = box.headerLabel.color,
                 BodyFont = box.descriptionLabel.font.name,
                 BodyColor = box.descriptionLabel.color,
+                Backings = Backings(box, panel),
             };
             foreach (MPButton button in box.buttonContainer.GetComponentsInChildren<MPButton>(false))
             {
@@ -328,6 +341,8 @@ namespace SevenUI.Tests
             if (!Near(box.descriptionLabel.color, vanilla.BodyColor)) return $"the body is {box.descriptionLabel.color}, not the game's {vanilla.BodyColor}";
             if (box.headerLabel.font.name != vanilla.HeaderFont) return $"the title is in {box.headerLabel.font.name}, not {vanilla.HeaderFont}";
             if (box.descriptionLabel.font.name != vanilla.BodyFont) return $"the body is in {box.descriptionLabel.font.name}, not {vanilla.BodyFont}";
+            string backings = Backings(box, panel);
+            if (backings != vanilla.Backings) return $"the drawn backings are [{backings}], not the game's [{vanilla.Backings}]";
             if (box.rootObject.GetComponentsInChildren<PixelOutline>(true).Any(o => o.name == DialogBoxStyler.OutlineName)) return "the dialog still has the mod's outlines";
             MPButton[] buttons = box.buttonContainer.GetComponentsInChildren<MPButton>(false);
             if (buttons.Length != vanilla.Buttons.Count) return $"the dialog has {buttons.Length} buttons, not {vanilla.Buttons.Count}";
@@ -343,6 +358,11 @@ namespace SevenUI.Tests
             }
             return null;
         }
+
+        // The enabled images in the dialog other than its buttons' (the header, the frame, the band behind the buttons).
+        private static string Backings(SimpleDialogBox box, Image panel) => !panel ? "" : string.Join(", ",
+            panel.GetComponentsInChildren<Image>(true).Where(i => i != panel && i.enabled && !DialogBoxStyler.InButton(box, i.transform))
+                .Select(i => i.name));
 
         private static bool Near(Color a, Color b) =>
             Mathf.Abs(a.r - b.r) < ColorTolerance && Mathf.Abs(a.g - b.g) < ColorTolerance && Mathf.Abs(a.b - b.b) < ColorTolerance &&

@@ -16,10 +16,12 @@ namespace SevenUI
     internal sealed class DialogBoxStyler : MonoBehaviour
     {
         public const string OutlineName = "SevenUIDialogOutline";
-        // The prefab's frame around the panel, drawn a little past its edges.
-        private const string BorderName = "Border";
         private const float OutlineEdge = 1f;
         private const string LogPrefix = "Dialog box styled: ";
+
+        // The strip's tint as the design draws it over the dark dialog; the game blends in linear light, where the plain
+        // tint came out as a solid grey block. Read by the SevenUI.Tests plugin.
+        internal static Color HeaderColor => CanvasBlend.Over(Palette.HeaderStrip, ScoreboardStyler.CanvasBoard);
 
         private readonly Dictionary<SimpleDialogBox, Dialog> dialogs = new Dictionary<SimpleDialogBox, Dialog>();
         private readonly List<SimpleDialogBox> gone = new List<SimpleDialogBox>();
@@ -116,13 +118,15 @@ namespace SevenUI
             Image header = box.headerLabel ? box.headerLabel.transform.parent.GetComponent<Image>() : null;
             if (header && header != panel)
             {
-                Flatten(recorder, header, Palette.HeaderStrip);
+                Flatten(recorder, header, HeaderColor);
             }
             if (panel)
             {
+                // The prefab's frame, and the lavender backings behind the buttons and the (unused) description panel,
+                // would show through the flat panel as bands: only the panel, the header strip and the buttons draw.
                 foreach (Image image in panel.GetComponentsInChildren<Image>(true))
                 {
-                    if (image.name == BorderName)
+                    if (image != panel && image != header && !InButton(box, image.transform))
                     {
                         recorder.Disable(image);
                     }
@@ -154,6 +158,14 @@ namespace SevenUI
         }
 
         private static bool Holds(Transform holder, Transform part) => !part || part.IsChildOf(holder);
+
+        // Whether the image is part of a button (or a button template) rather than the container behind them.
+        // Read by the SevenUI.Tests plugin.
+        internal static bool InButton(SimpleDialogBox box, Transform image)
+        {
+            Transform container = box.buttonContainer;
+            return container && image != container && image.IsChildOf(container);
+        }
 
         private static void Flatten(StyleRecorder recorder, Image image, Color color)
         {
