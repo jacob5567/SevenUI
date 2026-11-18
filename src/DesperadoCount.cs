@@ -33,7 +33,7 @@ namespace SevenUI
         private readonly SkillRow row;
         private float perUnit;
         private float laidOutFont;
-        private int laidOutDigits;
+        private TMP_FontAsset laidOutFontAsset;
         private GameObject shownBody;
         private CharacterBody body;
         private SkillDef checkedDef;
@@ -98,7 +98,15 @@ namespace SevenUI
         {
             if (!Alive) return;
             int stacks = Stacks();
-            if (stacks == shown) return;
+            if (stacks == shown)
+            {
+                // The font swap gives the number Barlow after it is made, which measures differently.
+                if (stacks > Hidden && count.font != laidOutFontAsset)
+                {
+                    Layout();
+                }
+                return;
+            }
             shown = stacks;
             if (stacks > Hidden)
             {
@@ -108,7 +116,7 @@ namespace SevenUI
                 {
                     icon.gameObject.SetActive(true);
                 }
-                Layout(stacks);
+                Layout();
             }
             else
             {
@@ -120,11 +128,11 @@ namespace SevenUI
             }
         }
 
-        // Centers the icon and number as a pair; redone only when the number of digits or the font size changes.
-        private void Layout(int stacks)
+        // Centers the icon and number as a pair; run when the count or the number's font changes, as digits differ in
+        // width.
+        private void Layout()
         {
-            int digits = stacks.ToString().Length;
-            if (digits == laidOutDigits && Mathf.Approximately(count.fontSize, laidOutFont)) return;
+            laidOutFontAsset = count.font;
             if (!Mathf.Approximately(count.fontSize, laidOutFont))
             {
                 float now = row.PixelsPer(slot);
@@ -133,7 +141,6 @@ namespace SevenUI
                     perUnit = now;
                 }
             }
-            laidOutDigits = digits;
             laidOutFont = count.fontSize;
             float numberWidth = count.preferredWidth;
             float iconWidth = icon ? (IconSize + IconGap) / perUnit : 0f;
