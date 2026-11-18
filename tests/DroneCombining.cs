@@ -34,7 +34,12 @@ namespace SevenUI.Tests
                     NetworkServer.Destroy(station.gameObject);
                 }
             });
-            station.OnInteractionBegin(Harness.LocalBody.GetComponent<Interactor>());
+            Interactor interactor = Harness.LocalBody.GetComponent<Interactor>();
+            EntityStateMachine machine = station.GetComponent<EntityStateMachine>();
+            h.Log($"combiner {station.GetInteractability(interactor)} for the player, in {machine?.state?.GetType().Name}");
+            station.OnInteractionBegin(interactor);
+            yield return null;
+            h.Log($"combiner after the interaction: {machine?.state?.GetType().Name}");
             CharacterMaster upgraded = null;
             float end = Time.realtimeSinceStartup + CombineTimeout;
             while (Time.realtimeSinceStartup < end)
