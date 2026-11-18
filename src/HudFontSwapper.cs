@@ -14,6 +14,11 @@ namespace SevenUI
         // (Russian, Chinese, Japanese, Korean, ...) don't use them, so their text stays as it is.
         private const string GameFontPrefix = "tmpBomb";
 
+        // The game's own font and a material of it, as first seen here: texts SevenUI makes start in it, so this swaps
+        // them to Barlow and back like the game's, whatever font the text they were made like is in at the time.
+        public static TMP_FontAsset GameFont { get; private set; }
+        public static Material GameMaterial { get; private set; }
+
         private readonly HUD hud;
         private readonly Transform root;
         private readonly Dictionary<TMP_Text, (TMP_FontAsset font, Material material)> originals =
@@ -54,6 +59,11 @@ namespace SevenUI
                 }
                 TMP_FontAsset font = text.font;
                 if (!font || !font.name.StartsWith(GameFontPrefix)) continue;
+                if (!GameFont)
+                {
+                    GameFont = font;
+                    GameMaterial = text.fontSharedMaterial;
+                }
 
                 // An HGTextMeshProUGUI sets the language's font when it first wakes, which for one still inactive
                 // (a boss bar before any boss) comes after this swap. In a Noto Sans language that font is the right
