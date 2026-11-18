@@ -852,7 +852,10 @@ namespace SevenUI.Tests
                     float middleDown = screen.height / unit - box.center.y;
                     float offCenter = box.center.x - screen.center.x / unit;
                     Image stripImage = backdrop.Find(PromptsStyler.NotificationStripName)?.GetComponent<Image>();
-                    look = $"panel {BoxText(box)}, middle {middleDown:0.#} down, {offCenter:0.#} off center, " +
+                    string texts = string.Join(", ", notification.canvasGroup.transform.Find("TextArea")
+                        ?.GetComponentsInChildren<TMP_Text>(true).Select(text => $"{text.name} {Box(h, text.rectTransform).width:0.#}px")
+                        ?? Enumerable.Empty<string>());
+                    look = $"panel {box.width:0.#}px wide (expected {NotificationWidth}) {BoxText(box)}, text widths [{texts}], middle {middleDown:0.#} down, {offCenter:0.#} off center, " +
                            $"strip {(stripImage ? stripImage.color.ToString() : "none")}, title color {notification.titleTMP.color}, " +
                            $"slot {BoxText(slot)}, icon {BoxText(icon)}";
                     return iconCentered && Near(box.width, NotificationWidth) && Near(middleDown, NotificationMiddleDown) &&

@@ -23,7 +23,7 @@ namespace SevenUI.Tests
         };
 
         // The survivor the stand-in players are, and how far apart they stand beside the viewer.
-        private const string StandInBody = "CommandoBody";
+        private const string StandInBody = GameNames.Commando;
         private const float StandInSpacing = 3f;
 
         // One each of that many items the player (the viewer, or the given inventory's) doesn't have yet, taken in turn

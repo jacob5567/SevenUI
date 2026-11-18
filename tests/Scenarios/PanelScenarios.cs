@@ -63,6 +63,7 @@ namespace SevenUI.Tests
             yield return new Scenario(1, "buffs_wrap_in_rows", Stages.TitanicPlains, BuffsWrapInRows);
             yield return new Scenario(1, "skill_slots_are_flat", Stages.TitanicPlains, SkillSlotsAreFlat);
             yield return new Scenario(1, "notification_icons_in_slot", Stages.TitanicPlains, NotificationIconsInSlot);
+            yield return new Scenario(1, "notification_icons_in_slot_drone_tech", Stages.TitanicPlains, DroneTechNotificationIconsInSlot);
             yield return new Scenario(1, "transformation_notification_blend", Stages.TitanicPlains, TransformationNotificationBlend);
             yield return new Scenario(1, "void_transformation_notification_blend", Stages.TitanicPlains,
                 VoidTransformationNotificationBlend);
@@ -282,7 +283,24 @@ namespace SevenUI.Tests
         // the icon in a frame; the trial's strip in the lime of the trial's icon, the drone's in its kind's color. Pushed
         // straight to the local player's queue, which shows them in turn; the trial's for a short while, so the drone's
         // follows soon.
+        // As Commando, whose notifications are the game's plain ones.
         private static IEnumerator NotificationIconsInSlot(Harness h)
+        {
+            yield return h.TurnInto(GameNames.Commando);
+            yield return NotificationsInSlot(h);
+        }
+
+        // As Operator, whose drone notification also shows the command the drone can be given (when the player's
+        // secondary is Command: Activate), the one that stretched the panel past 500px. Shot with the mod's look and
+        // the game's.
+        private static IEnumerator DroneTechNotificationIconsInSlot(Harness h)
+        {
+            yield return h.TurnInto(GameNames.DroneTech);
+            yield return NotificationsInSlot(h);
+            yield return h.CaptureLooks();
+        }
+
+        private static IEnumerator NotificationsInSlot(Harness h)
         {
             CharacterMaster master = Harness.LocalBody.master;
             CharacterMasterNotificationQueue.PushTrialNotification(master, new TrialVariantEventRelay.TrialVariantNotificationInfo
