@@ -15,6 +15,7 @@ namespace SevenUI.Tests
         // Long enough for the game to rename the cards and the mod to regroup them.
         private const float SettleSeconds = 0.5f;
         private const int DroneCount = 2;
+        private const int MarksReported = 5;
 
         public static IEnumerable<Scenario> All()
         {
@@ -54,7 +55,8 @@ namespace SevenUI.Tests
         private static IEnumerator CombinedThenNew(Harness h)
         {
             List<CharacterMaster> drones = new List<CharacterMaster>();
-            System.Action noDeadMark = () => CheckNoDeadMark(h, drones, "while combining");
+            List<string> marks = new List<string>();
+            System.Action noDeadMark = () => RecordDeadMarks(h, drones, marks);
             yield return Allies.SummonDrones(h, Allies.GunnerDroneMaster, 2, drones);
             yield return Settled(h, drones, "two tier 1");
             yield return DroneCombining.Combine(h, drones, noDeadMark);
@@ -72,6 +74,29 @@ namespace SevenUI.Tests
             yield return Settled(h, drones, "tier 3 and tier 1", "tier_three");
             yield return Allies.SummonDrones(h, Allies.GunnerDroneMaster, 1, drones);
             yield return Settled(h, drones, "tier 3 and two tier 1", "tier_three_two_tier_one");
+            if (marks.Count > 0)
+            {
+                throw h.Fail($"the dead mark showed over a living drone's card in {marks.Count} frames while combining: " +
+                             string.Join("; ", marks.Take(MarksReported)));
+            }
+        }
+
+        // Every frame a living drone's card shows the dead mark, with what its bar follows, for the scenario's end.
+        private static void RecordDeadMarks(Harness h, List<CharacterMaster> drones, List<string> marks)
+        {
+            if (AllyCardChecks.Cards(h).Any(card => card.gameObject.activeSelf && (object)card.sourceMaster != null && !card.sourceMaster)) return;
+            foreach (AllyCardController card in Shown(h, drones))
+            {
+                Image dead = card.healthBar ? card.healthBar.deadImage : null;
+                if (!(dead && dead.enabled && dead.gameObject.activeInHierarchy && Alive(card.sourceMaster))) continue;
+                HealthComponent source = card.healthBar.source;
+                CharacterBody body = card.sourceMaster.GetBody();
+                string mark = $"frame {UnityEngine.Time.frameCount}: {card.nameLabel.text} (bar follows " +
+                              $"{(source ? source.name + (source.alive ? ", alive" : ", dead") : (object)source != null ? "a destroyed body" : "nothing")}; " +
+                              $"its drone {(body.currentVehicle ? "seated" : "free")}, tier {DroneCombining.Tier(card.sourceMaster) + 1})";
+                marks.Add(mark);
+                h.Log($"[ally_tiers] dead mark: {mark}");
+            }
         }
 
         private static IEnumerator Settled(Harness h, List<CharacterMaster> drones, string when, string screenshot = null)
