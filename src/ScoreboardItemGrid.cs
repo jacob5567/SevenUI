@@ -163,6 +163,14 @@ namespace SevenUI
             return lines * Step(size) - Gap(size);
         }
 
+        // How wide a full line of slots this size is in a cell this wide: the width left over (less than a slot) is what
+        // would otherwise all land at the right. A full line's width, not the items', so a short line still starts at
+        // the left.
+        public float LineWidth(float size, float width)
+        {
+            return PerLine(size, width) * Step(size) - Gap(size);
+        }
+
         public void SetLayout(float size, float width)
         {
             if (Mathf.Approximately(size, slot) && Mathf.Approximately(width, across)) return;
@@ -264,12 +272,8 @@ namespace SevenUI
         {
             RectTransform rect = UiFactory.NewObject(HighlightName, Cell);
             recorder.Add(rect.gameObject);
-            Image image = rect.gameObject.AddComponent<Image>();
-            image.sprite = FlatSprite.Outline;
-            image.type = Image.Type.Sliced;
-            image.pixelsPerUnitMultiplier = HudUnits.OutlineEdgePixels / HighlightEdge;
-            image.color = Palette.Accent;
-            image.raycastTarget = false;
+            PixelOutline outline = PixelOutline.Add(rect, "Outline", Palette.Accent, HighlightEdge);
+            outline.enabled = true;
             return rect;
         }
 

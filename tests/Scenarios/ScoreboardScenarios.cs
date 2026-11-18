@@ -74,6 +74,7 @@ namespace SevenUI.Tests
             {
                 yield return new Scenario(1, "item_bar_tooltip_setting_off", Stages.TitanicPlains, ItemBarTooltipSettingOff);
                 yield return new Scenario(1, "scoreboard_players_rows_while_roomy", Stages.TitanicPlains, RowsWhileRoomy);
+                yield return new Scenario(1, "scoreboard_pane_holders_by_player_count", Stages.TitanicPlains, HoldersByPlayerCount);
             }
             else
             {
@@ -251,6 +252,37 @@ namespace SevenUI.Tests
                                            .All(each => !each.GetComponent<CanvasGroup>() || each.GetComponent<CanvasGroup>().alpha >= 1f),
                 () => $"the light off and the pane still on the item once the pointer left it (lit " +
                       $"{(itemsBoard ? itemsBoard.Highlighted.ToString() : "no board")}, pane on {(itemsBoard && itemsBoard.Pane.Shown ? itemsBoard.Pane.Title : "nothing")})");
+        }
+
+        // With the pointer held on an item, the pane lists no holders while the viewer is alone, lists them once a
+        // stand-in player joins, and drops them again when it leaves.
+        private static IEnumerator HoldersByPlayerCount(Harness h)
+        {
+            ScoreboardSetUp.GiveDifferentItems(h, TooltipItems);
+            yield return ScoreboardSetUp.Open(h);
+            ScoreboardRow row = SevenUIChecks.HudRoot(h).GetComponentsInChildren<ScoreboardRow>()
+                .FirstOrDefault(each => each.Strip && each.Strip.master == Harness.LocalBody.master);
+            ItemIcon icon = row ? FirstIcon(row.Strip.itemInventoryDisplay.transform) : null;
+            if (!icon) throw h.Fail("no item in the viewer's row of the scoreboard");
+            yield return h.Wait(SettleSeconds);
+            PointAt(h, icon.rectTransform, "an item in the scoreboard");
+            yield return h.ExpectItemPane(icon);
+            ScoreboardItemsBoard board = icon.GetComponentInParent<ScoreboardItemsBoard>();
+            yield return h.Until(() => board && board.Pane.Shown && board.Pane.HolderCount == 0,
+                "no holders listed for one player");
+
+            List<CharacterMaster> others = new List<CharacterMaster>();
+            yield return ScoreboardSetUp.AddPlayers(h, 1, TooltipItems, others);
+            yield return h.Until(() => board && board.Pane.HolderCount > 0, "the holders listed with two players");
+            yield return h.Wait(SettleSeconds);
+            yield return h.Screenshot("scoreboard_pane_holders");
+
+            foreach (CharacterMaster other in others.Where(other => other))
+            {
+                other.DestroyBody();
+                UnityEngine.Networking.NetworkServer.Destroy(other.gameObject);
+            }
+            yield return h.Until(() => board && board.Pane.HolderCount == 0, "the holders gone with one player again");
         }
 
         // On each board, the pointer on the viewer's equipment (Foreign Fruit), or key item (the N'tormat), describes it

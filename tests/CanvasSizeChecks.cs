@@ -29,6 +29,8 @@ namespace SevenUI.Tests
         // of the tab, which starts 16px after the equipment. The key item and equipment slots are 52px, and a collapsed
         // row 92px tall.
         private const float ScoreboardItemSlot = 40f;
+        // The gap between item slots, as a share of a slot (4px to 40px, ScoreboardItemGrid).
+        private const float ScoreboardItemGapRatio = 4f / 40f;
         private const float ScoreboardItemsAfterEquipment = 16f;
         private const float ScoreboardTabInset = 16f;
         private const float ScoreboardLoadoutSlot = 52f;
@@ -217,7 +219,13 @@ namespace SevenUI.Tests
             Rect name = Box(h, (RectTransform)background.Find(ScoreboardNamePath));
             float after = ScoreboardItemsAfterEquipment + (board.Collapsed ? ScoreboardTabInset : 0f);
             bool top = Near(cell.yMax, name.yMax) || board.Collapsed && cell.yMax > name.yMax;
-            string place = Near(cell.xMin - equipment.xMax, after) && top
+            // In a tab a full line is centered, so the items start up to half a slot step further in (TabProblem checks
+            // that the two sides match).
+            float gap = cell.xMin - equipment.xMax;
+            bool across = board.Collapsed
+                ? gap > after - SizeTolerance && gap < after + (size + size * ScoreboardItemGapRatio) / 2f + SizeTolerance
+                : Near(gap, after);
+            string place = across && top
                 ? null
                 : $"cell {cell.xMin - equipment.xMax:0.#} after the equipment, top {cell.yMax:0.#} beside a name block " +
                   $"from {name.yMax:0.#}";
@@ -688,13 +696,15 @@ namespace SevenUI.Tests
                     string grid = GridProblem(h, items, row.Strip, background);
                     string placed = PlacementProblem(h, board);
                     string portrait = PortraitProblem(h, background);
+                    PixelOutline equipmentOutline = equipment ? equipment.Find("SevenUIEquipmentOutline")?.GetComponent<PixelOutline>() : null;
+                    string outlineLook = equipmentOutline ? CanvasLayoutChecks.PixelOutlineProblem(equipmentOutline) : "missing";
                     look = $"{(collapsed ? "collapsed" : "rows")}, {folded ?? "folded as wanted"}, {headed ?? "no headers"}, row color {row.Background.color}, " +
                            $"survivor '{row.Survivor.text}', counts '{row.Counts.text}', parts {parts ?? "in place"}, " +
-                           $"items {grid ?? "as the grid"}, board {placed ?? "in place"}, portrait {portrait ?? "centered"}";
+                           $"items {grid ?? "as the grid"}, board {placed ?? "in place"}, portrait {portrait ?? "centered"}, equipment outline {outlineLook ?? "on whole pixels"}";
                     return folded == null && headed == null && parts == null && grid == null && placed == null && portrait == null &&
-                           row.Counts.text.Contains(ScoreboardCountsWord) &&
+                           outlineLook == null && row.Counts.text.Contains(ScoreboardCountsWord) &&
                            SevenUIChecks.Near(row.Background.color, tint) && row.Survivor.text.Contains(" · ") &&
-                           equipment && equipment.Find("SevenUIEquipmentOutline");
+                           equipment;
                 },
                 () => $"the scoreboard laid out as on the canvas ({look}) {h.Diagnosis()}");
         }
@@ -768,10 +778,10 @@ namespace SevenUI.Tests
         }
 
         // Null when the shown player's row and items are drawn as one tab: the tab's row part on the row and the rest
-        // from the row's right to the rows' right edge, the items 16px in from that part's edges, which reach no further
-        // than the row does at its top and bottom. It follows the row down from its top, or, if the items would run past
-        // the rows' bottom, sits on that bottom, or on the first row's top when it is taller than the rows. The row's
-        // own tint is cleared for the tab's.
+        // from the row's right to the rows' right edge, the items centered across that part at least 16px in from its
+        // sides and 16px down from its top, which reach no further than the row does at its top and bottom. It follows
+        // the row down from its top, or, if the items would run past the rows' bottom, sits on that bottom, or on the
+        // first row's top when it is taller than the rows. The row's own tint is cleared for the tab's.
         private static string TabProblem(Harness h, ScoreboardItemsBoard board, ScoreboardStrip strip)
         {
             ScoreboardTabShape tab = board.Tab;
@@ -787,7 +797,9 @@ namespace SevenUI.Tests
             float rowsBottom = rows.Min(box => box.yMin);
             bool onRow = Near(rowPart.xMin, row.xMin) && Near(rowPart.yMin, row.yMin) && Near(rowPart.yMax, row.yMax) &&
                          Near(itemsPart.xMin, rowPart.xMax) && Near(itemsPart.xMax, row.xMax);
-            bool inset = Near(cell.xMin - itemsPart.xMin, ScoreboardTabInset) && Near(itemsPart.xMax - cell.xMax, ScoreboardTabInset) &&
+            float padLeft = cell.xMin - itemsPart.xMin;
+            float padRight = itemsPart.xMax - cell.xMax;
+            bool inset = Near(padLeft, padRight) && padLeft >= ScoreboardTabInset - SizeTolerance &&
                          Near(itemsPart.yMax - cell.yMax, ScoreboardTabInset) &&
                          Near(itemsPart.yMin, Mathf.Min(cell.yMin - ScoreboardTabInset, row.yMin));
             bool placed = Near(itemsPart.yMax, row.yMax) ||
@@ -836,6 +848,8 @@ namespace SevenUI.Tests
                                     Near(Box(h, (RectTransform)highlight).center.x, slot.center.x) &&
                                     Near(Box(h, (RectTransform)highlight).center.y, slot.center.y);
                     List<ItemIcon> others = icon.transform.parent.GetComponentsInChildren<ItemIcon>().Where(other => other != icon).ToList();
+                    PixelOutline highlightOutline = highlight ? highlight.GetComponentInChildren<PixelOutline>() : null;
+                    string highlightLook = highlightOutline ? CanvasLayoutChecks.PixelOutlineProblem(highlightOutline) : "missing";
                     bool dimmed = others.All(other => other.GetComponent<CanvasGroup>() && other.GetComponent<CanvasGroup>().alpha < 1f);
                     bool undimmed = !icon.GetComponent<CanvasGroup>() || Mathf.Approximately(icon.GetComponent<CanvasGroup>().alpha, 1f);
                     string stack = "×" + icon.itemCount;
@@ -843,13 +857,13 @@ namespace SevenUI.Tests
                     string title = icon.tooltipProvider ? icon.tooltipProvider.titleText : "";
                     string beside = PaneBesideRows(h, board, pane);
                     look = $"pane on {(pane.Shown ? pane.Title : "nothing")} held by [{holders}], tooltip " +
-                           $"{(tooltip ? (tooltip.enabled ? "shown" : "hidden") : "none")}, outlined {outlined}, " +
+                           $"{(tooltip ? (tooltip.enabled ? "shown" : "hidden") : "none")}, outlined {outlined} ({highlightLook ?? "on whole pixels"}), " +
                            $"{others.Count} others dimmed {dimmed}, this one undimmed {undimmed}, {beside ?? "placed"}";
                     return pane.Shown && pane.Item == icon.itemIndex && pane.Title == title && pane.Root.gameObject.activeInHierarchy &&
-                           (board.Grids.Count > 1
+                           (PlayerCharacterMasterController.instances.Count > 1
                                ? Enumerable.Range(0, pane.HolderCount).Any(i => pane.HolderText(i).Contains(stack))
                                : pane.HolderCount == 0) &&
-                           (!tooltip || !tooltip.enabled) && outlined && undimmed && beside == null &&
+                           (!tooltip || !tooltip.enabled) && outlined && highlightLook == null && undimmed && beside == null &&
                            (board.Collapsed || dimmed);
                 },
                 () => $"the item described in the scoreboard's pane, {icon.tooltipProvider?.titleText} at its stack ({look}) " +
@@ -885,7 +899,10 @@ namespace SevenUI.Tests
                            $"key item {pane.KeyItem}) held by [{holders}], tooltip " +
                            $"{(tooltip ? (tooltip.enabled ? "shown" : "hidden") : "none")}, lit {board.Highlighted}, {beside ?? "placed"}";
                     return pane.Shown && describes && pane.Item == ItemIndex.None && pane.Title == provider.titleText &&
-                           pane.Root.gameObject.activeInHierarchy && Enumerable.Range(0, pane.HolderCount).Any(i => pane.HolderText(i) == name) &&
+                           pane.Root.gameObject.activeInHierarchy &&
+                           (PlayerCharacterMasterController.instances.Count > 1
+                               ? Enumerable.Range(0, pane.HolderCount).Any(i => pane.HolderText(i) == name)
+                               : pane.HolderCount == 0) &&
                            (!tooltip || !tooltip.enabled) && board.Highlighted == ItemIndex.None && beside == null;
                 },
                 () => $"the {what} described in the scoreboard's pane ({look}) {h.Diagnosis()}");
