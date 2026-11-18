@@ -97,6 +97,12 @@ namespace SevenUI
             root.anchorMin = root.anchorMax = root.pivot = new Vector2(0.5f, 1f);
             root.sizeDelta = new Vector2(Width, Height);
             recorder.Add(root.gameObject.AddComponent<LayoutIgnorer>());
+            // The game types the panel's texts out, turning each label on as its first letter shows and setting it
+            // every frame, which would draw the game's texts over these; paused while restyled, the restore resumes it.
+            foreach (TypewriteTextController typewriter in root.GetComponentsInChildren<TypewriteTextController>(true))
+            {
+                recorder.Disable(typewriter);
+            }
             foreach (ContentSizeFitter fitter in root.GetComponents<ContentSizeFitter>())
             {
                 recorder.Disable(fitter);
