@@ -108,6 +108,10 @@ namespace SevenUI.Tests
             {
                 yield return new Scenario(1, "picker_panel_" + name, Stages.TitanicPlains, h => OtherPanel(h, name, key));
             }
+            yield return new Scenario(1, "picker_egg_empty", Stages.TitanicPlains, EggEmpty);
+            yield return new Scenario(1, "picker_egg_empty_then_items", Stages.TitanicPlains, EggEmptyThenItems);
+            yield return new Scenario(1, "picker_egg_items_no_message", Stages.TitanicPlains, EggWithItems);
+            yield return new Scenario(1, "picker_egg_empty_flat_panels_off", Stages.TitanicPlains, EggEmptyFlatPanelsOff);
         }
 
         private static IEnumerator VoidPotential(Harness h)
@@ -771,6 +775,198 @@ namespace SevenUI.Tests
             {
                 Vector2 point = RectTransformUtility.WorldToScreenPoint(camera, corner);
                 if (!screen.Contains(point)) return $"the panel's corner {point} is off the screen {screen}";
+            }
+            return null;
+        }
+
+        // The Lemurian egg's panel, opened from a Command cube given it and these options (none for an egg with no items to
+        // give). The game's panel makes no check for no options, so it opens as an empty panel.
+        private static IEnumerator OpenEgg(Harness h, int itemCount, Action<PickupPickerPanel> found)
+        {
+            string key = GameNames.PickerPanels.First(entry => entry.Name == "lemurian_egg").Key;
+            GameObject prefab;
+            try
+            {
+                prefab = Addressables.LoadAssetAsync<GameObject>(key).WaitForCompletion();
+            }
+            catch (Exception exception)
+            {
+                throw h.Skip($"could not load {key}: {exception.Message}");
+            }
+            if (!prefab || !prefab.GetComponent<PickupPickerPanel>()) throw h.Skip($"{key} is not a pick-an-item panel");
+            PickupPickerController.Option[] items = ItemCatalog.allItemDefs
+                .Where(item => item.tier == ItemTier.Tier1 && !item.hidden && !item.ContainsTag(ItemTag.WorldUnique))
+                .Select(item => PickupCatalog.FindPickupIndex(item.itemIndex))
+                .Where(pickup => pickup != PickupIndex.none)
+                .Take(itemCount)
+                .Select(pickup => new PickupPickerController.Option { pickup = new UniquePickup(pickup), available = true })
+                .ToArray();
+            if (items.Length < itemCount) throw h.Skip($"the game has fewer than {itemCount} common items");
+            yield return GoHome(h);
+            PickupPickerController picker = h.SpawnPrefab<PickupPickerController>(GameNames.CommandCube);
+            picker.panelPrefab = prefab;
+            picker.SetOptionsServer(items);
+            h.Log($"lemurian_egg: panel with {items.Length} options");
+            yield return Open(h, picker, found, true);
+        }
+
+        private static IEnumerator OpenEggStyled(Harness h, int itemCount, Action<PickerPanel> found)
+        {
+            PickupPickerPanel opened = null;
+            yield return OpenEgg(h, itemCount, made => opened = made);
+            PickerPanel panel = null;
+            yield return h.Until(() => (panel = OpenPanel(opened)) != null && panel.Styled, "a restyled egg panel", OpenTimeout);
+            found(panel);
+        }
+
+        // An egg with no items opens the panel with a message and Cancel, not an empty grid, in the flat look.
+        private static IEnumerator EggEmpty(Harness h)
+        {
+            PickerPanel panel = null;
+            yield return OpenEggStyled(h, 0, found => panel = found);
+            yield return h.Until(() => EmptyAsDesigned(panel) == null, () => EmptyAsDesigned(panel));
+            yield return h.Wait(SettleSeconds);
+            string shown = EmptyAsDesigned(panel);
+            if (shown != null) throw h.Fail(shown);
+            yield return CaptureLooks(h, panel);
+            // Back in the flat look after the toggle round trip, with the message made again.
+            shown = EmptyAsDesigned(panel);
+            if (shown != null) throw h.Fail("after FlatPanels went off and on, " + shown);
+        }
+
+        // The same panel given items after it showed none: the message and the empty layout are gone, no part of them
+        // left over, and given none again they come back.
+        private static IEnumerator EggEmptyThenItems(Harness h)
+        {
+            PickerPanel panel = null;
+            yield return OpenEggStyled(h, 0, found => panel = found);
+            yield return h.Until(() => EmptyAsDesigned(panel) == null, () => EmptyAsDesigned(panel));
+            PickupPickerPanel opened = panel.Panel;
+            PickupPickerController.Option[] items = ItemCatalog.allItemDefs
+                .Where(item => item.tier == ItemTier.Tier1 && !item.hidden && !item.ContainsTag(ItemTag.WorldUnique))
+                .Select(item => PickupCatalog.FindPickupIndex(item.itemIndex))
+                .Where(pickup => pickup != PickupIndex.none)
+                .Take(FewOptions)
+                .Select(pickup => new PickupPickerController.Option { pickup = new UniquePickup(pickup), available = true })
+                .ToArray();
+            if (items.Length < FewOptions) throw h.Skip("the game has too few common items");
+            opened.SetPickupOptions(items);
+            yield return h.Until(() => OpenPanel(opened) is PickerPanel again && again.Styled && !again.Empty && again.Buttons.Count == items.Length,
+                "the panel restyled with its items", OpenTimeout);
+            yield return h.Wait(SettleSeconds);
+            string left = NoEmptyMessage(opened);
+            if (left != null) throw h.Fail("with items again, " + left);
+            yield return h.Screenshot("items_after_empty");
+            opened.SetPickupOptions(new PickupPickerController.Option[0]);
+            yield return h.Until(() => OpenPanel(opened) is PickerPanel again && again.Styled && again.Empty && EmptyAsDesigned(again) == null,
+                "the empty panel again", OpenTimeout);
+        }
+
+        // An egg with items shows them, and no empty message anywhere.
+        private static IEnumerator EggWithItems(Harness h)
+        {
+            PickerPanel panel = null;
+            yield return OpenEggStyled(h, FewOptions, found => panel = found);
+            yield return h.Wait(SettleSeconds);
+            if (panel.Empty) throw h.Fail("a panel with options is styled as empty");
+            if (panel.Buttons.Count != FewOptions) throw h.Fail($"the panel has {panel.Buttons.Count} option buttons, not {FewOptions}");
+            string left = NoEmptyMessage(panel.Panel);
+            if (left != null) throw h.Fail(left);
+            if (!panel.Panel.buttonContainer.gameObject.activeSelf) throw h.Fail("the options' grid is turned off");
+            yield return h.Screenshot("with_items");
+        }
+
+        // With FlatPanels off the panel with no items is the game's own, empty panel; on, it is the flat one with its message.
+        private static IEnumerator EggEmptyFlatPanelsOff(Harness h)
+        {
+            PluginConfig settings = SevenUIPlugin.Settings;
+            h.SetConfig(settings.FlatPanels, false);
+            h.OnCleanup(() => h.SetConfig(settings.FlatPanels, true));
+            PickupPickerPanel opened = null;
+            yield return OpenEgg(h, 0, made => opened = made);
+            yield return h.Wait(SettleSeconds);
+            if (!opened) throw h.Fail("the game closed the panel as it opened");
+            string left = MarksLeft(opened);
+            if (left.Length > 0) throw h.Fail($"with FlatPanels off, the panel with no items has the mod's {left}");
+            if (OpenPanel(opened) != null) throw h.Fail("with FlatPanels off, the panel with no items is restyled");
+            if (!opened.buttonContainer.gameObject.activeSelf) throw h.Fail("with FlatPanels off, the game's grid is turned off");
+            yield return h.Screenshot("empty_off");
+            h.SetConfig(settings.FlatPanels, true);
+            yield return h.Until(() => OpenPanel(opened) is PickerPanel again && again.Styled && EmptyAsDesigned(again) == null,
+                "the panel with no items restyled with FlatPanels on", OpenTimeout);
+            yield return h.Screenshot("empty_on");
+        }
+
+        // No part of the empty look is under the panel: no message, and the grid is the game's.
+        private static string NoEmptyMessage(PickupPickerPanel panel)
+        {
+            Transform message = panel.GetComponentsInChildren<Transform>(true).FirstOrDefault(part => part.name == PickerPanel.EmptyMessageName);
+            return message ? $"the panel still has the empty message \"{message.name}\"" : null;
+        }
+
+        // What differs from the empty panel's design, or null: in the flat look (the panel, its header strip and its title),
+        // "No items to offer" in grey inside the panel, the outlined Cancel button inside it, and no grid taking space.
+        private static string EmptyAsDesigned(PickerPanel panel)
+        {
+            if (!panel.Alive) return "the panel was closed";
+            if (!panel.Styled) return "the panel is not styled";
+            if (!panel.Empty) return "the panel is not styled as empty";
+            if (panel.Cards) return "the panel with no items is styled as cards";
+            Transform root = panel.Panel.transform;
+            Transform[] parts = root.GetComponentsInChildren<Transform>(true);
+            if (!parts.Any(part => part.name == PickerPanel.BackdropName && part.gameObject.activeInHierarchy)) return "the panel has no flat backdrop";
+            if (!parts.Any(part => part.name == "SevenUIPickerStrip" && part.gameObject.activeInHierarchy)) return "the panel has no header strip";
+            if (parts.Any(part => part.name == PickerPanel.SlotName || part.name == PickerPanel.CardName || part.name == PickerPanel.DetailsName))
+            {
+                return "the panel with no items has slots, cards or details";
+            }
+            if (panel.Buttons.Count != 0) return $"the panel has {panel.Buttons.Count} option buttons";
+            if (panel.Panel.buttonContainer.gameObject.activeSelf) return "the game's empty grid is still turned on, taking space";
+
+            TMP_Text message = panel.EmptyMessage;
+            if (!message) return "there is no empty message";
+            if (!message.gameObject.activeInHierarchy) return "the empty message is hidden";
+            if (message.text != PickerPanel.EmptyMessageText) return $"the empty message reads \"{message.text}\"";
+            if (message.color != Palette.HeaderText) return $"the empty message is {message.color}, not the grey {Palette.HeaderText}";
+            if (parts.Count(part => part.name == PickerPanel.EmptyMessageName) != 1) return "the empty message is there more than once";
+            RectTransform main = panel.MainPanel;
+            string outside = OutsidePanel(main, message.rectTransform, "the empty message");
+            if (outside != null) return outside;
+            // The message fits its box: its text's height is the box's, and the box lies under the strip.
+            float needed = message.GetPreferredValues(message.text, message.rectTransform.rect.width, 0f).y;
+            if (needed > message.rectTransform.rect.height + SizeTolerance) return $"the empty message needs {needed} high, in a box {message.rectTransform.rect.height}";
+            float expectedHeight = PickerPanel.StripHeight + PickerPanel.PartGap + needed + PickerPanel.PaddingBottom;
+            if (Mathf.Abs(main.rect.height - expectedHeight) > SizeTolerance)
+            {
+                return $"the panel is {main.rect.height} high, not {expectedHeight}: an empty grid takes space, or the message does not";
+            }
+            if (Mathf.Abs(main.rect.width - PickerPanel.MinPanelWidth) > SizeTolerance) return $"the panel is {main.rect.width} wide, not {PickerPanel.MinPanelWidth}";
+
+            PickerButton cancel = panel.Cancel;
+            if (cancel == null || !cancel.Button) return "the Cancel button is not styled";
+            if (!cancel.Button.gameObject.activeInHierarchy) return "the Cancel button is hidden";
+            if (!cancel.RestOutline || !cancel.RestOutline.enabled) return "the Cancel button has no outline";
+            // Cancel hangs under the panel, so only its sides are held to the panel's.
+            return OutsidePanel(main, (RectTransform)cancel.Button.transform, "the Cancel button", false);
+        }
+
+        // Whether the part's corners are within the panel's sides, and its top and bottom too if asked.
+        private static string OutsidePanel(RectTransform main, RectTransform part, string what, bool vertical = true)
+        {
+            Vector3[] corners = new Vector3[4];
+            part.GetWorldCorners(corners);
+            Rect bounds = main.rect;
+            foreach (Vector3 corner in corners)
+            {
+                Vector3 local = main.InverseTransformPoint(corner);
+                if (local.x < bounds.xMin - SizeTolerance || local.x > bounds.xMax + SizeTolerance)
+                {
+                    return $"{what} is at x {local.x}, outside the panel's {bounds.xMin} to {bounds.xMax}";
+                }
+                if (vertical && (local.y < bounds.yMin - SizeTolerance || local.y > bounds.yMax + SizeTolerance))
+                {
+                    return $"{what} is at y {local.y}, outside the panel's {bounds.yMin} to {bounds.yMax}";
+                }
             }
             return null;
         }
