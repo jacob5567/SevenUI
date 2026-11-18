@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text.RegularExpressions;
 using ModTestRunner;
 using RoR2;
@@ -23,6 +24,7 @@ namespace SevenUI.Tests
         private const string MoonPrefab = "Prefabs/UI/HudModules/HudCountdownPanel";
         private const string TrialAddress = "9f990f5551f502e4f99fcc4d0690331e";
         private const string DoomKeyPart = "DoomTimer";
+        private const string DoomPanelField = "trialTimerAddress";
         private const float StyleTimeout = 3f;
         private const double FullSeconds = 125.0;
         private const double HalfSeconds = 60.0;
@@ -42,7 +44,7 @@ namespace SevenUI.Tests
             yield return new Scenario(1, "trial_countdown_panel", Stages.TitanicPlains,
                 h => Run(h, "trial", () => LoadAddress(h, TrialAddress), true));
             yield return new Scenario(1, "doom_timer_countdown_panel", Stages.TitanicPlains,
-                h => Run(h, "doom", () => LoadAddress(h, FindDoomKey(h)), false));
+                h => Run(h, "doom", () => LoadAddress(h, DoomPanelKey(h)), false));
         }
 
         private static GameObject LoadLegacy(Harness h)
@@ -62,6 +64,27 @@ namespace SevenUI.Tests
                 }
             }
             throw h.Skip("no addressable for the doom timer's panel");
+        }
+
+        // The doom timer's prefab is Champ Rush's controller; the panel it shows is the asset its trialTimerAddress names.
+        private static string DoomPanelKey(Harness h)
+        {
+            string controllerKey = FindDoomKey(h);
+            GameObject controller;
+            try
+            {
+                controller = Addressables.LoadAssetAsync<GameObject>(controllerKey).WaitForCompletion();
+            }
+            catch (Exception exception)
+            {
+                throw h.Skip($"could not load {controllerKey}: {exception.Message}");
+            }
+            DoomTimer doom = controller ? controller.GetComponentInChildren<DoomTimer>(true) : null;
+            if (!doom) throw h.Skip($"{controllerKey} has no DoomTimer");
+            FieldInfo field = typeof(DoomTimer).GetField(DoomPanelField, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+            AssetReference reference = field != null ? field.GetValue(doom) as AssetReference : null;
+            if (reference == null || !reference.RuntimeKeyIsValid()) throw h.Skip($"the DoomTimer in {controllerKey} names no panel");
+            return reference.RuntimeKey.ToString();
         }
 
         private static GameObject LoadAddress(Harness h, string address)
