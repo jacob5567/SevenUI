@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using EntityStates.Drifter;
 using ModTestRunner;
 using RoR2;
@@ -26,6 +27,19 @@ namespace SevenUI.Tests
         private const float CardTimeout = 5f;
         private const float SettleSeconds = 0.5f;
         private const float AfterEmptySeconds = 0.5f;
+        // Her primary is a combo while the bag is full, and only its last hit slams; an interactable takes up to 20
+        // slams (a Beetle Queen's hull), so this is room for that many combos.
+        private const int MaxPresses = 60;
+        private const float SwingTimeout = 6f;
+        private const float BarTimeout = 2f;
+        private const float CardGoneTimeout = 5f;
+        // At this durability or less the game shows its low-health marks on a carried interactable's bar
+        // (HealthBar: altSource.durability <= 2).
+        public const int LowDurability = 2;
+        // HealthBar keeps its bars in a private struct; the low-health marks are two of them.
+        private const string BarInfoField = "barInfoCollection";
+        private const string LowHealthUnder = "lowHealthUnderBarInfo";
+        private const string LowHealthOver = "lowHealthOverBarInfo";
 
         // What gets grabbed, one at a time: kinds that differ in name and portrait.
         public static readonly string[] Kinds =
@@ -105,11 +119,13 @@ namespace SevenUI.Tests
             }
         }
 
-        // Stands before the object, grabs it with the skill and waits for the bag display to name it. Reports null for that,
+        // Stands before the object, grabs it with the skill and waits for the bag display to name it (name, when given,
+        // is what the display should show instead of the object's bestName, as for a body it names the body). Reports null for that,
         // or the reason when the game doesn't let her grab it (it dodges, is out of reach, or something else gets bagged).
         public static IEnumerator Grab(Harness h, GenericSkill repossess, DrifterBagController bag, SpecialObjectAttributes target,
-            Action<string> problem)
+            Action<string> problem, string name = null)
         {
+            string expected = name ?? target.bestName;
             yield return h.StandBefore(target.transform.root.gameObject, StandOff);
             yield return h.AimAt(target.indicatorOffset ? target.indicatorOffset.position : target.transform.position);
             float end = Time.realtimeSinceStartup + ReadyTimeout;
@@ -143,12 +159,12 @@ namespace SevenUI.Tests
             while (Time.realtimeSinceStartup < end)
             {
                 card = FindCard(h);
-                if (card && !string.IsNullOrEmpty(target.bestName) && card.nameLabel.text == target.bestName) break;
+                if (card && !string.IsNullOrEmpty(expected) && card.nameLabel.text == expected) break;
                 yield return null;
             }
-            if (!card || card.nameLabel.text != target.bestName)
+            if (!card || card.nameLabel.text != expected)
             {
-                throw h.Fail($"the bag display shows \"{(card ? card.nameLabel.text : "no card")}\", not \"{target.bestName}\" " +
+                throw h.Fail($"the bag display shows \"{(card ? card.nameLabel.text : "no card")}\", not \"{expected}\" " +
                              $"{h.Diagnosis()}");
             }
             yield return h.Wait(SettleSeconds);
@@ -183,6 +199,92 @@ namespace SevenUI.Tests
                 bag.ResetBaggedObject();
             }
             yield return h.Wait(AfterEmptySeconds);
+        }
+    
+        // Presses her primary until reached holds: while the bag is full the game swaps it for a combo whose slam
+        // (SuffocateSlam) hits what she carries, an interactable losing a point of durability a slam and breaking at
+        // the slam from 1, which empties the bag, and a body taking damage. The slam only lands on the ground, so each
+        // press waits for her to stand. Fails, naming the states the presses ran, if the presses run out.
+        public static IEnumerator Slam(Harness h, CharacterBody body, Func<bool> reached, string what)
+        {
+            GenericSkill primary = body.skillLocator.primary;
+            List<string> ran = new List<string>();
+            for (int i = 0; i < MaxPresses && !reached(); i++)
+            {
+                float end = Time.realtimeSinceStartup + ReadyTimeout;
+                while (!(primary.CanExecute() && body.characterMotor && body.characterMotor.isGrounded) &&
+                       Time.realtimeSinceStartup < end)
+                {
+                    yield return null;
+                }
+                string state = primary.activationState.stateType?.Name;
+                if (!primary.ExecuteIfReady()) throw h.Fail($"her primary ({state}) isn't ready for {what} {h.Diagnosis()}");
+                if (ran.Count == 0 || ran[ran.Count - 1] != state)
+                {
+                    ran.Add(state);
+                }
+                end = Time.realtimeSinceStartup + SwingTimeout;
+                yield return null;
+                while (!reached() && primary.stateMachine && !primary.stateMachine.IsInMainState() &&
+                       Time.realtimeSinceStartup < end)
+                {
+                    yield return null;
+                }
+            }
+            if (!reached()) throw h.Fail($"{MaxPresses} presses of her primary ({string.Join(", ", ran)}) didn't reach {what} {h.Diagnosis()}");
+            h.Log($"reached {what}; her primary ran {string.Join(", ", ran)}");
+        }
+
+        // The bag display's bar follows the carried interactable, or body, and shows the game's low-health marks only
+        // when low is true.
+        public static IEnumerator ExpectBar(Harness h, SpecialObjectAttributes target, CharacterBody targetBody, bool low,
+            string when)
+        {
+            string Problem()
+            {
+                BaggedCardController card = FindCard(h);
+                if (!card || !card.isActiveAndEnabled) return "no bag display shows";
+                HealthBar bar = card.healthBar;
+                if (!bar) return "the bag display has no health bar";
+                if (targetBody)
+                {
+                    if (bar.source != targetBody.healthComponent) return $"the bar follows {Describe(bar)}, not {targetBody.name}";
+                }
+                else if (bar.altSource != target)
+                {
+                    return $"the bar follows {Describe(bar)}, not {target.name}";
+                }
+                bool? shown = LowHealthMarks(bar);
+                if (shown == null) return "the bar's low-health marks can't be read (the game's HealthBar changed)";
+                if (shown != low) return $"the low-health marks are {(shown.Value ? "on" : "off")}";
+                return null;
+            }
+
+            yield return h.Until(() => Problem() == null, () => $"{when}: {Problem()} {h.Diagnosis()}", BarTimeout);
+        }
+
+        private static string Describe(HealthBar bar) =>
+            bar.source ? bar.source.name : bar.altSource ? bar.altSource.name : "nothing";
+
+        // Either of the game's two low-health marks (under and over the bar) is drawn; null if they can't be read.
+        private static bool? LowHealthMarks(HealthBar bar)
+        {
+            FieldInfo collectionField = typeof(HealthBar).GetField(BarInfoField, BindingFlags.Instance | BindingFlags.NonPublic);
+            object collection = collectionField?.GetValue(bar);
+            FieldInfo under = collection?.GetType().GetField(LowHealthUnder);
+            FieldInfo over = collection?.GetType().GetField(LowHealthOver);
+            if (under == null || over == null) return null;
+            return ((HealthBar.BarInfo)under.GetValue(collection)).enabled || ((HealthBar.BarInfo)over.GetValue(collection)).enabled;
+        }
+
+        // Once the bag empties, its display goes.
+        public static IEnumerator ExpectCardGone(Harness h, string when)
+        {
+            yield return h.Until(() =>
+            {
+                BaggedCardController card = FindCard(h);
+                return !card || !card.isActiveAndEnabled;
+            }, () => $"{when}: the bag display still shows {h.Diagnosis()}", CardGoneTimeout);
         }
     }
 }
