@@ -27,6 +27,8 @@ namespace SevenUI.Tests
         private const float CardTimeout = 5f;
         private const float SettleSeconds = 0.5f;
         private const float AfterEmptySeconds = 0.5f;
+        // The state machine that holds what she carries.
+        private const string BagStateMachine = "Bag";
         // Her primary is a combo while the bag is full, and only its last hit slams; an interactable takes up to 20
         // slams (a Beetle Queen's hull), so this is room for that many combos.
         private const int MaxPresses = 60;
@@ -149,7 +151,9 @@ namespace SevenUI.Tests
             }
             if (!bag.bagFull)
             {
-                problem("the skill bagged nothing");
+                Vector3 offset = target.transform.position - Harness.LocalBody.corePosition;
+                problem($"the skill bagged nothing ({target.name} {offset.magnitude:0.#} m away, " +
+                        $"{Vector3.Angle(offset, Harness.LocalBody.inputBank.aimDirection):0}° off her aim)");
                 yield break;
             }
             if (bag.baggedObject != target)
@@ -158,8 +162,26 @@ namespace SevenUI.Tests
                 yield break;
             }
 
+            yield return ExpectCard(h, expected);
+            problem(null);
+        }
+
+        // Puts the object in her bag the way the grab's last state (RepossessExit.BagObject) does, without the leap, for an
+        // object the skill won't take in a test. Fails unless the bag display names it.
+        public static IEnumerator Put(Harness h, CharacterBody drifter, DrifterBagController bag, GameObject target, string expected)
+        {
+            EntityStateMachine machine = EntityStateMachine.FindByCustomName(drifter.gameObject, BagStateMachine);
+            if (!machine) throw h.Fail($"the Drifter has no \"{BagStateMachine}\" state machine");
+            machine.SetNextState(new EntityStates.Drifter.Bag.BaggedObject { targetObject = target });
+            yield return h.Until(() => bag.bagFull && bag.baggedObject == target, () => $"{target.name} in the bag {h.Diagnosis()}",
+                GrabTimeout);
+            yield return ExpectCard(h, expected);
+        }
+
+        private static IEnumerator ExpectCard(Harness h, string expected)
+        {
             BaggedCardController card = null;
-            end = Time.realtimeSinceStartup + CardTimeout;
+            float end = Time.realtimeSinceStartup + CardTimeout;
             while (Time.realtimeSinceStartup < end)
             {
                 card = FindCard(h);
@@ -172,7 +194,6 @@ namespace SevenUI.Tests
                              $"{h.Diagnosis()}");
             }
             yield return h.Wait(SettleSeconds);
-            problem(null);
         }
 
         // Empties the bag with the skill that replaces Repossess while it is full, and waits for it to be empty. If the throw
