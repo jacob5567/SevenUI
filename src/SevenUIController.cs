@@ -67,21 +67,22 @@ namespace SevenUI
             tooltips = new TooltipStyler(hud, root);
             // The pause menu is its own canvas, outside the HUD, made each time it opens.
             pause = new PauseScreenStyler(hud, root);
+            MusicDisplayStyler music = new MusicDisplayStyler();
             TopBarsWidth topBars = new TopBarsWidth(root);
             HudMargins margins = new HudMargins(hud, root, skillSlots);
             stylers = new IStyler[]
             {
                 tilt, runInfo, rightInfoBar, playerBars, skillSlots, top, itemIcons, allyCards, prompts, pickers,
-                scoreboard, chat, topBars, margins, fontSwapper, pause,
+                scoreboard, chat, topBars, margins, fontSwapper, pause, music,
             };
             restoreOrder = new IStyler[]
             {
                 runInfo, rightInfoBar, playerBars, skillSlots, top, itemIcons, allyCards, prompts, pickers, scoreboard,
-                chat, tilt, topBars, margins, fontSwapper, pause,
+                chat, tilt, topBars, margins, fontSwapper, pause, music,
             };
             updateOrder = new IStyler[]
             {
-                runInfo, prompts, pickers, playerBars, top, skillSlots, scoreboard, chat, allyCards, pause, margins, topBars,
+                runInfo, prompts, pickers, playerBars, top, skillSlots, scoreboard, chat, allyCards, pause, music, margins, topBars,
             };
             watched = new[]
             {

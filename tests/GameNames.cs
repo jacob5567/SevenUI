@@ -150,5 +150,9 @@ namespace SevenUI.Tests
         public const string LookingGlassGUID = "droppod.lookingglass";
         // LookingGlass's stats panel, a copy of the objective panel it adds next to it.
         public const string LookingGlassPanel = "PlayerStats";
+
+        // MusicDisplay's plugin GUID and its now-playing text, on the local user's notification canvas.
+        public const string MusicDisplayGUID = "com.DestroyedClone.MusicDisplay";
+        public const string MusicDisplayText = "MusicNameDisplay";
     }
 }
