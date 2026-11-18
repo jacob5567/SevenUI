@@ -1,6 +1,6 @@
 namespace SevenUI
 {
-    // The track the MusicDisplay mod's text shows, read by MusicDisplayStyler and drawn by the scoreboard's footer.
+    // The track the MusicDisplay mod's text shows, read by MusicDisplayStyler and drawn by the now-playing panel.
     // Empty when MusicDisplay is absent, its text is blank or the panels are off.
     internal sealed class NowPlaying
     {
