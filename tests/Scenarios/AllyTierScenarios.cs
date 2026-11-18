@@ -116,6 +116,9 @@ namespace SevenUI.Tests
 
         private static void CheckNoDeadMark(Harness h, List<CharacterMaster> drones, string when)
         {
+            // The frame a drone is destroyed, the game's cards still name it until it hands them on in the next Update,
+            // and its bar, with no source, shows the mark; nothing else can show then.
+            if (AllyCardChecks.Cards(h).Any(card => card.gameObject.activeSelf && (object)card.sourceMaster != null && !card.sourceMaster)) return;
             foreach (AllyCardController card in Shown(h, drones))
             {
                 Image dead = card.healthBar ? card.healthBar.deadImage : null;
