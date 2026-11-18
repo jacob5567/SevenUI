@@ -828,8 +828,12 @@ namespace SevenUI.Tests
             yield return h.Wait(SettleSeconds);
             string shown = EmptyAsDesigned(panel);
             if (shown != null) throw h.Fail(shown);
+            PickupPickerPanel opened = panel.Panel;
             yield return CaptureLooks(h, panel);
-            // Back in the flat look after the toggle round trip, with the message made again.
+            // Back in the flat look after the toggle round trip, with the message made again. The styler makes a new
+            // PickerPanel for the game's panel when the flat look comes back, so it is looked up again.
+            panel = OpenPanel(opened);
+            if (panel == null) throw h.Fail("after FlatPanels went off and on, the panel was not restyled");
             shown = EmptyAsDesigned(panel);
             if (shown != null) throw h.Fail("after FlatPanels went off and on, " + shown);
         }
