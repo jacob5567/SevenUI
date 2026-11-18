@@ -51,6 +51,8 @@ namespace SevenUI.Tests
 
         // The default survivor, whose HUD has nothing of its own.
         public const string Commando = "CommandoBody";
+        // Bandit's body (Bandit2 in code), whose special is Desperado or Lights Out.
+        public const string Bandit = "Bandit2Body";
 
         // Survivors that add HUD elements of their own, through HudOverlayManager: Railgunner's backpack charge,
         // Void Fiend's corruption meter, Seeker's, Operator's (DroneTech in code), Drifter's junk meter (beside the crosshair) and Acolyte's.

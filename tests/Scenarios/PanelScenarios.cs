@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -23,6 +24,8 @@ namespace SevenUI.Tests
         // Long enough for the pause menu to pan and fade in before its screenshot.
         private const float PauseSettleSeconds = 0.6f;
         private const float PauseTolerance = 1f;
+        // Long enough for the HUD to follow a changed special or buff, so a count that wrongly shows has appeared.
+        private const float DesperadoSettleSeconds = 0.5f;
         // Long enough for the chat's input to fade in before its screenshot.
         private const float ChatSettleSeconds = 0.3f;
         // How long a pushed notification can wait behind others in the queue, and how long it takes to fade in.
@@ -95,6 +98,11 @@ namespace SevenUI.Tests
             yield return new Scenario(1, "protection_striped_on_allies", Stages.TitanicPlains, ProtectionStripedOnAllies);
             yield return new Scenario(1, "ally_cards_keep_above_chat", Stages.TitanicPlains, AllyCardsKeepAboveChat);
             yield return new Scenario(1, "turning_off_restores_panels", Stages.TitanicPlains, TurningOffRestoresPanels);
+            yield return new Scenario(1, "desperado_count_follows_stacks", Stages.TitanicPlains, DesperadoCountFollowsStacks);
+            yield return new Scenario(1, "desperado_count_hidden_with_lights_out", Stages.TitanicPlains,
+                DesperadoCountHiddenWithLightsOut);
+            yield return new Scenario(1, "desperado_count_hidden_for_other_survivors", Stages.TitanicPlains,
+                DesperadoCountHiddenForOtherSurvivors);
             yield return new Scenario(1, "lookingglass_stats_in_columns", Stages.TitanicPlains, LookingGlassStatsInColumns);
         }
 
@@ -266,6 +274,49 @@ namespace SevenUI.Tests
                 if (!body) return;
                 body.SetBuffCount(buff, 0);
             });
+        }
+
+        // As Bandit with Desperado: nothing at no stacks, then the buff's count over the special slot, and nothing again
+        // once the stacks are gone. Shot with 12 stacks. The buff is set on the host's body, as a kill would.
+        private static IEnumerator DesperadoCountFollowsStacks(Harness h)
+        {
+            yield return h.TurnInto(GameNames.Bandit);
+            CharacterBody body = Harness.LocalBody;
+            DesperadoChecks.EquipSpecial(h, body, DesperadoChecks.Desperado);
+            DesperadoChecks.SetStacks(h, body, 0);
+            yield return h.ExpectCountHidden("at no stacks");
+            foreach (int stacks in new[] { DesperadoChecks.OneStack, DesperadoChecks.FiveStacks, DesperadoChecks.ManyStacks })
+            {
+                DesperadoChecks.SetStacksNow(body, stacks);
+                yield return h.ExpectCountShows(stacks);
+            }
+            yield return h.Screenshot("desperado_count");
+            DesperadoChecks.SetStacksNow(body, 0);
+            yield return h.ExpectCountHidden("with the stacks removed");
+        }
+
+        // The buff stays on while the special is Lights Out, which ignores it, so the count stays hidden, and shows when
+        // the special is Desperado again.
+        private static IEnumerator DesperadoCountHiddenWithLightsOut(Harness h)
+        {
+            yield return h.TurnInto(GameNames.Bandit);
+            CharacterBody body = Harness.LocalBody;
+            DesperadoChecks.SetStacks(h, body, DesperadoChecks.FiveStacks);
+            Action takeOff = DesperadoChecks.EquipSpecial(h, body, DesperadoChecks.LightsOut);
+            yield return h.Wait(DesperadoSettleSeconds);
+            yield return h.ExpectCountHidden("with Lights Out equipped and the buff on");
+            takeOff();
+            DesperadoChecks.EquipSpecial(h, body, DesperadoChecks.Desperado);
+            yield return h.ExpectCountShows(DesperadoChecks.FiveStacks);
+        }
+
+        // The buff on a survivor without Desperado (the player's own body, Commando) shows nothing.
+        private static IEnumerator DesperadoCountHiddenForOtherSurvivors(Harness h)
+        {
+            yield return h.TurnInto(GameNames.Commando);
+            DesperadoChecks.SetStacks(h, Harness.LocalBody, DesperadoChecks.FiveStacks);
+            yield return h.Wait(DesperadoSettleSeconds);
+            yield return h.ExpectCountHidden("on Commando with the buff on");
         }
 
         private static IEnumerator SkillSlotsAreFlat(Harness h)
