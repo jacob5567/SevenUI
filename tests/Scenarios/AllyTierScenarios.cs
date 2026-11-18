@@ -48,7 +48,8 @@ namespace SevenUI.Tests
 
         // The ticket's case, through the game's own Drone Combiner: two Gunner Drones are combined into one of tier 2,
         // then new tier 1 Gunner Drones join, one and then a second; the two tier 1s are combined into a second tier 2,
-        // which must share the first's card, and the two tier 2s into a tier 3. After each step every tier present has
+        // which must share the first's card, and the two tier 2s into a tier 3. A new tier 1 also joins beside the two
+        // tier 2s and beside the tier 3, where it must keep a card of its own. After each step every tier present has
         // exactly one card, counting that tier's drones, and while a combine runs no card of theirs shows the dead mark.
         private static IEnumerator CombinedThenNew(Harness h)
         {
@@ -64,8 +65,13 @@ namespace SevenUI.Tests
             yield return Settled(h, drones, "tier 2 and two tier 1", "two_tier_one");
             yield return DroneCombining.Combine(h, drones, noDeadMark);
             yield return Settled(h, drones, "two tier 2", "two_tier_two");
+            yield return Allies.SummonDrones(h, Allies.GunnerDroneMaster, 1, drones);
+            yield return Settled(h, drones, "two tier 2 and a new tier 1", "two_tier_two_new_tier_one");
+            // The new tier 1 has no partner, so the combiner pairs the two tier 2s.
             yield return DroneCombining.Combine(h, drones, noDeadMark);
-            yield return Settled(h, drones, "one tier 3", "tier_three");
+            yield return Settled(h, drones, "tier 3 and tier 1", "tier_three");
+            yield return Allies.SummonDrones(h, Allies.GunnerDroneMaster, 1, drones);
+            yield return Settled(h, drones, "tier 3 and two tier 1", "tier_three_two_tier_one");
         }
 
         private static IEnumerator Settled(Harness h, List<CharacterMaster> drones, string when, string screenshot = null)
