@@ -119,15 +119,19 @@ namespace SevenUI.Tests
             }
         }
 
-        // Stands before the object, grabs it with the skill and waits for the bag display to name it (name, when given,
-        // is what the display should show instead of the object's bestName, as for a body it names the body). Reports null for that,
+        // Stands before the object, grabs it with the skill and waits for the bag display to name it. Reports null for that,
         // or the reason when the game doesn't let her grab it (it dodges, is out of reach, or something else gets bagged).
         public static IEnumerator Grab(Harness h, GenericSkill repossess, DrifterBagController bag, SpecialObjectAttributes target,
-            Action<string> problem, string name = null)
+            Action<string> problem) =>
+            Grab(h, repossess, bag, target.gameObject, target.indicatorOffset ? target.indicatorOffset.position : target.transform.position,
+                target.bestName, problem);
+
+        // The same for any object the bag takes, such as a monster's body, which needn't have SpecialObjectAttributes.
+        public static IEnumerator Grab(Harness h, GenericSkill repossess, DrifterBagController bag, GameObject target, Vector3 aim,
+            string expected, Action<string> problem)
         {
-            string expected = name ?? target.bestName;
             yield return h.StandBefore(target.transform.root.gameObject, StandOff);
-            yield return h.AimAt(target.indicatorOffset ? target.indicatorOffset.position : target.transform.position);
+            yield return h.AimAt(aim);
             float end = Time.realtimeSinceStartup + ReadyTimeout;
             while (!(repossess.CanExecute() && !bag.bagFull) && Time.realtimeSinceStartup < end)
             {
@@ -148,7 +152,7 @@ namespace SevenUI.Tests
                 problem("the skill bagged nothing");
                 yield break;
             }
-            if (bag.baggedAttributes != target)
+            if (bag.baggedObject != target)
             {
                 problem($"the skill bagged {bag.baggedObject.name} instead");
                 yield break;

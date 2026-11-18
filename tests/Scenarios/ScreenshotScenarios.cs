@@ -324,11 +324,10 @@ namespace SevenUI.Tests
             });
             // A new body gets its inventory from its master a moment after it appears.
             yield return h.Until(() => monster && monster.inventory, "the Lemurian's inventory");
-            SpecialObjectAttributes held = monster.GetComponent<SpecialObjectAttributes>();
-            if (!held) throw h.Fail($"the Lemurian has no SpecialObjectAttributes for the bag to take {h.Diagnosis()}");
             // Server state; the runner is the host. Low, so a slam or two kills it before it can break out.
             monster.healthComponent.Networkhealth = monster.healthComponent.fullHealth * MonsterHealthFraction;
-            yield return DrifterBag.Grab(h, repossess, bag, held, reason => problem = reason, Util.GetBestBodyName(monster.gameObject));
+            yield return DrifterBag.Grab(h, repossess, bag, monster.gameObject, monster.corePosition, Util.GetBestBodyName(monster.gameObject),
+                reason => problem = reason);
             if (problem != null) throw h.Fail($"Drifter couldn't bag the Lemurian: {problem} {h.Diagnosis()}");
             yield return h.AimAway();
             yield return DrifterBag.ExpectBar(h, null, monster, false, "Lemurian at low health");
