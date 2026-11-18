@@ -92,7 +92,7 @@ namespace SevenUI.Tests
             yield return h.Until(() => DialogLook(box, 2, null) == null, () => $"{DialogLook(box, 2, null)} {h.Diagnosis()}");
             yield return h.Wait(SettleSeconds);
             yield return h.Screenshot("dialog_quit");
-            MPButton cancel = box.buttonContainer.GetComponentsInChildren<MPButton>(true).Last();
+            MPButton cancel = box.buttonContainer.GetComponentsInChildren<MPButton>(false).Last();
             cancel.onClick.Invoke();
             yield return h.Until(() => SimpleDialogBox.instancesList.Count == 0, () => $"Cancel didn't close the dialog {h.Diagnosis()}");
         }
@@ -193,7 +193,7 @@ namespace SevenUI.Tests
             {
                 if (box)
                 {
-                    foreach (MPButton button in box.buttonContainer.GetComponentsInChildren<MPButton>(true))
+                    foreach (MPButton button in box.buttonContainer.GetComponentsInChildren<MPButton>(false))
                     {
                         if (button.eventSystem)
                         {
@@ -202,7 +202,7 @@ namespace SevenUI.Tests
                     }
                 }
             });
-            MPButton[] all = box.buttonContainer.GetComponentsInChildren<MPButton>(true);
+            MPButton[] all = box.buttonContainer.GetComponentsInChildren<MPButton>(false);
             for (int i = 0; i < buttons; i++)
             {
                 MPButton selected = all[i];
@@ -229,7 +229,7 @@ namespace SevenUI.Tests
                 Vector2 middle = canvasRect.InverseTransformPoint(panel.rectTransform.TransformPoint(panel.rectTransform.rect.center));
                 if (Vector2.Distance(middle, canvasRect.rect.center) > CenterTolerance) return $"the panel is centered at {middle}, not {canvasRect.rect.center}";
             }
-            MPButton[] all = box.buttonContainer.GetComponentsInChildren<MPButton>(true);
+            MPButton[] all = box.buttonContainer.GetComponentsInChildren<MPButton>(false);
             if (all.Length != buttons) return $"the dialog has {all.Length} buttons, not {buttons}";
             HashSet<float> widths = new HashSet<float>();
             foreach (MPButton button in all)
@@ -308,7 +308,7 @@ namespace SevenUI.Tests
                 BodyFont = box.descriptionLabel.font.name,
                 BodyColor = box.descriptionLabel.color,
             };
-            foreach (MPButton button in box.buttonContainer.GetComponentsInChildren<MPButton>(true))
+            foreach (MPButton button in box.buttonContainer.GetComponentsInChildren<MPButton>(false))
             {
                 TMP_Text label = button.GetComponentInChildren<TMP_Text>(true);
                 look.Buttons.Add((button.image ? button.image.sprite : null, button.image ? button.image.color : default,
@@ -329,7 +329,7 @@ namespace SevenUI.Tests
             if (box.headerLabel.font.name != vanilla.HeaderFont) return $"the title is in {box.headerLabel.font.name}, not {vanilla.HeaderFont}";
             if (box.descriptionLabel.font.name != vanilla.BodyFont) return $"the body is in {box.descriptionLabel.font.name}, not {vanilla.BodyFont}";
             if (box.rootObject.GetComponentsInChildren<PixelOutline>(true).Any(o => o.name == DialogBoxStyler.OutlineName)) return "the dialog still has the mod's outlines";
-            MPButton[] buttons = box.buttonContainer.GetComponentsInChildren<MPButton>(true);
+            MPButton[] buttons = box.buttonContainer.GetComponentsInChildren<MPButton>(false);
             if (buttons.Length != vanilla.Buttons.Count) return $"the dialog has {buttons.Length} buttons, not {vanilla.Buttons.Count}";
             for (int i = 0; i < buttons.Length; i++)
             {
