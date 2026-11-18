@@ -22,6 +22,7 @@ namespace SevenUI.Tests
         private const float DeathStyleSeconds = 0.1f;
         // The game destroys a dead drone's master a second after its death; well past that.
         private const float WatchTimeout = 5f;
+        private static readonly WaitForEndOfFrame EndOfFrame = new WaitForEndOfFrame();
         private const int MaxLoneAllies = 20;
         private const int KindSize = 5;
         private const int StandInPlayers = 2;
@@ -208,7 +209,7 @@ namespace SevenUI.Tests
             float until = Time.time + SettleSeconds;
             while (Time.time < until)
             {
-                yield return null;
+                yield return EndOfFrame;
                 CheckSharedCard(h, kind, "while the cards are handed on");
             }
             CheckSharedCard(h, kind, "after the cards settled");
@@ -261,13 +262,14 @@ namespace SevenUI.Tests
             CheckSharedCard(h, kind, "after the cards settled");
         }
 
-        // Checks the kind's shared card every frame until done holds, or for SettleSeconds without one.
+        // Checks the kind's shared card at the end of every frame, as drawn, until done holds, or for SettleSeconds without
+        // one. Not straight after Update: the game hands its cards on in Update and the mod restyles them in LateUpdate.
         private static IEnumerator WatchSharedCard(Harness h, List<CharacterMaster> kind, System.Func<bool> done, string when)
         {
             float until = Time.time + (done == null ? SettleSeconds : WatchTimeout);
             while (Time.time < until && (done == null || !done()))
             {
-                yield return null;
+                yield return EndOfFrame;
                 CheckSharedCard(h, kind, when);
             }
             if (done != null && !done()) throw h.Fail($"{when}: not done after {WatchTimeout:0} s {h.Diagnosis()}");
