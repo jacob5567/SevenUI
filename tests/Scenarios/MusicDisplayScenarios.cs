@@ -44,13 +44,8 @@ namespace SevenUI.Tests
             yield return new Scenario(1, "musicdisplay_panel_stays_last", Stages.TitanicPlains, StaysLast);
         }
 
-        private static TMP_Text FindText()
-        {
-            LocalUser user = LocalUserManager.GetFirstLocalUser();
-            Canvas canvas = user != null ? AchievementNotificationPanel.GetUserCanvas(user) : null;
-            Transform found = canvas ? canvas.transform.Find(GameNames.MusicDisplayText) : null;
-            return found ? found.GetComponent<TMP_Text>() : null;
-        }
+        // Where SevenUI looks: the HUD's canvas, or the main canvas the mod made its text on in the menus.
+        private static TMP_Text FindText() => MusicDisplayStyler.Find();
 
         // Calls MusicDisplay's own CreateDisplay, which it runs on each track's start. Test-only reflection.
         private static void MakeText(Harness h)

@@ -58,11 +58,19 @@ namespace SevenUI
             nowPlaying.Read(text.text);
         }
 
-        private static TMP_Text Find()
+        // MusicDisplay puts its text on the user's canvas when it first shows a track and never moves it: the HUD's
+        // canvas if that was in a run, but the application's main canvas, which outlives every scene, if it was in the
+        // menus, as it is when the title music plays. So both are looked in. Read by the SevenUI.Tests plugin.
+        internal static TMP_Text Find()
         {
             LocalUser user = LocalUserManager.GetFirstLocalUser();
             Canvas canvas = user != null ? AchievementNotificationPanel.GetUserCanvas(user) : null;
             Transform found = canvas ? canvas.transform.Find(TextName) : null;
+            if (!found)
+            {
+                Canvas main = RoR2Application.instance ? RoR2Application.instance.mainCanvas : null;
+                found = main ? main.transform.Find(TextName) : null;
+            }
             return found ? found.GetComponent<TMP_Text>() : null;
         }
 
