@@ -61,6 +61,8 @@ namespace SevenUI
             if (perUnit <= 0f) return null;
             TMP_Text text = UiFactory.NewText(ObjectName, slot, special.stockText, row.FontSize(slot, SkillSlotsStyler.StockFontSize),
                 Palette.Text);
+            // The stock text may already be in Barlow when the row is restyled again.
+            HudFontSwapper.StartInGameFont(text);
             text.fontStyle = FontStyles.Bold;
             text.alignment = TextAlignmentOptions.MidlineRight;
             UiFactory.KeepOnOneLine(text);

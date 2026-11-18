@@ -19,6 +19,15 @@ namespace SevenUI
         public static TMP_FontAsset GameFont { get; private set; }
         public static Material GameMaterial { get; private set; }
 
+        // Puts a text SevenUI made back in the game's font when the text it was made like was already in Barlow, so
+        // turning Barlow off puts it back in the game's font too.
+        public static void StartInGameFont(TMP_Text text)
+        {
+            if (!GameFont || text.font == GameFont) return;
+            text.font = GameFont;
+            text.fontSharedMaterial = GameMaterial ? GameMaterial : GameFont.material;
+        }
+
         private readonly HUD hud;
         private readonly Transform root;
         private readonly Dictionary<TMP_Text, (TMP_FontAsset font, Material material)> originals =
