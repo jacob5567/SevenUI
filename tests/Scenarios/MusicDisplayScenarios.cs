@@ -10,8 +10,8 @@ using UnityEngine;
 
 namespace SevenUI.Tests
 {
-    // The MusicDisplay mod's now-playing text, which SevenUI hides with the panels on and shows as a footer line along
-    // the scoreboard's bottom, in rows and tabs. Skipped when MusicDisplay isn't installed or its text was never made.
+    // The MusicDisplay mod's now-playing text, which SevenUI hides with the panels on and shows as the last panel of
+    // the right info bar, under the objectives. Skipped when MusicDisplay isn't installed or its text was never made.
     // The scenarios set the text themselves, so they don't wait for a track, and put it back after.
     internal static class MusicDisplayScenarios
     {
@@ -19,27 +19,28 @@ namespace SevenUI.Tests
         private const float TextTimeout = 30f;
         private const float SettleSeconds = 0.5f;
         private const float EdgeTolerance = 1f;
-        private const int CrowdPlayers = 3;
-        private const int CrowdItems = 100;
-        private const int ItemsAlone = 10;
+        // In the bar's units, which match the panel gap's.
+        private const float LayoutTolerance = 0.5f;
+        private const string PanelName = "SevenUINowPlayingPanel";
+        private const string HeaderName = "SevenUIHeader";
+        private const string NameName = "SevenUITrackName";
+        private const string AuthorName = "SevenUITrackAuthor";
+        private const string HeaderText = "NOW PLAYING";
         private const string TrackName = "Test Track";
         private const string TrackAuthor = "Test Author";
         private const string OtherName = "Another Tune";
         private const string OtherAuthor = "Someone Else";
-        private const string Separator = "·";
+        private const string ObjectiveToken = "OBJECTIVE_FIND_TELEPORTER";
+        private const string OtherObjectiveToken = "OBJECTIVE_CHARGE_TELEPORTER";
 
         public static IEnumerable<Scenario> All()
         {
-            yield return new Scenario(1, "musicdisplay_footer", Stages.TitanicPlains, h => Footer(h, false));
-            yield return new Scenario(1, "musicdisplay_tabs_footer", Stages.TitanicPlains, h => Footer(h, true));
-            yield return new Scenario(1, "musicdisplay_footer_follows_track", Stages.TitanicPlains, h => FollowsTrack(h, false));
-            yield return new Scenario(1, "musicdisplay_tabs_footer_follows_track", Stages.TitanicPlains, h => FollowsTrack(h, true));
+            yield return new Scenario(1, "musicdisplay_panel_layout", Stages.TitanicPlains, PanelLayout);
+            yield return new Scenario(1, "musicdisplay_panel_follows_track", Stages.TitanicPlains, FollowsTrack);
             yield return new Scenario(1, "musicdisplay_text_hidden", Stages.TitanicPlains, TextHidden);
             yield return new Scenario(1, "musicdisplay_follows_flat_panels", Stages.TitanicPlains, FollowsFlatPanels);
+            yield return new Scenario(1, "musicdisplay_panel_stays_last", Stages.TitanicPlains, StaysLast);
         }
-
-        // Also in the scoreboard's suite.
-        public static IEnumerable<Scenario> Scoreboard() => All().Where(scenario => scenario.Name != "musicdisplay_text_hidden");
 
         private static TMP_Text FindText()
         {
@@ -71,116 +72,165 @@ namespace SevenUI.Tests
             found(text);
         }
 
-        private static IEnumerator OpenBoard(Harness h, bool tabs)
+        // The objective panel needs an objective to have a place in the bar.
+        private static IEnumerator ShowObjective(Harness h, string token, System.Action<System.Action> hide)
         {
-            if (tabs)
-            {
-                yield return ScoreboardSetUp.AddPlayers(h, CrowdPlayers, CrowdItems);
-            }
-            ScoreboardSetUp.GiveDifferentItems(h, ItemsAlone);
-            yield return ScoreboardSetUp.Open(h);
-            yield return h.ExpectScoreboardAsCanvas(tabs);
-        }
-
-        private static ScoreboardItemsBoard ItemsBoard(Harness h) =>
-            SevenUIChecks.HudRoot(h).GetComponentInChildren<ScoreboardItemsBoard>();
-
-        private static bool FooterIs(ScoreboardItemsBoard board, string name, string author)
-        {
-            if (!board || !board.Footer || !board.Footer.gameObject.activeInHierarchy) return false;
-            string line = board.FooterString;
-            return line.Contains(name) && line.Contains(author) && line.Contains(Separator) == (author.Length > 0);
-        }
-
-        private static bool FooterGone(ScoreboardItemsBoard board) =>
-            board && (!board.Footer || !board.Footer.gameObject.activeSelf) && board.FooterReserved == 0f;
-
-        private static bool Shown(Transform part) =>
-            part.gameObject.activeInHierarchy && (!part.GetComponent<CanvasGroup>() || part.GetComponent<CanvasGroup>().alpha > 0f);
-
-        // The footer is on the scoreboard's panel, inside it and the screen, and clear of the rows, the shown items, the
-        // tab and the docked pane's column.
-        private static IEnumerator Footer(Harness h, bool tabs)
-        {
-            TMP_Text text = null;
-            yield return WaitForText(h, found => text = found);
-            yield return OpenBoard(h, tabs);
-            ScoreboardItemsBoard board = ItemsBoard(h);
-            text.text = TrackName + "\n" + TrackAuthor;
-            yield return h.Until(() => FooterIs(board, TrackName, TrackAuthor),
-                () => $"a footer with '{TrackName}' and '{TrackAuthor}' ('{(board && board.Footer ? board.FooterString : "none")}') {h.Diagnosis()}");
+            (List<TestObjectiveSource> sources, System.Action remove) = TestObjectives.Show(h,
+                new[] { (TestObjectives.Text(token), typeof(TestObjectiveTracker), 0f) });
+            hide(remove);
+            yield return TestObjectives.SkipStripAnimations(h, sources);
             yield return h.Wait(SettleSeconds);
+        }
 
-            RectTransform panel = (RectTransform)board.Footer.parent;
-            if (!panel.GetComponent<ScoreboardController>()) throw h.Fail($"the footer is on {panel.name}, not the scoreboard's panel");
+        private static Transform Panel(Harness h) => h.FindUnderHud(PanelName);
+
+        private static TMP_Text Part(Transform panel, string name)
+        {
+            Transform part = panel ? panel.Find(name) : null;
+            return part ? part.GetComponent<TMP_Text>() : null;
+        }
+
+        private static bool Shown(Transform panel) => panel && panel.gameObject.activeInHierarchy;
+
+        private static bool Showing(Harness h, string name, string author)
+        {
+            Transform panel = Panel(h);
+            TMP_Text nameText = Part(panel, NameName);
+            TMP_Text authorText = Part(panel, AuthorName);
+            if (!Shown(panel) || !nameText || !authorText) return false;
+            bool authorShown = authorText.gameObject.activeSelf;
+            return nameText.text == name && authorShown == (author.Length > 0) && (!authorShown || authorText.text == author);
+        }
+
+        private static string Look(Harness h)
+        {
+            Transform panel = Panel(h);
+            if (!panel) return "no panel";
+            TMP_Text nameText = Part(panel, NameName);
+            TMP_Text authorText = Part(panel, AuthorName);
+            return $"active={panel.gameObject.activeSelf}, name '{(nameText ? nameText.text : "none")}', " +
+                   $"author '{(authorText ? authorText.text : "none")}' active={(authorText && authorText.gameObject.activeSelf)}";
+        }
+
+        // The rect's vertical and horizontal extents in the bar's own units.
+        private static Rect InBar(Transform bar, RectTransform rect)
+        {
+            Vector3[] corners = new Vector3[4];
+            rect.GetWorldCorners(corners);
+            Vector3 low = bar.InverseTransformPoint(corners[0]);
+            Vector3 high = bar.InverseTransformPoint(corners[2]);
+            return Rect.MinMaxRect(Mathf.Min(low.x, high.x), Mathf.Min(low.y, high.y), Mathf.Max(low.x, high.x), Mathf.Max(low.y, high.y));
+        }
+
+        // Null when the panel is the bar's last child, the lowest of its panels, a panel gap under the one above and as
+        // wide as the objective panel.
+        private static string LayoutProblem(Harness h)
+        {
+            Transform panel = Panel(h);
+            Transform objective = h.FindUnderHud(GameNames.ObjectivePanel);
+            if (!Shown(panel)) return "the panel isn't shown";
+            if (!objective || !objective.gameObject.activeInHierarchy) return "the objective panel isn't shown";
+            Transform bar = panel.parent;
+            if (objective.parent != bar) return $"the panel is under {bar.name}, the objective panel under {objective.parent.name}";
+            if (panel.GetSiblingIndex() != bar.childCount - 1) return "the panel isn't the bar's last child";
+
+            Rect mine = InBar(bar, (RectTransform)panel);
+            Rect objectiveBox = InBar(bar, (RectTransform)objective);
+            float lowestAbove = float.MaxValue;
+            foreach (Transform other in bar)
+            {
+                if (other == panel || !other.gameObject.activeInHierarchy) continue;
+                lowestAbove = Mathf.Min(lowestAbove, InBar(bar, (RectTransform)other).yMin);
+            }
+            if (mine.yMax > objectiveBox.yMin + LayoutTolerance) return $"the panel at {mine} isn't below the objective panel at {objectiveBox}";
+            float gap = lowestAbove - mine.yMax;
+            if (Mathf.Abs(gap - RightInfoBarStyler.PanelGap) > LayoutTolerance)
+            {
+                return $"the gap above the panel is {gap}, not {RightInfoBarStyler.PanelGap}";
+            }
+            if (Mathf.Abs(mine.width - objectiveBox.width) > LayoutTolerance)
+            {
+                return $"the panel is {mine.width} wide, the objective panel {objectiveBox.width}";
+            }
+            return null;
+        }
+
+        private static string ScreenProblem(Harness h)
+        {
+            Transform panel = Panel(h);
             Camera camera = CanvasLayoutChecks.HudCamera(SevenUIChecks.HudRoot(h));
-            Rect footer = CanvasLayoutChecks.OnScreen(camera, board.Footer);
-            Rect panelBox = CanvasLayoutChecks.OnScreen(camera, panel);
+            Rect box = CanvasLayoutChecks.OnScreen(camera, (RectTransform)panel);
             Rect screen = CanvasLayoutChecks.ScreenOf(camera);
-            if (footer.xMin < panelBox.xMin - EdgeTolerance || footer.xMax > panelBox.xMax + EdgeTolerance ||
-                footer.yMin < panelBox.yMin - EdgeTolerance || footer.yMax > panelBox.yMax + EdgeTolerance)
-            {
-                throw h.Fail($"the footer at {footer} isn't inside the scoreboard's panel at {panelBox}");
-            }
-            if (panelBox.xMin < screen.xMin - EdgeTolerance || panelBox.xMax > screen.xMax + EdgeTolerance ||
-                panelBox.yMin < screen.yMin - EdgeTolerance || panelBox.yMax > screen.yMax + EdgeTolerance)
-            {
-                throw h.Fail($"the scoreboard's panel at {panelBox} isn't on the screen at {screen}");
-            }
-
-            List<(string, RectTransform)> others = new List<(string, RectTransform)>();
-            foreach (ScoreboardItemGrid grid in board.Grids)
-            {
-                others.Add(("a row", (RectTransform)grid.Strip.transform));
-                if (Shown(grid.Cell)) others.Add(("a row's items", grid.Cell));
-            }
-            Transform column = board.transform.Find(ScoreboardItemsBoard.PaneColumnName);
-            if (column && column.gameObject.activeInHierarchy) others.Add(("the pane's column", (RectTransform)column));
-            if (board.Pane != null && board.Pane.Shown) others.Add(("the pane", board.Pane.Root));
-            if (board.Tab && board.Tab.gameObject.activeInHierarchy) others.Add(("the tab", (RectTransform)board.Tab.transform));
-            foreach ((string what, RectTransform rect) in others)
-            {
-                Rect box = CanvasLayoutChecks.OnScreen(camera, rect);
-                if (footer.Overlaps(box)) throw h.Fail($"the footer at {footer} overlaps {what} at {box}");
-            }
-            yield return h.Screenshot(tabs ? "musicdisplay_tabs_footer" : "musicdisplay_footer");
+            bool inside = box.xMin >= screen.xMin - EdgeTolerance && box.xMax <= screen.xMax + EdgeTolerance &&
+                          box.yMin >= screen.yMin - EdgeTolerance && box.yMax <= screen.yMax + EdgeTolerance;
+            return inside ? null : $"the panel at {box} isn't inside the screen at {screen}";
         }
 
-        // The footer follows the text: another track replaces it, a name alone has no dot and author, and no track takes
-        // the footer and its room away.
-        private static IEnumerator FollowsTrack(Harness h, bool tabs)
+        // Last in the bar, a panel gap under the objectives, as wide as they are and on the screen, with its header
+        // strip, name and author.
+        private static IEnumerator PanelLayout(Harness h)
         {
             TMP_Text text = null;
             yield return WaitForText(h, found => text = found);
-            yield return OpenBoard(h, tabs);
-            ScoreboardItemsBoard board = ItemsBoard(h);
-            RectTransform strips = (RectTransform)board.transform;
+            yield return ShowObjective(h, ObjectiveToken, remove => h.OnCleanup(remove));
+            text.text = TrackName + "\n" + TrackAuthor;
+            yield return h.Until(() => Showing(h, TrackName, TrackAuthor) && LayoutProblem(h) == null,
+                () => $"the panel last, a gap under the objectives and as wide ({LayoutProblem(h)}; {Look(h)}) {h.Diagnosis()}");
+            yield return h.Wait(SettleSeconds);
+            string problem = LayoutProblem(h) ?? ScreenProblem(h);
+            if (problem != null) throw h.Fail(problem);
+
+            Transform panel = Panel(h);
+            if (!panel.Find(Texts.HeaderStripName)) throw h.Fail("the panel has no header strip");
+            TMP_Text header = Part(panel, HeaderName);
+            if (!header || header.text != HeaderText) throw h.Fail($"the header says '{(header ? header.text : "nothing")}', not '{HeaderText}'");
+            TMP_Text nameText = Part(panel, NameName);
+            TMP_Text authorText = Part(panel, AuthorName);
+            if (nameText.color != Palette.Text) throw h.Fail($"the name is {nameText.color}, not the text color");
+            if (authorText.color != Palette.HeaderText) throw h.Fail($"the author is {authorText.color}, not the header color");
+            if (nameText.enableWordWrapping || authorText.enableWordWrapping ||
+                nameText.overflowMode != TextOverflowModes.Ellipsis || authorText.overflowMode != TextOverflowModes.Ellipsis)
+            {
+                throw h.Fail("the name and author aren't on one line with an ellipsis");
+            }
+            yield return h.Screenshot("musicdisplay_panel");
+        }
+
+        // The panel follows the text: another track replaces it, a name alone has no author line and a shorter panel,
+        // and no track hides the panel and its room, without moving the panels above.
+        private static IEnumerator FollowsTrack(Harness h)
+        {
+            TMP_Text text = null;
+            yield return WaitForText(h, found => text = found);
+            yield return ShowObjective(h, ObjectiveToken, remove => h.OnCleanup(remove));
 
             text.text = TrackName + "\n" + TrackAuthor;
-            yield return h.Until(() => FooterIs(board, TrackName, TrackAuthor), () => $"the footer on the first track {h.Diagnosis()}");
+            yield return h.Until(() => Showing(h, TrackName, TrackAuthor), () => $"the panel on the first track ({Look(h)}) {h.Diagnosis()}");
             yield return h.Wait(SettleSeconds);
-            float withFooter = strips.rect.height;
-            float reserved = board.FooterReserved;
-            if (reserved <= 0f) throw h.Fail("the footer keeps no room");
+            Transform panel = Panel(h);
+            float tall = ((RectTransform)panel).rect.height;
+            Transform objective = h.FindUnderHud(GameNames.ObjectivePanel);
+            Vector3 objectiveAt = objective.position;
 
             text.text = OtherName + "\n" + OtherAuthor;
-            yield return h.Until(() => FooterIs(board, OtherName, OtherAuthor) && !board.FooterString.Contains(TrackName),
-                () => $"the footer on another track ('{board.FooterString}') {h.Diagnosis()}");
+            yield return h.Until(() => Showing(h, OtherName, OtherAuthor), () => $"the panel on another track ({Look(h)}) {h.Diagnosis()}");
 
             text.text = OtherName;
-            yield return h.Until(() => FooterIs(board, OtherName, string.Empty) && !board.FooterString.Contains(OtherAuthor),
-                () => $"the footer with a name alone ('{board.FooterString}') {h.Diagnosis()}");
+            yield return h.Until(() => Showing(h, OtherName, string.Empty), () => $"a name alone and no author line ({Look(h)}) {h.Diagnosis()}");
+            yield return h.Wait(SettleSeconds);
+            float shorter = ((RectTransform)panel).rect.height;
+            if (shorter >= tall - LayoutTolerance) throw h.Fail($"the panel is {shorter} high with a name alone, over {tall} with an author");
 
             text.text = string.Empty;
-            yield return h.Until(() => FooterGone(board), () => $"no footer, and no room kept, without a track {h.Diagnosis()}");
+            yield return h.Until(() => !Shown(Panel(h)), () => $"the panel hidden without a track ({Look(h)}) {h.Diagnosis()}");
             yield return h.Wait(SettleSeconds);
-            float without = strips.rect.height;
-            if (without > withFooter + EdgeTolerance) throw h.Fail($"the board is {without} high without the footer, over {withFooter} with it");
-            if (board.FooterReserved != 0f) throw h.Fail("the board keeps room for a footer that is gone");
-
+            if ((objective.position - objectiveAt).sqrMagnitude > LayoutTolerance * LayoutTolerance * 0.01f)
+            {
+                throw h.Fail($"the objective panel moved from {objectiveAt} to {objective.position} when the panel was hidden");
+            }
             text.text = TrackName + "\n" + TrackAuthor;
-            yield return h.Until(() => FooterIs(board, TrackName, TrackAuthor) && board.FooterReserved > 0f,
-                () => $"the footer back with a track {h.Diagnosis()}");
+            yield return h.Until(() => Showing(h, TrackName, TrackAuthor) && LayoutProblem(h) == null,
+                () => $"the panel back with a track ({LayoutProblem(h)}) {h.Diagnosis()}");
         }
 
         // With the panels on, the mod's text isn't drawn, and is where and as big as it was.
@@ -188,11 +238,12 @@ namespace SevenUI.Tests
         {
             TMP_Text text = null;
             yield return WaitForText(h, found => text = found);
-            yield return h.Until(() => !text.enabled, () => $"MusicDisplay's text not drawn {h.Diagnosis()}");
             Vector3 position = text.transform.localPosition;
             Vector3 scale = text.transform.localScale;
             bool active = text.gameObject.activeSelf;
             text.text = TrackName + "\n" + TrackAuthor;
+            yield return h.Until(() => Showing(h, TrackName, TrackAuthor) && !text.enabled,
+                () => $"the panel shown and MusicDisplay's text not drawn ({Look(h)}, text enabled {text.enabled}) {h.Diagnosis()}");
             yield return h.Wait(SettleSeconds);
             if (text.enabled) throw h.Fail("MusicDisplay's text is drawn with FlatPanels on");
             if (text.transform.localPosition != position || text.transform.localScale != scale || text.gameObject.activeSelf != active)
@@ -202,35 +253,50 @@ namespace SevenUI.Tests
             }
         }
 
-        // Off, no footer and the mod's text is drawn again where it was; on again, the footer is back and the text hidden.
+        // Off, no panel and the mod's text is drawn again where it was; on again, the panel is back and the text hidden.
         private static IEnumerator FollowsFlatPanels(Harness h)
         {
             TMP_Text text = null;
             yield return WaitForText(h, found => text = found);
-            yield return OpenBoard(h, false);
-            ScoreboardItemsBoard board = ItemsBoard(h);
             text.text = TrackName + "\n" + TrackAuthor;
-            yield return h.Until(() => FooterIs(board, TrackName, TrackAuthor) && !text.enabled, () => $"the footer, and the text hidden {h.Diagnosis()}");
+            yield return h.Until(() => Showing(h, TrackName, TrackAuthor) && !text.enabled,
+                () => $"the panel, and the text hidden ({Look(h)}) {h.Diagnosis()}");
             Vector3 position = text.transform.localPosition;
             Vector3 scale = text.transform.localScale;
 
             h.SetConfig(SevenUIPlugin.Settings.FlatPanels, false);
+            yield return h.Until(() => !Panel(h) && text && text.enabled, () => $"the panel gone and the text drawn with FlatPanels off ({Look(h)}) {h.Diagnosis()}");
             yield return h.Wait(SettleSeconds);
-            if (!text) throw h.Fail("MusicDisplay's text is gone with FlatPanels off");
-            if (!text.enabled) throw h.Fail("MusicDisplay's text isn't drawn with FlatPanels off");
             if (text.transform.localPosition != position || text.transform.localScale != scale)
             {
                 throw h.Fail($"MusicDisplay's text is at {text.transform.localPosition}, scale {text.transform.localScale}, not {position}, {scale}, with FlatPanels off");
             }
-            if (ItemsBoard(h) && ItemsBoard(h).Footer && ItemsBoard(h).Footer.gameObject.activeInHierarchy) throw h.Fail("the footer is still there with FlatPanels off");
 
             h.SetConfig(SevenUIPlugin.Settings.FlatPanels, true);
-            yield return h.Until(() =>
-                {
-                    ScoreboardItemsBoard again = ItemsBoard(h);
-                    return FooterIs(again, TrackName, TrackAuthor) && !text.enabled;
-                },
-                () => $"the footer back, and the text hidden, with FlatPanels on again {h.Diagnosis()}");
+            yield return h.Until(() => Showing(h, TrackName, TrackAuthor) && !text.enabled,
+                () => $"the panel back, and the text hidden, with FlatPanels on again ({Look(h)}) {h.Diagnosis()}");
+        }
+
+        // Objectives come and go above it, and it stays last and below them.
+        private static IEnumerator StaysLast(Harness h)
+        {
+            TMP_Text text = null;
+            yield return WaitForText(h, found => text = found);
+            text.text = TrackName + "\n" + TrackAuthor;
+            System.Action removeFirst = null;
+            yield return ShowObjective(h, ObjectiveToken, remove => removeFirst = remove);
+            yield return h.Until(() => Showing(h, TrackName, TrackAuthor) && LayoutProblem(h) == null,
+                () => $"the panel last under one objective ({LayoutProblem(h)}) {h.Diagnosis()}");
+
+            System.Action removeSecond = null;
+            yield return ShowObjective(h, OtherObjectiveToken, remove => removeSecond = remove);
+            yield return h.Until(() => LayoutProblem(h) == null, () => $"the panel last under two objectives ({LayoutProblem(h)}) {h.Diagnosis()}");
+
+            removeFirst();
+            removeSecond();
+            yield return h.Wait(SettleSeconds);
+            yield return ShowObjective(h, ObjectiveToken, remove => h.OnCleanup(remove));
+            yield return h.Until(() => LayoutProblem(h) == null, () => $"the panel last after the objectives changed ({LayoutProblem(h)}) {h.Diagnosis()}");
         }
     }
 }
