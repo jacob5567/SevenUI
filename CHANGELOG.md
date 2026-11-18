@@ -1,3 +1,13 @@
+## 1.5.0
+
+- Other players' ally cards stay full size at the top, each followed by that player's allies, indented under them as the game does, with a "+N more" row of their own when the cards are crowded. Your own allies come after every player's.
+- Drones of different upgrade tiers no longer share an ally card. A new Gunner Drone keeps its own card beside an upgraded one.
+- A shared ally card no longer shows the dead X while its allies are alive, after one of them dies, another drone dies or is scrapped, or a Drone Combiner upgrades one.
+- On compact ally rows, the barrier fills the bar from its left edge.
+- Operator's drone queue and Drifter's bag display keep the game's size and place over the larger skill row.
+- Operator's drone notifications keep their command line within the panel, in the game's green.
+- On the scoreboard, the equipment and item highlight outlines are the same thickness on every side, a tab's items are centered, and in a solo run the item panel no longer lists you as the only holder.
+
 ## 1.4.0
 
 - Eleven new settings, each in the Panels section and in Risk Of Options, so you can keep parts of the game's look while the rest is restyled:
