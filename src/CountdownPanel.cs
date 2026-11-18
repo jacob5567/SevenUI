@@ -128,12 +128,15 @@ namespace SevenUI
             UiFactory.Stretch(UiFactory.NewImage("Background", holder, Palette.Panel).rectTransform);
 
             TMP_Text label = UiFactory.NewText("Label", holder, gameTime, HeaderStyle.FontSize, Palette.HeaderText);
+            // The game's time may already be in Barlow when the panel is restyled again.
+            HudFontSwapper.StartInGameFont(label);
             HeaderStyle.Apply(label);
             label.alignment = TextAlignmentOptions.Center;
             UiFactory.KeepOnOneLine(label);
             Row(label.rectTransform, LabelTop, LabelHeight, 0f);
 
             TMP_Text time = UiFactory.NewText("Time", holder, gameTime, TimeFontSize, Palette.Text);
+            HudFontSwapper.StartInGameFont(time);
             time.alignment = TextAlignmentOptions.Center;
             UiFactory.KeepOnOneLine(time);
             time.gameObject.AddComponent<CondensedText>();
