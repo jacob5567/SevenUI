@@ -285,7 +285,11 @@ namespace SevenUI
         }
 
         // Sizes the panel and places its parts, from the texts as measured in their current font.
-        internal void Layout() => layout.Layout();
+        internal void Layout()
+        {
+            layout.Layout();
+            cancel.Align();
+        }
 
         internal RectTransform NewObject(string name, Transform holder)
         {

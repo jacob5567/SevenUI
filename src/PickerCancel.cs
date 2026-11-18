@@ -23,6 +23,18 @@ namespace SevenUI
         // A cancel button the game hadn't shown yet when the panel was styled, styled once it is.
         public bool Waiting { get; private set; }
 
+        // Lines the button's right edge up with the flat panel's: the game's content rect it hangs from reaches a little
+        // past the panel's sides, which put the button past the panel's edge. Run again whenever the panel is resized.
+        public void Align()
+        {
+            if (Button == null || !Button.Button) return;
+            RectTransform rect = (RectTransform)Button.Button.transform;
+            RectTransform juice = ui.Juice;
+            RectTransform main = owner.MainPanel;
+            Vector3 panelRight = juice.InverseTransformPoint(main.TransformPoint(new Vector3(main.rect.xMax, 0f, 0f)));
+            rect.anchoredPosition = new Vector2(panelRight.x - juice.rect.xMax, -LegendGap);
+        }
+
         public void Clear()
         {
             Button = null;
@@ -46,8 +58,8 @@ namespace SevenUI
             ui.Recorder.RecordRect(rect);
             rect.anchorMin = rect.anchorMax = new Vector2(1f, 0f);
             rect.pivot = Vector2.one;
-            rect.anchoredPosition = new Vector2(0f, -LegendGap);
             rect.sizeDelta = new Vector2(CancelWidth, CancelHeight);
+            Align();
             // The game sizes the label to fit its own larger button, which overrides the font size: its label is
             // 13px regular text, centered in the button.
             foreach (TMP_Text text in button.GetComponentsInChildren<TMP_Text>(true))
