@@ -11,7 +11,8 @@ namespace SevenUI
     // Restyles the skill, equipment and key item slots in the bottom right: flat dark slots at the design canvas's size
     // and spacing (SkillRow), the equipment and key item at the skills' size, each past a thin divider and with a thin
     // ready outline in its own color, a top-down cooldown cover in place of the radial overlay, cooldowns and stocks in
-    // Barlow Condensed with the stocks in their slots' bottom-right corners (CornerStock), and the key labels (the
+    // Barlow Condensed with the stocks in their slots' bottom-right corners (CornerStock), Bandit's Desperado stacks
+    // above the special slot (DesperadoCount), and the key labels (the
     // slots' and the inventory and sprint buttons') as small grey capitals without their dark plates, and the
     // scoreboard and sprint (or descend) buttons' icons as flat strokes (FlatIcons), with the tutorial popups above
     // them as dark panels (TutorialPopups). The equipment a Functional Coupler's swap or MUL-T's Retool switches to is
@@ -62,6 +63,8 @@ namespace SevenUI
         private GameObject keyItemOutline;
         // The skills' and the equipment's charge counts, kept in their slots' corners.
         private readonly List<CornerStock> stocks = new List<CornerStock>();
+        // Bandit's Desperado stacks above the special slot.
+        private DesperadoCount desperado;
 
         public SkillSlotsStyler(HUD hud, Transform root)
         {
@@ -88,6 +91,7 @@ namespace SevenUI
             {
                 StyleSkill(skill);
             }
+            AddDesperadoCount();
             skills.Clear();
             cluster.GetComponentsInChildren(true, equipment);
             foreach (EquipmentIcon slot in equipment)
@@ -131,6 +135,7 @@ namespace SevenUI
             keyItemSlot = null;
             keyItemOutline = null;
             stocks.Clear();
+            desperado = null;
         }
 
         // The equipment slot as drawn, the right end of the skill row, once fitted.
@@ -141,6 +146,7 @@ namespace SevenUI
         {
             equipmentFit?.Update();
             deck?.Update();
+            desperado?.Update();
             stocks.RemoveAll(stock => !stock.Alive);
             foreach (CornerStock stock in stocks)
             {
@@ -168,6 +174,20 @@ namespace SevenUI
             StyleNumbers(skill.cooldownText, skill.stockText);
             KeepInCorner(skill.stockText, (RectTransform)skill.transform);
             StyleKeys(skill.transform);
+        }
+
+        // On the special slot, which is the same slot for every survivor; it shows only for Bandit's Desperado.
+        private void AddDesperadoCount()
+        {
+            if (desperado != null && desperado.Alive) return;
+            foreach (SkillIcon skill in skills)
+            {
+                if (skill.targetSkillSlot == SkillSlot.Special)
+                {
+                    desperado = DesperadoCount.Create(hud, skill, row, recorder);
+                    return;
+                }
+            }
         }
 
         private void StyleEquipment(EquipmentIcon slot)
