@@ -120,11 +120,15 @@ namespace SevenUI
             {
                 card.healthBar.gameObject.SetActive(true);
                 // The bar turns the mark on or off only when its ally's state changes from what it last saw, which
-                // may be from before it was hidden, so the mark is set to the ally's state now.
+                // may be from before it was hidden, so the mark is set to the ally's state now. That is the state of the
+                // card's ally, not of the bar's source: when the game hands a destroyed ally's card on (a scrap, or a
+                // Drone Combiner taking one of a pair), the bar may still follow the destroyed body this frame, and a
+                // mark set from it would stay, as the bar then sees a living ally again, unchanged from what it last saw.
                 HealthBar bar = card.healthBar;
                 if (bar.deadImage && !bar.altSource)
                 {
-                    bar.deadImage.enabled = !(bar.source && bar.source.alive);
+                    CharacterBody body = card.sourceMaster ? card.sourceMaster.GetBody() : null;
+                    bar.deadImage.enabled = !(body && body.healthComponent && body.healthComponent.alive);
                 }
             }
         }
