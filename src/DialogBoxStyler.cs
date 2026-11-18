@@ -16,6 +16,8 @@ namespace SevenUI
     internal sealed class DialogBoxStyler : MonoBehaviour
     {
         public const string OutlineName = "SevenUIDialogOutline";
+        // The prefab's frame around the panel, drawn a little past its edges.
+        private const string BorderName = "Border";
         private const float OutlineEdge = 1f;
         private const string LogPrefix = "Dialog box styled: ";
 
@@ -108,19 +110,23 @@ namespace SevenUI
             Image panel = PanelImage(box);
             if (panel)
             {
-                Material originalMaterial = panel.material;
-                recorder.Record(panel);
-                recorder.OnRestore(() =>
+                Flatten(recorder, panel, Palette.Panel);
+            }
+            // The title sits on a panel of its own, which becomes the header strip.
+            Image header = box.headerLabel ? box.headerLabel.transform.parent.GetComponent<Image>() : null;
+            if (header && header != panel)
+            {
+                Flatten(recorder, header, Palette.HeaderStrip);
+            }
+            if (panel)
+            {
+                foreach (Image image in panel.GetComponentsInChildren<Image>(true))
                 {
-                    if (panel)
+                    if (image.name == BorderName)
                     {
-                        panel.material = originalMaterial;
+                        recorder.Disable(image);
                     }
-                });
-                panel.sprite = null;
-                panel.type = Image.Type.Simple;
-                panel.material = null;
-                panel.color = Palette.Panel;
+                }
             }
             StyleLabel(recorder, box.headerLabel, Palette.Text);
             StyleLabel(recorder, box.descriptionLabel, Palette.HeaderText);
@@ -130,8 +136,8 @@ namespace SevenUI
             }
         }
 
-        // The nearest image behind the title: the dialog's panel, whichever object of the prefab carries it. Read by the
-        // SevenUI.Tests plugin.
+        // The nearest image that holds the title, the text and the buttons: the dialog's panel (DialogPanel), not the
+        // title's own header panel. Read by the SevenUI.Tests plugin.
         internal static Image PanelImage(SimpleDialogBox box)
         {
             Transform root = box.rootObject ? box.rootObject.transform : null;
@@ -139,11 +145,44 @@ namespace SevenUI
             while (at)
             {
                 Image image = at.GetComponent<Image>();
-                if (image) return image;
+                if (image && Holds(at, box.descriptionLabel ? box.descriptionLabel.transform : null) &&
+                    Holds(at, box.buttonContainer)) return image;
                 if (at == root) break;
                 at = at.parent;
             }
             return null;
+        }
+
+        private static bool Holds(Transform holder, Transform part) => !part || part.IsChildOf(holder);
+
+        private static void Flatten(StyleRecorder recorder, Image image, Color color)
+        {
+            Material originalMaterial = image.material;
+            recorder.Record(image);
+            recorder.OnRestore(() =>
+            {
+                if (image)
+                {
+                    image.material = originalMaterial;
+                }
+            });
+            image.sprite = null;
+            image.type = Image.Type.Simple;
+            image.material = null;
+            image.color = color;
+        }
+
+        private static int ActiveChildren(Transform container)
+        {
+            int count = 0;
+            for (int i = 0; i < container.childCount; i++)
+            {
+                if (container.GetChild(i).gameObject.activeSelf)
+                {
+                    count++;
+                }
+            }
+            return count;
         }
 
         private static void StyleLabel(StyleRecorder recorder, TMP_Text label, Color color)
@@ -157,10 +196,13 @@ namespace SevenUI
         {
             bool added = false;
             RectTransform container = box.buttonContainer;
-            if (container && container.childCount != dialog.ChildCount)
+            // The container holds the prefab's inactive button templates, which the game clones for each button: only
+            // the shown buttons are styled, so the clones don't carry this styling over.
+            int shown = container ? ActiveChildren(container) : 0;
+            if (container && shown != dialog.ChildCount)
             {
-                dialog.ChildCount = container.childCount;
-                foreach (MPButton button in container.GetComponentsInChildren<MPButton>(true))
+                dialog.ChildCount = shown;
+                foreach (MPButton button in container.GetComponentsInChildren<MPButton>(false))
                 {
                     if (dialog.Seen.Add(button))
                     {
