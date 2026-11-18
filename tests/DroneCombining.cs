@@ -21,6 +21,20 @@ namespace SevenUI.Tests
         public static int Tier(CharacterMaster drone) =>
             drone && drone.inventory ? drone.inventory.GetItemCountEffective(DLC3Content.Items.DroneUpgradeHidden) : 0;
 
+        // Removes the player's drones that aren't in the list, which the combiner would otherwise pair with them: an
+        // earlier scenario's leftovers, such as Operator's drones after the player turns back, whose Gunner Drone the
+        // combiner counts as a Gunner Drone and never takes, so it would take one of the list's in its place.
+        public static void RemoveOtherDrones(Harness h, List<CharacterMaster> drones)
+        {
+            CharacterMaster player = Harness.LocalBody.master;
+            List<CharacterMaster> others = CharacterMaster.readOnlyInstancesList.Where(master => master && !drones.Contains(master) &&
+                master.minionOwnership && master.minionOwnership.ownerMaster == player && master.GetBody() &&
+                (master.GetBody().bodyFlags & CharacterBody.BodyFlags.Drone) != 0).ToList();
+            if (others.Count == 0) return;
+            h.Log($"removing the player's other drones before combining: {string.Join(", ", others.Select(master => master.name))}");
+            Allies.Remove(others);
+        }
+
         // Combines two of the drones, calling check every frame until the upgraded one is out of the station, and takes
         // the destroyed one out of the list. A station of its own each time; destroyed at cleanup.
         public static IEnumerator Combine(Harness h, List<CharacterMaster> drones, System.Action check)
