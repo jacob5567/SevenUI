@@ -106,7 +106,7 @@ namespace SevenUI.Tests
             // The game's look is read from a second dialog made while the panels are off, as the first is styled.
             h.SetConfig(settings.FlatPanels, false);
             SimpleDialogBox plain = Open(h, 2, ShortBodyToken);
-            yield return h.Until(() => plain.buttonContainer.childCount == 2, () => $"the plain dialog has no buttons {h.Diagnosis()}");
+            yield return h.Until(() => ShownButtons(plain) == 2, () => $"the plain dialog has no buttons {h.Diagnosis()}");
             yield return h.Wait(SettleSeconds);
             Vanilla vanilla = Read(plain, 2);
             yield return h.Until(() => VanillaProblem(box, vanilla) == null, () => $"with the panels off, {VanillaProblem(box, vanilla)} {h.Diagnosis()}");
@@ -124,7 +124,7 @@ namespace SevenUI.Tests
             PluginConfig settings = SevenUIPlugin.Settings;
             h.SetConfig(settings.FlatPanels, false);
             SimpleDialogBox box = Open(h, 2, ShortBodyToken);
-            yield return h.Until(() => box.buttonContainer.childCount == 2, () => $"the dialog has no buttons {h.Diagnosis()}");
+            yield return h.Until(() => ShownButtons(box) == 2, () => $"the dialog has no buttons {h.Diagnosis()}");
             Vanilla vanilla = Read(box, 2);
             yield return h.Holds(() => VanillaProblem(box, vanilla) == null, () => $"the dialog changed with the panels off: {VanillaProblem(box, vanilla)} {h.Diagnosis()}");
             h.SetConfig(settings.FlatPanels, true);
@@ -165,6 +165,10 @@ namespace SevenUI.Tests
             }
             return box;
         }
+
+        // The container also holds the prefab's inactive button templates.
+        private static int ShownButtons(SimpleDialogBox box) =>
+            box.buttonContainer.GetComponentsInChildren<MPButton>(false).Length;
 
         private static void Close(SimpleDialogBox box)
         {
