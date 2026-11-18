@@ -46,6 +46,7 @@ namespace SevenUI.Tests
         public override IEnumerable<Suite> Suites()
         {
             yield return new Suite("font", FontScenarios.All());
+            yield return new Suite("boss_bar", BossBarScenarios.All());
             yield return new Suite("panels", PanelScenarios.All().Concat(MusicDisplayScenarios.All()).Concat(DialogScenarios.All()).Concat(ScoreboardScenarios.Checks()));
             yield return new Suite("objectives", ObjectiveScenarios.All());
             yield return new Suite("scoreboard", ScoreboardScenarios.All());
