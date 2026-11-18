@@ -246,6 +246,9 @@ namespace SevenUI.Tests
             {
                 yield return Allies.SummonDrones(h, Allies.GunnerDroneMaster, DronesPerStandIn, drones, player.GetBody());
             }
+            // A minion of one of those drones, which the game doesn't make yet: it stays in that player's section,
+            // indented under its drone's card as the game indents any minion whose leader has a card.
+            yield return Allies.SummonDrones(h, Allies.HealingDroneMaster, 1, drones, drones[0].GetBody());
             List<CharacterMaster> allies = new List<CharacterMaster>();
             yield return trace.Step("players with drones");
             CheckPlayers(h, players, "players with drones");
