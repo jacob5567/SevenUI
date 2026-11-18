@@ -26,6 +26,7 @@ namespace SevenUI.Tests
         private const string DoomKeyPart = "DoomTimer";
         private const string DoomPanelField = "trialTimerAddress";
         private const float StyleTimeout = 3f;
+        private const float TypingTimeout = 10f;
         private const double FullSeconds = 125.0;
         private const double HalfSeconds = 60.0;
         private const double LowSeconds = 5.0;
@@ -123,6 +124,8 @@ namespace SevenUI.Tests
             try
             {
                 TimerText timer = instance.GetComponentInChildren<TimerText>(true);
+                // Champ Rush's panel carries a trial's warning colors too, which the restyle keeps.
+                trial = trial || timer.GetComponent<TrialTimerController>();
                 RectTransform root = (RectTransform)instance.transform;
                 timer.seconds = FullSeconds;
                 CountdownPanel panel = null;
@@ -184,7 +187,8 @@ namespace SevenUI.Tests
                 if (timer.format == styledFormat || TightTimerFormat.IsTight(timer.format)) throw h.Fail($"{name}: the timer's format was not restored");
                 // The recorder destroys added components at the frame's end.
                 yield return h.Until(() => !root.GetComponent<LayoutIgnorer>(), $"{name}: the panel taken back into its layout", StyleTimeout);
-                if (!timer.targetLabel.enabled) throw h.Fail($"{name}: the game's time text is still hidden");
+                // The game's typewriter, resumed, turns the label on once it has typed it.
+                yield return h.Until(() => timer.targetLabel.enabled, $"{name}: the game's time text shown again", TypingTimeout);
                 yield return h.Screenshot($"{name}_off");
                 h.SetConfig(SevenUIPlugin.Settings.FlatPanels, true);
                 yield return h.Until(() => (panel = Find(h, root)) != null && Shown(panel) == LowText, $"{name}: restyled with FlatPanels on", StyleTimeout);
