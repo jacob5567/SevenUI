@@ -332,6 +332,14 @@ namespace SevenUI.Tests
             });
             // A new body gets its inventory from its master a moment after it appears.
             yield return h.Until(() => monster && monster.inventory, "the Lemurian's inventory");
+            // It climbs out of the ground first, which Repossess can't grab, then would wander off out of her aim.
+            EntityStateMachine monsterBody = EntityStateMachine.FindByCustomName(monster.gameObject, BodyStateMachine);
+            yield return h.Until(() => !monster || !monsterBody || monsterBody.IsInMainState(), "the Lemurian out of the ground",
+                SpawnTimeout);
+            foreach (RoR2.CharacterAI.BaseAI ai in monster.master.GetComponents<RoR2.CharacterAI.BaseAI>())
+            {
+                ai.enabled = false;
+            }
             // Server state; the runner is the host. Low, so a slam or two kills it before it can break out.
             monster.healthComponent.Networkhealth = monster.healthComponent.fullHealth * MonsterHealthFraction;
             yield return DrifterBag.Grab(h, repossess, bag, monster.gameObject, monster.corePosition, Util.GetBestBodyName(monster.gameObject),
