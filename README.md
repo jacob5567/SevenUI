@@ -17,7 +17,7 @@ Found a bug or have an idea? Open an issue on [GitHub](https://github.com/jacob5
 - **Prompts and notifications:** keycaps, with a strip in the color of the cost or the item's tier.
 - **Ally cards:** allies of one kind share a card, "Gunner Drone ×8", with a bar segment for each, and the cards stay clear of the chat: when they would reach it, the cards of single allies shrink to one-line rows, and if that is still too tall, the last allies' cards fold into a "+N more" row with an icon for each kind it holds. Other players' cards stay full size at the top and are never folded; their allies' cards sit indented under them, as in the game, and fold into a "+N more" row of their own.
 - **Scoreboard:** a row or a tab per player, with item counts per tier and the items at full size sorted by tier. The item or equipment you point at is described in a panel docked on the board, with who else holds it.
-- **Tooltips, item pickers and pause menu:** restyled to match.
+- **Tooltips, item pickers, pause menu and dialog boxes:** restyled to match.
 
 ![The game's HUD and SevenUI side by side, midway through a run](https://raw.githubusercontent.com/jacob5567/SevenUI/main/docs/screenshots/before-after.jpg)
 
@@ -50,7 +50,7 @@ Edit `BepInEx/config/sevenstack.SevenUI.cfg`, or use [Risk Of Options](https://t
 |---|---|---|
 | `BarlowFont` | true | Draw HUD text in Barlow. |
 | `MonospaceDamageNumbers` | true | Draw damage numbers in JetBrains Mono. |
-| `FlatPanels` | true | The flat look: panels, bars, slots, scoreboard, tooltips, pickers and the pause menu. Off brings back the game's look. |
+| `FlatPanels` | true | The flat look: panels, bars, slots, scoreboard, tooltips, pickers, the pause menu and dialog boxes. Off brings back the game's look. |
 | `TightMargins` | true | Keep the HUD near the screen's edges, as on SevenUI's design. Only with `FlatPanels` on. |
 | `ScoreboardBesideRunInfo` | true | Place the scoreboard near the top of the screen, beside the run info. Only with `FlatPanels` on. |
 | `EquipmentDeck` | true | Show the next equipment as a deck of icons above the equipment slot with a Functional Coupler. Off shows no deck. Only with `FlatPanels` on. |

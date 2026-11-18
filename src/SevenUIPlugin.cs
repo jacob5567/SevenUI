@@ -16,6 +16,8 @@ namespace SevenUI
         internal static ManualLogSource Log;
         internal static PluginConfig Settings;
 
+        private DialogBoxStyler dialogs;
+
         private void Awake()
         {
             Log = Logger;
@@ -26,6 +28,8 @@ namespace SevenUI
                 RiskOfOptionsCompat.Register(Settings);
             }
 
+            // Dialog boxes open outside a run too, so their styler hangs on the plugin, not on a HUD.
+            dialogs = gameObject.AddComponent<DialogBoxStyler>();
             HUD.onHudTargetChangedGlobal += OnHudTargetChanged;
             Settings.MonospaceDamageNumbers.SettingChanged += OnMonospaceDamageNumbersChanged;
         }
@@ -61,7 +65,7 @@ namespace SevenUI
         }
 
         // Logs each HUD's fonts and what the mod restyled.
-        private static void Dump()
+        private void Dump()
         {
             StringBuilder output = new StringBuilder("SevenUI dump:\n");
             foreach (HUD hud in HUD.readOnlyInstanceList)
@@ -75,6 +79,11 @@ namespace SevenUI
                 {
                     output.AppendLine($"HUD {hud.name}: no controller");
                 }
+            }
+            output.AppendLine("Dialog boxes:");
+            if (dialogs)
+            {
+                dialogs.Describe(output);
             }
             Log.LogInfo(output.ToString());
         }
