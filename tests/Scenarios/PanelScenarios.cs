@@ -276,7 +276,7 @@ namespace SevenUI.Tests
             });
         }
 
-        // As Bandit with Desperado: nothing at no stacks, then the buff's count over the special slot, and nothing again
+        // As Bandit with Desperado: nothing at no stacks, then the buff's icon and count over the special slot, and nothing again
         // once the stacks are gone. Shot with 12 stacks. The buff is set on the host's body, as a kill would.
         private static IEnumerator DesperadoCountFollowsStacks(Harness h)
         {
