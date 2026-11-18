@@ -61,13 +61,14 @@ namespace SevenUI
             AllyCardsStyler allyCards = new AllyCardsStyler(hud, root);
             PromptsStyler prompts = new PromptsStyler(hud, root);
             pickers = new PickerStyler(hud, root);
-            ScoreboardStyler scoreboard = new ScoreboardStyler(hud, root);
+            NowPlaying nowPlaying = new NowPlaying();
+            ScoreboardStyler scoreboard = new ScoreboardStyler(hud, root, nowPlaying);
             ChatStyler chat = new ChatStyler(root);
             tilt = new TiltFlattener(root);
             tooltips = new TooltipStyler(hud, root);
             // The pause menu is its own canvas, outside the HUD, made each time it opens.
             pause = new PauseScreenStyler(hud, root);
-            MusicDisplayStyler music = new MusicDisplayStyler();
+            MusicDisplayStyler music = new MusicDisplayStyler(nowPlaying);
             TopBarsWidth topBars = new TopBarsWidth(root);
             HudMargins margins = new HudMargins(hud, root, skillSlots);
             stylers = new IStyler[]

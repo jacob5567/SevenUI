@@ -39,7 +39,7 @@ Found a bug or have an idea? Open an issue on [GitHub](https://github.com/jacob5
 
 - **Multiplayer:** client-side. It only changes your own HUD, so it works when you join a host who doesn't have it.
 - **[LookingGlass](https://thunderstore.io/package/DropPod/LookingGlass/):** its stats panel, buff timers, item stats and full descriptions take on the same look.
-- **[MusicDisplay](https://thunderstore.io/package/DestroyedClone/MusicDisplay/):** its now-playing text takes Barlow and a flat panel behind it, with the panels on.
+- **[MusicDisplay](https://thunderstore.io/package/DestroyedClone/MusicDisplay/):** with the panels on, its now-playing text is hidden and the track is shown on one line along the bottom of the scoreboard instead ("NOW PLAYING", the track's name and its author). The line shows whether or not MusicDisplay's text has faded, and is left out while MusicDisplay has no track. With the panels off, MusicDisplay's text is shown as the mod has it.
 - **Languages:** Barlow has Latin letters only. Languages the game draws in Noto Sans, such as Russian, Chinese, Japanese and Korean, keep the game's font.
 
 ## Configuration

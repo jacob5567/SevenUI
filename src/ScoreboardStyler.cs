@@ -93,11 +93,13 @@ namespace SevenUI
         private readonly HashSet<ScoreboardStrip> skipped = new HashSet<ScoreboardStrip>();
         private ScoreboardPlacement placement;
         private ScoreboardItemsBoard itemsBoard;
+        private readonly NowPlaying nowPlaying;
 
-        public ScoreboardStyler(HUD hud, Transform root)
+        public ScoreboardStyler(HUD hud, Transform root, NowPlaying nowPlaying)
         {
             this.hud = hud;
             this.root = root;
+            this.nowPlaying = nowPlaying;
         }
 
         public bool Enabled => SevenUIPlugin.Settings.FlatPanels.Value;
@@ -213,7 +215,7 @@ namespace SevenUI
             itemsBoard = strips.gameObject.AddComponent<ScoreboardItemsBoard>();
             recorder.Add(itemsBoard);
             TMP_Text style = headers ? headers.GetComponentInChildren<TMP_Text>(true) : null;
-            itemsBoard.Init(recorder, styled, hud, (RectTransform)board, style);
+            itemsBoard.Init(recorder, styled, hud, (RectTransform)board, style, nowPlaying);
         }
 
         // False, with the row untouched, if its background or columns aren't there (yet).
