@@ -25,6 +25,8 @@ namespace SevenUI
     // it, and the sections still apply.
     internal sealed class AllyCardsStyler : IStyler
     {
+        // How far up a chain of minion owners a kind's player is looked for.
+        private const int MaxLeaderDepth = 8;
         // Under each card's health bar.
         private const string TroughName = "BackgroundPanel";
         // Kept clear between the cards and the chat's messages, in the design canvas's pixels.
@@ -59,8 +61,7 @@ namespace SevenUI
         private RectTransform container;
         // The game's manager of the cards in container. Its layout indents a card by its indentWidth when the card's
         // shouldIndent is set, and lays the card's contents out to the narrower width. The game sets shouldIndent when
-        // a minion's leader has a card, which includes a minion of a drone; the mod sets it on the cards it shows to
-        // its own rule instead (see SetIndent).
+        // a minion's leader has a card, a player's or another ally's; the mod keeps to that rule (see SetIndent).
         private AllyCardManager cardManager;
         private RectTransform chat;
         // Fades the whole stack out while the scoreboard is open.
@@ -80,6 +81,9 @@ namespace SevenUI
             public string Name;
             public readonly List<CharacterMaster> Members = new List<CharacterMaster>();
             public readonly List<AllyCardController> Cards = new List<AllyCardController>();
+            // The game's rule: indented when the kind's leader has a card, as a player other than the viewer or an ally
+            // with minions of its own does.
+            public bool Indent;
             public bool Shared => Members.Count > 1;
         }
 
@@ -226,18 +230,19 @@ namespace SevenUI
             {
                 if (section.Player != null)
                 {
-                    ShowKind(section.Player, compact, true, false);
+                    ShowKind(section.Player, compact, true);
                     tallest = Mathf.Max(tallest, Height(section.Player, compact));
                     places.Add((section.Player.Lead.rectTransform, -top));
                     top += Height(section.Player, compact);
                 }
                 section.Overflow.Clear();
                 int hiddenHere = 0;
+                bool hiddenIndent = true;
                 for (int i = 0; i < section.Allies.Count; i++)
                 {
                     Kind kind = section.Allies[i];
                     bool fits = i < section.Shown;
-                    ShowKind(kind, compact, fits, section.Player != null);
+                    ShowKind(kind, compact, fits);
                     if (fits)
                     {
                         tallest = Mathf.Max(tallest, Height(kind, compact));
@@ -247,6 +252,7 @@ namespace SevenUI
                     else
                     {
                         hiddenHere += Mathf.Max(1, kind.Members.Count);
+                        hiddenIndent &= kind.Indent;
                         section.Overflow.Add(kind.Lead);
                     }
                 }
@@ -259,9 +265,9 @@ namespace SevenUI
                     {
                         section.Row = new AllyMoreRow(container, cards[0].nameLabel, padding, section.Index);
                     }
-                    // Indented under another player as the game indents that player's ally cards; the viewer's own
-                    // allies have no card above them to hang under.
-                    float indent = section.Player != null ? GameIndent() : 0f;
+                    // Indented as the cards it stands for would be: under another player, as all of that player's
+                    // allies are, but not for the viewer's own allies, which have no card above them to hang under.
+                    float indent = hiddenIndent ? GameIndent() : 0f;
                     section.Row.Show(top, section.Overflow, hiddenHere, padding, indent);
                     top += AllyCompactCard.RowHeight;
                 }
@@ -399,24 +405,24 @@ namespace SevenUI
         // The indent the game gives a minion's card under its leader's.
         private float GameIndent() => cardManager ? cardManager.indentWidth : 0f;
 
-        // Indented only as an ally of another player, under that player's card; the viewer's allies and the players'
-        // own cards stand at the edge. The game re-sets the flag when its allies change, so it is set again each frame,
-        // and the cards laid out again when it changed.
-        private void SetIndent(AllyCardController card, bool underPlayer)
+        // The kind's indent on each of its cards, so a card handed to a kind with another leader takes the kind's. The
+        // game re-sets the flag when its allies change, so it is set again each frame, and the cards laid out again
+        // when it changed.
+        private void SetIndent(AllyCardController card, bool indent)
         {
-            if (card.shouldIndent == underPlayer) return;
-            card.shouldIndent = underPlayer;
+            if (card.shouldIndent == indent) return;
+            card.shouldIndent = indent;
             if (container)
             {
                 LayoutRebuilder.MarkLayoutForRebuild(container);
             }
         }
 
-        private void ShowKind(Kind kind, bool compact, bool fits, bool underPlayer)
+        private void ShowKind(Kind kind, bool compact, bool fits)
         {
             foreach (AllyCardController card in kind.Cards)
             {
-                SetIndent(card, underPlayer);
+                SetIndent(card, kind.Indent);
                 AllyCompactCard look = LookOf(card);
                 if (card != kind.Lead)
                 {
@@ -456,6 +462,7 @@ namespace SevenUI
             {
                 kind.Lead = null;
                 kind.Leader = null;
+                kind.Indent = false;
                 kind.Tier = 0;
                 kind.Name = null;
                 kind.Members.Clear();
@@ -504,7 +511,22 @@ namespace SevenUI
                     }
                 }
             }
+            // As the game's AllyCardManager.BuildFromCharacterData does: a minion is indented when its leader has a card.
+            foreach (Kind kind in kinds)
+            {
+                kind.Indent = HasCard(kind.Leader);
+            }
             BuildSections();
+        }
+
+        private bool HasCard(CharacterMaster master)
+        {
+            if (!master) return false;
+            foreach (AllyCardController card in cards)
+            {
+                if (card.sourceMaster == master) return true;
+            }
+            return false;
         }
 
         // Sets the kinds in sections, each in the game's order: one section per player card, the player and then the
@@ -529,20 +551,11 @@ namespace SevenUI
                 Section section = SectionAt(next++);
                 section.Player = kind;
             }
-            Section own = SectionAt(0);
+            SectionAt(0);
             foreach (Kind kind in unsorted)
             {
                 if (IsPlayer(kind)) continue;
-                Section owner = own;
-                for (int i = 1; i < next; i++)
-                {
-                    if (kind.Leader && pool[i].Player.Lead.sourceMaster == kind.Leader)
-                    {
-                        owner = pool[i];
-                        break;
-                    }
-                }
-                owner.Allies.Add(kind);
+                OwnerOf(kind, next).Allies.Add(kind);
             }
             for (int n = 1; n <= next; n++)
             {
@@ -555,6 +568,23 @@ namespace SevenUI
                 }
                 kinds.AddRange(section.Allies);
             }
+        }
+
+        // The section of the player the kind follows, up its chain of leaders, so a minion of another player's drone
+        // stays with that player; the viewer's own section if no player card leads it. The chain is cut short in case
+        // an owner ever leads back round to itself.
+        private Section OwnerOf(Kind kind, int playerSections)
+        {
+            CharacterMaster leader = kind.Leader;
+            for (int depth = 0; leader && depth < MaxLeaderDepth; depth++)
+            {
+                for (int i = 1; i < playerSections; i++)
+                {
+                    if (pool[i].Player.Lead.sourceMaster == leader) return pool[i];
+                }
+                leader = leader.minionOwnership ? leader.minionOwnership.ownerMaster : null;
+            }
+            return pool[0];
         }
 
         private Section SectionAt(int index)

@@ -25,6 +25,8 @@ namespace SevenUI.Tests
     {
         // AllyCardManager.indentWidth in the game: how far a minion's card sits in under its leader's.
         private const float GameIndent = 16f;
+        // As far up a chain of minion owners as the mod looks for a kind's player.
+        private const int MaxLeaderDepth = 8;
         private const string ClusterPath = "MainContainer/MainUIArea/SpringCanvas/LeftCluster";
         // The game's ally card (Prefabs/UI/AllyCard) asks for this height.
         public const float GameHeight = 48f;
@@ -65,6 +67,8 @@ namespace SevenUI.Tests
             public CharacterMaster Leader;
             public int Allies;
             public bool Player;
+            // As the game's AllyCardManager has it: a minion's card is indented when its leader has a card.
+            public bool Indent;
             public CharacterMaster Master => Lead ? Lead.sourceMaster : null;
         }
 
@@ -118,6 +122,10 @@ namespace SevenUI.Tests
                     kind.Allies++;
                     sharing.Add(card);
                 }
+            }
+            foreach (Kind kind in kinds)
+            {
+                kind.Indent = kind.Leader && cards.Any(card => card.sourceMaster == kind.Leader);
             }
             List<Section> sections = Sections(kinds);
             kinds = sections.SelectMany(section => (section.Player != null ? new[] { section.Player } : new Kind[0])
@@ -177,14 +185,20 @@ namespace SevenUI.Tests
         }
 
         // The sections as the mod sets them: each player card in the game's order with the kinds that follow that
-        // player's master, then last the viewer's allies that follow no player card.
+        // player's master, directly or through other allies, then last the viewer's allies that follow no player card.
         private static List<Section> Sections(List<Kind> kinds)
         {
             List<Section> players = kinds.Where(kind => kind.Player).Select(kind => new Section { Player = kind }).ToList();
             Section own = new Section();
             foreach (Kind kind in kinds.Where(kind => !kind.Player))
             {
-                Section owner = kind.Leader ? players.FirstOrDefault(section => section.Player.Master == kind.Leader) : null;
+                Section owner = null;
+                CharacterMaster leader = kind.Leader;
+                for (int depth = 0; leader && owner == null && depth < MaxLeaderDepth; depth++)
+                {
+                    owner = players.FirstOrDefault(section => section.Player.Master == leader);
+                    leader = leader.minionOwnership ? leader.minionOwnership.ownerMaster : null;
+                }
                 (owner ?? own).Allies.Add(kind);
             }
             List<Section> sections = new List<Section>(players);
@@ -203,12 +217,11 @@ namespace SevenUI.Tests
                 if (card.gameObject.activeSelf) return $"a second {Name(card)} has a card of its own";
             }
             List<RectTransform> rows = More(h);
-            // The rows come in the sections' order, top to bottom, and a row under a player is indented.
-            List<bool> underPlayer = sections.Where(section => section.Hidden > 0).Select(section => section.Player != null).ToList();
-            // So is each card of an ally another player owns.
-            HashSet<AllyCardController> playersAllies = new HashSet<AllyCardController>(sections
-                .Where(section => section.Player != null).SelectMany(section => section.Allies).Select(kind => kind.Lead));
-            string edges = CompareEdges(cluster, kinds, compact, cards, rows, underPlayer, playersAllies);
+            // The rows come in the sections' order, top to bottom; a row is indented when every kind it folds is.
+            List<bool> rowIndents = sections.Where(section => section.Hidden > 0)
+                .Select(section => section.Allies.Skip(section.Shown).All(kind => kind.Indent)).ToList();
+            HashSet<AllyCardController> indented = new HashSet<AllyCardController>(kinds.Where(kind => kind.Indent).Select(kind => kind.Lead));
+            string edges = CompareEdges(cluster, kinds, compact, cards, rows, rowIndents, indented);
             if (edges != null) return edges;
             float above = 0f;
             int rowsSeen = 0;
@@ -299,11 +312,11 @@ namespace SevenUI.Tests
         }
 
         // Every row drawn (the first card shown, the other cards, the more rows) must start at the first's backdrop
-        // edge, with its icon the same distance in, except that a player's allies' cards and more row start the game's
-        // minion indent further in. Measured from the world corners, as drawn: the game indents a minion's card under its
+        // edge, with its icon the same distance in, except that the cards of a minion whose leader has a card (as every
+        // ally of another player is), and a more row folding only such cards, start the game's minion indent further in. Measured from the world corners, as drawn: the game indents a minion's card under its
         // leader by moving the card's rect, which a portrait's edge alone would hide.
         private static string CompareEdges(RectTransform cluster, List<Kind> kinds, bool compact, List<AllyCardController> cards,
-            List<RectTransform> rows, List<bool> underPlayer, HashSet<AllyCardController> playersAllies)
+            List<RectTransform> rows, List<bool> rowIndents, HashSet<AllyCardController> indented)
         {
             float? backdrop = null;
             float? inset = null;
@@ -316,14 +329,14 @@ namespace SevenUI.Tests
                 bool isShared = kinds.Any(kind => kind.Lead == card && kind.Allies > 1);
                 string look = isShared ? "shared" : compact ? "compact" : "full";
                 // The game's indent is in the cards' container's units; measured here in the cluster's.
-                float indent = playersAllies.Contains(card) ? Indent(cluster, card.rectTransform) : 0f;
+                float indent = indented.Contains(card) ? Indent(cluster, card.rectTransform) : 0f;
                 string problem = CompareRow($"{Name(card)}'s {look} card", back, icon, indent, ref backdrop, ref inset);
                 if (problem != null) return problem;
             }
             for (int i = 0; i < rows.Count; i++)
             {
                 RectTransform more = rows[i];
-                float indent = i < underPlayer.Count && underPlayer[i] ? Indent(cluster, more) : 0f;
+                float indent = i < rowIndents.Count && rowIndents[i] ? Indent(cluster, more) : 0f;
                 RectTransform slot = more.Cast<Transform>()
                     .FirstOrDefault(child => child.name == AllyMoreRow.IconName && child.gameObject.activeSelf) as RectTransform;
                 float back = LeftEdge(cluster, more);
@@ -346,7 +359,7 @@ namespace SevenUI.Tests
             {
                 return indent == 0f
                     ? $"{row} has its backdrop {back:0.#} units across, not {backdrop.Value:0.#} like the first"
-                    : $"{row} has its backdrop {back:0.#} units across, not {backdrop.Value + indent:0.#}, the first's {backdrop.Value:0.#} indented {indent:0.#} like another player's ally";
+                    : $"{row} has its backdrop {back:0.#} units across, not {backdrop.Value + indent:0.#}, the first's {backdrop.Value:0.#} indented {indent:0.#} like a minion under its leader's card";
             }
             if (Mathf.Abs(icon - back - inset.Value) > Tolerance)
             {
