@@ -78,6 +78,9 @@ namespace SevenUI.Tests
         private const float VoidFiendCorruption = 50f;
         // How hurt the Lemurian Drifter bags is, as a fraction of its health: low enough to show as low on the bar.
         private const float MonsterHealthFraction = 0.2f;
+        // DebugToolkit's switch for the combat directors, and how long the killed monsters take to go.
+        private const string NoEnemies = "no_enemies";
+        private const float ClearSeconds = 1f;
 
         public static IEnumerable<Scenario> All()
         {
@@ -313,6 +316,11 @@ namespace SevenUI.Tests
             yield return h.CaptureLooks("chest_broken");
             yield return DrifterBag.ExpectCardGone(h, "chest broken");
 
+            // The stage's own monsters would be grabbed in its place if nearer her aim, so they are stopped and cleared.
+            h.Cmd($"{NoEnemies} 1");
+            h.OnCleanup(() => h.Cmd($"{NoEnemies} 0"));
+            h.Cmd(Commands.KillAll);
+            yield return h.Wait(ClearSeconds);
             CharacterBody monster = null;
             yield return h.Spawned<CharacterBody>($"{Commands.SpawnAi} {GameNames.ExecutableMonster} 1", found => monster = found);
             h.OnCleanup(() =>
