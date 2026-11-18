@@ -76,6 +76,8 @@ namespace SevenUI.Tests
         private const float NewBodyTimeout = 10f;
         // Half of Void Fiend's corruption, so the meter shows a level and not empty.
         private const float VoidFiendCorruption = 50f;
+        // How hurt the Lemurian Drifter bags is, as a fraction of its health: low enough to show as low on the bar.
+        private const float MonsterHealthFraction = 0.2f;
 
         public static IEnumerable<Scenario> All()
         {
@@ -105,6 +107,7 @@ namespace SevenUI.Tests
             yield return Shot("operator_display_fits_slots", OperatorDisplayFitsSlots);
             // The same for Drifter's display of what it carries, which the game hangs from the same area.
             yield return Shot("drifter_bag_display_matches_game", DrifterBagDisplayMatchesGame);
+            yield return Shot("drifter_bag_slams", DrifterBagSlams);
             // Starts the teleporter, which changes the stage, so it goes last.
             yield return new Scenario(2, "boss_bar", Stages.TitanicPlains, BossBar);
         }
@@ -260,6 +263,81 @@ namespace SevenUI.Tests
             {
                 throw h.Fail($"Drifter grabbed none of the {DrifterBag.Kinds.Length} kinds: {string.Join("; ", skipped)} {h.Diagnosis()}");
             }
+        }
+
+        // Drifter slams what she carries with her primary until it breaks, each step shot in both looks: a Small Chest
+        // from full durability, after the first slam, at the low durability where the game draws its low-health marks on
+        // the bar, and as it breaks and empties the bag; then a Lemurian, hurt to low health before she bags it, slammed
+        // until it dies. The bag display's bar must follow each, with the low-health marks on only at low durability (a
+        // body's marks come only from the viewer's low-health items, so the Lemurian's stay off), and the display must go
+        // once the bag is empty. Skipped without Drifter's expansion.
+        private static IEnumerator DrifterBagSlams(Harness h)
+        {
+            yield return TurnInto(h, GameNames.Drifter);
+            CharacterBody body = Harness.LocalBody;
+            DrifterBagController bag = body.GetComponent<DrifterBagController>();
+            if (!bag) throw h.Fail("the Drifter has no DrifterBagController");
+            GenericSkill repossess = DrifterBag.FindRepossess(h, body);
+            h.OnCleanup(() =>
+            {
+                if (bag && bag.bagFull)
+                {
+                    bag.ResetBaggedObject();
+                }
+            });
+
+            SpecialObjectAttributes chest = null;
+            yield return DrifterBag.Spawn(h, GameNames.SmallChest, found => chest = found);
+            if (!chest) throw h.Fail($"no {GameNames.SmallChest} spawned for the bag {h.Diagnosis()}");
+            SpecialObjectAttributes spawned = chest;
+            h.OnCleanup(() => DrifterBag.Discard(spawned));
+            string problem = null;
+            yield return DrifterBag.Grab(h, repossess, bag, chest, reason => problem = reason);
+            if (problem != null) throw h.Fail($"Drifter couldn't bag the {GameNames.SmallChest}: {problem} {h.Diagnosis()}");
+            int full = chest.maxDurability;
+            h.Log($"bagged the {GameNames.SmallChest} at {chest.durability}/{full} durability");
+            yield return h.AimAway();
+            yield return DrifterBag.ExpectBar(h, chest, null, full <= DrifterBag.LowDurability, "chest at full durability");
+            yield return h.CaptureLooks("chest_full");
+
+            yield return DrifterBag.Slam(h, body, () => chest.durability < full, "the chest's first slam");
+            yield return DrifterBag.ExpectBar(h, chest, null, chest.durability <= DrifterBag.LowDurability, "chest after one slam");
+            yield return h.CaptureLooks("chest_hit");
+
+            yield return DrifterBag.Slam(h, body, () => chest.durability <= DrifterBag.LowDurability, "the chest's low durability");
+            yield return DrifterBag.ExpectBar(h, chest, null, true, "chest at low durability");
+            yield return h.CaptureLooks("chest_low");
+
+            yield return DrifterBag.Slam(h, body, () => !bag.bagFull, "the chest breaking");
+            // Shot first, so a display left behind is in the picture.
+            yield return h.CaptureLooks("chest_broken");
+            yield return DrifterBag.ExpectCardGone(h, "chest broken");
+
+            CharacterBody monster = null;
+            yield return h.Spawned<CharacterBody>($"{Commands.SpawnAi} {GameNames.ExecutableMonster} 1", found => monster = found);
+            h.OnCleanup(() =>
+            {
+                if (monster && monster.healthComponent && monster.healthComponent.alive)
+                {
+                    monster.healthComponent.Suicide();
+                }
+            });
+            // A new body gets its inventory from its master a moment after it appears.
+            yield return h.Until(() => monster && monster.inventory, "the Lemurian's inventory");
+            SpecialObjectAttributes held = monster.GetComponent<SpecialObjectAttributes>();
+            if (!held) throw h.Fail($"the Lemurian has no SpecialObjectAttributes for the bag to take {h.Diagnosis()}");
+            // Server state; the runner is the host. Low, so a slam or two kills it before it can break out.
+            monster.healthComponent.Networkhealth = monster.healthComponent.fullHealth * MonsterHealthFraction;
+            yield return DrifterBag.Grab(h, repossess, bag, held, reason => problem = reason, Util.GetBestBodyName(monster.gameObject));
+            if (problem != null) throw h.Fail($"Drifter couldn't bag the Lemurian: {problem} {h.Diagnosis()}");
+            yield return h.AimAway();
+            yield return DrifterBag.ExpectBar(h, null, monster, false, "Lemurian at low health");
+            yield return h.CaptureLooks("monster_low");
+
+            yield return DrifterBag.Slam(h, body, () => !monster || !monster.healthComponent.alive || !bag.bagFull, "the Lemurian dying");
+            if (monster && monster.healthComponent.alive) throw h.Fail($"the Lemurian broke out of the bag alive {h.Diagnosis()}");
+            yield return h.CaptureLooks("monster_killed");
+            yield return DrifterBag.ExpectCardGone(h, "Lemurian killed");
         }
 
         // A server method; the runner is the host.
