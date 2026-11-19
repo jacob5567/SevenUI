@@ -110,12 +110,8 @@ namespace SevenUI
             this.hud = hud;
             mainPanel = source.MainPanel;
             juice = source.Juice;
-            TMP_Text title = source.FindTitle();
-            if (!title)
-            {
-                Transform titleObject = juice.Find(TitleName);
-                title = titleObject ? titleObject.GetComponent<TMP_Text>() : null;
-            }
+            Transform titleObject = juice.Find(TitleName);
+            TMP_Text title = titleObject ? titleObject.GetComponent<TMP_Text>() : null;
             ui = new PickerUi(this, source, recorder, juice, title);
             cards = new PickerCards(this, ui);
             grid = new PickerGrid(this, ui);
@@ -170,6 +166,9 @@ namespace SevenUI
 
         public RectTransform MainPanel => mainPanel;
 
+        // The game's title, the header. Read by the SevenUI.Tests plugin.
+        public TMP_Text Title => ui.Title;
+
         internal PickerSource Source => source;
 
         public TMP_Text DetailsNameText => slots.DetailsName;
@@ -209,6 +208,7 @@ namespace SevenUI
                 }
                 Style(options, count, elements);
             }
+            source.KeepShown();
             // The font swap gives the texts Barlow after they are made, which measures differently.
             TMP_FontAsset font = buttons.Count > 0 && buttons[0].Name ? buttons[0].Name.font
                 : slots.DetailsName ? slots.DetailsName.font : EmptyMessage ? EmptyMessage.font : null;

@@ -1,7 +1,6 @@
 using System.Collections.ObjectModel;
 using RoR2;
 using RoR2.UI;
-using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -60,15 +59,17 @@ namespace SevenUI
             ButtonContainer.sizeDelta = new Vector2(width, height);
         }
 
-        // The game's title text, when it isn't a direct child of the content; null to look it up there.
-        public virtual TMP_Text FindTitle() => null;
-
         // Puts game parts the panel keeps under the details (the drone scrapper's icon and scrap arrow) at this place and
         // width; returns their height, or 0 for none.
         public virtual float PlaceExtras(float x, float y, float width) => 0f;
 
         // Hides the game's own selection and hover graphics on a slot's button.
         public virtual void HideSelection(MPButton button)
+        {
+        }
+
+        // Every frame while the panel is styled: holds game parts the game itself may change back.
+        public virtual void KeepShown()
         {
         }
 
