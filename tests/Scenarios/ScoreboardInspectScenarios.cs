@@ -1,0 +1,280 @@
+using System.Collections;
+using System.Collections.Generic;
+using System.Reflection;
+using ModTestRunner;
+using RoR2;
+using RoR2.UI;
+using TMPro;
+using UnityEngine;
+using UnityEngine.UI;
+
+namespace SevenUI.Tests
+{
+    // The scoreboard's inspect panel (what Tab shows for the pickup or interactable beside the player), restyled in place
+    // as the canvas's design A: the board's width, 6px under it, the board's flat face, a 2px strip along its top in the
+    // title's color, the 56px icon on a dark slot, the name in bold 16 over the description in 13, in the body color.
+    // The panel is shown through the game's own controller (Show), which is what the interact prompt's Inspect does,
+    // with an item (Alien Head) and with a small chest's own inspect info. FlatPanels off puts the game's panel back as
+    // it was (compared with a look taken before the mod touched it), and on again styles it again.
+    internal static class ScoreboardInspectScenarios
+    {
+        private const string BoardPath = "Container/StripContainer";
+        private const string InspectionPath = "Container/InspectPanel/InspectPanelArea/InspectionPanel";
+        private const string IconPath = InspectionPath + "/HorizontalBox/InspectIconContainer/InspectVisualBackground";
+        private const string TextsPath = InspectionPath + "/HorizontalBox/InspectDescriptionContainer";
+        private const BindingFlags Fields = BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public;
+        // In the canvas's pixels, which Box measures in.
+        private const float BoardGap = 6f;
+        private const float StripHeight = 2f;
+        private const float IconSize = 56f;
+        private const float PaddingX = 14f;
+        private const float PaddingY = 12f;
+        private const float IconGap = 12f;
+        private const float NameSize = 16f;
+        private const float DescriptionSize = 13f;
+        private const float LineHeight = 1.4f;
+        private const float Tolerance = 1.5f;
+        private const float LineTolerance = 0.05f;
+        private const float SettleSeconds = 0.5f;
+
+        public static IEnumerable<Scenario> All()
+        {
+            yield return new Scenario(1, "scoreboard_inspect_item_as_canvas", Stages.TitanicPlains, ItemAsCanvas);
+            yield return new Scenario(1, "scoreboard_inspect_chest_as_canvas", Stages.TitanicPlains, ChestAsCanvas);
+            yield return new Scenario(1, "scoreboard_inspect_flat_panels_off_and_on", Stages.TitanicPlains, FlatPanelsOffAndOn);
+        }
+
+        // With the scoreboard open, the panel showing Alien Head: laid out and drawn as the canvas, in the item's tier color.
+        private static IEnumerator ItemAsCanvas(Harness h)
+        {
+            h.SetConfig(SevenUIPlugin.Settings.DebugLogging, true);
+            h.SetConfig(SevenUIPlugin.Settings.FlatPanels, true);
+            yield return ScoreboardSetUp.Open(h);
+            InspectInfo info = RoR2Content.Items.AlienHead;
+            yield return Inspect(h, info);
+            yield return h.Wait(SettleSeconds);
+            yield return Expect(h, info.TitleColor, "Alien Head");
+            yield return h.Screenshot("scoreboard_inspect");
+        }
+
+        // A chest has no tier: its inspect info's own title color names it and colors the strip, the slot has no strip.
+        private static IEnumerator ChestAsCanvas(Harness h)
+        {
+            h.SetConfig(SevenUIPlugin.Settings.DebugLogging, true);
+            h.SetConfig(SevenUIPlugin.Settings.FlatPanels, true);
+            PurchaseInteraction chest = null;
+            yield return h.Spawned<PurchaseInteraction>($"{Commands.SpawnInteractable} {GameNames.SmallChest}", found => chest = found);
+            IInspectInfoProvider provider = chest ? chest.GetComponent<IInspectInfoProvider>() : null;
+            InspectInfo info = provider?.GetInfo();
+            if (info == null) throw h.Skip("the small chest has no inspect info");
+            yield return ScoreboardSetUp.Open(h);
+            yield return Inspect(h, info);
+            yield return h.Wait(SettleSeconds);
+            yield return Expect(h, info.TitleColor, "the chest");
+            yield return h.Screenshot("scoreboard_inspect_chest");
+        }
+
+        // The game's panel as it draws it with FlatPanels off, taken before the mod has touched it; on, it is styled; off
+        // again, every value is the game's again and the strip is gone; and on once more it is styled again.
+        private static IEnumerator FlatPanelsOffAndOn(Harness h)
+        {
+            PluginConfig settings = SevenUIPlugin.Settings;
+            h.SetConfig(settings.DebugLogging, true);
+            h.SetConfig(settings.FlatPanels, false);
+            yield return h.Wait(SevenUIChecks.LookSwitchSeconds);
+            yield return ScoreboardSetUp.Open(h);
+            InspectInfo info = RoR2Content.Items.AlienHead;
+            yield return Inspect(h, info);
+            yield return h.Wait(SettleSeconds);
+            string vanilla = Look(h);
+            if (Strip(h)) throw h.Fail($"the mod's strip on the panel with FlatPanels off {h.Diagnosis()}");
+            yield return h.Screenshot("scoreboard_inspect_off");
+
+            h.SetConfig(settings.FlatPanels, true);
+            yield return h.Wait(SevenUIChecks.LookSwitchSeconds);
+            yield return Expect(h, info.TitleColor, "Alien Head with FlatPanels on");
+
+            h.SetConfig(settings.FlatPanels, false);
+            string restored = null;
+            yield return h.Until(() => !Strip(h) && (restored = Look(h)) == vanilla,
+                () => $"the game's panel back with FlatPanels off (strip {(Strip(h) ? "still there" : "gone")}; " +
+                      $"before: {vanilla}; now: {restored}) {h.Diagnosis()}");
+
+            h.SetConfig(settings.FlatPanels, true);
+            yield return h.Wait(SevenUIChecks.LookSwitchSeconds);
+            yield return Expect(h, info.TitleColor, "Alien Head with FlatPanels on again");
+        }
+
+        // Shows what the interact prompt's Inspect would, through the game's controller. Autopause, which the panel asks
+        // for while it is up in a single-player run, would stop the game, so it is off for the scenario.
+        private static IEnumerator Inspect(Harness h, InspectInfo info)
+        {
+            InspectPanelController controller = null;
+            yield return h.Until(() => (controller = Controller(h)) != null, "the scoreboard's inspect panel");
+            FieldInfo autopause = typeof(InspectPanelController).GetField("isAutopauseCandidate", Fields);
+            if (autopause != null)
+            {
+                bool before = (bool)autopause.GetValue(controller);
+                autopause.SetValue(controller, false);
+                h.OnCleanup(() =>
+                {
+                    if (controller) autopause.SetValue(controller, before);
+                });
+            }
+            h.OnCleanup(() =>
+            {
+                if (controller) controller.OnCloseButtonClicked();
+            });
+            controller.Show(info);
+            yield return null;
+        }
+
+        private static InspectPanelController Controller(Harness h)
+        {
+            ScoreboardController board = SevenUIChecks.HudRoot(h).GetComponentInChildren<ScoreboardController>(true);
+            return board ? board.GetComponentInChildren<InspectPanelController>(true) : null;
+        }
+
+        private static Transform Board(Harness h)
+        {
+            ScoreboardController board = SevenUIChecks.HudRoot(h).GetComponentInChildren<ScoreboardController>(true);
+            return board ? board.transform : null;
+        }
+
+        private static Image Strip(Harness h)
+        {
+            Transform inspection = Board(h) ? Board(h).Find(InspectionPath) : null;
+            Transform strip = inspection ? inspection.Find(ScoreboardInspect.StripName) : null;
+            return strip ? strip.GetComponent<Image>() : null;
+        }
+
+        // The game's parts of the panel, found by what the controller points at.
+        private static TMP_Text Title(InspectPanelController controller) =>
+            typeof(InspectPanelController).GetField("InspectTitleText", Fields).GetValue(controller) as TMP_Text;
+
+        private static TMP_Text Description(InspectPanelController controller)
+        {
+            Component text = typeof(InspectPanelController).GetField("InspectDescription", Fields).GetValue(controller) as Component;
+            return text ? text.GetComponent<TMP_Text>() : null;
+        }
+
+        private static GameObject Flavor(InspectPanelController controller)
+        {
+            Component text = typeof(InspectPanelController).GetField("InspectFlavor", Fields).GetValue(controller) as Component;
+            return text ? text.gameObject : null;
+        }
+
+        // Every value the restyle touches, as text, to compare the game's look before and after.
+        private static string Look(Harness h)
+        {
+            Transform board = Board(h);
+            InspectPanelController controller = Controller(h);
+            if (!board || !controller) return "no panel";
+            TMP_Text title = Title(controller);
+            TMP_Text description = Description(controller);
+            GameObject flavor = Flavor(controller);
+            Image face = board.Find(InspectionPath).GetComponent<Image>();
+            Image slot = board.Find(IconPath).GetComponent<Image>();
+            VerticalLayoutGroup container = board.Find("Container").GetComponent<VerticalLayoutGroup>();
+            List<string> parts = new List<string>
+            {
+                $"panel {Format(CanvasSizeChecks.Box(h, (RectTransform)board.Find(InspectionPath)))}",
+                $"icon {Format(CanvasSizeChecks.Box(h, (RectTransform)slot.transform))}",
+                $"face {face.color} {(face.sprite ? face.sprite.name : "no sprite")}",
+                $"slot {slot.color} {(slot.sprite ? slot.sprite.name : "no sprite")}",
+                $"title {title.fontSize:0.##} {title.fontStyle} {title.color} {title.alignment}",
+                $"description {description.fontSize:0.##} {description.fontStyle} {description.color} {description.lineSpacing:0.##} " +
+                $"{description.richText} {description.alignment}",
+                $"flavor {(flavor ? flavor.activeSelf.ToString() : "none")}",
+                $"container {container.spacing:0.##} {container.padding.left} {container.padding.top} {container.childControlWidth}",
+            };
+            return string.Join("; ", parts);
+        }
+
+        private static string Format(Rect rect) => $"{rect.x:0.#},{rect.y:0.#} {rect.width:0.#}x{rect.height:0.#}";
+
+        // Waits for the panel to be laid out as the canvas draws it, with a title in the given color.
+        private static IEnumerator Expect(Harness h, Color titleColor, string what)
+        {
+            string problem = null;
+            yield return h.Until(() => (problem = Problem(h, titleColor)) == null,
+                () => $"the inspect panel on {what} as the canvas: {problem} {h.Diagnosis()}");
+        }
+
+        // Null when the panel is as the canvas draws it, else what differs.
+        private static string Problem(Harness h, Color titleColor)
+        {
+            Transform board = Board(h);
+            InspectPanelController controller = Controller(h);
+            if (!board || !controller) return "no scoreboard or inspect panel";
+            Transform inspection = board.Find(InspectionPath);
+            Transform boardFace = board.Find(BoardPath);
+            Transform slotObject = board.Find(IconPath);
+            Transform texts = board.Find(TextsPath);
+            Image strip = Strip(h);
+            TMP_Text title = Title(controller);
+            TMP_Text description = Description(controller);
+            if (!inspection || !boardFace || !slotObject || !texts || !title || !description) return "a part of the panel is missing";
+            if (!inspection.gameObject.activeInHierarchy) return "the panel is not showing";
+            Rect panel = CanvasSizeChecks.Box(h, (RectTransform)inspection);
+            Rect boardBox = CanvasSizeChecks.Box(h, (RectTransform)boardFace);
+            if (Mathf.Abs(panel.xMin - boardBox.xMin) > Tolerance || Mathf.Abs(panel.width - boardBox.width) > Tolerance)
+            {
+                return $"panel {Format(panel)} not the board's width {Format(boardBox)}";
+            }
+            // Screen y grows upward: the panel's top is the board's bottom less the gap.
+            if (Mathf.Abs(boardBox.yMin - panel.yMax - BoardGap) > Tolerance)
+            {
+                return $"{boardBox.yMin - panel.yMax:0.#}px between the board and the panel, not {BoardGap}";
+            }
+            Image face = inspection.GetComponent<Image>();
+            if (!face || face.sprite || !SevenUIChecks.Near(face.color, Palette.ScoreboardPanel))
+            {
+                return $"face {(face ? face.color.ToString() : "missing")} not the board's";
+            }
+            if (!strip) return "no strip along the top";
+            Rect stripBox = CanvasSizeChecks.Box(h, strip.rectTransform);
+            if (Mathf.Abs(stripBox.height - StripHeight) > Tolerance || Mathf.Abs(stripBox.width - panel.width) > Tolerance ||
+                Mathf.Abs(stripBox.yMax - panel.yMax) > Tolerance)
+            {
+                return $"strip {Format(stripBox)} not {StripHeight}px along the panel's top {Format(panel)}";
+            }
+            Color expected = new Color(titleColor.r, titleColor.g, titleColor.b, 1f);
+            if (!SevenUIChecks.Near(strip.color, expected)) return $"strip {strip.color} not the title's {expected}";
+            if (!SevenUIChecks.Near(title.color, titleColor)) return $"name {title.color} not the game's {titleColor}";
+            Image slot = slotObject.GetComponent<Image>();
+            Rect slotBox = CanvasSizeChecks.Box(h, (RectTransform)slotObject);
+            if (!slot || !SevenUIChecks.Near(slot.color, Palette.ItemSlot)) return "the icon's slot is not the item slot color";
+            if (Mathf.Abs(slotBox.width - IconSize) > Tolerance || Mathf.Abs(slotBox.height - IconSize) > Tolerance)
+            {
+                return $"icon slot {Format(slotBox)} not {IconSize}x{IconSize}";
+            }
+            if (Mathf.Abs(slotBox.xMin - panel.xMin - PaddingX) > Tolerance || Mathf.Abs(panel.yMax - slotBox.yMax - PaddingY) > Tolerance)
+            {
+                return $"icon slot {Format(slotBox)} not {PaddingX}px in and {PaddingY}px down in the panel {Format(panel)}";
+            }
+            Rect textBox = CanvasSizeChecks.Box(h, (RectTransform)texts);
+            if (Mathf.Abs(textBox.xMin - slotBox.xMax - IconGap) > Tolerance)
+            {
+                return $"texts start {textBox.xMin - slotBox.xMax:0.#}px from the icon, not {IconGap}";
+            }
+            if (Mathf.Abs(title.fontSize - NameSize * HudUnits.PerCanvasPixel) > 0.01f || (title.fontStyle & FontStyles.Bold) == 0 ||
+                !SevenUIChecks.IsBarlow(title))
+            {
+                return $"name {title.fontSize:0.##} {title.fontStyle} in {title.font.name}, not Barlow bold {NameSize}";
+            }
+            if (Mathf.Abs(description.fontSize - DescriptionSize * HudUnits.PerCanvasPixel) > 0.01f || !description.richText ||
+                !SevenUIChecks.IsBarlow(description))
+            {
+                return $"description {description.fontSize:0.##} rich {description.richText} in {description.font.name}, not Barlow {DescriptionSize}";
+            }
+            if (!SevenUIChecks.Near(description.color, Palette.TooltipBody)) return $"description {description.color} not the body color";
+            float lines = description.font.faceInfo.lineHeight / description.font.faceInfo.pointSize * (1f + description.lineSpacing / 100f);
+            if (Mathf.Abs(lines - LineHeight) > LineTolerance) return $"description line height {lines:0.##}, not {LineHeight}";
+            GameObject flavor = Flavor(controller);
+            if (flavor && flavor.activeInHierarchy) return "the lore still shows";
+            if (description.text.Length == 0 || title.text.Length == 0) return "the name or description is empty";
+            return null;
+        }
+    }
+}
