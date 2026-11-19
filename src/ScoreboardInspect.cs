@@ -159,7 +159,7 @@ namespace SevenUI
             Image visual = controller.InspectVisual;
             if (visual && background)
             {
-                // The slot's layout group would size the icon to the sprite's own size (it was seen about twice the slot,
+                // The slot's layout group would size the icon at the prefab's 100 units (it was seen about twice the slot,
                 // off to one corner), so the icon leaves the layout and is placed by anchors: inset, centered, with the
                 // sprite's aspect kept. Anything else that sizes it (fitters) is switched off. Its color is the game's
                 // (black for a drone not seen yet).
@@ -167,6 +167,20 @@ namespace SevenUI
                 if (!visual.GetComponent<LayoutIgnorer>())
                 {
                     recorder.Add(visual.gameObject.AddComponent<LayoutIgnorer>());
+                }
+                // A layout group keeps a child if any of its ILayoutIgnorers says not to ignore it, and the icon has the
+                // game's LayoutElement, so that one has to ignore the layout too.
+                LayoutElement element = visual.GetComponent<LayoutElement>();
+                if (element && !element.ignoreLayout)
+                {
+                    element.ignoreLayout = true;
+                    recorder.OnRestore(() =>
+                    {
+                        if (element)
+                        {
+                            element.ignoreLayout = false;
+                        }
+                    });
                 }
                 foreach (Behaviour fitter in visual.GetComponents<Behaviour>())
                 {
