@@ -152,6 +152,13 @@ namespace SevenUI.Tests
         public const string LookingGlassGUID = "droppod.lookingglass";
         // LookingGlass's stats panel, a copy of the objective panel it adds next to it.
         public const string LookingGlassPanel = "PlayerStats";
+        // LookingGlass's item description builder, with its stats (ItemStats.GetItemDescription(ItemDef, int,
+        // CharacterMaster, bool withOneMore, bool forceNew)), and its settings for the full description and the stats.
+        public const string LookingGlassItemStats = "LookingGlass.ItemStatsNameSpace.ItemStats";
+        public const string LookingGlassItemDescription = "GetItemDescription";
+        public const string LookingGlassSection = "Misc";
+        public const string LookingGlassFullDescription = "Full Description in Hud";
+        public const string LookingGlassStatsCalculations = "Item Stats Calculations";
 
         // MusicDisplay's plugin GUID and its now-playing text, on the local user's notification canvas.
         public const string MusicDisplayGUID = "com.DestroyedClone.MusicDisplay";
