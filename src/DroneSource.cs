@@ -28,6 +28,7 @@ namespace SevenUI
         private const string BoxPath = AreaPath + "/InspectionPanel";
         private const string RowPath = BoxPath + "/HorizontalBox";
         private const string IconContainerPath = RowPath + "/InspectIconContainer";
+        // Its image is the corner brackets around the drone's icon.
         private const string IconBackgroundPath = IconContainerPath + "/InspectVisualBackground";
         private const string VisualPath = IconBackgroundPath + "/InspectedVisual";
         // The game's name (InsepctTitle, its spelling) and description of the drone, which the mod's details replace.
@@ -117,6 +118,7 @@ namespace SevenUI
         public override void Prepare(StyleRecorder recorder)
         {
             this.recorder = recorder;
+            RecordArea();
             // The game's layout settles after the panel opens; what is recorded is what it settles to.
             LayoutRebuilder.ForceRebuildLayoutImmediate(MainPanel);
             Transform viewport = ButtonContainer.parent;
@@ -129,6 +131,9 @@ namespace SevenUI
                 recorder.Disable(part.GetComponent<ContentSizeFitter>());
             }
             PickerPanel.Stretch((RectTransform)contentRoot);
+            // Cancel fits itself to the game's preferred size for it (200 by 48), which would undo the pickers' size.
+            Transform cancel = Juice.Find(PickerPanel.CancelName);
+            recorder.Disable(cancel ? cancel.GetComponent<ContentSizeFitter>() : null);
             StyleTitle();
             StyleScrollbars(scrollView);
             StyleInspect();
@@ -143,6 +148,17 @@ namespace SevenUI
                                           $"inspect title {FoundIn(InspectTexts[0])}, inspect description {FoundIn(InspectTexts[1])}, " +
                                           $"legend {Found(Juice.Find(PickerPanel.LegendName))}, cancel {Found(Juice.Find(PickerPanel.CancelName))}");
             }
+        }
+
+        // The inspect area as the game had it before the flat look, put back with the game's look: the game turns it on
+        // and lays it out when a drone is selected, which the pointer can do over the flat grid where the game's panel
+        // had nothing selected, and left on it covers the game's grid. Recorded before Prepare forces the layout.
+        private void RecordArea()
+        {
+            Transform area = inspect ? inspect.Find(AreaPath) : null;
+            if (!area) return;
+            recorder.SetActive(area.gameObject, area.gameObject.activeSelf);
+            recorder.RecordRect((RectTransform)area);
         }
 
         private string FoundIn(string path) => Found(inspect ? inspect.Find(path) : null);
@@ -186,7 +202,8 @@ namespace SevenUI
         }
 
         // The inspect panel keeps the hovered drone's icon and the scrap it gives, as a row under the mod's details: the
-        // game's name and description and its blue box behind them are hidden, and the row loses the box's padding.
+        // game's name and description, its blue box behind them and the brackets around the icon are hidden, and the row
+        // loses the box's padding.
         private void StyleInspect()
         {
             rowHeight = 0f;
@@ -200,7 +217,7 @@ namespace SevenUI
             Transform area = inspect.Find(AreaPath);
             areaGroup = area ? area.GetComponent<CanvasGroup>() : null;
             areaAlphaRecorded = false;
-            foreach (string path in new[] { BoxPath, IconContainerPath })
+            foreach (string path in new[] { BoxPath, IconContainerPath, IconBackgroundPath })
             {
                 Transform part = inspect.Find(path);
                 if (part)
@@ -220,12 +237,15 @@ namespace SevenUI
         }
 
         // The icon's own height and its slot's padding, read from the prefab's layout: the area that holds it can be off
-        // until a drone is selected, when its layout can't be measured.
+        // until a drone is selected, when its layout can't be measured. The scrap icon and arrow hang off the icon's
+        // bottom corner (the scrap is centered on its bottom edge), past the slot's padding, so the row takes them in too.
         private float RowHeight()
         {
             Transform visual = inspect.Find(VisualPath);
             LayoutElement element = visual ? visual.GetComponent<LayoutElement>() : null;
-            float height = element && element.preferredHeight > 0f ? element.preferredHeight : PickerPanel.SlotSize;
+            float iconHeight = element && element.preferredHeight > 0f ? element.preferredHeight : PickerPanel.SlotSize;
+            float height = iconHeight;
+            float bottomPadding = 0f;
             foreach (string path in new[] { IconContainerPath, IconBackgroundPath })
             {
                 Transform part = inspect.Find(path);
@@ -233,9 +253,25 @@ namespace SevenUI
                 if (group)
                 {
                     height += group.padding.vertical;
+                    bottomPadding += group.padding.bottom;
                 }
             }
-            return height;
+            return height + Mathf.Max(0f, Overhang(visual, iconHeight) - bottomPadding);
+        }
+
+        // How far the icon's parts reach below its bottom edge, from their anchors on it; parts stretched over it stay in it.
+        private static float Overhang(Transform visual, float iconHeight)
+        {
+            float below = 0f;
+            if (!visual) return below;
+            foreach (Transform child in visual)
+            {
+                RectTransform part = child as RectTransform;
+                if (!part || !part.gameObject.activeSelf || part.anchorMin.y != part.anchorMax.y) continue;
+                float bottom = part.anchorMin.y * iconHeight + part.anchoredPosition.y - part.pivot.y * part.sizeDelta.y * part.localScale.y;
+                below = Mathf.Max(below, -bottom);
+            }
+            return below;
         }
 
         // The inspect area's CanvasGroup at full alpha while the area is shown; its alpha when first held comes back with
@@ -300,9 +336,25 @@ namespace SevenUI
         }
 
         // The game's outlines, yellow square and flash on the hovered and selected button give way to the mod's outline.
-        // The icon and the "carrying items" mark on it (Icon/ItemIndicator) stay.
+        // The icon and the "carrying items" mark on it (Icon/ItemIndicator) stay. The buttons swap their face's sprite
+        // for the game's black framed square while hovered or selected (Selectable.Transition.SpriteSwap), which would
+        // cover the flat slot; with no transition the face keeps its flat color. Put back, the transition shows the
+        // button's state again.
         public override void HideSelection(MPButton button)
         {
+            Selectable.Transition transition = button.transition;
+            recorder.OnRestore(() =>
+            {
+                if (button)
+                {
+                    button.transition = transition;
+                }
+            });
+            button.transition = Selectable.Transition.None;
+            if (button.image)
+            {
+                button.image.overrideSprite = null;
+            }
             HGButton hg = button as HGButton;
             if (hg)
             {
