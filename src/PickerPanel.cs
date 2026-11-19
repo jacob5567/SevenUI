@@ -209,6 +209,7 @@ namespace SevenUI
                 Style(options, count, elements);
             }
             source.KeepShown();
+            cancel.Keep();
             // The font swap gives the texts Barlow after they are made, which measures differently.
             TMP_FontAsset font = buttons.Count > 0 && buttons[0].Name ? buttons[0].Name.font
                 : slots.DetailsName ? slots.DetailsName.font : EmptyMessage ? EmptyMessage.font : null;
