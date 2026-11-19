@@ -149,10 +149,35 @@ namespace SevenUI
             Control(iconContainer, true, true, TextAnchor.UpperLeft, 0, 0, null);
             Control(background, true, true, TextAnchor.MiddleCenter, IconInset, IconInset, null);
             Image visual = controller.InspectVisual;
-            if (visual && background && !background.GetComponent<HorizontalOrVerticalLayoutGroup>())
+            if (visual && background)
             {
-                // Only its size: its color is the game's (black for a drone not seen yet).
+                // The slot's layout group would size the icon to the sprite's own size (it was seen about twice the slot,
+                // off to one corner), so the icon leaves the layout and is placed by anchors: inset, centered, with the
+                // sprite's aspect kept. Anything else that sizes it (fitters) is switched off. Its color is the game's
+                // (black for a drone not seen yet).
                 recorder.RecordRect(visual.rectTransform);
+                if (!visual.GetComponent<LayoutIgnorer>())
+                {
+                    recorder.Add(visual.gameObject.AddComponent<LayoutIgnorer>());
+                }
+                foreach (Behaviour fitter in visual.GetComponents<Behaviour>())
+                {
+                    if (fitter is ContentSizeFitter || fitter is AspectRatioFitter)
+                    {
+                        recorder.Disable(fitter);
+                    }
+                }
+                if (!visual.preserveAspect)
+                {
+                    visual.preserveAspect = true;
+                    recorder.OnRestore(() =>
+                    {
+                        if (visual)
+                        {
+                            visual.preserveAspect = false;
+                        }
+                    });
+                }
                 UiFactory.Stretch(visual.rectTransform, Vector2.zero, Vector2.one, new Vector2(IconInset, IconInset),
                     new Vector2(-IconInset, -IconInset));
             }
@@ -202,10 +227,11 @@ namespace SevenUI
             KeepOpaque();
         }
 
-        // The game's panel fades in through a CanvasGroup (UIJuice) on its area, and with the panel restyled that fade
-        // was seen to stay near zero, leaving the face, icon and texts barely visible. A group between the panel and
-        // the board is held at full alpha while the panel shows; the board's own groups are not touched. This should
-        // run after the game's Updates (LateUpdate), so the game's value is not the one drawn.
+        // The area's CanvasGroup was seen at alpha 0 with the panel restyled, leaving the face, icon and texts barely
+        // visible. Nothing the mod does writes it, and the game never starts a fade on it (UIJuice.TransitionAlphaFadeIn
+        // has no callers; a UIJuice only copies the group's authored alpha), so it is held at full alpha, only while the
+        // panel is active in the hierarchy: the game hides the panel with SetActive(false), which this leaves alone.
+        // The board's own groups are not touched.
         private void KeepOpaque()
         {
             if (!panel || !boardRoot || !panel.gameObject.activeInHierarchy)
@@ -267,6 +293,10 @@ namespace SevenUI
                     after = true;
                     continue;
                 }
+                // The text's own fallback-font submeshes (TMP_SubMeshUI children) are the text, not something over it.
+                if (after && graphic.transform.IsChildOf(text.transform)) continue;
+                // The text's own fallback-font submeshes (TMP_SubMeshUI children) are the text, not something over it.
+                if (after && graphic.transform.IsChildOf(text.transform)) continue;
                 if (!after || !graphic.enabled || graphic.canvas != canvas || graphic.color.a <= 0f) continue;
                 if (graphic.name == StripName || graphic.name == FootStripName) continue;
                 if (EffectiveAlpha(graphic.transform) <= 0f) continue;
