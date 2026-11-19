@@ -613,10 +613,20 @@ namespace SevenUI.Tests
                 if (box.xMin < slotBox.xMin - Tolerance || box.yMin < slotBox.yMin - Tolerance ||
                     box.xMax > slotBox.xMax + Tolerance || box.yMax > slotBox.yMax + Tolerance)
                 {
-                    return $"icon '{image.name}' {Format(box)} not inside its slot {Format(slotBox)}";
+                    return $"icon '{image.name}' {Format(box)} not inside its slot {Format(slotBox)}: {Describe(image)}";
                 }
             }
             return null;
+        }
+
+        private static string Describe(Image image)
+        {
+            RectTransform rect = image.rectTransform;
+            RectTransform parent = rect.parent as RectTransform;
+            string types = string.Join(",", image.GetComponents<Component>().Select(c => c ? c.GetType().Name : "missing"));
+            return $"localScale {rect.localScale}, anchors {rect.anchorMin}-{rect.anchorMax}, sizeDelta {rect.sizeDelta}, " +
+                   $"anchoredPosition {rect.anchoredPosition}, parent '{(parent ? parent.name : "none")}' " +
+                   $"{(parent ? parent.rect.ToString() : "")}, components [{types}]";
         }
 
         // Null when the panel is drawn at full strength: the groups up its hierarchy and each text's own color leave it
