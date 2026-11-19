@@ -112,6 +112,10 @@ namespace SevenUI.Tests
             yield return new Scenario(1, "picker_egg_empty_then_items", Stages.TitanicPlains, EggEmptyThenItems);
             yield return new Scenario(1, "picker_egg_items_no_message", Stages.TitanicPlains, EggWithItems);
             yield return new Scenario(1, "picker_egg_empty_flat_panels_off", Stages.TitanicPlains, EggEmptyFlatPanelsOff);
+            foreach (Scenario scenario in DroneScrapperScenarios.All())
+            {
+                yield return scenario;
+            }
         }
 
         private static IEnumerator VoidPotential(Harness h)
@@ -644,7 +648,7 @@ namespace SevenUI.Tests
 
         // Back where the first picker scenario on this stage stood, facing the same way: each cube is spawned ahead
         // of the player and the player then stands before it, so without this they walk on into the stage's walls.
-        private static IEnumerator GoHome(Harness h)
+        internal static IEnumerator GoHome(Harness h)
         {
             CharacterBody body = Harness.LocalBody;
             if (!body || !body.inputBank) throw h.Fail("the player has no body");
