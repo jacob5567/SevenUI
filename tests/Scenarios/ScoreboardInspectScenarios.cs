@@ -72,6 +72,7 @@ namespace SevenUI.Tests
         // With the scoreboard open, the panel showing Alien Head: laid out and drawn as the canvas, in the item's tier color.
         private static IEnumerator ItemAsCanvas(Harness h)
         {
+            WithoutStats(h);
             h.SetConfig(SevenUIPlugin.Settings.DebugLogging, true);
             h.SetConfig(SevenUIPlugin.Settings.FlatPanels, true);
             yield return ScoreboardSetUp.Open(h);
@@ -85,6 +86,7 @@ namespace SevenUI.Tests
         // A chest has no tier: its inspect info's own title color names it and colors both strips.
         private static IEnumerator ChestAsCanvas(Harness h)
         {
+            WithoutStats(h);
             h.SetConfig(SevenUIPlugin.Settings.DebugLogging, true);
             h.SetConfig(SevenUIPlugin.Settings.FlatPanels, true);
             PurchaseInteraction chest = null;
@@ -103,6 +105,7 @@ namespace SevenUI.Tests
         // again, every value is the game's again and the strip is gone; and on once more it is styled again.
         private static IEnumerator FlatPanelsOffAndOn(Harness h)
         {
+            WithoutStats(h);
             PluginConfig settings = SevenUIPlugin.Settings;
             h.SetConfig(settings.DebugLogging, true);
             h.SetConfig(settings.FlatPanels, false);
@@ -224,6 +227,17 @@ namespace SevenUI.Tests
             yield return h.Until(() => Column(h, false) == null && (restored = Look(h)) == vanilla,
                 () => $"the game's panel back with FlatPanels off (column: {Column(h, false) ?? "gone"}; " +
                       $"before: {vanilla}; now: {restored}) {h.Diagnosis()}");
+        }
+
+        // E1's layout without the stats column: LookingGlass's full descriptions off, when it is installed.
+        private static void WithoutStats(Harness h)
+        {
+            if (Chainloader.PluginInfos.TryGetValue(GameNames.LookingGlassGUID, out BepInEx.PluginInfo info) && info.Instance &&
+                info.Instance.Config.TryGetEntry(GameNames.LookingGlassSection, GameNames.LookingGlassFullDescription,
+                    out ConfigEntry<bool> full))
+            {
+                h.SetConfig(full, false);
+            }
         }
 
         // LookingGlass's Full Description in Hud setting, which the mod reads through BepInEx's config, with its stats
