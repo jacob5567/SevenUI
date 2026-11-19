@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using RoR2;
 using RoR2.UI;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -31,9 +32,11 @@ namespace SevenUI
 
         public RectTransform Juice { get; protected set; }
 
-        // What the game shows for the hovered option itself (the drone scrapper's description and scrap), in place of
-        // the details the mod would put under the grid.
-        public virtual bool OwnsDetails => false;
+        // Whether the options are always a grid of slots, whatever their number (the drone scrapper's).
+        public virtual bool AlwaysGrid => false;
+
+        // The tallest the buttons' scroll view shows before the rest scrolls.
+        public virtual float MaxContentHeight => float.MaxValue;
 
         // The part of the content holding the buttons, which stays when the rest is hidden, and goes with no options.
         public virtual Transform ContentRoot => ButtonContainer;
@@ -57,11 +60,20 @@ namespace SevenUI
             ButtonContainer.sizeDelta = new Vector2(width, height);
         }
 
-        // Puts the game's own details for the hovered option under the buttons, at this place and width.
-        public virtual float PlaceDetails(float x, float y, float width) => 0f;
+        // The game's title text, when it isn't a direct child of the content; null to look it up there.
+        public virtual TMP_Text FindTitle() => null;
 
-        // The hovered option, as the panel last read it.
-        public virtual void Hovered(PickerEntry entry)
+        // Puts game parts the panel keeps under the details (the drone scrapper's icon and scrap arrow) at this place and
+        // width; returns their height, or 0 for none.
+        public virtual float PlaceExtras(float x, float y, float width) => 0f;
+
+        // Hides the game's own selection and hover graphics on a slot's button.
+        public virtual void HideSelection(MPButton button)
+        {
+        }
+
+        // Called after the game's look is put back.
+        public virtual void Restored()
         {
         }
     }

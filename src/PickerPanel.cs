@@ -55,9 +55,7 @@ namespace SevenUI
         internal const float PaddingBottom = 14f * Canvas;
         internal const float PartGap = 12f * Canvas;
         internal const float DetailsGap = 10f * Canvas;
-        // The Drone Scrapper keeps the game's own details under its grid, which need this much width, and its scroll view
-        // shows at most this much of the grid.
-        internal const float MinDetailsWidth = 460f * Canvas;
+        // The Drone Scrapper's scroll view shows at most this much of the grid.
         internal const float MaxScrollHeight = 360f * Canvas;
         // The cards: at least 196px wide and 8px apart under the title, with 14px of padding and 10px between their
         // parts. Across each card's top is a 92px band in the slot's grey with the item centered on it at 72px and the
@@ -104,7 +102,6 @@ namespace SevenUI
         private object shownOptions;
         private int shownOptionCount;
         private int shownButtonCount = -1;
-        private int hoveredShown = -1;
         private TMP_FontAsset shownFont;
 
         private PickerPanel(PickerSource source, HUD hud)
@@ -113,8 +110,12 @@ namespace SevenUI
             this.hud = hud;
             mainPanel = source.MainPanel;
             juice = source.Juice;
-            Transform titleObject = juice.Find(TitleName);
-            TMP_Text title = titleObject ? titleObject.GetComponent<TMP_Text>() : null;
+            TMP_Text title = source.FindTitle();
+            if (!title)
+            {
+                Transform titleObject = juice.Find(TitleName);
+                title = titleObject ? titleObject.GetComponent<TMP_Text>() : null;
+            }
             ui = new PickerUi(this, source, recorder, juice, title);
             cards = new PickerCards(this, ui);
             grid = new PickerGrid(this, ui);
@@ -171,9 +172,6 @@ namespace SevenUI
 
         internal PickerSource Source => source;
 
-        // Behind the game's own details under cards, when the panel keeps them (the drone scrapper's).
-        internal RectTransform DetailsBackdrop { get; private set; }
-
         public TMP_Text DetailsNameText => slots.DetailsName;
 
         public TMP_Text DetailsDescriptionText => slots.DetailsDescription;
@@ -189,13 +187,12 @@ namespace SevenUI
             shownOptions = null;
             shownOptionCount = 0;
             shownButtonCount = -1;
-            hoveredShown = -1;
             Empty = false;
             EmptyMessage = null;
             slots.Clear();
             shownFont = null;
             cancel.Clear();
-            DetailsBackdrop = null;
+            source.Restored();
         }
 
         // Every frame while the panel is open: restyles it once the game has made its buttons, again if the game gives
@@ -253,11 +250,6 @@ namespace SevenUI
             {
                 slots.ShowDetails(hovered >= 0 ? hovered : detailsIndex >= 0 ? detailsIndex : 0);
             }
-            else if (source.OwnsDetails && hovered >= 0 && hovered != hoveredShown && hovered < buttons.Count)
-            {
-                hoveredShown = hovered;
-                source.Hovered(buttons[hovered].Entry);
-            }
         }
 
         private void Style(object options, int count, ReadOnlyCollection<MPButton> elements)
@@ -266,7 +258,7 @@ namespace SevenUI
             shownOptionCount = count;
             shownButtonCount = elements.Count;
             Empty = count == 0;
-            Cards = !Empty && count <= CardLimit;
+            Cards = !Empty && !source.AlwaysGrid && count <= CardLimit;
             grid.Columns = Cards ? count : grid.GameColumns(count);
             ui.FullDescriptions = PickupDescriptions.Full();
             recorder.RecordRect(mainPanel);
@@ -298,20 +290,18 @@ namespace SevenUI
             {
                 PickerEntry entry = source.Entry(i);
                 buttons.Add(Cards ? cards.StyleCard(elements[i], entry) : slots.StyleSlot(elements[i], entry));
+                if (!Cards)
+                {
+                    source.HideSelection(elements[i]);
+                }
             }
             if (Cards)
             {
                 grid.Navigate(elements, count);
             }
-            else if (!source.OwnsDetails)
+            else
             {
                 slots.AddDetails();
-            }
-            if (source.OwnsDetails && Cards)
-            {
-                // Under cards, the game's details sit on a backdrop of their own; under a grid, on its frame.
-                DetailsBackdrop = ui.NewImage("SevenUIPickerDetailsBackdrop", juice, Palette.ScoreboardPanel);
-                DetailsBackdrop.SetAsFirstSibling();
             }
             shownFont = null;
         }
