@@ -42,6 +42,7 @@ namespace SevenUI
         private const float DescriptionSize = 13f * Canvas;
         private const float DescriptionLineHeight = 1.4f;
         private const float PercentPerLine = 100f;
+        private const float DumpDelaySeconds = 0.5f;
 
         private static readonly FieldInfo PanelField = typeof(InspectPanelController).GetField("InspectPanel", Fields);
         private static readonly FieldInfo TitleField = typeof(InspectPanelController).GetField("InspectTitleText", Fields);
@@ -56,6 +57,12 @@ namespace SevenUI
         private Image strip;
         private Image footStrip;
         private GameObject flavorObject;
+        private Transform panel;
+        private Transform boardRoot;
+        private TMP_Text description;
+        private float shownSince = -1f;
+        private bool dumped;
+        private bool reportedFade;
 
         public ScoreboardInspect(StyleRecorder recorder)
         {
@@ -78,6 +85,9 @@ namespace SevenUI
             TMP_Text description = descriptionBehaviour ? descriptionBehaviour.GetComponent<TMP_Text>() : null;
             if (!inspection || !panelObject || !titleText) return;
             title = titleText;
+            this.description = description;
+            panel = panelObject.transform;
+            boardRoot = board;
 
             FullWidth(panelObject.transform, container);
             Transform box = inspection.Find(BoxName);
@@ -147,6 +157,121 @@ namespace SevenUI
             {
                 flavorObject.SetActive(false);
             }
+            KeepOpaque();
+        }
+
+        // The game's panel fades in through a CanvasGroup (UIJuice) on its area, and with the panel restyled that fade
+        // was seen to stay near zero, leaving the face, icon and texts barely visible. A group between the panel and
+        // the board is held at full alpha while the panel shows; the board's own groups are not touched. This should
+        // run after the game's Updates (LateUpdate), so the game's value is not the one drawn.
+        private void KeepOpaque()
+        {
+            if (!panel || !boardRoot || !panel.gameObject.activeInHierarchy)
+            {
+                shownSince = -1f;
+                return;
+            }
+            if (shownSince < 0f)
+            {
+                shownSince = Time.unscaledTime;
+            }
+            for (Transform part = panel; part && part != boardRoot; part = part.parent)
+            {
+                CanvasGroup group = part.GetComponent<CanvasGroup>();
+                if (group && group.alpha < 1f)
+                {
+                    if (!reportedFade && SevenUIPlugin.Settings.DebugLogging.Value)
+                    {
+                        reportedFade = true;
+                        SevenUIPlugin.Log.LogInfo($"Inspect panel: '{part.name}' CanvasGroup alpha {group.alpha:0.##} held at 1");
+                    }
+                    group.alpha = 1f;
+                }
+            }
+            if (!dumped && Time.unscaledTime - shownSince > DumpDelaySeconds && SevenUIPlugin.Settings.DebugLogging.Value)
+            {
+                dumped = true;
+                Dump();
+            }
+        }
+
+        // The product of the CanvasGroup alphas from a part up to the root (a group that ignores its parents ends it).
+        public static float EffectiveAlpha(Transform part)
+        {
+            float alpha = 1f;
+            for (; part; part = part.parent)
+            {
+                CanvasGroup group = part.GetComponent<CanvasGroup>();
+                if (!group) continue;
+                alpha *= group.alpha;
+                if (group.ignoreParentGroups) break;
+            }
+            return alpha;
+        }
+
+        // The enabled graphics drawn after a text in its canvas (hierarchy order is draw order) whose rects overlap its
+        // own and that would show: not clear, not under a faded group. The mod's own strips are left out.
+        public static List<Graphic> DrawnOver(Graphic text)
+        {
+            List<Graphic> covering = new List<Graphic>();
+            Canvas canvas = text ? text.canvas : null;
+            if (!canvas) return covering;
+            Rect own = WorldRect((RectTransform)text.transform);
+            bool after = false;
+            foreach (Graphic graphic in canvas.GetComponentsInChildren<Graphic>(false))
+            {
+                if (graphic == text)
+                {
+                    after = true;
+                    continue;
+                }
+                if (!after || !graphic.enabled || graphic.canvas != canvas || graphic.color.a <= 0f) continue;
+                if (graphic.name == StripName || graphic.name == FootStripName) continue;
+                if (EffectiveAlpha(graphic.transform) <= 0f) continue;
+                if (own.Overlaps(WorldRect(graphic.rectTransform))) covering.Add(graphic);
+            }
+            return covering;
+        }
+
+        private static Rect WorldRect(RectTransform rect)
+        {
+            Vector3[] corners = new Vector3[4];
+            rect.GetWorldCorners(corners);
+            return Rect.MinMaxRect(corners[0].x, corners[0].y, corners[2].x, corners[2].y);
+        }
+
+        private static string PathOf(Transform part, Transform root)
+        {
+            string path = part.name;
+            for (Transform up = part.parent; up && up != root; up = up.parent)
+            {
+                path = up.name + "/" + path;
+            }
+            return path;
+        }
+
+        // Once, behind DebugLogging: what could dim or cover the panel's texts.
+        private void Dump()
+        {
+            System.Text.StringBuilder text = new System.Text.StringBuilder("Inspect panel dump: groups up the hierarchy:");
+            for (Transform part = panel; part; part = part.parent)
+            {
+                CanvasGroup group = part.GetComponent<CanvasGroup>();
+                if (group)
+                {
+                    text.Append($" [{part.name} alpha {group.alpha:0.##}{(group.ignoreParentGroups ? " ignoring parents" : "")}]");
+                }
+            }
+            foreach (TMP_Text shown in new[] { title, description })
+            {
+                if (!shown) continue;
+                text.Append($"; '{shown.name}' effective alpha {EffectiveAlpha(shown.transform) * shown.color.a:0.##}, drawn over by:");
+                foreach (Graphic over in DrawnOver(shown))
+                {
+                    text.Append($" {PathOf(over.transform, boardRoot)} ({over.GetType().Name} {over.color})");
+                }
+            }
+            SevenUIPlugin.Log.LogInfo(text.ToString());
         }
 
         // Puts the game's panel back by the recorder's restore. The title's color is the game's, set at each Show since it
@@ -161,6 +286,10 @@ namespace SevenUI
                 text.color = live;
             }
             title = null;
+            description = null;
+            panel = null;
+            boardRoot = null;
+            shownSince = -1f;
             strip = null;
             footStrip = null;
             flavorObject = null;
