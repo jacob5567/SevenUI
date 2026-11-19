@@ -13,12 +13,18 @@ namespace SevenUI
         // The pickup an item panel's option gives; null for a drone, which gives no item to count.
         public PickupDef Pickup;
         public DroneDef Drone;
+        // What picking the option does to the player's stack of it, and whether the stack it takes is a permanent one
+        // (not a temporary or rented one).
+        public StackChange Change = StackChange.Gain;
+        public bool Permanent = true;
 
         public string Name => NameToken != null ? Language.GetString(NameToken) : "";
 
-        public static PickerEntry ForPickup(PickupDef pickup) => new PickerEntry
+        public static PickerEntry ForPickup(PickupDef pickup, StackChange change = StackChange.Gain, bool permanent = true) => new PickerEntry
         {
             Pickup = pickup,
+            Change = change,
+            Permanent = permanent,
             NameToken = pickup?.nameToken,
             Color = pickup != null ? pickup.baseColor : Palette.Text,
         };
@@ -38,7 +44,7 @@ namespace SevenUI
                 string token = full && !string.IsNullOrEmpty(Drone.descriptionToken) ? Drone.descriptionToken : Drone.pickupToken;
                 return string.IsNullOrEmpty(token) ? "" : Language.GetString(token);
             }
-            return PickupDescriptions.For(Pickup, button, full);
+            return PickupDescriptions.For(Pickup, button, full, Change, Permanent);
         }
     }
 }

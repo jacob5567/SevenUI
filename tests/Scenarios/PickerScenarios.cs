@@ -108,6 +108,12 @@ namespace SevenUI.Tests
             {
                 yield return new Scenario(1, "picker_panel_" + name, Stages.TitanicPlains, h => OtherPanel(h, name, key));
             }
+            yield return new Scenario(1, "picker_stats_one_less_lemurian_egg", Stages.TitanicPlains,
+                h => StatsByPanel(h, "lemurian_egg", StackChange.Lose));
+            yield return new Scenario(1, "picker_stats_one_more_fragment_potential", Stages.TitanicPlains,
+                h => StatsByPanel(h, "fragment_potential", StackChange.Gain));
+            yield return new Scenario(1, "picker_stats_as_held_delusion", Stages.TitanicPlains,
+                h => StatsByPanel(h, "delusion", StackChange.None));
             yield return new Scenario(1, "picker_egg_empty", Stages.TitanicPlains, EggEmpty);
             yield return new Scenario(1, "picker_egg_empty_then_items", Stages.TitanicPlains, EggEmptyThenItems);
             yield return new Scenario(1, "picker_egg_items_no_message", Stages.TitanicPlains, EggWithItems);
@@ -781,6 +787,85 @@ namespace SevenUI.Tests
                 if (!screen.Contains(point)) return $"the panel's corner {point} is off the screen {screen}";
             }
             return null;
+        }
+
+        // The stats an option shows follow what picking it does to your stack, with two Alien Heads held: one less, under
+        // the mod's caption, on a panel that takes the item (the Lemurian egg's); one more, under LookingGlass's caption,
+        // on one that gives it, though LookingGlass counts one more only on Command's and the Void Potential's
+        // (Fragment Potential's); the stack as held, without a caption, where nothing changes (Delusion's guess). The
+        // panel is opened from a Command cube offering only Alien Head; one the mod leaves in the game's look skips.
+        private static IEnumerator StatsByPanel(Harness h, string name, StackChange change)
+        {
+            ConfigEntry<bool> full = FullDescriptionSetting();
+            if (full == null) throw h.Skip("full descriptions are LookingGlass's setting, and it is not installed");
+            h.SetConfig(full, true);
+            ConfigEntry<bool> calculations = LookingGlassSetting(StatsKey);
+            if (calculations != null)
+            {
+                h.SetConfig(calculations, true);
+            }
+            string key = GameNames.PickerPanels.First(entry => entry.Name == name).Key;
+            GameObject prefab;
+            try
+            {
+                prefab = Addressables.LoadAssetAsync<GameObject>(key).WaitForCompletion();
+            }
+            catch (Exception exception)
+            {
+                throw h.Skip($"could not load {key}: {exception.Message}");
+            }
+            if (!prefab || !prefab.GetComponent<PickupPickerPanel>()) throw h.Skip($"{key} is not a pick-an-item panel");
+
+            ItemDef item = RoR2Content.Items.AlienHead;
+            const int Held = 2;
+            Inventory inventory = Harness.LocalBody.master.inventory;
+            int before = inventory.GetItemCountPermanent(item);
+            for (int i = before; i < Held; i++)
+            {
+                inventory.GiveItemPermanent(item);
+            }
+            h.OnCleanup(() =>
+            {
+                while (inventory && inventory.GetItemCountPermanent(item) > before) inventory.RemoveItemPermanent(item);
+            });
+            int held = inventory.GetItemCountPermanent(item);
+
+            yield return GoHome(h);
+            PickupPickerController picker = h.SpawnPrefab<PickupPickerController>(GameNames.CommandCube);
+            picker.panelPrefab = prefab;
+            picker.SetOptionsServer(new[]
+            {
+                new PickupPickerController.Option { pickup = new UniquePickup(PickupCatalog.FindPickupIndex(item.itemIndex)), available = true },
+            });
+            PickupPickerPanel opened = null;
+            yield return Open(h, picker, found => opened = found, true);
+            PickerPanel panel = null;
+            float until = Time.unscaledTime + StyleTimeout;
+            while ((panel == null || !panel.Styled) && Time.unscaledTime < until)
+            {
+                panel = OpenPanel(opened);
+                yield return null;
+            }
+            if (panel == null || !panel.Styled) throw h.Skip($"SevenUI leaves {name}'s panel in the game's look");
+            yield return h.Until(() => panel.Buttons.Count == 1, () => $"{panel.Buttons.Count} options, not Alien Head alone");
+
+            CharacterMaster master = Harness.LocalBody.master;
+            string text = change == StackChange.Lose
+                ? ItemStatsText.WithCaption(ScoreboardInspectScenarios.LookingGlassText(h, item, held - 1, master, false), PickupDescriptions.LoseCaption)
+                : ScoreboardInspectScenarios.LookingGlassText(h, item, held, master, change == StackChange.Gain);
+            ItemStatsText.Parts expected = ItemStatsText.Split(text);
+            if (!expected.HasStats) throw h.Fail($"LookingGlass gave no stats for Alien Head: \"{text}\"");
+            ItemStatsText.Parts shown = panel.Buttons[0].Parts;
+            string shownValues = string.Join(", ", shown.Values);
+            string expectedValues = string.Join(", ", expected.Values);
+            if (shown.Caption != expected.Caption || shownValues != expectedValues)
+            {
+                throw h.Fail($"{name} shows \"{shown.Caption}\" {shownValues} for {held} Alien Heads held, not " +
+                             $"\"{expected.Caption}\" {expectedValues} ({change})");
+            }
+            h.Log($"{name}: \"{shown.Caption}\" {shownValues} for {held} held");
+            yield return h.Wait(SettleSeconds);
+            yield return h.Screenshot("stats_" + name);
         }
 
         // The Lemurian egg's panel, opened from a Command cube given it and these options (none for an egg with no items to

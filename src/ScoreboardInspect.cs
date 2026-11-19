@@ -62,6 +62,7 @@ namespace SevenUI
         private static readonly FieldInfo TitleField = typeof(InspectPanelController).GetField("InspectTitleText", Fields);
         private static readonly FieldInfo DescriptionField = typeof(InspectPanelController).GetField("InspectDescription", Fields);
         private static readonly FieldInfo FlavorField = typeof(InspectPanelController).GetField("InspectFlavor", Fields);
+        private static readonly FieldInfo SidecarField = typeof(InspectPanelController).GetField("Sidecar", Fields);
 
         private readonly StyleRecorder recorder;
         private readonly HUD hud;
@@ -90,6 +91,16 @@ namespace SevenUI
         private string shownToken;
         private CharacterMaster shownMaster;
         private int shownHeld;
+        private bool shownOneMore;
+        // The board's item icon whose click showed the panel, with its row's master; none while the panel shows what
+        // Tab was pressed beside. Set from the icons' own click callback (ItemIcon.OnItemClicked, which the game calls
+        // right after its Show), and cleared when the panel closes or its sidecar button shows that pickup again: the
+        // game leaves the sidecar up after a click on the board, so it doesn't tell the two apart.
+        private ItemIcon clicked;
+        private CharacterMaster clickedMaster;
+        private readonly Dictionary<ItemIcon, System.Action> clickHandlers = new Dictionary<ItemIcon, System.Action>();
+        private readonly Dictionary<ItemInventoryDisplay, int> watchedIcons = new Dictionary<ItemInventoryDisplay, int>();
+        private Button sidecarButton;
         private ItemStatsText.Parts shownParts;
         private ItemStatsText.Parts columnParts;
         // Each item by its description token, which the game's Show puts on the description; a token two items share
@@ -232,12 +243,87 @@ namespace SevenUI
                 Transform existing = background.Find(FootStripName);
                 footStrip = existing ? existing.GetComponent<Image>() : AddStrip(background, FootStripName, false, FootStripHeight);
             }
-            Update();
+            WatchSidecar(controller);
+            Refresh();
+        }
+
+        // Every frame while the scoreboard is styled: the board's rows, for the clicks on their item icons.
+        public void Update(IReadOnlyList<ScoreboardItemGrid> grids)
+        {
+            WatchClicks(grids);
+            if (clicked && (!panel || !panel.gameObject.activeSelf))
+            {
+                clicked = null;
+                clickedMaster = null;
+            }
+            Refresh();
+        }
+
+        // Listens for clicks on icons the rows have added since the last frame; a row only adds and removes icons at its
+        // end, so a count that hasn't changed means none are new.
+        private void WatchClicks(IReadOnlyList<ScoreboardItemGrid> grids)
+        {
+            if (grids == null) return;
+            foreach (ScoreboardItemGrid grid in grids)
+            {
+                ItemInventoryDisplay display = grid.Alive ? grid.Display : null;
+                List<ItemIcon> icons = display ? display.itemIcons : null;
+                if (icons == null || watchedIcons.TryGetValue(display, out int count) && count == icons.Count) continue;
+                watchedIcons[display] = icons.Count;
+                foreach (ItemIcon icon in icons)
+                {
+                    if (!icon || clickHandlers.ContainsKey(icon)) continue;
+                    ScoreboardStrip row = grid.Strip;
+                    System.Action handler = () =>
+                    {
+                        clicked = icon;
+                        clickedMaster = row ? row.master : null;
+                    };
+                    icon.OnItemClicked += handler;
+                    clickHandlers[icon] = handler;
+                }
+            }
+        }
+
+        private void WatchSidecar(InspectPanelController controller)
+        {
+            if (sidecarButton) return;
+            GameObject sidecar = SidecarField != null ? SidecarField.GetValue(controller) as GameObject : null;
+            sidecarButton = sidecar ? sidecar.GetComponentInChildren<HGButton>(true) : null;
+            if (sidecarButton)
+            {
+                sidecarButton.onClick.AddListener(FromWorld);
+            }
+        }
+
+        private void FromWorld()
+        {
+            clicked = null;
+            clickedMaster = null;
+        }
+
+        private void Unwatch()
+        {
+            foreach (KeyValuePair<ItemIcon, System.Action> pair in clickHandlers)
+            {
+                if (pair.Key)
+                {
+                    pair.Key.OnItemClicked -= pair.Value;
+                }
+            }
+            clickHandlers.Clear();
+            watchedIcons.Clear();
+            if (sidecarButton)
+            {
+                sidecarButton.onClick.RemoveListener(FromWorld);
+            }
+            sidecarButton = null;
+            FromWorld();
         }
 
         // The strips take the title's color, which the game sets each time it shows something, at full opacity. The lore
         // is hidden again if the game's Show turned it back on.
-        public void Update()
+        private void Refresh()
         {
             UpdateStats();
             FitIcon();
@@ -409,6 +495,7 @@ namespace SevenUI
             TMP_Text text = title;
             Color live = text ? text.color : default;
             restoreRecorded();
+            Unwatch();
             box = null;
             boxGroup = null;
             description = null;
@@ -478,25 +565,30 @@ namespace SevenUI
         // LookingGlass's text split, for the item the panel shows, or null when it has no stats for it. The game's Show
         // keeps nothing of what it was given but the tokens it sets, so the item is found by the description's token: an
         // undiscovered item shows the unknown item's token and a disabled one a formatted text, so neither has a column.
-        // The stack is the HUD target's, as the game inspects the pickup beside the target's body (HUD.ActivateScoreboard),
-        // so while spectating it is the teammate's; the panel keeps no trace of where it was shown from, so an item
-        // clicked on the board is counted the same way.
+        // Shown from beside a pickup (HUD.ActivateScoreboard), the stats are for one more than the HUD target holds, so
+        // for the teammate's stack while spectating; shown by a click on an item on the board, they are for the stack
+        // that row's icon shows, as its tooltip has them.
         private ItemStatsText.Parts StatsParts()
         {
             string token = PickupDescriptions.Full() && descriptionToken ? descriptionToken.token : null;
-            CharacterMaster master = hud && hud.targetMaster ? hud.targetMaster : LocalUserManager.GetFirstLocalUser()?.cachedMaster;
             ItemDef item = ItemByDescription(token);
-            int held = item && master && master.inventory ? master.inventory.GetItemCountPermanent(item) : 0;
-            if (token == shownToken && master == shownMaster && held == shownHeld) return shownParts;
+            bool onBoard = item && clicked && clicked.itemIndex == item.itemIndex;
+            CharacterMaster master = onBoard ? clickedMaster
+                : hud && hud.targetMaster ? hud.targetMaster : LocalUserManager.GetFirstLocalUser()?.cachedMaster;
+            int held = onBoard ? clicked.itemCount
+                : item && master && master.inventory ? master.inventory.GetItemCountPermanent(item) : 0;
+            bool oneMore = !onBoard;
+            if (token == shownToken && master == shownMaster && held == shownHeld && oneMore == shownOneMore) return shownParts;
             shownToken = token;
             shownMaster = master;
             shownHeld = held;
-            string text = item && master ? PickupDescriptions.WithStats(item, held, master) : null;
+            shownOneMore = oneMore;
+            string text = item && master ? PickupDescriptions.WithStats(item, held, master, oneMore) : null;
             ItemStatsText.Parts parts = text != null ? ItemStatsText.Split(text) : null;
             shownParts = parts != null && parts.HasStats ? parts : null;
             if (item && SevenUIPlugin.Settings.DebugLogging.Value)
             {
-                SevenUIPlugin.Log.LogInfo($"Inspect panel: LookingGlass's stats for {item.name} ({held} held): " +
+                SevenUIPlugin.Log.LogInfo($"Inspect panel: LookingGlass's stats for {item.name} ({held} held{(oneMore ? ", one more" : "")}): " +
                     (shownParts != null ? string.Join(", ", shownParts.Values) : "none"));
             }
             return shownParts;

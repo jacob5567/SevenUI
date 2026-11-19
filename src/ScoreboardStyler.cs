@@ -136,7 +136,7 @@ namespace SevenUI
             {
                 placement.Update(SevenUIPlugin.Settings.ScoreboardBesideRunInfo.Value);
             }
-            inspect.Update();
+            inspect.Update(itemsBoard ? itemsBoard.Grids : null);
             styled.RemoveWhere(row => !row);
             skipped.RemoveWhere(row => !row);
             // The styler otherwise runs only when the HUD's hierarchy changes, which a row still being built may not do.

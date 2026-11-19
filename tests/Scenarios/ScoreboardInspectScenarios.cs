@@ -68,6 +68,7 @@ namespace SevenUI.Tests
             yield return new Scenario(1, "scoreboard_inspect_stats_column", Stages.TitanicPlains, StatsColumn);
             yield return new Scenario(1, "scoreboard_inspect_stats_none_without_stats", Stages.TitanicPlains, NoStatsNoColumn);
             yield return new Scenario(1, "scoreboard_inspect_stats_flat_panels_off", Stages.TitanicPlains, StatsFlatPanelsOff);
+            yield return new Scenario(1, "scoreboard_inspect_stats_board_item", Stages.TitanicPlains, StatsBoardItem);
         }
 
         // With the scoreboard open, the panel showing Alien Head: laid out and drawn as the canvas, in the item's tier color.
@@ -164,6 +165,75 @@ namespace SevenUI.Tests
             if (values == firstValues) throw h.Fail($"LookingGlass's stats are the same for one more Alien Head ({values})");
             yield return h.Until(() => (problem = StatsProblem(h, item)) == null,
                 () => $"the stats column for {before + 1} Alien Heads held: {problem} {h.Diagnosis()}");
+        }
+
+        // An item clicked on the board is looked at, not picked up: with two Alien Heads held, the column has the stats
+        // for the two the row's icon shows, without one more and without LookingGlass's caption, as the icon's tooltip
+        // has them. Shown from beside a pickup again (the panel closed and shown with its sidecar, as Tab does, then
+        // the sidecar's button after another click on the board), the stats are for one more again.
+        private static IEnumerator StatsBoardItem(Harness h)
+        {
+            ConfigEntry<bool> full = LookingGlassSettings(h);
+            h.SetConfig(SevenUIPlugin.Settings.DebugLogging, true);
+            h.SetConfig(SevenUIPlugin.Settings.FlatPanels, true);
+            h.SetConfig(full, true);
+            ItemDef item = RoR2Content.Items.AlienHead;
+            Inventory inventory = Viewer().inventory;
+            const int Given = 2;
+            for (int i = 0; i < Given; i++)
+            {
+                inventory.GiveItemPermanent(item);
+            }
+            h.OnCleanup(() =>
+            {
+                for (int i = 0; i < Given && inventory && inventory.GetItemCountPermanent(item) > 0; i++) inventory.RemoveItemPermanent(item);
+            });
+            // A click opens the panel only with the game's inspect feature on, a profile setting.
+            UserProfile profile = LocalUserManager.GetFirstLocalUser().userProfile;
+            bool inspectFeature = profile.useInspectFeature;
+            profile.useInspectFeature = true;
+            h.OnCleanup(() => profile.useInspectFeature = inspectFeature);
+            yield return ScoreboardSetUp.Open(h);
+            InspectPanelController controller = null;
+            yield return h.Until(() => (controller = Controller(h)) != null, "the scoreboard's inspect panel");
+            NoAutopause(h, controller);
+            ItemIcon icon = null;
+            yield return h.Until(() => (icon = OwnIcon(h, item)) != null, "Alien Head's icon on your row");
+
+            icon.ItemClicked();
+            string problem = null;
+            yield return h.Until(() => (problem = StatsProblem(h, item, false)) == null,
+                () => $"the column for the {Given} Alien Heads on the board: {problem} {h.Diagnosis()}");
+            if (LookingGlassParts(h, item, false).Caption.Length > 0) throw h.Fail("LookingGlass captioned the stack as held");
+            yield return h.Screenshot("scoreboard_inspect_stats_board_item");
+
+            controller.OnCloseButtonClicked();
+            yield return null;
+            controller.Show(Discovered(item), true);
+            yield return h.Until(() => (problem = StatsProblem(h, item)) == null,
+                () => $"the column for one more, shown from beside a pickup: {problem} {h.Diagnosis()}");
+
+            icon.ItemClicked();
+            yield return h.Until(() => (problem = StatsProblem(h, item, false)) == null,
+                () => $"the column for the stack on the board after another click: {problem} {h.Diagnosis()}");
+            FieldInfo sidecarField = typeof(InspectPanelController).GetField("Sidecar", Fields);
+            GameObject sidecar = sidecarField?.GetValue(controller) as GameObject;
+            HGButton sidecarButton = sidecar ? sidecar.GetComponentInChildren<HGButton>(true) : null;
+            if (!sidecarButton) throw h.Fail("the inspect panel has no sidecar button");
+            sidecarButton.onClick.Invoke();
+            yield return h.Until(() => (problem = StatsProblem(h, item)) == null,
+                () => $"the column for one more, from the sidecar's button: {problem} {h.Diagnosis()}");
+        }
+
+        // Your row's icon for the item on the board.
+        private static ItemIcon OwnIcon(Harness h, ItemDef item)
+        {
+            Transform board = Board(h);
+            CharacterMaster master = Viewer();
+            ScoreboardStrip row = board ? board.GetComponentsInChildren<ScoreboardStrip>().FirstOrDefault(strip => strip.master == master) : null;
+            return row && row.itemInventoryDisplay
+                ? row.itemInventoryDisplay.itemIcons.FirstOrDefault(icon => icon && icon.itemIndex == item.itemIndex)
+                : null;
         }
 
         // A chest, an equipment, or Alien Head with LookingGlass's setting off leave the panel as it was: no line, no
@@ -277,20 +347,27 @@ namespace SevenUI.Tests
 
         // LookingGlass's own text for the item, with stats for the viewer's stack and one more, split as the mod splits
         // it. Called by reflection, as the mod does, so the tests build without LookingGlass.
-        private static ItemStatsText.Parts LookingGlassParts(Harness h, ItemDef item)
+        private static ItemStatsText.Parts LookingGlassParts(Harness h, ItemDef item, bool oneMore = true)
         {
             CharacterMaster master = Viewer();
             if (!master || !master.inventory) throw h.Fail("no viewer's master to count Alien Heads for");
+            int held = master.inventory.GetItemCountPermanent(item);
+            string text = LookingGlassText(h, item, held, master, oneMore);
+            ItemStatsText.Parts parts = ItemStatsText.Split(text);
+            if (!parts.HasStats) throw h.Fail($"LookingGlass gave no stats for {item.name}: \"{text}\"");
+            return parts;
+        }
+
+        // LookingGlass's own description of the item with its stats for a stack of 'count', or one more with its caption.
+        // Called by reflection, as the mod does, so the tests build without LookingGlass.
+        internal static string LookingGlassText(Harness h, ItemDef item, int count, CharacterMaster master, bool oneMore)
+        {
             Chainloader.PluginInfos.TryGetValue(GameNames.LookingGlassGUID, out BepInEx.PluginInfo info);
             System.Type type = info?.Instance ? info.Instance.GetType().Assembly.GetType(GameNames.LookingGlassItemStats) : null;
             MethodInfo method = type?.GetMethod(GameNames.LookingGlassItemDescription, BindingFlags.Public | BindingFlags.Static,
                 null, new[] { typeof(ItemDef), typeof(int), typeof(CharacterMaster), typeof(bool), typeof(bool) }, null);
             if (method == null) throw h.Fail($"LookingGlass has no {GameNames.LookingGlassItemStats}.{GameNames.LookingGlassItemDescription}");
-            int held = master.inventory.GetItemCountPermanent(item);
-            string text = method.Invoke(null, new object[] { item, held, master, true, false }) as string;
-            ItemStatsText.Parts parts = ItemStatsText.Split(text);
-            if (!parts.HasStats) throw h.Fail($"LookingGlass gave no stats for {item.name}: \"{text}\"");
-            return parts;
+            return method.Invoke(null, new object[] { item, count, master, oneMore, false }) as string;
         }
 
         // Waits a moment, then fails if the line or column shows.
@@ -314,9 +391,9 @@ namespace SevenUI.Tests
 
         // Null when the column, the line and the description are as design B draws them, with LookingGlass's stats for
         // the item and the description without them, else what differs.
-        private static string StatsProblem(Harness h, ItemDef item)
+        private static string StatsProblem(Harness h, ItemDef item, bool oneMore = true)
         {
-            ItemStatsText.Parts expected = LookingGlassParts(h, item);
+            ItemStatsText.Parts expected = LookingGlassParts(h, item, oneMore);
             string problem = Column(h, true);
             if (problem != null) return problem;
             Transform box = Board(h).Find(BoxPath);
@@ -389,6 +466,13 @@ namespace SevenUI.Tests
         {
             InspectPanelController controller = null;
             yield return h.Until(() => (controller = Controller(h)) != null, "the scoreboard's inspect panel");
+            NoAutopause(h, controller);
+            controller.Show(info);
+            yield return null;
+        }
+
+        private static void NoAutopause(Harness h, InspectPanelController controller)
+        {
             FieldInfo autopause = typeof(InspectPanelController).GetField("isAutopauseCandidate", Fields);
             if (autopause != null)
             {
@@ -403,8 +487,6 @@ namespace SevenUI.Tests
             {
                 if (controller) controller.OnCloseButtonClicked();
             });
-            controller.Show(info);
-            yield return null;
         }
 
         private static InspectPanelController Controller(Harness h)

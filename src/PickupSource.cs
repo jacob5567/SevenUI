@@ -1,7 +1,9 @@
+using System;
 using System.Collections.ObjectModel;
 using RoR2;
 using RoR2.UI;
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.UI;
 
 namespace SevenUI
@@ -9,6 +11,20 @@ namespace SevenUI
     // The item pickers' panel (Command's, a Void Potential's, a Lemurian egg's): the game's PickupPickerPanel itself.
     internal sealed class PickupSource : PickerSource
     {
+        // The panels that take the chosen item from the player's inventory, by their prefab's name: the scrapper's,
+        // the Lemurian egg's, the rebirth shrine's, the Solus vendor's, the meal prep's and the acolyte unlock's.
+        private static readonly string[] TakingPanels =
+        {
+            "ScrapperPickerPanel", "LemurianEggPickerPanel", "RebirthPickerPanel", "SolusVendorShrinePickerPanel",
+            "MealPrepPickerPanel", "UnlockableAcolytePickerPanel",
+        };
+        // Delusion's guess at the item a chest gave, which is held already: right, it stays; wrong, it goes.
+        private const string DelusionPanel = "DelusionOptionPickerPanel";
+        // The game's UnityEvent call that fills a panel's options from the interactor's inventory.
+        private const string OptionsFromInventory = nameof(PickupPickerController.SetOptionsFromInteractor);
+
+        private StackChange? change;
+
         private PickupSource(PickupPickerPanel panel, RectTransform mainPanel)
         {
             Panel = panel;
@@ -52,7 +68,33 @@ namespace SevenUI
         public override PickerEntry Entry(int index)
         {
             PickupPickerController.Option[] given = Panel.pickupOptions;
-            return PickerEntry.ForPickup(PickupCatalog.GetPickupDef(given[index].pickup.pickupIndex));
+            UniquePickup pickup = given[index].pickup;
+            change ??= ChangeOf(Panel);
+            return PickerEntry.ForPickup(PickupCatalog.GetPickupDef(pickup.pickupIndex), change.Value, !pickup.isTempItem && !pickup.isRental);
+        }
+
+        // What a pick does to the player's stack: the panel's name says it for the game's panels; any other panel takes
+        // the item when its controller fills its options from the interactor's inventory (as the game's own taking
+        // panels do, through their prefab's interaction event or, for the Solus vendor and the acolyte unlock, in
+        // code), and otherwise gives it. Read only: the event's persistent calls are read, never invoked.
+        private static StackChange ChangeOf(PickupPickerPanel panel)
+        {
+            string name = panel.name;
+            if (name.StartsWith(DelusionPanel, StringComparison.Ordinal)) return StackChange.None;
+            foreach (string taking in TakingPanels)
+            {
+                if (name.StartsWith(taking, StringComparison.Ordinal)) return StackChange.Lose;
+            }
+            PickupPickerController controller = panel.pickerController;
+            if (!controller) return StackChange.Gain;
+            if (controller.isDelusionChoice) return StackChange.None;
+            if (controller is AcolyteUnlockPickerController || controller.GetComponent<SolusVendorShrineController>()) return StackChange.Lose;
+            UnityEventBase interaction = controller.onServerInteractionBegin;
+            for (int i = 0; interaction != null && i < interaction.GetPersistentEventCount(); i++)
+            {
+                if (interaction.GetPersistentMethodName(i) == OptionsFromInventory) return StackChange.Lose;
+            }
+            return StackChange.Gain;
         }
     }
 }
