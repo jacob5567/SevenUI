@@ -12,12 +12,13 @@ Found a bug or have an idea? Open an issue on [GitHub](https://github.com/jacob5
 - **Panels and bars:** flat and translucent, with the HUD facing the screen squarely and sitting closer to its edges.
 - **Health:** the barrier as a gold strip along the top, curses and one-shot protection as stripes, and the numbers as text.
 - **Run info:** the timer, difficulty or Eclipse level, stage, Karma and artifacts in one panel.
-- **Items, buffs and skills:** dark slots with tier colors, and a cooldown cover that shrinks as a skill recharges.
+- **Items, buffs and skills:** dark slots with tier colors, and a cooldown cover that shrinks as a skill recharges. Bandit's Desperado stacks show above the special slot as the buff's icon and the count.
 - **Functional Coupler:** the equipment you can switch to shows above the equipment slot, next first with your keys, the rest fading behind it.
 - **Prompts and notifications:** keycaps, with a strip in the color of the cost or the item's tier.
 - **Ally cards:** allies of one kind share a card, "Gunner Drone ×8", with a bar segment for each, and the cards stay clear of the chat: when they would reach it, the cards of single allies shrink to one-line rows, and if that is still too tall, the last allies' cards fold into a "+N more" row with an icon for each kind it holds. Other players' cards stay full size at the top and are never folded; their allies' cards sit indented under them, as in the game, and fold into a "+N more" row of their own.
 - **Scoreboard:** a row or a tab per player, with item counts per tier and the items at full size sorted by tier. The item or equipment you point at is described in a panel docked on the board, with who else holds it.
-- **Tooltips, item pickers and pause menu:** restyled to match.
+- **Countdowns:** the moon's escape, Winnowing trial and Champ Rush timers as flat panels with a draining bar.
+- **Tooltips, item pickers, pause menu and dialog boxes:** restyled to match.
 
 ![The game's HUD and SevenUI side by side, midway through a run](https://raw.githubusercontent.com/jacob5567/SevenUI/main/docs/screenshots/before-after.jpg)
 
@@ -39,6 +40,7 @@ Found a bug or have an idea? Open an issue on [GitHub](https://github.com/jacob5
 
 - **Multiplayer:** client-side. It only changes your own HUD, so it works when you join a host who doesn't have it.
 - **[LookingGlass](https://thunderstore.io/package/DropPod/LookingGlass/):** its stats panel, buff timers, item stats and full descriptions take on the same look.
+- **[MusicDisplay](https://thunderstore.io/package/DestroyedClone/MusicDisplay/):** with the panels on, its now-playing text is hidden and the track is shown in a "Now playing" panel at the bottom of the right-hand panels, under the objectives ("NOW PLAYING", the track's name and its author). The panel shows whether or not MusicDisplay's text has faded, and is left out while MusicDisplay has no track. With the panels off, MusicDisplay's text is shown as the mod has it.
 - **Languages:** Barlow has Latin letters only. Languages the game draws in Noto Sans, such as Russian, Chinese, Japanese and Korean, keep the game's font.
 
 ## Configuration
@@ -49,7 +51,7 @@ Edit `BepInEx/config/sevenstack.SevenUI.cfg`, or use [Risk Of Options](https://t
 |---|---|---|
 | `BarlowFont` | true | Draw HUD text in Barlow. |
 | `MonospaceDamageNumbers` | true | Draw damage numbers in JetBrains Mono. |
-| `FlatPanels` | true | The flat look: panels, bars, slots, scoreboard, tooltips, pickers and the pause menu. Off brings back the game's look. |
+| `FlatPanels` | true | The flat look: panels, bars, slots, scoreboard, tooltips, pickers, countdown panels, the pause menu and dialog boxes. Off brings back the game's look. |
 | `TightMargins` | true | Keep the HUD near the screen's edges, as on SevenUI's design. Only with `FlatPanels` on. |
 | `ScoreboardBesideRunInfo` | true | Place the scoreboard near the top of the screen, beside the run info. Only with `FlatPanels` on. |
 | `EquipmentDeck` | true | Show the next equipment as a deck of icons above the equipment slot with a Functional Coupler. Off shows no deck. Only with `FlatPanels` on. |

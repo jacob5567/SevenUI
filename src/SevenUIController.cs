@@ -39,12 +39,17 @@ namespace SevenUI
         private TiltFlattener tilt;
         private SkillSlotsStyler skillSlots;
         private PickerStyler pickers;
+        private CountdownStyler countdowns;
+        // Restored when the HUD goes: the text it hides is MusicDisplay's, which outlives the HUD.
+        private MusicDisplayStyler music;
         // Not in the list: it runs whether or not FlatPanels is on (it restyles only the font then), and has nothing to
         // restore, as the game makes each tooltip new.
         private TooltipStyler tooltips;
         private int lastHierarchyCount = -1;
 
         public PickerStyler Pickers => pickers;
+        // Read by the SevenUI.Tests plugin.
+        public CountdownStyler Countdowns => countdowns;
 
         private void Awake()
         {
@@ -57,31 +62,35 @@ namespace SevenUI
             PlayerBarsStyler playerBars = new PlayerBarsStyler(root);
             skillSlots = new SkillSlotsStyler(hud, root);
             TopStyler top = new TopStyler(hud, root);
+            countdowns = new CountdownStyler(root);
             ItemIconsStyler itemIcons = new ItemIconsStyler(root);
             AllyCardsStyler allyCards = new AllyCardsStyler(hud, root);
             PromptsStyler prompts = new PromptsStyler(hud, root);
             pickers = new PickerStyler(hud, root);
+            NowPlaying nowPlaying = new NowPlaying();
             ScoreboardStyler scoreboard = new ScoreboardStyler(hud, root);
             ChatStyler chat = new ChatStyler(root);
             tilt = new TiltFlattener(root);
             tooltips = new TooltipStyler(hud, root);
             // The pause menu is its own canvas, outside the HUD, made each time it opens.
             pause = new PauseScreenStyler(hud, root);
+            music = new MusicDisplayStyler(nowPlaying);
+            NowPlayingPanel nowPlayingPanel = new NowPlayingPanel(root, nowPlaying);
             TopBarsWidth topBars = new TopBarsWidth(root);
             HudMargins margins = new HudMargins(hud, root, skillSlots);
             stylers = new IStyler[]
             {
-                tilt, runInfo, rightInfoBar, playerBars, skillSlots, top, itemIcons, allyCards, prompts, pickers,
-                scoreboard, chat, topBars, margins, fontSwapper, pause,
+                tilt, runInfo, rightInfoBar, playerBars, skillSlots, top, countdowns, itemIcons, allyCards, prompts, pickers,
+                scoreboard, chat, topBars, margins, fontSwapper, pause, music, nowPlayingPanel,
             };
             restoreOrder = new IStyler[]
             {
-                runInfo, rightInfoBar, playerBars, skillSlots, top, itemIcons, allyCards, prompts, pickers, scoreboard,
-                chat, tilt, topBars, margins, fontSwapper, pause,
+                runInfo, rightInfoBar, playerBars, skillSlots, top, countdowns, itemIcons, allyCards, prompts, pickers, scoreboard,
+                chat, tilt, topBars, margins, fontSwapper, pause, music, nowPlayingPanel,
             };
             updateOrder = new IStyler[]
             {
-                runInfo, prompts, pickers, playerBars, top, skillSlots, scoreboard, chat, allyCards, pause, margins, topBars,
+                runInfo, prompts, pickers, playerBars, top, countdowns, skillSlots, scoreboard, chat, allyCards, pause, music, nowPlayingPanel, margins, topBars,
             };
             watched = new[]
             {
@@ -208,6 +217,8 @@ namespace SevenUI
             {
                 setting.SettingChanged -= OnSettingChanged;
             }
+            // Everything else restyled lies under the HUD and goes with it.
+            music?.Restore();
         }
     }
 }

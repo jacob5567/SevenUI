@@ -29,11 +29,11 @@ namespace SevenUI
         // The design canvas's sizes, in its pixels, scaled to the run info's units. The rows' own height holds most
         // of the 10px above and below them.
         private const float Canvas = RunInfoUnits.PerCanvasPixel;
-        private const float PanelGap = 8f * Canvas;
+        public const float PanelGap = 8f * Canvas;
         private const int RowsPadding = 4;
-        private const float HeaderHeight = 26f * Canvas;
-        private const float HeaderInset = 14f * Canvas;
-        private const float HeaderFontSize = 12f * Canvas;
+        public const float HeaderHeight = 26f * Canvas;
+        public const float HeaderInset = 14f * Canvas;
+        public const float HeaderFontSize = 12f * Canvas;
         // The stats' 14px rows 4px apart, 8px under the strip and 10px above the panel's bottom, in columns 16px apart.
         private const float StatsFontSize = 14f * Canvas;
         private const float StatsRowGap = 4f * Canvas;
@@ -101,6 +101,11 @@ namespace SevenUI
             Transform objectivePanel = bar.Find(ObjectivePanelName);
             foreach (Transform panel in bar)
             {
+                // The now-playing panel is styled as it is built (NowPlayingPanel).
+                if (panel.name == NowPlayingPanel.PanelName)
+                {
+                    continue;
+                }
                 if (panel == objectivePanel)
                 {
                     StyleObjectivePanel(panel);

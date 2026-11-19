@@ -23,6 +23,8 @@ namespace SevenUI
         // #d9645a and #6a3a3a, the boss bar's health and the health it just lost.
         public static readonly Color BossHealth = new Color(0.851f, 0.392f, 0.353f, 1f);
         public static readonly Color BossHealthLost = new Color(0.416f, 0.227f, 0.227f, 1f);
+        // A boss's health just healed, until the trail catches up: the boss red, lighter.
+        public static readonly Color BossHealthHealing = new Color(0.937f, 0.659f, 0.635f, 1f);
         // The scoreboard and the chat's input sit on a darker panel, since they cover the game.
         public static readonly Color ScoreboardPanel = new Color(0f, 0f, 0f, 0.62f);
         // An outlined button's faint face, such as a picker's cancel button: the stage shows through it.
@@ -66,6 +68,8 @@ namespace SevenUI
         // when the health numbers turn #f0a29c.
         public static readonly Color Health = new Color(0.435f, 0.749f, 0.451f, 1f);
         public static readonly Color Shield = new Color(0.373f, 0.639f, 0.878f, 1f);
+        // #ff39c7, the game's color for the shield of a body with void shields (Plasma Shrimp).
+        public static readonly Color VoidShield = new Color(1f, 0.224f, 0.780f, 1f);
         public static readonly Color LowHealth = new Color(0.878f, 0.376f, 0.353f, 1f);
         public static readonly Color LowHealthText = new Color(0.941f, 0.635f, 0.612f, 1f);
         // #2a2d36 and #1c1e25, the stripes over maximum health a curse has taken away.
@@ -83,6 +87,8 @@ namespace SevenUI
         public static readonly Color Divider = new Color(0.204f, 0.220f, 0.275f, 1f);
         // #e9d27a, the barrier, a strip along the top of the health bar.
         public static readonly Color Barrier = new Color(0.914f, 0.824f, 0.478f, 1f);
+        // #e7e9f0, the line that marks where a frozen enemy is executed, as bright as the text.
+        public static readonly Color ExecuteMark = Text;
         // rgba(8,9,12,0.92), the item tooltip's panel, with a header band of 8% #e7e9f0 over it and its text #c3c7d3.
         public static readonly Color TooltipPanel = new Color(0.031f, 0.035f, 0.047f, 0.92f);
         public static readonly Color TooltipHeader = new Color(0.906f, 0.914f, 0.941f, 0.08f);

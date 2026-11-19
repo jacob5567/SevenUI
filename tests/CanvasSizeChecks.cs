@@ -98,7 +98,7 @@ namespace SevenUI.Tests
             return (camera, CanvasLayoutChecks.ScreenOf(camera).height / CanvasHeight);
         }
 
-        private static Rect Box(Harness h, RectTransform rect)
+        internal static Rect Box(Harness h, RectTransform rect)
         {
             (Camera camera, float unit) = Screen(h);
             Rect box = CanvasLayoutChecks.OnScreen(camera, rect);

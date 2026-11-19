@@ -77,7 +77,22 @@ namespace SevenUI
             Vector2 size;
             // How far above the screen's middle the panel's top sits.
             float top;
-            if (owner.Cards)
+            if (owner.Empty)
+            {
+                float textWidth = MinPanelWidth - 2f * PaddingX;
+                slots.Strip.sizeDelta = new Vector2(0f, StripHeight);
+                if (title)
+                {
+                    TopLeft(title.rectTransform, PaddingX, (StripHeight - titleHeight) / 2f, textWidth, titleHeight);
+                }
+                TMP_Text message = owner.EmptyMessage;
+                float y = StripHeight + PartGap;
+                float messageHeight = message.GetPreferredValues(message.text, textWidth, 0f).y;
+                TopLeft(message.rectTransform, PaddingX, y, textWidth, messageHeight);
+                size = new Vector2(MinPanelWidth, y + messageHeight + PaddingBottom);
+                top = size.y / 2f;
+            }
+            else if (owner.Cards)
             {
                 float cardWidth = cards.FitCards(count);
                 float textWidth = cardWidth - 2f * CardPadding;

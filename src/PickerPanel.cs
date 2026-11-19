@@ -13,7 +13,8 @@ namespace SevenUI
     // become cards side by side, each with its item's name and description always shown; more become a grid of item
     // slots on a flat panel, with the hovered item's name and description under it. The game's buttons stay the
     // buttons, laid out by the game's grid with the game's navigation, so choosing works as before; only their look and
-    // the panel around them change. The game's spinning outlines and tinted backgrounds are hidden, its title becomes the
+    // the panel around them change. With no options at all (an egg with no items to give) the panel shows a short
+    // message in place of the grid. The game's spinning outlines and tinted backgrounds are hidden, its title becomes the
     // header, and its key legend sits under the panel.
     internal sealed class PickerPanel
     {
@@ -38,6 +39,8 @@ namespace SevenUI
         // the game's own columns, which differ from panel to panel and which other mods may change (LookingGlass resizes
         // Command's), so the grid keeps the game's navigation.
         public const int CardLimit = 6;
+        public const string EmptyMessageName = "SevenUIPickerEmpty";
+        public const string EmptyMessageText = "No items to offer";
 
         // The design canvas's sizes, in its pixels, scaled to the HUD's units.
         internal const float Canvas = HudUnits.PerCanvasPixel;
@@ -134,6 +137,11 @@ namespace SevenUI
 
         public bool Cards { get; internal set; }
 
+        // No options to pick from: the panel shows a message and its Cancel button, with no grid.
+        public bool Empty { get; private set; }
+
+        public TMP_Text EmptyMessage { get; private set; }
+
         // The options per row: all of them as cards, the game's columns as a grid.
         public int Columns => grid.Columns;
 
@@ -162,6 +170,8 @@ namespace SevenUI
             buttons.Clear();
             shownOptions = null;
             shownButtonCount = -1;
+            Empty = false;
+            EmptyMessage = null;
             slots.Clear();
             shownFont = null;
             cancel.Clear();
@@ -174,7 +184,7 @@ namespace SevenUI
             if (!Alive) return;
             PickupPickerController.Option[] options = panel.pickupOptions;
             ReadOnlyCollection<MPButton> elements = panel.buttonAllocator?.elements;
-            if (options == null || elements == null || elements.Count < options.Length || options.Length == 0) return;
+            if (options == null || elements == null || elements.Count < options.Length) return;
             if (options != shownOptions || elements.Count != shownButtonCount)
             {
                 if (Styled)
@@ -184,7 +194,8 @@ namespace SevenUI
                 Style(options, elements);
             }
             // The font swap gives the texts Barlow after they are made, which measures differently.
-            TMP_FontAsset font = buttons.Count > 0 && buttons[0].Name ? buttons[0].Name.font : slots.DetailsName ? slots.DetailsName.font : null;
+            TMP_FontAsset font = buttons.Count > 0 && buttons[0].Name ? buttons[0].Name.font
+                : slots.DetailsName ? slots.DetailsName.font : EmptyMessage ? EmptyMessage.font : null;
             if (font != shownFont)
             {
                 shownFont = font;
@@ -215,7 +226,10 @@ namespace SevenUI
                 cancel.StyleCancel();
             }
             cancel.Button?.Update(null);
-            grid.KeepColumns();
+            if (!Empty)
+            {
+                grid.KeepColumns();
+            }
             if (slots.DetailsName)
             {
                 slots.ShowDetails(hovered >= 0 ? hovered : detailsIndex >= 0 ? detailsIndex : 0);
@@ -226,7 +240,8 @@ namespace SevenUI
         {
             shownOptions = options;
             shownButtonCount = elements.Count;
-            Cards = options.Length <= CardLimit;
+            Empty = options.Length == 0;
+            Cards = !Empty && options.Length <= CardLimit;
             grid.Columns = Cards ? options.Length : grid.GameColumns(options.Length);
             ui.FullDescriptions = PickupDescriptions.Full();
             recorder.RecordRect(mainPanel);
@@ -243,6 +258,15 @@ namespace SevenUI
             legend.StyleTitle();
             legend.StyleLegend();
             cancel.StyleCancel();
+            if (Empty)
+            {
+                // The game's grid has nothing in it, and would still take its place in the panel.
+                recorder.SetActive(panel.buttonContainer.gameObject, false);
+                EmptyMessage = ui.AddText(EmptyMessageName, ui.Juice, DescriptionSize, Palette.HeaderText);
+                EmptyMessage.text = EmptyMessageText;
+                shownFont = null;
+                return;
+            }
             grid.StyleGrid();
             for (int i = 0; i < options.Length; i++)
             {
@@ -261,7 +285,11 @@ namespace SevenUI
         }
 
         // Sizes the panel and places its parts, from the texts as measured in their current font.
-        internal void Layout() => layout.Layout();
+        internal void Layout()
+        {
+            layout.Layout();
+            cancel.Align();
+        }
 
         internal RectTransform NewObject(string name, Transform holder)
         {

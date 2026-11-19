@@ -9,7 +9,9 @@ namespace SevenUI
 {
     // Restyles the top of the HUD: the currencies in a row, each on its own flat panel fitted to it, without the
     // cluster's frame; the item bar without its frame; and the boss bar flat, with the boss's name in Barlow Condensed
-    // capitals in a title row above it (BossTitleRow), and the game's trail of health just lost under its fill.
+    // capitals in a title row above it (BossTitleRow), and drawn as the player's health bar is over the game's one
+    // fill: the trail of health just lost, the healed part, shield, barrier, Lunar Ruin, curse and execute line
+    // (BossBarEffects).
     internal sealed class TopStyler : IStyler
     {
         // Under each currency's MoneyText object.
@@ -32,6 +34,7 @@ namespace SevenUI
         private readonly List<MoneyText> currencies = new List<MoneyText>();
         private CurrencyRow currencyRow;
         private BossTitleRow bossRow;
+        private BossBarEffects bossEffects;
 
         public TopStyler(HUD hud, Transform root)
         {
@@ -67,6 +70,7 @@ namespace SevenUI
             recorder.Restore();
             currencyRow = null;
             bossRow = null;
+            bossEffects = null;
         }
 
         public void Update()
@@ -78,6 +82,10 @@ namespace SevenUI
             if (bossRow != null && bossRow.Alive)
             {
                 bossRow.Update();
+            }
+            if (bossEffects != null && bossEffects.Alive)
+            {
+                bossEffects.Update();
             }
         }
 
@@ -143,6 +151,10 @@ namespace SevenUI
             if ((bossRow == null || !bossRow.Alive) && boss.container)
             {
                 bossRow = BossTitleRow.Style(boss, recorder);
+            }
+            if (bossEffects == null || !bossEffects.Alive)
+            {
+                bossEffects = BossBarEffects.Style(boss, recorder);
             }
         }
 

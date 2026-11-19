@@ -46,15 +46,17 @@ namespace SevenUI.Tests
         public override IEnumerable<Suite> Suites()
         {
             yield return new Suite("font", FontScenarios.All());
-            yield return new Suite("panels", PanelScenarios.All().Concat(ScoreboardScenarios.Checks()));
+            yield return new Suite("boss_bar", BossBarScenarios.All());
+            yield return new Suite("panels", PanelScenarios.All().Concat(MusicDisplayScenarios.All()).Concat(DialogScenarios.All()).Concat(ScoreboardScenarios.Checks()));
             yield return new Suite("objectives", ObjectiveScenarios.All());
             yield return new Suite("scoreboard", ScoreboardScenarios.All());
             yield return new Suite("scoreboard_rows", ScoreboardScenarios.All(ScoreboardScenarios.Board.Rows));
             yield return new Suite("scoreboard_tabs", ScoreboardScenarios.All(ScoreboardScenarios.Board.Tabs));
             yield return new Suite("pickers", PickerScenarios.All());
+            yield return new Suite("countdowns", CountdownScenarios.All());
             yield return new Suite("ally_portraits", AllyPortraitScenarios.All().Concat(AllyTierScenarios.All()));
             yield return new Suite("scoreboard_leave", ScoreboardLeaveScenarios.All());
-            yield return new Suite("screenshots", ScreenshotScenarios.All().Append(ScoreboardScenarios.SpreadScreenshot()));
+            yield return new Suite("screenshots", ScreenshotScenarios.All().Append(ScoreboardScenarios.SpreadScreenshot()).Concat(DialogScenarios.All()));
             // Changes the run for good, so only when named.
             yield return new Suite("store", true, StoreScenarios.All());
         }
