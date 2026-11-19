@@ -335,10 +335,14 @@ namespace SevenUI.Tests
             if (Mathf.Abs(lineRect.width - DividerWidth) > Tolerance) return $"line {lineRect.width:0.#}px wide, not {DividerWidth}";
             Image line = divider.GetComponent<Image>();
             if (!line || !SevenUIChecks.Near(line.color, Palette.Divider)) return "the line is not the divider color";
-            if (Mathf.Abs(lineRect.height - (boxRect.height - 2f * PaddingY)) > Tolerance && lineRect.height < column.height - Tolerance)
+            // The panel is its tallest content plus the padding, and the line is as tall as that content.
+            Rect slot = CanvasSizeChecks.Box(h, (RectTransform)box.Find("InspectIconContainer"));
+            float content = Mathf.Max(slot.height, Mathf.Max(textRect.height, column.height));
+            if (Mathf.Abs(boxRect.height - (content + 2f * PaddingY)) > Tolerance)
             {
-                return $"line {lineRect.height:0.#}px tall, not the content's {boxRect.height - 2f * PaddingY:0.#}";
+                return $"panel {boxRect.height:0.#}px tall, not its content's {content:0.#} plus the padding {2f * PaddingY:0.#}";
             }
+            if (Mathf.Abs(lineRect.height - content) > Tolerance) return $"line {lineRect.height:0.#}px tall, not the content's {content:0.#}";
             if (Mathf.Abs(column.xMin - lineRect.xMax - StatsSpacing) > Tolerance) return $"column {column.xMin - lineRect.xMax:0.#}px after the line, not {StatsSpacing}";
             if (Mathf.Abs(column.width - StatsWidth) > Tolerance) return $"column {column.width:0.#}px wide, not {StatsWidth}";
             List<TMP_Text> labels = Rows(stats, ScoreboardInspect.LabelName);
