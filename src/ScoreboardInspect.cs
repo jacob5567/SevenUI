@@ -227,10 +227,11 @@ namespace SevenUI
             KeepOpaque();
         }
 
-        // The game's panel fades in through a CanvasGroup (UIJuice) on its area, and with the panel restyled that fade
-        // was seen to stay near zero, leaving the face, icon and texts barely visible. A group between the panel and
-        // the board is held at full alpha while the panel shows; the board's own groups are not touched. This should
-        // run after the game's Updates (LateUpdate), so the game's value is not the one drawn.
+        // The area's CanvasGroup was seen at alpha 0 with the panel restyled, leaving the face, icon and texts barely
+        // visible. Nothing the mod does writes it, and the game never starts a fade on it (UIJuice.TransitionAlphaFadeIn
+        // has no callers; a UIJuice only copies the group's authored alpha), so it is held at full alpha, only while the
+        // panel is active in the hierarchy: the game hides the panel with SetActive(false), which this leaves alone.
+        // The board's own groups are not touched.
         private void KeepOpaque()
         {
             if (!panel || !boardRoot || !panel.gameObject.activeInHierarchy)
