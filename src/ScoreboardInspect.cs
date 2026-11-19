@@ -1,8 +1,10 @@
 using System.Collections.Generic;
 using System.Reflection;
+using RoR2;
 using RoR2.UI;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace SevenUI
@@ -17,6 +19,10 @@ namespace SevenUI
     internal sealed class ScoreboardInspect
     {
         public const string StripName = "SevenUIInspectStrip";
+        public const string DividerName = "SevenUIInspectDivider";
+        public const string StatsName = "SevenUIInspectStats";
+        public const string LabelName = "Label";
+        public const string ValueName = "Value";
 
         private const string BoxName = "HorizontalBox";
         private const string IconContainerName = "InspectIconContainer";
@@ -35,6 +41,14 @@ namespace SevenUI
         private const int IconInset = (int)(4f * Canvas + 0.5f);
         private const float IconGap = 12f * Canvas;
         private const float ColumnGap = 4f * Canvas;
+        // LookingGlass's stats: a column on the right, after a 1px line, each gap between them this wide.
+        private const float StatsSpacing = 14f * Canvas;
+        private const float StatsWidth = 200f * Canvas;
+        private const float DividerWidth = 1f * Canvas;
+        private const float StatsTop = 2f * Canvas;
+        private const float StatsRowGap = 6f * Canvas;
+        private const float StatsLabelGap = 16f * Canvas;
+        private const float StatsSize = 13f * Canvas;
         private const float NameSize = 16f * Canvas;
         private const float DescriptionSize = 13f * Canvas;
         private const float DescriptionLineHeight = 1.4f;
@@ -53,6 +67,18 @@ namespace SevenUI
         private readonly HashSet<Object> captured = new HashSet<Object>();
         private TMP_Text title;
         private Image strip;
+        private TMP_Text description;
+        private HorizontalOrVerticalLayoutGroup boxGroup;
+        private RectTransform box;
+        private GameObject divider;
+        private RectTransform stats;
+        private LayoutElement statsElement;
+        private readonly List<TMP_Text> labels = new List<TMP_Text>();
+        private readonly List<TMP_Text> values = new List<TMP_Text>();
+        // The description's text as the mod last left it, and the game's text it replaced; null when the game's stands.
+        private string handled;
+        private string gameText;
+        private bool statsShown;
 
         public ScoreboardInspect(StyleRecorder recorder)
         {
@@ -72,9 +98,10 @@ namespace SevenUI
             TMP_Text titleText = controller && TitleField != null ? TitleField.GetValue(controller) as TMP_Text : null;
             Component descriptionBehaviour = controller && DescriptionField != null
                 ? DescriptionField.GetValue(controller) as Component : null;
-            TMP_Text description = descriptionBehaviour ? descriptionBehaviour.GetComponent<TMP_Text>() : null;
+            TMP_Text descriptionText = descriptionBehaviour ? descriptionBehaviour.GetComponent<TMP_Text>() : null;
             if (!inspection || !panelObject || !titleText) return;
             title = titleText;
+            description = descriptionText;
 
             FullWidth(panelObject.transform, container);
             Transform box = inspection.Find(BoxName);
@@ -86,6 +113,9 @@ namespace SevenUI
                 Control(part, true, false, TextAnchor.UpperLeft, 0, 0, null);
             }
             Control(box, false, false, TextAnchor.UpperLeft, PaddingX, PaddingY, IconGap);
+            this.box = box as RectTransform;
+            boxGroup = box ? box.GetComponent<HorizontalOrVerticalLayoutGroup>() : null;
+            recorder.OnRestore(RestoreText);
 
             Transform iconContainer = box ? box.Find(IconContainerName) : null;
             Transform background = iconContainer ? iconContainer.Find(IconBackgroundName) : null;
@@ -107,8 +137,8 @@ namespace SevenUI
             Control(textContainer, true, false, TextAnchor.UpperLeft, 0, 0, ColumnGap);
 
             StyleName(titleText);
-            StyleDescription(description);
-            HideFlavor(controller, titleText, description);
+            StyleDescription(descriptionText);
+            HideFlavor(controller, titleText, descriptionText);
             if (!strip)
             {
                 Transform existing = inspection.Find(StripName);
@@ -120,6 +150,7 @@ namespace SevenUI
         // The strip takes the title's color, which the game sets each time it shows something, at full opacity.
         public void Update()
         {
+            UpdateStats();
             if (strip && title)
             {
                 Color color = title.color;
@@ -138,6 +169,14 @@ namespace SevenUI
             TMP_Text text = title;
             Color live = text ? text.color : default;
             restoreRecorded();
+            box = null;
+            boxGroup = null;
+            description = null;
+            divider = null;
+            stats = null;
+            statsElement = null;
+            labels.Clear();
+            values.Clear();
             if (text)
             {
                 text.color = live;
@@ -145,6 +184,148 @@ namespace SevenUI
             title = null;
             strip = null;
             captured.Clear();
+        }
+
+        // With LookingGlass's full descriptions on, the item stats it appends to the description move to a column on the
+        // right of the panel; the description keeps the rest. The game writes the description at each Show (and
+        // LookingGlass after it), so it is split again whenever it isn't the text left here. Without stats the game's
+        // text and the panel as it was stand.
+        private void UpdateStats()
+        {
+            if (!description || !box) return;
+            if (statsShown && boxGroup && boxGroup.spacing != StatsSpacing)
+            {
+                // Styled again meanwhile, which sets the icon's gap.
+                SetSpacing(StatsSpacing);
+            }
+            if (!PickupDescriptions.Full())
+            {
+                if (handled != null)
+                {
+                    UndoStats();
+                }
+                return;
+            }
+            string current = description.text;
+            if (current == handled) return;
+            ItemStatsText.Parts parts = ItemStatsText.Split(Body(current));
+            if (!parts.HasStats)
+            {
+                UndoStats();
+                handled = current;
+                return;
+            }
+            gameText = current;
+            handled = parts.Description;
+            description.text = handled;
+            ShowStats(parts);
+        }
+
+        // The text to split: LookingGlass's own tooltip for what the pointer is on, when it has one that carries stats,
+        // else what the panel holds.
+        private static string Body(string current)
+        {
+            if (ItemStatsText.Split(current).HasStats) return current;
+            MPEventSystem events = EventSystem.current as MPEventSystem;
+            TooltipProvider provider = events ? events.currentTooltipProvider : null;
+            return provider && !string.IsNullOrEmpty(provider.overrideBodyText) ? provider.overrideBodyText : current;
+        }
+
+        private void ShowStats(ItemStatsText.Parts parts)
+        {
+            if (!stats)
+            {
+                divider = UiFactory.NewObject(DividerName, box).gameObject;
+                recorder.Add(divider);
+                Image line = divider.AddComponent<Image>();
+                line.color = Palette.Divider;
+                line.raycastTarget = false;
+                LayoutElement lineElement = divider.AddComponent<LayoutElement>();
+                lineElement.minWidth = DividerWidth;
+                lineElement.preferredWidth = DividerWidth;
+                lineElement.flexibleWidth = 0f;
+                lineElement.minHeight = 0f;
+                lineElement.preferredHeight = 0f;
+                lineElement.flexibleHeight = 1f;
+
+                stats = UiFactory.NewObject(StatsName, box);
+                recorder.Add(stats.gameObject);
+                statsElement = stats.gameObject.AddComponent<LayoutElement>();
+                statsElement.minWidth = StatsWidth;
+                statsElement.preferredWidth = StatsWidth;
+                statsElement.flexibleWidth = 0f;
+                statsElement.flexibleHeight = 0f;
+            }
+            int rows = parts.Labels.Count;
+            while (labels.Count < rows)
+            {
+                labels.Add(NewStatText(LabelName, Palette.HeaderText, TextAlignmentOptions.TopLeft, FontStyles.Normal));
+                values.Add(NewStatText(ValueName, Palette.Accent, TextAlignmentOptions.TopRight, FontStyles.Bold));
+            }
+            float y = StatsTop;
+            for (int i = 0; i < labels.Count; i++)
+            {
+                bool used = i < rows;
+                labels[i].gameObject.SetActive(used);
+                values[i].gameObject.SetActive(used);
+                if (!used) continue;
+                labels[i].text = parts.Labels[i];
+                values[i].text = parts.Values[i];
+                float valueWidth = Mathf.Min(values[i].GetPreferredValues(values[i].text).x, StatsWidth);
+                float labelWidth = Mathf.Max(0f, StatsWidth - valueWidth - StatsLabelGap);
+                float height = Mathf.Max(labels[i].GetPreferredValues(labels[i].text, labelWidth, 0f).y,
+                    values[i].GetPreferredValues(values[i].text, valueWidth, 0f).y);
+                StatsSection.TopLeft(labels[i].rectTransform, 0f, y, labelWidth, height);
+                StatsSection.TopLeft(values[i].rectTransform, StatsWidth - valueWidth, y, valueWidth, height);
+                y += height + StatsRowGap;
+            }
+            statsElement.minHeight = statsElement.preferredHeight = y - StatsRowGap;
+            divider.SetActive(true);
+            stats.gameObject.SetActive(true);
+            statsShown = true;
+            SetSpacing(StatsSpacing);
+        }
+
+        private TMP_Text NewStatText(string name, Color color, TextAlignmentOptions alignment, FontStyles style)
+        {
+            TMP_Text text = UiFactory.NewText(name, stats, description, StatsSize, color);
+            text.spriteAsset = description.spriteAsset;
+            text.fontStyle = style;
+            text.alignment = alignment;
+            text.enableWordWrapping = alignment == TextAlignmentOptions.TopLeft;
+            text.overflowMode = TextOverflowModes.Overflow;
+            return text;
+        }
+
+        // The game's description back when it is still the one left here. The recorder puts back the rest.
+        private void RestoreText()
+        {
+            if (description && gameText != null && description.text == handled)
+            {
+                description.text = gameText;
+            }
+            handled = null;
+            gameText = null;
+            statsShown = false;
+        }
+
+        // The panel as without stats: the column and line hidden, the box's gap the icon's, the game's description back
+        // when it is still the one left here.
+        private void UndoStats()
+        {
+            bool shown = statsShown;
+            RestoreText();
+            if (!shown) return;
+            if (divider) divider.SetActive(false);
+            if (stats) stats.gameObject.SetActive(false);
+            SetSpacing(IconGap);
+        }
+
+        private void SetSpacing(float spacing)
+        {
+            if (!boxGroup) return;
+            boxGroup.spacing = spacing;
+            LayoutRebuilder.ForceRebuildLayoutImmediate(box);
         }
 
         // Spans the board: the game's panel hands out the container's width, after the board's share.
