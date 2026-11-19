@@ -21,7 +21,7 @@ namespace SevenUI.Tests
     // pickers suite (PickerScenarios.All).
     internal static class DroneScrapperScenarios
     {
-        private const string PanelKey = "RoR2/DLC3/Interactables/DroneScrapper/DroneScrapperPickerPanel.prefab";
+        private const string PanelKey = "RoR2/DLC3/DroneScrapper/DroneScrapperPickerPanel.prefab";
         private const string Interactable = "iscDroneScrapper";
         private const string InspectTitleName = "InsepctTitle";
         private const string SevenUIPrefix = "SevenUI";
