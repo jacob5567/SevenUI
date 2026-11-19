@@ -141,10 +141,36 @@ namespace SevenUI.Tests
                 foreach (TMP_Text text in new[] { panel.Label, panel.Time })
                 {
                     if (!text.font.name.StartsWith(Texts.BarlowFontPrefix)) throw h.Fail($"{name}: '{text.name}' is in {text.font.name}");
+                    string border = Border(text.fontSharedMaterial);
+                    if (border != null) throw h.Fail($"{name}: '{text.name}' is drawn with {border}");
                 }
                 if ((panel.Label.fontStyle & FontStyles.UpperCase) == 0 || panel.Label.characterSpacing <= 0f)
                 {
                     throw h.Fail($"{name}: the label is not in spaced capitals ({panel.Label.fontStyle}, spacing {panel.Label.characterSpacing})");
+                }
+                // Design A on the canvas: a 300 by 112 panel, the label in a header strip in Barlow Condensed at 14, and
+                // the time at 44.
+                Vector2 size = panel.Root.rect.size;
+                if (Mathf.Abs(size.x - CountdownPanel.Width) > 1f || Mathf.Abs(size.y - CountdownPanel.Height) > 1f)
+                {
+                    throw h.Fail($"{name}: the panel is {size}, not {CountdownPanel.Width} by {CountdownPanel.Height}");
+                }
+                Image strip = panel.Root.GetComponentsInChildren<Image>().FirstOrDefault(image => image.name == "HeaderStrip");
+                if (!strip || !strip.enabled || !SevenUIChecks.Near(strip.color, CanvasBlend.HeaderStrip))
+                {
+                    throw h.Fail($"{name}: no header strip");
+                }
+                if (!Inside(panel.Label.rectTransform, strip.rectTransform)) throw h.Fail($"{name}: the label is not in the header strip");
+                if (panel.Label.font.name.IndexOf("Condensed", StringComparison.OrdinalIgnoreCase) < 0 ||
+                    !Mathf.Approximately(panel.Label.fontSize, CountdownPanel.LabelFontSize) ||
+                    (panel.Label.fontStyle & FontStyles.Bold) != 0)
+                {
+                    throw h.Fail($"{name}: the label is not Barlow Condensed at {CountdownPanel.LabelFontSize} " +
+                                 $"({panel.Label.font.name}, {panel.Label.fontSize}, {panel.Label.fontStyle})");
+                }
+                if (!Mathf.Approximately(panel.Time.fontSize, CountdownPanel.TimeFontSize))
+                {
+                    throw h.Fail($"{name}: the time is at {panel.Time.fontSize}, not {CountdownPanel.TimeFontSize}");
                 }
 
                 // The time as mm:ss, and following the timer.
@@ -168,12 +194,12 @@ namespace SevenUI.Tests
                     throw h.Fail($"{name}: the bar is at {panel.Fill.anchorMax.x:0.00}, not {share:0.00} of {total:0.#} s");
                 }
 
-                // Red under ten seconds, and still readable on a trial's warning.
+                // Under ten seconds the bar turns red and the time the lighter red, as on the canvas, and stays readable on a trial's warning.
                 timer.seconds = LowSeconds;
                 yield return h.Until(() => Shown(panel) == LowText, () => $"{name}: '{LowText}' (shows '{Shown(panel)}')", StyleTimeout);
                 if (!SevenUIChecks.Near(panel.FillImage.color, Palette.LowHealth)) throw h.Fail($"{name}: the bar is not red under 10 s");
                 Color shown = panel.Time.color;
-                if (!trial && !SevenUIChecks.Near(shown, Palette.LowHealth)) throw h.Fail($"{name}: the time is not red under 10 s ({shown})");
+                if (!trial && !SevenUIChecks.Near(shown, Palette.LowHealthText)) throw h.Fail($"{name}: the time is not the light red under 10 s ({shown})");
                 if (shown.a < ReadableAlpha || Mathf.Max(shown.r, shown.g, shown.b) < ReadableChannel)
                 {
                     throw h.Fail($"{name}: the time's color is hard to read at 5 s ({shown})");
@@ -264,6 +290,38 @@ namespace SevenUI.Tests
 
         // The time as read, without the tags that give each digit the same width.
         private static readonly Regex Tags = new Regex("<[^>]*>");
+
+        // Whether the rect lies within the other, in the other's space.
+        private static bool Inside(RectTransform inner, RectTransform outer)
+        {
+            Vector3[] corners = new Vector3[4];
+            inner.GetWorldCorners(corners);
+            Rect area = outer.rect;
+            return corners.All(corner =>
+            {
+                Vector3 local = outer.InverseTransformPoint(corner);
+                return local.x >= area.xMin - 1f && local.x <= area.xMax + 1f && local.y >= area.yMin - 1f && local.y <= area.yMax + 1f;
+            });
+        }
+
+        // Null when the text is drawn flat, as on the design canvas: no outline, drop shadow or glow, and no swelling.
+        private static string Border(Material material)
+        {
+            if (!material) return "no material";
+            if (material.IsKeywordEnabled(ShaderUtilities.Keyword_Outline) ||
+                material.HasProperty(ShaderUtilities.ID_OutlineWidth) && material.GetFloat(ShaderUtilities.ID_OutlineWidth) > 0f)
+            {
+                return $"an outline ({material.name})";
+            }
+            if (material.IsKeywordEnabled(ShaderUtilities.Keyword_Underlay)) return $"a drop shadow ({material.name})";
+            if (material.IsKeywordEnabled(ShaderUtilities.Keyword_Glow)) return $"a glow ({material.name})";
+            // The game's thick outlined material also swells each letter; the design's are at the font's own weight.
+            if (material.HasProperty(ShaderUtilities.ID_FaceDilate) && material.GetFloat(ShaderUtilities.ID_FaceDilate) > 0f)
+            {
+                return $"swollen letters (face dilate {material.GetFloat(ShaderUtilities.ID_FaceDilate):0.###}, {material.name})";
+            }
+            return null;
+        }
 
         private static string Shown(CountdownPanel panel) => Tags.Replace(panel.Time.text, "");
     }

@@ -8,6 +8,9 @@ namespace SevenUI
     // that draws the same color over it in linear light, matched by luminance.
     internal static class CanvasBlend
     {
+        // The canvas's header strip over a dark panel, as the design draws it.
+        public static Color HeaderStrip => Over(Palette.HeaderStrip, ScoreboardStyler.CanvasBoard);
+
         public static Color Over(Color tint, Color backdrop)
         {
             if (QualitySettings.activeColorSpace != ColorSpace.Linear || tint.a <= 0f || tint.a >= 1f) return tint;

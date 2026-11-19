@@ -11,21 +11,24 @@ namespace SevenUI
 {
     // One countdown panel (the moon's escape, a Winnowing trial, Champ Rush's doom timer) as a flat panel: the game's
     // own label, timer and images stay in place, switched off, and the game keeps writing the time into its timer text;
-    // the mod's panel draws a spaced-capital label, the time as "02:05" and a thin bar under it that drains with the
-    // time left.
+    // the mod's panel draws, as design A on the canvas, a header strip with the label in spaced capitals, the time as
+    // "02:05" and a thin bar under it that drains with the time left.
     internal sealed class CountdownPanel
     {
         public const string HolderName = "SevenUICountdown";
-        // In the top cluster's units, which match the design canvas's pixels.
-        public const float Width = 200f;
-        public const float Height = 80f;
-        private const float SidePadding = 14f;
-        private const float LabelTop = 8f;
-        private const float LabelHeight = 14f;
-        private const float TimeTop = 24f;
-        private const float TimeHeight = 38f;
-        private const float TimeFontSize = 34f;
-        private const float BarTop = 68f;
+        // In the top cluster's units, which match the design canvas's pixels: a 30-high strip, 10 above the 44 time, 10
+        // between it and the 4 bar, and 14 under the bar.
+        public const float Width = 300f;
+        public const float Height = 112f;
+        private const float StripHeight = 30f;
+        public const float LabelFontSize = 14f;
+        // TMP character spacing is in hundredths of an em: the canvas's 2px at 14px.
+        public const float LabelTracking = 14.3f;
+        private const float TimeTop = 40f;
+        private const float TimeHeight = 44f;
+        public const float TimeFontSize = 44f;
+        private const float SidePadding = 18f;
+        private const float BarTop = 94f;
         private const float BarHeight = 4f;
         // The bar and the time turn red at this many seconds left.
         public const float LowSeconds = 10f;
@@ -127,16 +130,26 @@ namespace SevenUI
             recorder.Add(holder.gameObject);
             UiFactory.Stretch(UiFactory.NewImage("Background", holder, Palette.Panel).rectTransform);
 
-            TMP_Text label = UiFactory.NewText("Label", holder, gameTime, HeaderStyle.FontSize, Palette.HeaderText);
-            // The game's time may already be in Barlow when the panel is restyled again.
+            // Blended as the canvas draws it: the plain tint is a solid grey block over a dark sky in linear light.
+            Image strip = UiFactory.NewImage("HeaderStrip", holder, CanvasBlend.HeaderStrip);
+            Row(strip.rectTransform, 0f, StripHeight, 0f);
+
+            TMP_Text label = UiFactory.NewText("Label", holder, gameTime, LabelFontSize, Palette.HeaderText);
+            // The game's time may already be in Barlow when the panel is restyled again. Its material draws a thick
+            // outline, which the design's flat texts don't have; the Barlow swap keeps the plain one.
             HudFontSwapper.StartInGameFont(label);
-            HeaderStyle.Apply(label);
+            label.fontSharedMaterial = FontLibrary.Plain(label.fontSharedMaterial);
+            // Barlow Condensed capitals, as the time: the canvas draws both at the same weight.
+            label.fontStyle = FontStyles.UpperCase;
+            label.characterSpacing = LabelTracking;
             label.alignment = TextAlignmentOptions.Center;
             UiFactory.KeepOnOneLine(label);
-            Row(label.rectTransform, LabelTop, LabelHeight, 0f);
+            label.gameObject.AddComponent<CondensedText>();
+            Row(label.rectTransform, 0f, StripHeight, SidePadding);
 
             TMP_Text time = UiFactory.NewText("Time", holder, gameTime, TimeFontSize, Palette.Text);
             HudFontSwapper.StartInGameFont(time);
+            time.fontSharedMaterial = FontLibrary.Plain(time.fontSharedMaterial);
             time.alignment = TextAlignmentOptions.Center;
             UiFactory.KeepOnOneLine(time);
             time.gameObject.AddComponent<CondensedText>();
@@ -229,7 +242,7 @@ namespace SevenUI
             }
             // The trial's own warning colors (red, then flashing) from its warning time on.
             bool warning = trial && seconds <= trial.warningThreshold;
-            Color timeColor = warning ? timer.targetLabel.color : low ? Palette.LowHealth : Palette.Text;
+            Color timeColor = warning ? timer.targetLabel.color : low ? Palette.LowHealthText : Palette.Text;
             if (time.color != timeColor)
             {
                 time.color = timeColor;

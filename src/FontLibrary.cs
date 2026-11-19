@@ -26,6 +26,7 @@ namespace SevenUI
         private static readonly Dictionary<(Material, TMP_FontAsset), Material> RetargetedMaterials =
             new Dictionary<(Material, TMP_FontAsset), Material>();
         private static readonly Dictionary<Material, Material> ShadowlessMaterials = new Dictionary<Material, Material>();
+        private static readonly Dictionary<Material, Material> PlainMaterials = new Dictionary<Material, Material>();
 
         // Barlow Medium with Barlow SemiBold as its bold and Barlow Medium Italic as its italic, or null if baking
         // failed. The template material is a game font's, so the baked asset's own material uses the game's text shader.
@@ -92,6 +93,32 @@ namespace SevenUI
                 ShadowlessMaterials[source] = material;
             }
             return material;
+        }
+
+        // A copy of a text material drawn flat, as on the design canvas: no drop shadow, outline or glow, and the
+        // letters at the font's own weight. A countdown's time comes in the game's thick outlined material, which also
+        // dilates each letter by a quarter of its edge; without the outline that still drew swollen letters.
+        public static Material Plain(Material source)
+        {
+            if (!PlainMaterials.TryGetValue(source, out Material material) || !material)
+            {
+                material = new Material(WithoutShadow(source)) { name = source.name + " (plain)" };
+                material.DisableKeyword(ShaderUtilities.Keyword_Outline);
+                material.DisableKeyword(ShaderUtilities.Keyword_Glow);
+                SetIfPresent(material, ShaderUtilities.ID_OutlineWidth, 0f);
+                SetIfPresent(material, ShaderUtilities.ID_OutlineSoftness, 0f);
+                SetIfPresent(material, ShaderUtilities.ID_FaceDilate, 0f);
+                PlainMaterials[source] = material;
+            }
+            return material;
+        }
+
+        private static void SetIfPresent(Material material, int property, float value)
+        {
+            if (material.HasProperty(property))
+            {
+                material.SetFloat(property, value);
+            }
         }
 
         // Makes sure glyphs Barlow lacks are drawn from the game font the text used before.
