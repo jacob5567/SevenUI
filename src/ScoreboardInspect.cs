@@ -10,14 +10,16 @@ namespace SevenUI
 {
     // Restyles the game's inspect panel under the scoreboard (the description of the pickup or interactable the
     // pointer is on, or that Tab was pressed beside) as the canvas's design A, in place: the board's flat face the
-    // board's width and a gap under it, a thin strip along its top in the title's color, the icon on a dark slot, and
-    // the name in bold over the description. The game's objects are not moved or replaced, only resized through their
+    // board's width and a gap above it (top padding in the panel's own layout, not the scoreboard container's spacing),
+    // a thin strip along its top in the title's color, the icon on a dark slot with a strip of that color along its
+    // foot, and the name in bold over the description. The game's objects are not moved or replaced, only resized through their
     // layout groups, and its texts keep what it writes into them: the title's color is whatever the game set for the
     // pickup, tier, drone kind or interactable (copied to the strip every update), and the description's own rich-text
     // colors stay. The icon's own color is never touched, as the game blacks out a drone not yet seen.
     internal sealed class ScoreboardInspect
     {
         public const string StripName = "SevenUIInspectStrip";
+        public const string FootStripName = "SevenUIInspectFootStrip";
         public const string DividerName = "SevenUIInspectDivider";
         public const string StatsName = "SevenUIInspectStats";
         public const string LabelName = "Label";
@@ -32,8 +34,9 @@ namespace SevenUI
         private const float Canvas = HudUnits.PerCanvasPixel;
 
         // The canvas's sizes, in its pixels, scaled to the HUD's units (HudUnits).
-        private const float BoardGap = 6f * Canvas;
+        private const int BoardGap = (int)(6f * Canvas + 0.5f);
         private const float StripHeight = 2f * Canvas;
+        private const float FootStripHeight = 3f * Canvas;
         private const int PaddingX = (int)(14f * Canvas + 0.5f);
         private const int PaddingY = (int)(12f * Canvas + 0.5f);
         private const float IconSize = 56f * Canvas;
@@ -52,8 +55,6 @@ namespace SevenUI
         private const float DescriptionSize = 13f * Canvas;
         private const float DescriptionLineHeight = 1.4f;
         private const float PercentPerLine = 100f;
-        // Beside the inspect panel the container holds the board; any more spaced children and its gap is left alone.
-        private const int MaxOtherChildren = 1;
 
         private static readonly FieldInfo PanelField = typeof(InspectPanelController).GetField("InspectPanel", Fields);
         private static readonly FieldInfo TitleField = typeof(InspectPanelController).GetField("InspectTitleText", Fields);
@@ -67,6 +68,8 @@ namespace SevenUI
         private readonly HashSet<Object> captured = new HashSet<Object>();
         private TMP_Text title;
         private Image strip;
+        private Image footStrip;
+        private GameObject flavorObject;
         private TMP_Text description;
         private LanguageTextMeshController descriptionToken;
         private HorizontalOrVerticalLayoutGroup boxGroup;
@@ -119,11 +122,12 @@ namespace SevenUI
             FullWidth(panelObject.transform, container);
             Transform box = inspection.Find(BoxName);
             // Down the chain the game lays the panel out through, each part the width of the one above and as tall as its
-            // content.
+            // content. The gap above the face is the top padding of the nearest group above the face itself.
+            Transform gapPart = GapPart(inspection, panelObject.transform);
             foreach (Transform part in new[] { panelObject.transform, panelObject.transform.childCount > 0 ?
                          panelObject.transform.GetChild(0) : null, inspection })
             {
-                Control(part, true, false, TextAnchor.UpperLeft, 0, 0, null);
+                Control(part, true, false, TextAnchor.UpperLeft, 0, 0, null, part == gapPart ? BoardGap : 0);
             }
             Control(box, false, false, TextAnchor.UpperLeft, PaddingX, PaddingY, IconGap);
             this.box = box as RectTransform;
@@ -155,23 +159,37 @@ namespace SevenUI
             if (!strip)
             {
                 Transform existing = inspection.Find(StripName);
-                strip = existing ? existing.GetComponent<Image>() : AddStrip(inspection);
+                strip = existing ? existing.GetComponent<Image>() : AddStrip(inspection, StripName, true, StripHeight);
+            }
+            if (!footStrip && background)
+            {
+                Transform existing = background.Find(FootStripName);
+                footStrip = existing ? existing.GetComponent<Image>() : AddStrip(background, FootStripName, false, FootStripHeight);
             }
             Update();
         }
 
-        // The strip takes the title's color, which the game sets each time it shows something, at full opacity.
+        // The strips take the title's color, which the game sets each time it shows something, at full opacity. The lore
+        // is hidden again if the game's Show turned it back on.
         public void Update()
         {
             UpdateStats();
-            if (strip && title)
+            if (title)
             {
                 Color color = title.color;
                 color.a = 1f;
-                if (strip.color != color)
+                if (strip && strip.color != color)
                 {
                     strip.color = color;
                 }
+                if (footStrip && footStrip.color != color)
+                {
+                    footStrip.color = color;
+                }
+            }
+            if (flavorObject && flavorObject.activeSelf)
+            {
+                flavorObject.SetActive(false);
             }
         }
 
@@ -197,6 +215,8 @@ namespace SevenUI
             }
             title = null;
             strip = null;
+            footStrip = null;
+            flavorObject = null;
             captured.Clear();
         }
 
@@ -388,7 +408,6 @@ namespace SevenUI
         {
             if (container)
             {
-                recorder.Record(container);
                 if (captured.Add(container))
                 {
                     bool controlWidth = container.childControlWidth;
@@ -398,18 +417,6 @@ namespace SevenUI
                     });
                 }
                 container.childControlWidth = true;
-                int others = 0;
-                foreach (Transform child in container.transform)
-                {
-                    if (child != panel && child.gameObject.activeSelf)
-                    {
-                        others++;
-                    }
-                }
-                if (others <= MaxOtherChildren)
-                {
-                    container.spacing = BoardGap;
-                }
             }
             LayoutElement element = Element(panel);
             element.minWidth = 0f;
@@ -427,9 +434,21 @@ namespace SevenUI
             }
         }
 
+        // The nearest layout group above the face, up to the panel: its top padding holds the gap, which moves the face
+        // down without touching the container's spacing (that is shared with the board and the game's other children).
+        private static Transform GapPart(Transform inspection, Transform panel)
+        {
+            for (Transform part = inspection.parent; part; part = part.parent)
+            {
+                if (part.GetComponent<HorizontalOrVerticalLayoutGroup>()) return part;
+                if (part == panel) break;
+            }
+            return null;
+        }
+
         // A layout group the game puts a part's children in: given the sizes, and the children's their own size.
         private void Control(Transform part, bool expandWidth, bool expandHeight, TextAnchor alignment, int paddingX,
-            int paddingY, float? spacing)
+            int paddingY, float? spacing, int extraTop = 0)
         {
             HorizontalOrVerticalLayoutGroup group = part ? part.GetComponent<HorizontalOrVerticalLayoutGroup>() : null;
             if (!group) return;
@@ -456,7 +475,7 @@ namespace SevenUI
             group.childForceExpandWidth = expandWidth;
             group.childForceExpandHeight = expandHeight;
             group.childAlignment = alignment;
-            group.padding = new RectOffset(paddingX, paddingX, paddingY, paddingY);
+            group.padding = new RectOffset(paddingX, paddingX, paddingY + extraTop, paddingY);
             if (spacing.HasValue)
             {
                 group.spacing = spacing.Value;
@@ -541,27 +560,29 @@ namespace SevenUI
         {
             Component flavor = FlavorField != null ? FlavorField.GetValue(controller) as Component : null;
             if (!flavor) return;
-            GameObject flavorObject = flavor.gameObject;
-            if ((name && name.transform.IsChildOf(flavorObject.transform)) ||
-                (description && description.transform.IsChildOf(flavorObject.transform)) ||
-                flavorObject == controller.gameObject) return;
-            if (flavorObject.activeSelf)
+            GameObject hidden = flavor.gameObject;
+            if ((name && name.transform.IsChildOf(hidden.transform)) ||
+                (description && description.transform.IsChildOf(hidden.transform)) ||
+                hidden == controller.gameObject) return;
+            flavorObject = hidden;
+            if (hidden.activeSelf)
             {
-                recorder.SetActive(flavorObject, false);
+                recorder.SetActive(hidden, false);
             }
         }
 
-        // A line along the panel's top, outside its layout, for Update to color.
-        private Image AddStrip(Transform inspection)
+        // A line along the top or foot of a part, outside its layout and over its other children, for Update to color.
+        private Image AddStrip(Transform parent, string name, bool top, float height)
         {
-            GameObject created = UiFactory.NewObject(StripName, inspection).gameObject;
+            GameObject created = UiFactory.NewObject(name, parent).gameObject;
             created.AddComponent<LayoutIgnorer>();
             RectTransform rect = (RectTransform)created.transform;
-            rect.anchorMin = new Vector2(0f, 1f);
-            rect.anchorMax = Vector2.one;
-            rect.pivot = new Vector2(0.5f, 1f);
+            float edge = top ? 1f : 0f;
+            rect.anchorMin = new Vector2(0f, edge);
+            rect.anchorMax = new Vector2(1f, edge);
+            rect.pivot = new Vector2(0.5f, edge);
             rect.anchoredPosition = Vector2.zero;
-            rect.sizeDelta = new Vector2(0f, StripHeight);
+            rect.sizeDelta = new Vector2(0f, height);
             Image image = created.AddComponent<Image>();
             image.raycastTarget = false;
             recorder.Add(created);
