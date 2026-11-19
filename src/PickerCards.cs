@@ -26,9 +26,9 @@ namespace SevenUI
         // Whether the screen kept the cards narrower than their captions.
         public bool Narrowed { get; private set; }
 
-        public PickerButton StyleCard(MPButton button, PickupDef pickup)
+        public PickerButton StyleCard(MPButton button, PickerEntry entry)
         {
-            PickerButton card = ui.StyleButton(button, pickup, Palette.ScoreboardPanel);
+            PickerButton card = ui.StyleButton(button, entry, Palette.ScoreboardPanel);
             // Behind the icon: the band it sits on, across the card's top.
             RectTransform band = ui.NewImage(SlotName, button.transform, Palette.ItemSlot);
             band.SetAsFirstSibling();
@@ -46,11 +46,11 @@ namespace SevenUI
             Stretch(holder);
             RectTransform bandParts = owner.NewObject("Band", holder);
             AcrossTop(bandParts, CardBandHeight);
-            ui.AddTierStrip(bandParts, pickup);
+            ui.AddTierStrip(bandParts, entry);
             card.Count = ui.AddCount(bandParts);
             card.Name = ui.AddText("Name", holder, NameSize, Palette.Text);
             card.Name.fontStyle = FontStyles.Bold;
-            card.Name.text = pickup != null ? Language.GetString(pickup.nameToken) : "";
+            card.Name.text = entry.Name;
             card.Description = ui.AddText("Description", holder, DescriptionSize, Palette.HeaderText);
             card.Description.text = card.Parts.Description;
             card.Stats = ui.NewStats(holder);

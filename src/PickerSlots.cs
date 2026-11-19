@@ -55,9 +55,9 @@ namespace SevenUI
             Strip.pivot = new Vector2(0.5f, 1f);
         }
 
-        public PickerButton StyleSlot(MPButton button, PickupDef pickup)
+        public PickerButton StyleSlot(MPButton button, PickerEntry entry)
         {
-            PickerButton slot = ui.StyleButton(button, pickup, Palette.ItemSlot);
+            PickerButton slot = ui.StyleButton(button, entry, Palette.ItemSlot);
             if (slot.Icon)
             {
                 Stretch(slot.Icon);
@@ -66,7 +66,7 @@ namespace SevenUI
             }
             RectTransform holder = owner.NewObject(SlotName, button.transform);
             Stretch(holder);
-            ui.AddTierStrip(holder, pickup);
+            ui.AddTierStrip(holder, entry);
             slot.Count = ui.AddCount(holder);
             slot.Outline = ui.AddOutline(holder);
             return slot;
@@ -91,9 +91,9 @@ namespace SevenUI
         {
             if (index == DetailsIndex || index >= owner.Buttons.Count) return;
             DetailsIndex = index;
-            PickupDef pickup = owner.Buttons[index].Pickup;
-            DetailsName.text = pickup != null ? Language.GetString(pickup.nameToken) : "";
-            DetailsName.color = TierColor(pickup);
+            PickerEntry entry = owner.Buttons[index].Entry;
+            DetailsName.text = entry != null ? entry.Name : "";
+            DetailsName.color = entry != null ? entry.Color : Palette.Text;
             DetailsDescription.text = owner.Buttons[index].Parts.Description;
             DetailsStats.Set(owner.Buttons[index].Parts);
             owner.Layout();

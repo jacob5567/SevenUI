@@ -25,7 +25,7 @@ namespace SevenUI
         // The game's grid, which places the buttons: its cell and spacing become the slots' or the cards'.
         public void StyleGrid()
         {
-            GridLayoutGroup grid = ui.Panel.gridlayoutGroup;
+            GridLayoutGroup grid = ui.Source.Grid;
             Vector2 cell = grid.cellSize;
             Vector2 spacing = grid.spacing;
             RectOffset padding = grid.padding;
@@ -46,7 +46,7 @@ namespace SevenUI
             grid.padding = new RectOffset(0, 0, 0, 0);
             grid.childAlignment = TextAnchor.UpperLeft;
             grid.spacing = owner.Cards ? new Vector2(CardGap, CardGap) : new Vector2(SlotGap, SlotGap);
-            RectTransform container = ui.Panel.buttonContainer;
+            RectTransform container = ui.Source.ButtonContainer;
             ui.Recorder.RecordRect(container);
             container.anchorMin = container.anchorMax = container.pivot = new Vector2(0f, 1f);
         }
@@ -55,11 +55,11 @@ namespace SevenUI
         // to one row, and a grid is laid out again in the game's columns when they change.
         public void KeepColumns()
         {
-            GridLayoutGroup grid = ui.Panel.gridlayoutGroup;
+            GridLayoutGroup grid = ui.Source.Grid;
             if (!owner.Cards)
             {
                 // The options, not the buttons, which are styled after the grid.
-                int game = GameColumns(owner.ShownOptions.Length);
+                int game = GameColumns(owner.ShownOptionCount);
                 if (game != Columns)
                 {
                     Columns = game;
@@ -82,7 +82,7 @@ namespace SevenUI
         // maxColumnCount to the same number), so there the columns are the options over the rows.
         public int GameColumns(int options)
         {
-            GridLayoutGroup grid = ui.Panel.gridlayoutGroup;
+            GridLayoutGroup grid = ui.Source.Grid;
             int count = grid.constraintCount;
             int game;
             if (grid.constraint == GridLayoutGroup.Constraint.FixedColumnCount && count > 0)
@@ -95,7 +95,7 @@ namespace SevenUI
             }
             else
             {
-                game = ui.Panel.maxColumnCount;
+                game = ui.Source.MaxColumnCount;
             }
             return Mathf.Clamp(game, 1, Mathf.Max(1, options));
         }
@@ -104,7 +104,7 @@ namespace SevenUI
         // down, left and right move as the cards are laid out.
         public void Navigate(ReadOnlyCollection<MPButton> elements, int count)
         {
-            if (ui.Panel.automaticButtonNavigation) return;
+            if (ui.Source.AutomaticNavigation) return;
             for (int i = 0; i < count; i++)
             {
                 MPButton button = elements[i];
