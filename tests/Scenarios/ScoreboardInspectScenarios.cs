@@ -48,15 +48,6 @@ namespace SevenUI.Tests
         private const float StatsRowGap = 6f;
         private const float StatsLabelGap = 16f;
         private const float StatsSize = 13f;
-        private const string LookingGlassSection = "Misc";
-        private const string LookingGlassKey = "Full Description in Hud";
-        private const string Described = "Gain a little damage for every skill.";
-        // What LookingGlass writes for an item with stats: the description, then a line a stat, in a size tag.
-        private const string LookingGlassText = "<size=80%>" + Described +
-            "\n<color=\"white\">Damage: </color><style=\"cIsDamage\">45%</style>" +
-            "\n<color=\"white\">Cooldown reduction: </color><style=\"cIsUtility\">25%</style></size>";
-        private static readonly string[] StatLabels = { "Damage: ", "Cooldown reduction: " };
-        private static readonly string[] StatValues = { "45%", "25%" };
 
         public static IEnumerable<Scenario> All()
         {
@@ -129,30 +120,43 @@ namespace SevenUI.Tests
             yield return Expect(h, info.TitleColor, "Alien Head with FlatPanels on again");
         }
 
-        // With LookingGlass's full descriptions on and text as it writes it for an item with stats: the stats leave the
-        // description for a 200px column after a 1px line, a row a stat, names left in the header color and values right in
-        // the accent color, their right edges on the column's.
+        // With LookingGlass's full descriptions on, Alien Head's stats as LookingGlass works them out for the viewer's
+        // stack and one more (its GetItemDescription, as its Command tooltips have them) leave the description for a 200px
+        // column after a 1px line, a row a stat, names left in the header color and values right in the accent color,
+        // their right edges on the column's. Given one Alien Head, the rows follow the new stack.
         private static IEnumerator StatsColumn(Harness h)
         {
-            ConfigEntry<bool> full = FullDescription(h);
+            ConfigEntry<bool> full = LookingGlassSettings(h);
             h.SetConfig(SevenUIPlugin.Settings.DebugLogging, true);
             h.SetConfig(SevenUIPlugin.Settings.FlatPanels, true);
             h.SetConfig(full, true);
             yield return ScoreboardSetUp.Open(h);
-            InspectInfo info = RoR2Content.Items.AlienHead;
-            yield return Inspect(h, info);
-            yield return WriteLookingGlassText(h);
+            ItemDef item = RoR2Content.Items.AlienHead;
+            yield return Inspect(h, Discovered(item));
             string problem = null;
-            yield return h.Until(() => (problem = StatsProblem(h)) == null,
+            yield return h.Until(() => (problem = StatsProblem(h, item)) == null,
                 () => $"the stats column beside the description: {problem} {h.Diagnosis()}");
             yield return h.Screenshot("scoreboard_inspect_stats");
+
+            Inventory inventory = Viewer().inventory;
+            h.OnCleanup(() =>
+            {
+                if (inventory && inventory.GetItemCountPermanent(item) > 0) inventory.RemoveItemPermanent(item);
+            });
+            int before = inventory.GetItemCountPermanent(item);
+            string firstValues = string.Join(", ", LookingGlassParts(h, item).Values);
+            inventory.GiveItemPermanent(item);
+            string values = string.Join(", ", LookingGlassParts(h, item).Values);
+            if (values == firstValues) throw h.Fail($"LookingGlass's stats are the same for one more Alien Head ({values})");
+            yield return h.Until(() => (problem = StatsProblem(h, item)) == null,
+                () => $"the stats column for {before + 1} Alien Heads held: {problem} {h.Diagnosis()}");
         }
 
-        // Text without stat lines (a chest's), or with the stats off in LookingGlass, leaves the panel as it was: no line,
-        // no column, the icon's gap.
+        // A chest, an equipment, or Alien Head with LookingGlass's setting off leave the panel as it was: no line, no
+        // column, the icon's gap, the game's text. With the setting on again, Alien Head's column shows.
         private static IEnumerator NoStatsNoColumn(Harness h)
         {
-            ConfigEntry<bool> full = FullDescription(h);
+            ConfigEntry<bool> full = LookingGlassSettings(h);
             h.SetConfig(SevenUIPlugin.Settings.DebugLogging, true);
             h.SetConfig(SevenUIPlugin.Settings.FlatPanels, true);
             h.SetConfig(full, true);
@@ -163,41 +167,46 @@ namespace SevenUI.Tests
             if (info == null) throw h.Skip("the small chest has no inspect info");
             yield return ScoreboardSetUp.Open(h);
             yield return Inspect(h, info);
-            yield return h.Wait(SettleSeconds);
-            string problem = Column(h, false);
-            if (problem != null) throw h.Fail($"a stats column on the chest: {problem} {h.Diagnosis()}");
+            yield return NoColumn(h, "the chest");
 
-            // With stats but LookingGlass's setting off: the game's text, whole, and no column.
+            EquipmentDef equipment = RoR2Content.Equipment.Fruit;
+            yield return Inspect(h, Discovered(equipment));
+            yield return NoColumn(h, "an equipment");
+
             h.SetConfig(full, false);
+            ItemDef item = RoR2Content.Items.AlienHead;
+            yield return Inspect(h, Discovered(item));
+            yield return NoColumn(h, "Alien Head with Full Description in Hud off");
             TMP_Text description = Description(Controller(h));
-            description.text = LookingGlassText;
-            yield return h.Wait(SettleSeconds);
-            problem = Column(h, false);
-            if (problem != null) throw h.Fail($"a stats column with Full Description in Hud off: {problem} {h.Diagnosis()}");
-            if (description.text != LookingGlassText) throw h.Fail($"the game's text changed with the setting off: {description.text}");
+            string game = Language.GetString(item.descriptionToken);
+            if (description.text != game) throw h.Fail($"the description \"{description.text}\" not the game's \"{game}\" with the setting off");
             yield return h.Screenshot("scoreboard_inspect_stats_none");
+
+            h.SetConfig(full, true);
+            string problem = null;
+            yield return h.Until(() => (problem = StatsProblem(h, item)) == null,
+                () => $"the stats column with Full Description in Hud on again: {problem} {h.Diagnosis()}");
         }
 
-        // The panel as the game draws it, with the stats in its text, taken before the mod touched it; styled, the column
-        // is there; with FlatPanels off, the text, the gap and the objects are the game's again.
+        // The panel as the game draws it for Alien Head, taken before the mod touched it; styled, the column is there;
+        // with FlatPanels off, the text, the gap and the objects are the game's again.
         private static IEnumerator StatsFlatPanelsOff(Harness h)
         {
             PluginConfig settings = SevenUIPlugin.Settings;
-            ConfigEntry<bool> full = FullDescription(h);
+            ConfigEntry<bool> full = LookingGlassSettings(h);
             h.SetConfig(settings.DebugLogging, true);
             h.SetConfig(settings.FlatPanels, false);
             h.SetConfig(full, true);
             yield return h.Wait(SevenUIChecks.LookSwitchSeconds);
             yield return ScoreboardSetUp.Open(h);
-            InspectInfo info = RoR2Content.Items.AlienHead;
-            yield return Inspect(h, info);
-            yield return WriteLookingGlassText(h);
+            ItemDef item = RoR2Content.Items.AlienHead;
+            yield return Inspect(h, Discovered(item));
             yield return h.Wait(SettleSeconds);
             string vanilla = Look(h);
 
             h.SetConfig(settings.FlatPanels, true);
             string problem = null;
-            yield return h.Until(() => (problem = StatsProblem(h)) == null,
+            yield return h.Until(() => (problem = StatsProblem(h, item)) == null,
                 () => $"the stats column with FlatPanels on: {problem} {h.Diagnosis()}");
 
             h.SetConfig(settings.FlatPanels, false);
@@ -207,26 +216,64 @@ namespace SevenUI.Tests
                       $"before: {vanilla}; now: {restored}) {h.Diagnosis()}");
         }
 
-        // LookingGlass's own setting, which the mod reads through BepInEx's config; without LookingGlass there is none.
-        private static ConfigEntry<bool> FullDescription(Harness h)
+        // LookingGlass's Full Description in Hud setting, which the mod reads through BepInEx's config, with its stats
+        // calculations turned on for the scenario; without LookingGlass there is none.
+        private static ConfigEntry<bool> LookingGlassSettings(Harness h)
         {
-            ConfigEntry<bool> entry = null;
+            ConfigEntry<bool> full = null;
+            ConfigEntry<bool> calculations = null;
             if (Chainloader.PluginInfos.TryGetValue(GameNames.LookingGlassGUID, out BepInEx.PluginInfo info) && info.Instance)
             {
-                info.Instance.Config.TryGetEntry(LookingGlassSection, LookingGlassKey, out entry);
+                info.Instance.Config.TryGetEntry(GameNames.LookingGlassSection, GameNames.LookingGlassFullDescription, out full);
+                info.Instance.Config.TryGetEntry(GameNames.LookingGlassSection, GameNames.LookingGlassStatsCalculations, out calculations);
             }
-            if (entry == null) throw h.Skip("LookingGlass isn't installed, or has no Full Description in Hud setting");
-            return entry;
+            if (full == null) throw h.Skip("LookingGlass isn't installed, or has no Full Description in Hud setting");
+            if (calculations != null)
+            {
+                h.SetConfig(calculations, true);
+            }
+            return full;
         }
 
-        // The game writes the description at Show; this stands in for LookingGlass's rewrite of it after, so the stats
-        // are the same whatever its other settings.
-        private static IEnumerator WriteLookingGlassText(Harness h)
+        // The panel shows the unknown item for a pickup the profile hasn't discovered; the scenarios want the real one.
+        private static InspectInfo Discovered(InspectInfo info)
+        {
+            info.MarkForceShowInfo();
+            return info;
+        }
+
+        // The HUD's target's master, whose stack the mod counts, as SevenUI's ScoreboardInspect does.
+        private static CharacterMaster Viewer()
+        {
+            LocalUser user = LocalUserManager.GetFirstLocalUser();
+            HUD hud = user?.cameraRigController ? user.cameraRigController.hud : null;
+            return hud && hud.targetMaster ? hud.targetMaster : user?.cachedMaster;
+        }
+
+        // LookingGlass's own text for the item, with stats for the viewer's stack and one more, split as the mod splits
+        // it. Called by reflection, as the mod does, so the tests build without LookingGlass.
+        private static ItemStatsText.Parts LookingGlassParts(Harness h, ItemDef item)
+        {
+            CharacterMaster master = Viewer();
+            if (!master || !master.inventory) throw h.Fail("no viewer's master to count Alien Heads for");
+            Chainloader.PluginInfos.TryGetValue(GameNames.LookingGlassGUID, out BepInEx.PluginInfo info);
+            System.Type type = info?.Instance ? info.Instance.GetType().Assembly.GetType(GameNames.LookingGlassItemStats) : null;
+            MethodInfo method = type?.GetMethod(GameNames.LookingGlassItemDescription, BindingFlags.Public | BindingFlags.Static,
+                null, new[] { typeof(ItemDef), typeof(int), typeof(CharacterMaster), typeof(bool), typeof(bool) }, null);
+            if (method == null) throw h.Fail($"LookingGlass has no {GameNames.LookingGlassItemStats}.{GameNames.LookingGlassItemDescription}");
+            int held = master.inventory.GetItemCountPermanent(item);
+            string text = method.Invoke(null, new object[] { item, held, master, true, false }) as string;
+            ItemStatsText.Parts parts = ItemStatsText.Split(text);
+            if (!parts.HasStats) throw h.Fail($"LookingGlass gave no stats for {item.name}: \"{text}\"");
+            return parts;
+        }
+
+        // Waits a moment, then fails if the line or column shows.
+        private static IEnumerator NoColumn(Harness h, string what)
         {
             yield return h.Wait(SettleSeconds);
-            TMP_Text description = Description(Controller(h));
-            description.text = LookingGlassText;
-            yield return null;
+            string problem = Column(h, false);
+            if (problem != null) throw h.Fail($"a stats column on {what}: {problem} {h.Diagnosis()}");
         }
 
         // Null when the column is as it should be (shown, or not when expected not to be), else what is wrong.
@@ -240,9 +287,11 @@ namespace SevenUI.Tests
             return active == shown ? null : shown ? "no column" : "a column or line is showing";
         }
 
-        // Null when the column, the line and the description are as design B draws them, else what differs.
-        private static string StatsProblem(Harness h)
+        // Null when the column, the line and the description are as design B draws them, with LookingGlass's stats for
+        // the item and the description without them, else what differs.
+        private static string StatsProblem(Harness h, ItemDef item)
         {
+            ItemStatsText.Parts expected = LookingGlassParts(h, item);
             string problem = Column(h, true);
             if (problem != null) return problem;
             Transform box = Board(h).Find(BoxPath);
@@ -269,15 +318,18 @@ namespace SevenUI.Tests
             if (Mathf.Abs(column.width - StatsWidth) > Tolerance) return $"column {column.width:0.#}px wide, not {StatsWidth}";
             List<TMP_Text> labels = Rows(stats, ScoreboardInspect.LabelName);
             List<TMP_Text> values = Rows(stats, ScoreboardInspect.ValueName);
-            if (labels.Count != StatLabels.Length || values.Count != StatLabels.Length)
+            if (labels.Count != expected.Labels.Count || values.Count != expected.Labels.Count)
             {
-                return $"{labels.Count} names and {values.Count} values for {StatLabels.Length} stats";
+                return $"{labels.Count} names and {values.Count} values for {expected.Labels.Count} stats";
             }
             float unit = HudUnits.PerCanvasPixel;
             float top = column.yMax - StatsTop;
             for (int i = 0; i < labels.Count; i++)
             {
-                if (labels[i].text != StatLabels[i] || values[i].text != StatValues[i]) return $"row {i}: {labels[i].text}{values[i].text}";
+                if (labels[i].text != expected.Labels[i] || values[i].text != expected.Values[i])
+                {
+                    return $"row {i} \"{labels[i].text}\" \"{values[i].text}\", not LookingGlass's \"{expected.Labels[i]}\" \"{expected.Values[i]}\"";
+                }
                 if (!SevenUIChecks.Near(labels[i].color, Palette.HeaderText) || (labels[i].fontStyle & FontStyles.Bold) != 0) return $"row {i} name {labels[i].color} {labels[i].fontStyle}";
                 if (!SevenUIChecks.Near(values[i].color, Palette.Accent) || (values[i].fontStyle & FontStyles.Bold) == 0) return $"row {i} value {values[i].color} {values[i].fontStyle}";
                 if (!SevenUIChecks.IsBarlow(labels[i]) || !SevenUIChecks.IsBarlow(values[i])) return $"row {i} not in Barlow";
@@ -291,7 +343,10 @@ namespace SevenUI.Tests
                 top -= Mathf.Max(name.height, value.height) + StatsRowGap;
             }
             TMP_Text description = Description(Controller(h));
-            if (description.text != Described) return $"description \"{description.text}\" not the full text without the stats";
+            if (description.text != expected.Description)
+            {
+                return $"description \"{description.text}\" not LookingGlass's without the stats \"{expected.Description}\"";
+            }
             return null;
         }
 
