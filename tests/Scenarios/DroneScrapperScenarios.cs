@@ -33,8 +33,10 @@ namespace SevenUI.Tests
         private const string InspectName = "InspectPanel";
         private const string InspectAreaPath = "InspectPanelArea";
         private const string InspectBoxPath = InspectAreaPath + "/InspectionPanel";
-        private const string InspectVisualPath = InspectBoxPath + "/HorizontalBox/InspectIconContainer/InspectVisualBackground/InspectedVisual";
+        private const string InspectBackgroundPath = InspectBoxPath + "/HorizontalBox/InspectIconContainer/InspectVisualBackground";
+        private const string InspectVisualPath = InspectBackgroundPath + "/InspectedVisual";
         private const string TargetScrapName = "TargetScrap";
+        private const string ConversionGlyphName = "ConversionGlyph";
         // In HUD units: how far outside the panel a part may reach.
         private const float EdgeTolerance = 1f;
 
@@ -135,6 +137,9 @@ namespace SevenUI.Tests
             if (shown != null) throw h.Fail(shown);
             yield return HoverShowsColor(h, styled);
             yield return IconRowShows(h, styled);
+            // The first option selected and the last hovered, each of which the game marks with its own art.
+            string slots = Slots(styled);
+            if (slots != null) throw h.Fail($"with option 0 selected and option {styled.Buttons.Count - 1} hovered, {slots}");
             yield return h.Screenshot("sevenui");
         }
 
@@ -179,6 +184,8 @@ namespace SevenUI.Tests
             DroneScrapperPickerPanel game = (DroneScrapperPickerPanel)panel.Component;
             RectTransform main = panel.MainPanel;
             if (main.rect.width <= 0f || main.rect.height <= 0f) return $"the panel is {main.rect.size} in size";
+            string slots = Slots(panel);
+            if (slots != null) return slots;
             for (int i = 0; i < panel.Buttons.Count; i++)
             {
                 PickerButton option = panel.Buttons[i];
@@ -187,8 +194,6 @@ namespace SevenUI.Tests
                 if (!option.Button.GetComponentsInChildren<Transform>(true).Any(child => child.name == part)) return $"option {i} has no {part}";
                 if (option.Button.navigation.mode != Navigation.Mode.Explicit) return $"option {i}'s gamepad navigation is {option.Button.navigation.mode}, not the game's explicit";
                 if (option.Entry == null || option.Entry.Drone == null) return $"option {i} has no drone";
-                string selection = SelectionShowing(option.Button);
-                if (selection != null) return $"option {i} still shows the game's selection graphic {selection}";
                 // Of a grid, the rows the scroll view shows, the first at least.
                 if (i < panel.Columns)
                 {
@@ -211,6 +216,8 @@ namespace SevenUI.Tests
             float unit = main.lossyScale.x > 0f ? main.lossyScale.x : 1f;
             if (cancelCorners[1].y > panelCorners[0].y + EdgeTolerance * unit) return "the cancel button is not under the panel";
             if (Mathf.Abs(cancelCorners[2].x - panelCorners[2].x) > EdgeTolerance * unit) return "the cancel button is not at the panel's right edge";
+            string cancelLook = CancelAsPickers(main, cancel);
+            if (cancelLook != null) return cancelLook;
             string details = Details(panel);
             if (details != null) return details;
             string art = string.Join(", ", panel.Source.Juice.Cast<Transform>()
@@ -225,6 +232,83 @@ namespace SevenUI.Tests
             if (!cards && game.buttonContainer.rect.height <= 0f) return "the grid has no height";
             return null;
         }
+
+        // The slots as PickerGrid lays out the other pickers' grids: the game's grid in the pickers' cell and spacing, each
+        // button that size and that far from the next, its icon inset by the pickers' margin, and nothing of the game's
+        // drawn on it but the icon (and the "carrying items" mark on it): no sprite on the flat face, which the game swaps
+        // in while an option is hovered or selected, and no outline or highlight.
+        private static string Slots(PickerPanel panel)
+        {
+            DroneScrapperPickerPanel game = (DroneScrapperPickerPanel)panel.Component;
+            GridLayoutGroup grid = game.gridlayoutGroup;
+            Vector2 cell = new Vector2(PickerPanel.SlotSize, PickerPanel.SlotSize);
+            Vector2 spacing = new Vector2(PickerPanel.SlotGap, PickerPanel.SlotGap);
+            if (!Near(grid.cellSize, cell)) return $"the grid's cells are {grid.cellSize}, not the pickers' {cell}";
+            if (!Near(grid.spacing, spacing)) return $"the grid's spacing is {grid.spacing}, not the pickers' {spacing}";
+            for (int i = 0; i < panel.Buttons.Count; i++)
+            {
+                PickerButton option = panel.Buttons[i];
+                if (!option.Button) return $"option {i} has no button";
+                RectTransform slot = (RectTransform)option.Button.transform;
+                if (!Near(slot.rect.size, cell)) return $"option {i}'s slot is {slot.rect.size}, not the pickers' {cell}";
+                if (i % panel.Columns != 0)
+                {
+                    RectTransform before = (RectTransform)panel.Buttons[i - 1].Button.transform;
+                    float step = slot.localPosition.x - before.localPosition.x;
+                    float pitch = PickerPanel.SlotSize + PickerPanel.SlotGap;
+                    if (Mathf.Abs(step - pitch) > EdgeTolerance) return $"option {i} is {step:0.##} across from option {i - 1}, not the pickers' {pitch:0.##} (a {PickerPanel.SlotGap:0.##} gap)";
+                }
+                string inset = IconInset(i, slot, option.Icon);
+                if (inset != null) return inset;
+                Image face = option.Button.image;
+                if (!face || !face.isActiveAndEnabled) return $"option {i}'s flat face is not drawn";
+                if (face.overrideSprite) return $"option {i}'s face draws the game's sprite '{face.overrideSprite.name}' (transition {option.Button.transition}), not the flat slot";
+                if (!SevenUIChecks.Near(face.color, Palette.ItemSlot)) return $"option {i}'s face is {face.color}, not the pickers' slot color {Palette.ItemSlot}";
+                string selection = SelectionShowing(option.Button);
+                if (selection != null) return $"option {i} still shows the game's selection graphic {selection}";
+            }
+            return null;
+        }
+
+        // The icon inside its slot by the pickers' margin on each side.
+        private static string IconInset(int index, RectTransform slot, RectTransform icon)
+        {
+            if (!icon) return $"option {index} has no icon";
+            Image image = icon.GetComponent<Image>();
+            if (!image || !image.isActiveAndEnabled) return $"option {index}'s icon is not drawn";
+            Vector3[] corners = new Vector3[4];
+            icon.GetWorldCorners(corners);
+            // Corners 0 and 2 are the bottom left and top right, here in the slot's units.
+            Vector3 low = slot.InverseTransformPoint(corners[0]);
+            Vector3 high = slot.InverseTransformPoint(corners[2]);
+            Rect area = slot.rect;
+            float left = low.x - area.xMin;
+            float bottom = low.y - area.yMin;
+            float right = area.xMax - high.x;
+            float top = area.yMax - high.y;
+            float want = PickerPanel.IconInset;
+            if (new[] { left, bottom, right, top }.Any(inset => Mathf.Abs(inset - want) > EdgeTolerance))
+            {
+                return $"option {index}'s icon is inset {left:0.#} left, {bottom:0.#} bottom, {right:0.#} right, {top:0.#} top from its slot, not the pickers' {want:0.#}";
+            }
+            return null;
+        }
+
+        // Cancel as the other pickers have it: the pickers' size, the legend's gap under the panel.
+        private static string CancelAsPickers(RectTransform main, RectTransform cancel)
+        {
+            Vector2 size = new Vector2(PickerPanel.CancelWidth, PickerPanel.CancelHeight);
+            if (!Near(cancel.rect.size, size)) return $"the cancel button is {cancel.rect.size}, not the pickers' {size}";
+            Vector3[] corners = new Vector3[4];
+            cancel.GetWorldCorners(corners);
+            // Corner 1 is the top left, in the panel's units.
+            float gap = main.rect.yMin - main.InverseTransformPoint(corners[1]).y;
+            if (Mathf.Abs(gap - PickerPanel.LegendGap) > EdgeTolerance) return $"the cancel button's top is {gap:0.#} under the panel, not the pickers' {PickerPanel.LegendGap:0.#}";
+            return null;
+        }
+
+        private static bool Near(Vector2 value, Vector2 expected) =>
+            Mathf.Abs(value.x - expected.x) <= EdgeTolerance && Mathf.Abs(value.y - expected.y) <= EdgeTolerance;
 
         // The flat face behind the options, and the title inside the header strip across its top.
         private static string Frame(PickerPanel panel)
@@ -377,8 +461,18 @@ namespace SevenUI.Tests
             if (!scrap || !scrap.gameObject.activeInHierarchy) return $"the scrap it gives ({TargetScrapName}) is not showing";
             RectTransform iconRect = (RectTransform)visual;
             if (iconRect.rect.width <= 0f || iconRect.rect.height <= 0f) return $"the drone's icon is {iconRect.rect.size} in size";
-            string outside = Outside(panel.MainPanel, iconRect);
-            if (outside != null) return $"the drone's icon {outside}";
+            Transform background = inspect.Find(InspectBackgroundPath);
+            Image brackets = background ? background.GetComponent<Image>() : null;
+            if (brackets && brackets.isActiveAndEnabled) return $"the game's corner brackets around the drone's icon ({InspectBackgroundPath}) are showing";
+            // The whole row in the flat face, with the scrap and arrow that hang off the icon's corner.
+            Transform backdrop = panel.Source.Juice.Find(PickerPanel.BackdropName);
+            if (!backdrop) return "the panel has no flat face";
+            foreach (Transform part in new[] { visual, scrap, visual.Find(ConversionGlyphName) })
+            {
+                if (!part || !part.gameObject.activeInHierarchy) continue;
+                string outside = Outside((RectTransform)backdrop, (RectTransform)part);
+                if (outside != null) return $"the icon row's {part.name} {outside.Replace("the panel", "the flat face")}";
+            }
             TMP_Text description = panel.DetailsDescriptionText;
             if (description)
             {
