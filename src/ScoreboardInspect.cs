@@ -96,6 +96,7 @@ namespace SevenUI
         private static Dictionary<string, ItemDef> itemsByDescription;
         private Transform panel;
         private Transform boardRoot;
+        private Image iconVisual;
         private float shownSince = -1f;
         private bool dumped;
         private bool reportedFade;
@@ -178,8 +179,19 @@ namespace SevenUI
                         }
                     });
                 }
-                UiFactory.Stretch(visual.rectTransform, Vector2.zero, Vector2.one, new Vector2(IconInset, IconInset),
-                    new Vector2(-IconInset, -IconInset));
+                if (visual.rectTransform.localScale != Vector3.one)
+                {
+                    Vector3 scale = visual.rectTransform.localScale;
+                    recorder.OnRestore(() =>
+                    {
+                        if (visual)
+                        {
+                            visual.rectTransform.localScale = scale;
+                        }
+                    });
+                }
+                iconVisual = visual;
+                FitIcon();
             }
 
             Transform textContainer = box ? box.Find(TextContainerName) : null;
@@ -207,6 +219,7 @@ namespace SevenUI
         public void Update()
         {
             UpdateStats();
+            FitIcon();
             if (title)
             {
                 Color color = title.color;
@@ -225,6 +238,28 @@ namespace SevenUI
                 flavorObject.SetActive(false);
             }
             KeepOpaque();
+        }
+
+        // Keeps the icon stretched to the slot minus its inset at scale 1. Whatever sizes an Image once its sprite has loaded
+        // (the game's async image loading, a layout pass) runs after Style, so the fit is checked each frame and re-applied
+        // only when it differs.
+        private void FitIcon()
+        {
+            if (!iconVisual)
+            {
+                return;
+            }
+            RectTransform rect = iconVisual.rectTransform;
+            Vector2 inset = new Vector2(IconInset, IconInset);
+            if (rect.anchorMin != Vector2.zero || rect.anchorMax != Vector2.one || rect.offsetMin != inset ||
+                rect.offsetMax != -inset)
+            {
+                UiFactory.Stretch(rect, Vector2.zero, Vector2.one, inset, -inset);
+            }
+            if (rect.localScale != Vector3.one)
+            {
+                rect.localScale = Vector3.one;
+            }
         }
 
         // The area's CanvasGroup was seen at alpha 0 with the panel restyled, leaving the face, icon and texts barely
