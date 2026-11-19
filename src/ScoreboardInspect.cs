@@ -149,10 +149,35 @@ namespace SevenUI
             Control(iconContainer, true, true, TextAnchor.UpperLeft, 0, 0, null);
             Control(background, true, true, TextAnchor.MiddleCenter, IconInset, IconInset, null);
             Image visual = controller.InspectVisual;
-            if (visual && background && !background.GetComponent<HorizontalOrVerticalLayoutGroup>())
+            if (visual && background)
             {
-                // Only its size: its color is the game's (black for a drone not seen yet).
+                // The slot's layout group would size the icon to the sprite's own size (it was seen about twice the slot,
+                // off to one corner), so the icon leaves the layout and is placed by anchors: inset, centered, with the
+                // sprite's aspect kept. Anything else that sizes it (fitters) is switched off. Its color is the game's
+                // (black for a drone not seen yet).
                 recorder.RecordRect(visual.rectTransform);
+                if (!visual.GetComponent<LayoutIgnorer>())
+                {
+                    recorder.Add(visual.gameObject.AddComponent<LayoutIgnorer>());
+                }
+                foreach (Behaviour fitter in visual.GetComponents<Behaviour>())
+                {
+                    if (fitter is ContentSizeFitter || fitter is AspectRatioFitter)
+                    {
+                        recorder.Disable(fitter);
+                    }
+                }
+                if (!visual.preserveAspect)
+                {
+                    visual.preserveAspect = true;
+                    recorder.OnRestore(() =>
+                    {
+                        if (visual)
+                        {
+                            visual.preserveAspect = false;
+                        }
+                    });
+                }
                 UiFactory.Stretch(visual.rectTransform, Vector2.zero, Vector2.one, new Vector2(IconInset, IconInset),
                     new Vector2(-IconInset, -IconInset));
             }

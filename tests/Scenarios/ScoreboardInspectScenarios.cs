@@ -547,6 +547,8 @@ namespace SevenUI.Tests
             {
                 return $"icon slot {Format(slotBox)} not {PaddingX}px in and {PaddingY}px down in the panel {Format(panel)}";
             }
+            string outside = IconOutside(h, controller.InspectVisual, slotBox);
+            if (outside != null) return outside;
             Image foot = FootStrip(h);
             if (!foot) return "no strip along the icon slot's foot";
             Rect footBox = CanvasSizeChecks.Box(h, foot.rectTransform);
@@ -597,6 +599,24 @@ namespace SevenUI.Tests
             if (flavor && flavor.activeInHierarchy) return "the lore still shows";
             if (description.text.Length == 0 || title.text.Length == 0) return "the name or description is empty";
             return Visible(inspection, title, description, slotObject);
+        }
+
+        // Null when the icon and every image drawn under it lie inside the slot, within its inset (it was seen about twice the
+        // slot's size, spilling over the name and description).
+        private static string IconOutside(Harness h, Image visual, Rect slotBox)
+        {
+            if (!visual) return "the panel has no icon image";
+            foreach (Image image in visual.GetComponentsInChildren<Image>(false))
+            {
+                if (!image.enabled || image.color.a <= 0f || (image != visual && !image.sprite)) continue;
+                Rect box = CanvasSizeChecks.Box(h, image.rectTransform);
+                if (box.xMin < slotBox.xMin - Tolerance || box.yMin < slotBox.yMin - Tolerance ||
+                    box.xMax > slotBox.xMax + Tolerance || box.yMax > slotBox.yMax + Tolerance)
+                {
+                    return $"icon '{image.name}' {Format(box)} not inside its slot {Format(slotBox)}";
+                }
+            }
+            return null;
         }
 
         // Null when the panel is drawn at full strength: the groups up its hierarchy and each text's own color leave it
