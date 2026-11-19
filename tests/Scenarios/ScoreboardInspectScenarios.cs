@@ -1,6 +1,9 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
+using BepInEx.Bootstrap;
+using BepInEx.Configuration;
 using ModTestRunner;
 using RoR2;
 using RoR2.UI;
@@ -21,6 +24,7 @@ namespace SevenUI.Tests
         private const string BoardPath = "Container/StripContainer";
         private const string InspectionPath = "Container/InspectPanel/InspectPanelArea/InspectionPanel";
         private const string IconPath = InspectionPath + "/HorizontalBox/InspectIconContainer/InspectVisualBackground";
+        private const string BoxPath = InspectionPath + "/HorizontalBox";
         private const string TextsPath = InspectionPath + "/HorizontalBox/InspectDescriptionContainer";
         private const BindingFlags Fields = BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public;
         // In the canvas's pixels, which Box measures in.
@@ -36,12 +40,32 @@ namespace SevenUI.Tests
         private const float Tolerance = 1.5f;
         private const float LineTolerance = 0.05f;
         private const float SettleSeconds = 0.5f;
+        // The stats column: its width, the line before it, the gaps, in the canvas's pixels.
+        private const float StatsWidth = 200f;
+        private const float DividerWidth = 1f;
+        private const float StatsSpacing = 14f;
+        private const float StatsTop = 2f;
+        private const float StatsRowGap = 6f;
+        private const float StatsLabelGap = 16f;
+        private const float StatsSize = 13f;
+        private const string LookingGlassSection = "Misc";
+        private const string LookingGlassKey = "Full Description in Hud";
+        private const string Described = "Gain a little damage for every skill.";
+        // What LookingGlass writes for an item with stats: the description, then a line a stat, in a size tag.
+        private const string LookingGlassText = "<size=80%>" + Described +
+            "\n<color=\"white\">Damage: </color><style=\"cIsDamage\">45%</style>" +
+            "\n<color=\"white\">Cooldown reduction: </color><style=\"cIsUtility\">25%</style></size>";
+        private static readonly string[] StatLabels = { "Damage: ", "Cooldown reduction: " };
+        private static readonly string[] StatValues = { "45%", "25%" };
 
         public static IEnumerable<Scenario> All()
         {
             yield return new Scenario(1, "scoreboard_inspect_item_as_canvas", Stages.TitanicPlains, ItemAsCanvas);
             yield return new Scenario(1, "scoreboard_inspect_chest_as_canvas", Stages.TitanicPlains, ChestAsCanvas);
             yield return new Scenario(1, "scoreboard_inspect_flat_panels_off_and_on", Stages.TitanicPlains, FlatPanelsOffAndOn);
+            yield return new Scenario(1, "scoreboard_inspect_stats_column", Stages.TitanicPlains, StatsColumn);
+            yield return new Scenario(1, "scoreboard_inspect_stats_none_without_stats", Stages.TitanicPlains, NoStatsNoColumn);
+            yield return new Scenario(1, "scoreboard_inspect_stats_flat_panels_off", Stages.TitanicPlains, StatsFlatPanelsOff);
         }
 
         // With the scoreboard open, the panel showing Alien Head: laid out and drawn as the canvas, in the item's tier color.
@@ -104,6 +128,176 @@ namespace SevenUI.Tests
             yield return h.Wait(SevenUIChecks.LookSwitchSeconds);
             yield return Expect(h, info.TitleColor, "Alien Head with FlatPanels on again");
         }
+
+        // With LookingGlass's full descriptions on and text as it writes it for an item with stats: the stats leave the
+        // description for a 200px column after a 1px line, a row a stat, names left in the header color and values right in
+        // the accent color, their right edges on the column's.
+        private static IEnumerator StatsColumn(Harness h)
+        {
+            ConfigEntry<bool> full = FullDescription(h);
+            h.SetConfig(SevenUIPlugin.Settings.DebugLogging, true);
+            h.SetConfig(SevenUIPlugin.Settings.FlatPanels, true);
+            h.SetConfig(full, true);
+            yield return ScoreboardSetUp.Open(h);
+            InspectInfo info = RoR2Content.Items.AlienHead;
+            yield return Inspect(h, info);
+            yield return WriteLookingGlassText(h);
+            string problem = null;
+            yield return h.Until(() => (problem = StatsProblem(h)) == null,
+                () => $"the stats column beside the description: {problem} {h.Diagnosis()}");
+            yield return h.Screenshot("scoreboard_inspect_stats");
+        }
+
+        // Text without stat lines (a chest's), or with the stats off in LookingGlass, leaves the panel as it was: no line,
+        // no column, the icon's gap.
+        private static IEnumerator NoStatsNoColumn(Harness h)
+        {
+            ConfigEntry<bool> full = FullDescription(h);
+            h.SetConfig(SevenUIPlugin.Settings.DebugLogging, true);
+            h.SetConfig(SevenUIPlugin.Settings.FlatPanels, true);
+            h.SetConfig(full, true);
+            PurchaseInteraction chest = null;
+            yield return h.Spawned<PurchaseInteraction>($"{Commands.SpawnInteractable} {GameNames.SmallChest}", found => chest = found);
+            IInspectInfoProvider provider = chest ? chest.GetComponent<IInspectInfoProvider>() : null;
+            InspectInfo info = provider?.GetInfo();
+            if (info == null) throw h.Skip("the small chest has no inspect info");
+            yield return ScoreboardSetUp.Open(h);
+            yield return Inspect(h, info);
+            yield return h.Wait(SettleSeconds);
+            string problem = Column(h, false);
+            if (problem != null) throw h.Fail($"a stats column on the chest: {problem} {h.Diagnosis()}");
+
+            // With stats but LookingGlass's setting off: the game's text, whole, and no column.
+            h.SetConfig(full, false);
+            TMP_Text description = Description(Controller(h));
+            description.text = LookingGlassText;
+            yield return h.Wait(SettleSeconds);
+            problem = Column(h, false);
+            if (problem != null) throw h.Fail($"a stats column with Full Description in Hud off: {problem} {h.Diagnosis()}");
+            if (description.text != LookingGlassText) throw h.Fail($"the game's text changed with the setting off: {description.text}");
+            yield return h.Screenshot("scoreboard_inspect_stats_none");
+        }
+
+        // The panel as the game draws it, with the stats in its text, taken before the mod touched it; styled, the column
+        // is there; with FlatPanels off, the text, the gap and the objects are the game's again.
+        private static IEnumerator StatsFlatPanelsOff(Harness h)
+        {
+            PluginConfig settings = SevenUIPlugin.Settings;
+            ConfigEntry<bool> full = FullDescription(h);
+            h.SetConfig(settings.DebugLogging, true);
+            h.SetConfig(settings.FlatPanels, false);
+            h.SetConfig(full, true);
+            yield return h.Wait(SevenUIChecks.LookSwitchSeconds);
+            yield return ScoreboardSetUp.Open(h);
+            InspectInfo info = RoR2Content.Items.AlienHead;
+            yield return Inspect(h, info);
+            yield return WriteLookingGlassText(h);
+            yield return h.Wait(SettleSeconds);
+            string vanilla = Look(h);
+
+            h.SetConfig(settings.FlatPanels, true);
+            string problem = null;
+            yield return h.Until(() => (problem = StatsProblem(h)) == null,
+                () => $"the stats column with FlatPanels on: {problem} {h.Diagnosis()}");
+
+            h.SetConfig(settings.FlatPanels, false);
+            string restored = null;
+            yield return h.Until(() => Column(h, false) == null && (restored = Look(h)) == vanilla,
+                () => $"the game's panel back with FlatPanels off (column: {Column(h, false) ?? "gone"}; " +
+                      $"before: {vanilla}; now: {restored}) {h.Diagnosis()}");
+        }
+
+        // LookingGlass's own setting, which the mod reads through BepInEx's config; without LookingGlass there is none.
+        private static ConfigEntry<bool> FullDescription(Harness h)
+        {
+            ConfigEntry<bool> entry = null;
+            if (Chainloader.PluginInfos.TryGetValue(GameNames.LookingGlassGUID, out BepInEx.PluginInfo info) && info.Instance)
+            {
+                info.Instance.Config.TryGetEntry(LookingGlassSection, LookingGlassKey, out entry);
+            }
+            if (entry == null) throw h.Skip("LookingGlass isn't installed, or has no Full Description in Hud setting");
+            return entry;
+        }
+
+        // The game writes the description at Show; this stands in for LookingGlass's rewrite of it after, so the stats
+        // are the same whatever its other settings.
+        private static IEnumerator WriteLookingGlassText(Harness h)
+        {
+            yield return h.Wait(SettleSeconds);
+            TMP_Text description = Description(Controller(h));
+            description.text = LookingGlassText;
+            yield return null;
+        }
+
+        // Null when the column is as it should be (shown, or not when expected not to be), else what is wrong.
+        private static string Column(Harness h, bool shown)
+        {
+            Transform box = Board(h) ? Board(h).Find(BoxPath) : null;
+            if (!box) return "no box";
+            Transform divider = box.Find(ScoreboardInspect.DividerName);
+            Transform stats = box.Find(ScoreboardInspect.StatsName);
+            bool active = (divider && divider.gameObject.activeSelf) || (stats && stats.gameObject.activeSelf);
+            return active == shown ? null : shown ? "no column" : "a column or line is showing";
+        }
+
+        // Null when the column, the line and the description are as design B draws them, else what differs.
+        private static string StatsProblem(Harness h)
+        {
+            string problem = Column(h, true);
+            if (problem != null) return problem;
+            Transform box = Board(h).Find(BoxPath);
+            Transform divider = box.Find(ScoreboardInspect.DividerName);
+            Transform stats = box.Find(ScoreboardInspect.StatsName);
+            Transform texts = box.Find("InspectDescriptionContainer");
+            if (!divider.gameObject.activeSelf || !stats.gameObject.activeSelf) return "the line or the column is hidden";
+            Rect boxRect = CanvasSizeChecks.Box(h, (RectTransform)box);
+            Rect textRect = CanvasSizeChecks.Box(h, (RectTransform)texts);
+            Rect lineRect = CanvasSizeChecks.Box(h, (RectTransform)divider);
+            Rect column = CanvasSizeChecks.Box(h, (RectTransform)stats);
+            if (Mathf.Abs(lineRect.xMin - textRect.xMax - StatsSpacing) > Tolerance)
+            {
+                return $"line {lineRect.xMin - textRect.xMax:0.#}px after the text, not {StatsSpacing}";
+            }
+            if (Mathf.Abs(lineRect.width - DividerWidth) > Tolerance) return $"line {lineRect.width:0.#}px wide, not {DividerWidth}";
+            Image line = divider.GetComponent<Image>();
+            if (!line || !SevenUIChecks.Near(line.color, Palette.Divider)) return "the line is not the divider color";
+            if (Mathf.Abs(lineRect.height - (boxRect.height - 2f * PaddingY)) > Tolerance && lineRect.height < column.height - Tolerance)
+            {
+                return $"line {lineRect.height:0.#}px tall, not the content's {boxRect.height - 2f * PaddingY:0.#}";
+            }
+            if (Mathf.Abs(column.xMin - lineRect.xMax - StatsSpacing) > Tolerance) return $"column {column.xMin - lineRect.xMax:0.#}px after the line, not {StatsSpacing}";
+            if (Mathf.Abs(column.width - StatsWidth) > Tolerance) return $"column {column.width:0.#}px wide, not {StatsWidth}";
+            List<TMP_Text> labels = Rows(stats, ScoreboardInspect.LabelName);
+            List<TMP_Text> values = Rows(stats, ScoreboardInspect.ValueName);
+            if (labels.Count != StatLabels.Length || values.Count != StatLabels.Length)
+            {
+                return $"{labels.Count} names and {values.Count} values for {StatLabels.Length} stats";
+            }
+            float unit = HudUnits.PerCanvasPixel;
+            float top = column.yMax - StatsTop;
+            for (int i = 0; i < labels.Count; i++)
+            {
+                if (labels[i].text != StatLabels[i] || values[i].text != StatValues[i]) return $"row {i}: {labels[i].text}{values[i].text}";
+                if (!SevenUIChecks.Near(labels[i].color, Palette.HeaderText) || (labels[i].fontStyle & FontStyles.Bold) != 0) return $"row {i} name {labels[i].color} {labels[i].fontStyle}";
+                if (!SevenUIChecks.Near(values[i].color, Palette.Accent) || (values[i].fontStyle & FontStyles.Bold) == 0) return $"row {i} value {values[i].color} {values[i].fontStyle}";
+                if (!SevenUIChecks.IsBarlow(labels[i]) || !SevenUIChecks.IsBarlow(values[i])) return $"row {i} not in Barlow";
+                if (Mathf.Abs(labels[i].fontSize - StatsSize * unit) > 0.01f || Mathf.Abs(values[i].fontSize - StatsSize * unit) > 0.01f) return $"row {i} not {StatsSize} in size";
+                Rect name = CanvasSizeChecks.Box(h, labels[i].rectTransform);
+                Rect value = CanvasSizeChecks.Box(h, values[i].rectTransform);
+                if (Mathf.Abs(value.xMax - column.xMax) > Tolerance) return $"row {i} value ends {column.xMax - value.xMax:0.#}px short of the column's edge";
+                if (Mathf.Abs(name.xMin - column.xMin) > Tolerance) return $"row {i} name not at the column's left";
+                if (value.xMin - name.xMax < StatsLabelGap - Tolerance) return $"row {i} {value.xMin - name.xMax:0.#}px between name and value, under {StatsLabelGap}";
+                if (Mathf.Abs(top - Mathf.Max(name.yMax, value.yMax)) > Tolerance) return $"row {i} starts {top - name.yMax:0.#}px off its place";
+                top -= Mathf.Max(name.height, value.height) + StatsRowGap;
+            }
+            TMP_Text description = Description(Controller(h));
+            if (description.text != Described) return $"description \"{description.text}\" not the full text without the stats";
+            return null;
+        }
+
+        private static List<TMP_Text> Rows(Transform column, string name) =>
+            column.Cast<Transform>().Where(row => row.name == name && row.gameObject.activeSelf)
+                .Select(row => row.GetComponent<TMP_Text>()).ToList();
 
         // Shows what the interact prompt's Inspect would, through the game's controller. Autopause, which the panel asks
         // for while it is up in a single-player run, would stop the game, so it is off for the scenario.
@@ -186,6 +380,8 @@ namespace SevenUI.Tests
                 $"description {description.fontSize:0.##} {description.fontStyle} {description.color} {description.lineSpacing:0.##} " +
                 $"{description.richText} {description.alignment}",
                 $"flavor {(flavor ? flavor.activeSelf.ToString() : "none")}",
+                $"text {description.text}",
+                $"box {board.Find(BoxPath).GetComponent<HorizontalOrVerticalLayoutGroup>().spacing:0.##} {board.Find(BoxPath).childCount}",
                 $"container {container.spacing:0.##} {container.padding.left} {container.padding.top} {container.childControlWidth}",
             };
             return string.Join("; ", parts);
