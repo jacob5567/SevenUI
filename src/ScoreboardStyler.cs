@@ -99,7 +99,7 @@ namespace SevenUI
         {
             this.hud = hud;
             this.root = root;
-            inspect = new ScoreboardInspect(recorder);
+            inspect = new ScoreboardInspect(recorder, hud);
         }
 
         public bool Enabled => SevenUIPlugin.Settings.FlatPanels.Value;

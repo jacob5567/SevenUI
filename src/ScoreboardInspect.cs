@@ -4,7 +4,6 @@ using RoR2;
 using RoR2.UI;
 using TMPro;
 using UnityEngine;
-using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace SevenUI
@@ -62,12 +61,14 @@ namespace SevenUI
         private static readonly FieldInfo FlavorField = typeof(InspectPanelController).GetField("InspectFlavor", Fields);
 
         private readonly StyleRecorder recorder;
+        private readonly HUD hud;
         // Components whose game values were put back by an undo already registered, so a second pass doesn't capture
         // the mod's.
         private readonly HashSet<Object> captured = new HashSet<Object>();
         private TMP_Text title;
         private Image strip;
         private TMP_Text description;
+        private LanguageTextMeshController descriptionToken;
         private HorizontalOrVerticalLayoutGroup boxGroup;
         private RectTransform box;
         private GameObject divider;
@@ -79,10 +80,21 @@ namespace SevenUI
         private string handled;
         private string gameText;
         private bool statsShown;
+        // What LookingGlass's text was last worked out for (the description's token, the viewer and their stack), and
+        // its parts when it has stats; the parts the column shows.
+        private string shownToken;
+        private CharacterMaster shownMaster;
+        private int shownHeld;
+        private ItemStatsText.Parts shownParts;
+        private ItemStatsText.Parts columnParts;
+        // Each item by its description token, which the game's Show puts on the description; a token two items share
+        // maps to none.
+        private static Dictionary<string, ItemDef> itemsByDescription;
 
-        public ScoreboardInspect(StyleRecorder recorder)
+        public ScoreboardInspect(StyleRecorder recorder, HUD hud)
         {
             this.recorder = recorder;
+            this.hud = hud;
         }
 
         public bool Styled => strip;
@@ -102,6 +114,7 @@ namespace SevenUI
             if (!inspection || !panelObject || !titleText) return;
             title = titleText;
             description = descriptionText;
+            descriptionToken = descriptionBehaviour as LanguageTextMeshController;
 
             FullWidth(panelObject.transform, container);
             Transform box = inspection.Find(BoxName);
@@ -172,6 +185,7 @@ namespace SevenUI
             box = null;
             boxGroup = null;
             description = null;
+            descriptionToken = null;
             divider = null;
             stats = null;
             statsElement = null;
@@ -186,10 +200,11 @@ namespace SevenUI
             captured.Clear();
         }
 
-        // With LookingGlass's full descriptions on, the item stats it appends to the description move to a column on the
-        // right of the panel; the description keeps the rest. The game writes the description at each Show (and
-        // LookingGlass after it), so it is split again whenever it isn't the text left here. Without stats the game's
-        // text and the panel as it was stand.
+        // With LookingGlass's full descriptions on, an item's stats as LookingGlass works them out go in a column on the
+        // right of the panel, and the description is its full one without them. LookingGlass doesn't touch this panel, so
+        // its text is asked for here: worked out again only when the item, the viewer or their stack changes, and put
+        // back whenever the game rewrites the description (at each Show). Without stats the game's text and the panel as
+        // it was stand.
         private void UpdateStats()
         {
             if (!description || !box) return;
@@ -198,37 +213,71 @@ namespace SevenUI
                 // Styled again meanwhile, which sets the icon's gap.
                 SetSpacing(StatsSpacing);
             }
-            if (!PickupDescriptions.Full())
+            ItemStatsText.Parts parts = StatsParts();
+            if (parts == null)
             {
-                if (handled != null)
+                if (statsShown || handled != null)
                 {
                     UndoStats();
                 }
                 return;
             }
-            string current = description.text;
-            if (current == handled) return;
-            ItemStatsText.Parts parts = ItemStatsText.Split(Body(current));
-            if (!parts.HasStats)
+            if (description.text != handled)
             {
-                UndoStats();
-                handled = current;
-                return;
+                gameText = description.text;
+                handled = null;
             }
-            gameText = current;
-            handled = parts.Description;
-            description.text = handled;
-            ShowStats(parts);
+            if (handled != parts.Description)
+            {
+                handled = parts.Description;
+                description.text = handled;
+            }
+            if (parts != columnParts || !statsShown)
+            {
+                ShowStats(parts);
+            }
         }
 
-        // The text to split: LookingGlass's own tooltip for what the pointer is on, when it has one that carries stats,
-        // else what the panel holds.
-        private static string Body(string current)
+        // LookingGlass's text split, for the item the panel shows, or null when it has no stats for it. The game's Show
+        // keeps nothing of what it was given but the tokens it sets, so the item is found by the description's token: an
+        // undiscovered item shows the unknown item's token and a disabled one a formatted text, so neither has a column.
+        // The stack is the HUD target's, as the game inspects the pickup beside the target's body (HUD.ActivateScoreboard),
+        // so while spectating it is the teammate's; the panel keeps no trace of where it was shown from, so an item
+        // clicked on the board is counted the same way.
+        private ItemStatsText.Parts StatsParts()
         {
-            if (ItemStatsText.Split(current).HasStats) return current;
-            MPEventSystem events = EventSystem.current as MPEventSystem;
-            TooltipProvider provider = events ? events.currentTooltipProvider : null;
-            return provider && !string.IsNullOrEmpty(provider.overrideBodyText) ? provider.overrideBodyText : current;
+            string token = PickupDescriptions.Full() && descriptionToken ? descriptionToken.token : null;
+            CharacterMaster master = hud && hud.targetMaster ? hud.targetMaster : LocalUserManager.GetFirstLocalUser()?.cachedMaster;
+            ItemDef item = ItemByDescription(token);
+            int held = item && master && master.inventory ? master.inventory.GetItemCountPermanent(item) : 0;
+            if (token == shownToken && master == shownMaster && held == shownHeld) return shownParts;
+            shownToken = token;
+            shownMaster = master;
+            shownHeld = held;
+            string text = item && master ? PickupDescriptions.WithStats(item, held, master) : null;
+            ItemStatsText.Parts parts = text != null ? ItemStatsText.Split(text) : null;
+            shownParts = parts != null && parts.HasStats ? parts : null;
+            if (item && SevenUIPlugin.Settings.DebugLogging.Value)
+            {
+                SevenUIPlugin.Log.LogInfo($"Inspect panel: LookingGlass's stats for {item.name} ({held} held): " +
+                    (shownParts != null ? string.Join(", ", shownParts.Values) : "none"));
+            }
+            return shownParts;
+        }
+
+        private static ItemDef ItemByDescription(string token)
+        {
+            if (string.IsNullOrEmpty(token)) return null;
+            if (itemsByDescription == null)
+            {
+                itemsByDescription = new Dictionary<string, ItemDef>();
+                foreach (ItemDef item in ItemCatalog.allItemDefs)
+                {
+                    if (!item || string.IsNullOrEmpty(item.descriptionToken)) continue;
+                    itemsByDescription[item.descriptionToken] = itemsByDescription.ContainsKey(item.descriptionToken) ? null : item;
+                }
+            }
+            return itemsByDescription.TryGetValue(token, out ItemDef found) ? found : null;
         }
 
         private void ShowStats(ItemStatsText.Parts parts)
@@ -280,6 +329,7 @@ namespace SevenUI
                 y += height + StatsRowGap;
             }
             statsElement.minHeight = statsElement.preferredHeight = y - StatsRowGap;
+            columnParts = parts;
             divider.SetActive(true);
             stats.gameObject.SetActive(true);
             statsShown = true;
@@ -307,6 +357,11 @@ namespace SevenUI
             handled = null;
             gameText = null;
             statsShown = false;
+            columnParts = null;
+            shownToken = null;
+            shownMaster = null;
+            shownHeld = 0;
+            shownParts = null;
         }
 
         // The panel as without stats: the column and line hidden, the box's gap the icon's, the game's description back

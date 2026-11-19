@@ -1,3 +1,5 @@
+using System;
+using System.Reflection;
 using BepInEx;
 using BepInEx.Bootstrap;
 using BepInEx.Configuration;
@@ -9,13 +11,24 @@ namespace SevenUI
 {
     // The description a restyled picker shows for an option: the game's short pickup text, or, when LookingGlass is set
     // to show full item descriptions in the HUD, the full one as its own picker tooltip has it (with its stack
-    // calculations and corruption note). Its setting is read through BepInEx's config, so no LookingGlass type is
-    // touched and the mod loads without it.
+    // calculations and corruption note). Its setting is read through BepInEx's config and its description builder
+    // through reflection, so no LookingGlass type is touched and the mod loads without it.
     internal static class PickupDescriptions
     {
         private const string LookingGlassGUID = "droppod.lookingglass";
         private const string FullDescriptionSection = "Misc";
         private const string FullDescriptionKey = "Full Description in Hud";
+        private const string ItemStatsType = "LookingGlass.ItemStatsNameSpace.ItemStats";
+        private const string ItemDescriptionMethod = "GetItemDescription";
+        private static readonly Type[] ItemDescriptionParameters =
+        {
+            typeof(ItemDef), typeof(int), typeof(CharacterMaster), typeof(bool), typeof(bool),
+        };
+
+        // LookingGlass's ItemStats.GetItemDescription, found once; null without LookingGlass or that method.
+        private static MethodInfo itemDescription;
+        private static bool itemDescriptionLooked;
+        private static bool itemDescriptionFailed;
 
         // Read each time a panel is styled, so a change in Risk Of Options shows on the next picker.
         public static bool Full()
@@ -38,6 +51,44 @@ namespace SevenUI
             }
             string token = DescriptionToken(pickup);
             return Language.GetString(string.IsNullOrEmpty(token) ? pickup.pickupToken : token);
+        }
+
+        // LookingGlass's full description of an item with its stats for the master holding that many of it and one
+        // more, as its Command tooltips write it ("With another stack, you will have:" and a line a stat); null without
+        // LookingGlass. Its ItemStats.GetItemDescription only builds the string, and is called by reflection so no
+        // LookingGlass type is touched at compile time.
+        public static string WithStats(ItemDef item, int held, CharacterMaster master)
+        {
+            MethodInfo method = ItemDescription();
+            if (method == null || !item) return null;
+            try
+            {
+                return method.Invoke(null, new object[] { item, held, master, true, false }) as string;
+            }
+            catch (Exception e)
+            {
+                if (!itemDescriptionFailed)
+                {
+                    itemDescriptionFailed = true;
+                    SevenUIPlugin.Log.LogWarning($"LookingGlass's item description failed, so its stats aren't shown apart: {e.InnerException ?? e}");
+                }
+                return null;
+            }
+        }
+
+        private static MethodInfo ItemDescription()
+        {
+            if (itemDescriptionLooked) return itemDescription;
+            if (!Chainloader.PluginInfos.TryGetValue(LookingGlassGUID, out PluginInfo info) || !info.Instance) return null;
+            itemDescriptionLooked = true;
+            Type type = info.Instance.GetType().Assembly.GetType(ItemStatsType);
+            itemDescription = type?.GetMethod(ItemDescriptionMethod, BindingFlags.Public | BindingFlags.Static, null,
+                ItemDescriptionParameters, null);
+            if (itemDescription == null)
+            {
+                SevenUIPlugin.Log.LogWarning($"LookingGlass has no {ItemStatsType}.{ItemDescriptionMethod}, so its stats aren't shown apart");
+            }
+            return itemDescription;
         }
 
         private static string DescriptionToken(PickupDef pickup)
