@@ -1,3 +1,12 @@
+## 1.6.0
+
+- The boss bar is drawn as your health bar is: health the boss just lost trails behind in dark red, health just healed shows in a lighter red, and its shield, void shield, barrier, Lunar Ruin and curse show as on your own bar. A thin line marks where the boss would be executed, while it is frozen or, for an elite boss, at your Old Guillotine threshold.
+- The moon's escape, Winnowing trial and Champ Rush countdowns are flat panels: the event's name on a header strip, the time left in Barlow Condensed and a bar that drains with it, turning red in the last 10 seconds.
+- Confirmation and message dialogs, such as the quit confirmation, get a flat panel with the pause menu's buttons, in the menus too.
+- Bandit's Desperado stacks show above the special slot as the buff's icon and the count.
+- With MusicDisplay installed, the playing track shows in a "Now playing" panel under the objectives.
+- A Lemurian egg used with no items to give says "No items to offer" instead of opening an empty panel.
+
 ## 1.5.0
 
 - Other players' ally cards stay full size at the top, each followed by that player's allies, indented under them as the game does, with a "+N more" row of their own when the cards are crowded. Your own allies come after every player's.
