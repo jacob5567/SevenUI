@@ -23,7 +23,6 @@ namespace SevenUI.Tests
     {
         private const string PanelKey = "RoR2/DLC3/DroneScrapper/DroneScrapperPickerPanel.prefab";
         private const string Interactable = "iscDroneScrapper";
-        private const string InspectTitleName = "InsepctTitle";
         private const string SevenUIPrefix = "SevenUI";
         private const float OpenTimeout = 5f;
         private const float SettleSeconds = 0.6f;
@@ -167,8 +166,9 @@ namespace SevenUI.Tests
         {
             if (!panel.Alive) return "the panel closed";
             if (panel.Buttons.Count != count) return $"{panel.Buttons.Count} options are styled, not {count}";
-            bool cards = count <= PickerPanel.CardLimit;
-            if (panel.Cards != cards) return $"{count} options are {(panel.Cards ? "cards" : "a grid")}";
+            // The scrapper is a grid whatever the number of options.
+            const bool cards = false;
+            if (panel.Cards) return $"{count} options are cards, not a grid";
             DroneScrapperPickerPanel game = (DroneScrapperPickerPanel)panel.Component;
             RectTransform main = panel.MainPanel;
             if (main.rect.width <= 0f || main.rect.height <= 0f) return $"the panel is {main.rect.size} in size";
@@ -180,24 +180,32 @@ namespace SevenUI.Tests
                 if (!option.Button.GetComponentsInChildren<Transform>(true).Any(child => child.name == part)) return $"option {i} has no {part}";
                 if (option.Button.navigation.mode != Navigation.Mode.Explicit) return $"option {i}'s gamepad navigation is {option.Button.navigation.mode}, not the game's explicit";
                 if (option.Entry == null || option.Entry.Drone == null) return $"option {i} has no drone";
-                if (cards && option.Name.text != Language.GetString(option.Entry.Drone.nameToken)) return $"card {i} shows \"{option.Name.text}\", not its drone's name";
-                // Cards all show; of a grid, the rows the scroll view shows, the first at least.
-                if (cards || i < panel.Columns)
+                string selection = SelectionShowing(option.Button);
+                if (selection != null) return $"option {i} still shows the game's selection graphic {selection}";
+                // Of a grid, the rows the scroll view shows, the first at least.
+                if (i < panel.Columns)
                 {
                     string outside = Outside(main, (RectTransform)option.Button.transform);
                     if (outside != null) return $"option {i} {outside}";
                 }
             }
-            if (cards)
-            {
-                for (int i = 0; i < count - 1; i++)
-                {
-                    if (panel.Buttons[i].Button.navigation.selectOnRight != panel.Buttons[i + 1].Button) return $"card {i}'s right is not card {i + 1}";
-                }
-            }
+            string frame = Frame(panel);
+            if (frame != null) return frame;
             if (!panel.Cancel?.Button) return "the cancel button isn't styled";
-            string outsideCancel = Outside(main, (RectTransform)panel.Cancel.Button.transform, true);
+            RectTransform cancel = (RectTransform)panel.Cancel.Button.transform;
+            string outsideCancel = Outside(main, cancel, true);
             if (outsideCancel != null) return $"the cancel button {outsideCancel}";
+            Vector3[] panelCorners = new Vector3[4];
+            Vector3[] cancelCorners = new Vector3[4];
+            main.GetWorldCorners(panelCorners);
+            cancel.GetWorldCorners(cancelCorners);
+            // Corners 0 and 1 are the bottom left and top left; under the panel, the cancel button's top is at or below its
+            // bottom, and its right edge lines up with the panel's as the other pickers' do.
+            float unit = main.lossyScale.x > 0f ? main.lossyScale.x : 1f;
+            if (cancelCorners[1].y > panelCorners[0].y + EdgeTolerance * unit) return "the cancel button is not under the panel";
+            if (Mathf.Abs(cancelCorners[2].x - panelCorners[2].x) > EdgeTolerance * unit) return "the cancel button is not at the panel's right edge";
+            string details = Details(panel);
+            if (details != null) return details;
             string art = string.Join(", ", panel.Source.Juice.Cast<Transform>()
                 .Where(child => child.gameObject.activeSelf && child != panel.Source.ContentRoot && !child.name.StartsWith(SevenUIPrefix) &&
                                 child.name != "Label" && child.name != "SubmenuLegend" && child.name != "CancelButton")
@@ -208,6 +216,60 @@ namespace SevenUI.Tests
             if (scroll.content != game.buttonContainer) return "the scroll view no longer scrolls the options";
             if (!scroll.viewport || !scroll.viewport.gameObject.activeInHierarchy) return "the scroll view's viewport is turned off";
             if (!cards && game.buttonContainer.rect.height <= 0f) return "the grid has no height";
+            return null;
+        }
+
+        // The flat face behind the options, and the title inside the header strip across its top.
+        private static string Frame(PickerPanel panel)
+        {
+            Transform juice = panel.Source.Juice;
+            Transform backdrop = juice.Find(PickerPanel.BackdropName);
+            if (!backdrop || !backdrop.gameObject.activeInHierarchy) return "the panel has no flat face";
+            Transform strip = juice.Find("SevenUIPickerStrip");
+            if (!strip || !strip.gameObject.activeInHierarchy) return "the panel has no header strip";
+            RectTransform face = (RectTransform)backdrop;
+            foreach (PickerButton option in panel.Buttons.Take(1))
+            {
+                string outside = Outside(face, (RectTransform)option.Button.transform);
+                if (outside != null) return $"the flat face does not hold option 0: {outside}";
+            }
+            TMP_Text title = panel.Source.FindTitle();
+            if (!title || !title.isActiveAndEnabled) return "the title is not showing";
+            string inStrip = Outside((RectTransform)strip, title.rectTransform);
+            if (inStrip != null) return $"the title is not in the header strip: {inStrip}";
+            if (title.transform.parent != juice) return "the title is not in the panel's content";
+            return null;
+        }
+
+        // The game's own description of the hovered drone is hidden (its icon and scrap arrow stay), the mod's name and
+        // description show, and the name takes the tier's color.
+        private static string Details(PickerPanel panel)
+        {
+            DroneScrapperPickerPanel game = (DroneScrapperPickerPanel)panel.Component;
+            Transform inspect = game.GetComponentsInChildren<Transform>(true).FirstOrDefault(part => part.name == "InspectPanel");
+            if (inspect)
+            {
+                foreach (TMP_Text text in inspect.GetComponentsInChildren<TMP_Text>(true))
+                {
+                    if (text.isActiveAndEnabled) return $"the game's {text.name} text in the inspect panel is showing, repeating the details";
+                }
+            }
+            if (!panel.DetailsNameText || !panel.DetailsNameText.isActiveAndEnabled) return "the mod's name of the hovered drone is not showing";
+            if (!panel.DetailsDescriptionText || !panel.DetailsDescriptionText.isActiveAndEnabled) return "the mod's description of the hovered drone is not showing";
+            return null;
+        }
+
+        // A game image on a button, other than its face, icon and marks, that is still drawn.
+        private static string SelectionShowing(MPButton button)
+        {
+            Transform icon = button.transform.Find(PickerPanel.IconName);
+            Image face = button.image ? button.image : button.GetComponent<Image>();
+            foreach (Image image in button.GetComponentsInChildren<Image>(true))
+            {
+                if (image != face && image.isActiveAndEnabled && DroneSource.IsSelectionImage(button.transform, image, icon)) return image.name;
+            }
+            HGButton hg = button as HGButton;
+            if (hg && (hg.imageOnHover || hg.showImageOnHover)) return "imageOnHover";
             return null;
         }
 
@@ -232,13 +294,8 @@ namespace SevenUI.Tests
         // the game would get it.
         private static IEnumerator HoverShowsColor(Harness h, PickerPanel panel)
         {
-            Transform title = panel.Component.GetComponentsInChildren<Transform>(true).FirstOrDefault(part => part.name == InspectTitleName);
-            TMP_Text text = title ? title.GetComponent<TMP_Text>() : null;
-            if (!text)
-            {
-                h.Log($"the scrapper has no {InspectTitleName}; the hovered drone's name color is not checked");
-                yield break;
-            }
+            TMP_Text text = panel.DetailsNameText;
+            if (!text) throw h.Fail("the panel shows no name of the hovered drone");
             MPEventSystem events = EventSystem.current as MPEventSystem;
             if (!events) throw h.Fail("there is no event system to send the pointer's events with");
             int index = panel.Buttons.Count - 1;
@@ -253,7 +310,7 @@ namespace SevenUI.Tests
                 }
             });
             Color want = panel.Buttons[index].Entry.Color;
-            yield return h.Until(() => SevenUIChecks.Near(text.color, want), () => $"the title is {text.color} for option {index}, not its tier's {want}", OpenTimeout);
+            yield return h.Until(() => SevenUIChecks.Near(text.color, want), () => $"the details' name is {text.color} for option {index}, not its tier's {want}", OpenTimeout);
         }
 
         // With FlatPanels off, a panel opened is the game's, and the look the mod gave it goes back as it was when the
