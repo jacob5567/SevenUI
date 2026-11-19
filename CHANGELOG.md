@@ -1,3 +1,7 @@
+## Unreleased
+
+- The scoreboard's inspect panel, shown for a pickup, chest, shrine or drone beside you, is restyled as on the design: the board's width and flat face, a thin strip in the item's tier color, the icon on a dark slot, and the name in bold over the description.
+
 ## 1.6.0
 
 - The boss bar is drawn as your health bar is: health the boss just lost trails behind in dark red, health just healed shows in a lighter red, and its shield, void shield, barrier, Lunar Ruin and curse show as on your own bar. A thin line marks where the boss would be executed, while it is frozen or, for an elite boss, at your Old Guillotine threshold.
