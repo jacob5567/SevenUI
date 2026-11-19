@@ -16,6 +16,8 @@ namespace SevenUI
 
         public MPButton Button;
         public HGButton Hover;
+        public PickerEntry Entry;
+        // The entry's item, equipment or drone pickup; null for a drone or Cancel.
         public PickupDef Pickup;
         // The option's description as the panel shows it (PickupDescriptions), chosen once when it is styled.
         public string DescriptionText = "";
@@ -38,7 +40,17 @@ namespace SevenUI
 
         // Hovered with the pointer, or selected with a gamepad: the game's own state, which it shows by fading in its
         // hover outline.
-        public bool Hovered => Hover && Hover.hovering;
+        public bool Hovered
+        {
+            get
+            {
+                if (Hover) return Hover.hovering;
+                // A plain MPButton (the drone scrapper's) has no hover state of its own; the pointer selects it as it
+                // enters, and a gamepad selects it too.
+                MPEventSystem system = Button ? Button.eventSystem : null;
+                return system && Button.interactable && system.currentSelectedGameObject == Button.gameObject;
+            }
+        }
 
         // Hovered this frame and not the one before, as of the last Update.
         public bool JustHovered { get; private set; }

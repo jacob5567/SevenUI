@@ -18,7 +18,7 @@ namespace SevenUI
         private readonly PickerSlots slots;
 
         // What the tallest-details measurement was made from. Hovering changes none of it, so hovers reuse the result.
-        private PickupPickerController.Option[] measuredOptions;
+        private object measuredOptions;
         private int measuredCount = -1;
         private float measuredTextWidth;
         private TMP_FontAsset measuredFont;
@@ -72,8 +72,8 @@ namespace SevenUI
             int columns = pickerGrid.Columns;
             int count = buttons.Count;
             float titleHeight = title ? title.GetPreferredValues("A").y : 0f;
-            RectTransform container = ui.Panel.buttonContainer;
-            GridLayoutGroup grid = ui.Panel.gridlayoutGroup;
+            PickerSource source = ui.Source;
+            GridLayoutGroup grid = source.Grid;
             Vector2 size;
             // How far above the screen's middle the panel's top sits.
             float top;
@@ -115,13 +115,27 @@ namespace SevenUI
                 float cardHeight = statsTop + statsHeight + CardPadding;
                 float width = count * cardWidth + (count - 1) * CardGap;
                 grid.cellSize = new Vector2(cardWidth, cardHeight);
-                container.anchoredPosition = new Vector2(0f, -(titleHeight + CardGap));
-                container.sizeDelta = new Vector2(width, cardHeight);
+                source.PlaceContent(0f, titleHeight + CardGap, width, cardHeight, cardHeight);
+                float panelWidth = width;
+                float panelHeight = titleHeight + CardGap + cardHeight;
+                if (source.OwnsDetails)
+                {
+                    // The game's details under the cards, on a backdrop that reaches as wide as they need.
+                    panelWidth = Mathf.Max(width, MinPanelWidth);
+                    float detailsTop = panelHeight + CardGap;
+                    float detailsHeight = source.PlaceDetails(CardPadding, detailsTop + CardPadding, panelWidth - 2f * CardPadding);
+                    RectTransform backdrop = owner.DetailsBackdrop;
+                    if (backdrop)
+                    {
+                        TopLeft(backdrop, 0f, detailsTop, panelWidth, detailsHeight + 2f * CardPadding);
+                    }
+                    panelHeight = detailsTop + detailsHeight + 2f * CardPadding;
+                }
                 if (title)
                 {
-                    TopLeft(title.rectTransform, 0f, 0f, width, titleHeight);
+                    TopLeft(title.rectTransform, 0f, 0f, panelWidth, titleHeight);
                 }
-                size = new Vector2(width, titleHeight + CardGap + cardHeight);
+                size = new Vector2(panelWidth, panelHeight);
                 top = size.y / 2f;
             }
             else
@@ -130,6 +144,10 @@ namespace SevenUI
                 float gridWidth = columns * SlotSize + (columns - 1) * SlotGap;
                 float gridHeight = rows * SlotSize + (rows - 1) * SlotGap;
                 float width = Mathf.Max(MinPanelWidth, gridWidth + 2f * PaddingX);
+                if (source.OwnsDetails)
+                {
+                    width = Mathf.Max(width, MinDetailsWidth);
+                }
                 float textWidth = width - 2f * PaddingX;
                 slots.Strip.sizeDelta = new Vector2(0f, StripHeight);
                 if (title)
@@ -138,9 +156,19 @@ namespace SevenUI
                 }
                 grid.cellSize = new Vector2(SlotSize, SlotSize);
                 float y = StripHeight + PartGap;
-                container.anchoredPosition = new Vector2(PaddingX, -y);
-                container.sizeDelta = new Vector2(gridWidth, gridHeight);
-                y += gridHeight + PartGap;
+                // A scroll view shows no more than so many rows; the rest scrolls.
+                float shownHeight = source.OwnsDetails ? Mathf.Min(gridHeight, MaxScrollHeight) : gridHeight;
+                source.PlaceContent(PaddingX, y, gridWidth, shownHeight, gridHeight);
+                y += shownHeight + PartGap;
+                if (source.OwnsDetails)
+                {
+                    // The game's own name and description of the hovered option, under the grid.
+                    float ownHeight = source.PlaceDetails(PaddingX, y, textWidth);
+                    size = new Vector2(width, y + ownHeight + PaddingBottom);
+                    top = size.y / 2f;
+                    SetPanel(mainPanel, size, top);
+                    return;
+                }
                 TopLeft(slots.Divider, PaddingX, y, textWidth, HudUnits.DividerHeight);
                 y += HudUnits.DividerHeight + DetailsGap;
                 float nameHeight = slots.DetailsName.GetPreferredValues("A").y;
@@ -158,6 +186,11 @@ namespace SevenUI
                 size = new Vector2(width, y + shownDescription + shownStats + PaddingBottom);
                 top = (y + detailsHeight + PaddingBottom) / 2f;
             }
+            SetPanel(mainPanel, size, top);
+        }
+
+        private static void SetPanel(RectTransform mainPanel, Vector2 size, float top)
+        {
             mainPanel.anchorMin = mainPanel.anchorMax = new Vector2(0.5f, 0.5f);
             mainPanel.pivot = new Vector2(0.5f, 1f);
             mainPanel.anchoredPosition = new Vector2(0f, top);

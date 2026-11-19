@@ -14,16 +14,16 @@ namespace SevenUI
     {
         private readonly PickerPanel owner;
 
-        public PickerUi(PickerPanel owner, PickupPickerPanel panel, StyleRecorder recorder, RectTransform juice, TMP_Text title)
+        public PickerUi(PickerPanel owner, PickerSource source, StyleRecorder recorder, RectTransform juice, TMP_Text title)
         {
             this.owner = owner;
-            Panel = panel;
+            Source = source;
             Recorder = recorder;
             Juice = juice;
             Title = title;
         }
 
-        public PickupPickerPanel Panel { get; }
+        public PickerSource Source { get; }
 
         public StyleRecorder Recorder { get; }
 
@@ -35,12 +35,12 @@ namespace SevenUI
 
         // The game's button frame and outlines give way to a flat look; its hover outline, which the game fades in, to
         // the canvas's sharp one, shown while the game's would be.
-        public PickerButton StyleButton(MPButton button, PickupDef pickup, Color face)
+        public PickerButton StyleButton(MPButton button, PickerEntry entry, Color face)
         {
             PickerButton styled = new PickerButton
             {
-                Button = button, Hover = button as HGButton, Pickup = pickup,
-                DescriptionText = PickupDescriptions.For(pickup, button, FullDescriptions),
+                Button = button, Hover = button as HGButton, Entry = entry, Pickup = entry?.Pickup,
+                DescriptionText = entry != null ? entry.Description(button, FullDescriptions) : "",
             };
             styled.Parts = ItemStatsText.Split(styled.DescriptionText);
             // The game's skin sets the button's tint, which multiplies the face's color (the options' slots came out
@@ -117,9 +117,9 @@ namespace SevenUI
             return styled;
         }
 
-        public void AddTierStrip(RectTransform slot, PickupDef pickup)
+        public void AddTierStrip(RectTransform slot, PickerEntry entry)
         {
-            RectTransform tierStrip = NewImage("TierStrip", slot, TierColor(pickup));
+            RectTransform tierStrip = NewImage("TierStrip", slot, entry != null ? entry.Color : Palette.Text);
             tierStrip.anchorMin = Vector2.zero;
             tierStrip.anchorMax = new Vector2(1f, 0f);
             tierStrip.pivot = new Vector2(0.5f, 0f);
@@ -182,8 +182,6 @@ namespace SevenUI
         }
 
         public static float Measure(TMP_Text text, float width) => text ? text.GetPreferredValues(text.text, width, 0f).y : 0f;
-
-        public static Color TierColor(PickupDef pickup) => pickup != null ? pickup.baseColor : Palette.Text;
 
         // Across the full width of its parent's top, this tall.
         public static void AcrossTop(RectTransform rect, float height)
