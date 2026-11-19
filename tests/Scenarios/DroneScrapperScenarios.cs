@@ -29,6 +29,12 @@ namespace SevenUI.Tests
         private const float StandDistance = 2f;
         private const int FewOptions = 3;
         private const int ManyOptions = 9;
+        // The game's inspect panel, under the panel's buttons, and its parts.
+        private const string InspectName = "InspectPanel";
+        private const string InspectAreaPath = "InspectPanelArea";
+        private const string InspectBoxPath = InspectAreaPath + "/InspectionPanel";
+        private const string InspectVisualPath = InspectBoxPath + "/HorizontalBox/InspectIconContainer/InspectVisualBackground/InspectedVisual";
+        private const string TargetScrapName = "TargetScrap";
         // In HUD units: how far outside the panel a part may reach.
         private const float EdgeTolerance = 1f;
 
@@ -62,7 +68,7 @@ namespace SevenUI.Tests
             }
             catch (Exception exception) when (!(exception is ScenarioSkipped))
             {
-                throw h.Skip($"could not load {PanelKey}: {exception.Message} (the Drone Scrapper needs Seekers of the Storm's content)");
+                throw h.Skip($"could not load {PanelKey}: {exception.Message} (the Drone Scrapper needs Alloyed Collective's content)");
             }
             DroneScrapperPickerController picker = null;
             yield return PickerScenarios.GoHome(h);
@@ -128,6 +134,7 @@ namespace SevenUI.Tests
             string shown = AsDesigned(styled, count);
             if (shown != null) throw h.Fail(shown);
             yield return HoverShowsColor(h, styled);
+            yield return IconRowShows(h, styled);
             yield return h.Screenshot("sevenui");
         }
 
@@ -233,12 +240,30 @@ namespace SevenUI.Tests
                 string outside = Outside(face, (RectTransform)option.Button.transform);
                 if (outside != null) return $"the flat face does not hold option 0: {outside}";
             }
-            TMP_Text title = panel.Source.FindTitle();
-            if (!title || !title.isActiveAndEnabled) return "the title is not showing";
+            TMP_Text title = panel.Title;
+            if (!title || !title.isActiveAndEnabled) return $"the title is not showing: {DescribeTitle(panel)}";
             string inStrip = Outside((RectTransform)strip, title.rectTransform);
             if (inStrip != null) return $"the title is not in the header strip: {inStrip}";
-            if (title.transform.parent != juice) return "the title is not in the panel's content";
+            if (title.transform.parent != juice) return $"the title is not in the panel's content: {DescribeTitle(panel)}";
+            // The game's one text holds the name and, on a second line, the subtitle, which would run onto the grid.
+            title.ForceMeshUpdate();
+            if (title.textInfo.lineCount > 1 && title.maxVisibleLines > 1) return $"the title's subtitle shows under the strip: {DescribeTitle(panel)}";
             return null;
+        }
+
+        // The title the panel uses and the game's Label, as found, so a failure says what is there.
+        private static string DescribeTitle(PickerPanel panel)
+        {
+            TMP_Text title = panel.Title;
+            string used = title
+                ? $"'{title.name}' under '{(title.transform.parent ? title.transform.parent.name : "nothing")}', active {title.gameObject.activeInHierarchy}, " +
+                  $"enabled {title.enabled}, lines {title.textInfo?.lineCount} of {title.maxVisibleLines} shown, text \"{title.text}\""
+                : "none";
+            Transform label = panel.Source.Juice.Find(PickerPanel.TitleName);
+            string game = label
+                ? $"'{label.name}' active {label.gameObject.activeInHierarchy} with {string.Join(", ", label.GetComponents<Component>().Select(part => part.GetType().Name))}"
+                : $"no {PickerPanel.TitleName} under '{panel.Source.Juice.name}' (children: {string.Join(", ", panel.Source.Juice.Cast<Transform>().Select(child => child.name))})";
+            return $"title {used}; game's {game}";
         }
 
         // The game's own description of the hovered drone is hidden (its icon and scrap arrow stay), the mod's name and
@@ -253,24 +278,50 @@ namespace SevenUI.Tests
                 {
                     if (text.isActiveAndEnabled) return $"the game's {text.name} text in the inspect panel is showing, repeating the details";
                 }
+                Transform box = inspect.Find(InspectBoxPath);
+                Image boxImage = box ? box.GetComponent<Image>() : null;
+                if (boxImage && boxImage.isActiveAndEnabled) return $"the game's blue box behind the inspect panel ({InspectBoxPath}) is showing";
             }
             if (!panel.DetailsNameText || !panel.DetailsNameText.isActiveAndEnabled) return "the mod's name of the hovered drone is not showing";
             if (!panel.DetailsDescriptionText || !panel.DetailsDescriptionText.isActiveAndEnabled) return "the mod's description of the hovered drone is not showing";
             return null;
         }
 
-        // A game image on a button, other than its face, icon and marks, that is still drawn.
+        // A game image on a button that is still drawn, other than its face, its icon and the "carrying items" mark on the
+        // icon (Icon/ItemIndicator), and the mod's own parts: the game's outlines and its yellow hover square and flash.
         private static string SelectionShowing(MPButton button)
         {
             Transform icon = button.transform.Find(PickerPanel.IconName);
             Image face = button.image ? button.image : button.GetComponent<Image>();
             foreach (Image image in button.GetComponentsInChildren<Image>(true))
             {
-                if (image != face && image.isActiveAndEnabled && DroneSource.IsSelectionImage(button.transform, image, icon)) return image.name;
+                if (image == face || !image.isActiveAndEnabled || icon && image.transform.IsChildOf(icon)) continue;
+                if (InModPart(button.transform, image.transform)) continue;
+                return NamePath(button.transform, image.transform);
             }
             HGButton hg = button as HGButton;
             if (hg && (hg.imageOnHover || hg.showImageOnHover)) return "imageOnHover";
+            if (hg && hg.hoverHighlightGameObject) return $"hoverHighlightGameObject ({hg.hoverHighlightGameObject.name})";
             return null;
+        }
+
+        private static bool InModPart(Transform root, Transform part)
+        {
+            for (Transform up = part; up && up != root; up = up.parent)
+            {
+                if (up.name.StartsWith(SevenUIPrefix)) return true;
+            }
+            return false;
+        }
+
+        private static string NamePath(Transform root, Transform part)
+        {
+            string path = part.name;
+            for (Transform up = part.parent; up && up != root; up = up.parent)
+            {
+                path = up.name + "/" + path;
+            }
+            return path;
         }
 
         // Whether a part's corners lie in the panel, in the panel's units; the cancel button hangs under it instead.
@@ -286,6 +337,58 @@ namespace SevenUI.Tests
                 bool inX = local.x >= area.xMin - EdgeTolerance && local.x <= area.xMax + EdgeTolerance;
                 bool inY = below || local.y >= area.yMin - EdgeTolerance && local.y <= area.yMax + EdgeTolerance;
                 if (!inX || !inY) return $"reaches outside the panel ({local.x:0.#}, {local.y:0.#} against {area})";
+            }
+            return null;
+        }
+
+        // With a drone selected, as a gamepad selects it, the game shows its icon and the scrap it gives in the inspect
+        // panel: drawn at full alpha (the mod holds the area's CanvasGroup opaque), inside the flat panel, and under the
+        // mod's description.
+        private static IEnumerator IconRowShows(Harness h, PickerPanel panel)
+        {
+            DroneScrapperPickerPanel game = (DroneScrapperPickerPanel)panel.Component;
+            Transform inspect = game.GetComponentsInChildren<Transform>(true).FirstOrDefault(part => part.name == InspectName);
+            if (!inspect) throw h.Fail($"the panel has no {InspectName}");
+            MPEventSystem events = EventSystem.current as MPEventSystem;
+            if (!events) throw h.Fail("there is no event system to select an option with");
+            events.SetSelectedGameObject(panel.Buttons[0].Button.gameObject);
+            yield return h.Until(() => IconRow(panel, inspect) == null, () => IconRow(panel, inspect), OpenTimeout);
+        }
+
+        private static string IconRow(PickerPanel panel, Transform inspect)
+        {
+            if (!panel.Alive) return "the panel closed";
+            Transform area = inspect.Find(InspectAreaPath);
+            if (!area) return $"the inspect panel has no {InspectAreaPath}";
+            if (!area.gameObject.activeInHierarchy) return $"the inspect panel's {InspectAreaPath} is off with option 0 selected";
+            float alpha = 1f;
+            for (Transform part = area; part; part = part.parent)
+            {
+                CanvasGroup group = part.GetComponent<CanvasGroup>();
+                if (!group) continue;
+                alpha *= group.alpha;
+                if (group.ignoreParentGroups) break;
+            }
+            if (alpha < 0.99f) return $"the inspect panel's icon row is drawn at alpha {alpha:0.##}";
+            Transform visual = inspect.Find(InspectVisualPath);
+            Image icon = visual ? visual.GetComponent<Image>() : null;
+            if (!icon || !icon.isActiveAndEnabled) return $"the drone's icon ({InspectVisualPath}) is not showing";
+            Transform scrap = visual.Find(TargetScrapName);
+            if (!scrap || !scrap.gameObject.activeInHierarchy) return $"the scrap it gives ({TargetScrapName}) is not showing";
+            RectTransform iconRect = (RectTransform)visual;
+            if (iconRect.rect.width <= 0f || iconRect.rect.height <= 0f) return $"the drone's icon is {iconRect.rect.size} in size";
+            string outside = Outside(panel.MainPanel, iconRect);
+            if (outside != null) return $"the drone's icon {outside}";
+            TMP_Text description = panel.DetailsDescriptionText;
+            if (description)
+            {
+                Vector3[] iconCorners = new Vector3[4];
+                Vector3[] textCorners = new Vector3[4];
+                iconRect.GetWorldCorners(iconCorners);
+                description.rectTransform.GetWorldCorners(textCorners);
+                float unit = panel.MainPanel.lossyScale.y > 0f ? panel.MainPanel.lossyScale.y : 1f;
+                // Corner 1 is the top left, corner 0 the bottom left.
+                if (iconCorners[1].y > textCorners[0].y + EdgeTolerance * unit) return "the drone's icon is not under the mod's description";
             }
             return null;
         }
@@ -332,7 +435,8 @@ namespace SevenUI.Tests
 
             h.SetConfig(settings.FlatPanels, true);
             yield return h.Until(() => Styled(opened) is PickerPanel panel && panel.Styled && AsDesigned(panel, FewOptions) == null,
-                "the panel restyled with FlatPanels on", OpenTimeout);
+                () => Styled(opened) is PickerPanel panel ? $"with FlatPanels on: {AsDesigned(panel, FewOptions) ?? "not restyled"}" : "with FlatPanels on the panel is not restyled",
+                OpenTimeout);
             yield return h.Wait(SettleSeconds);
 
             h.SetConfig(settings.FlatPanels, false);
