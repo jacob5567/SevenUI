@@ -39,7 +39,7 @@ namespace SevenUI.Tests
 
         private static bool IsGameFont(TMP_Text text) => text.font.name.StartsWith(GameNames.GameFontPrefix);
 
-        private static bool IsBarlow(TMP_Text text) => text.font.name.StartsWith(Texts.BarlowFontPrefix);
+        internal static bool IsBarlow(TMP_Text text) => text.font.name.StartsWith(Texts.BarlowFontPrefix);
 
         // The texts still in the game's font, by path, for failure messages.
         private static string GameFontTexts(Transform root)

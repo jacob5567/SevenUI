@@ -53,7 +53,7 @@ namespace SevenUI.Tests
         public static IEnumerable<Scenario> Checks() =>
             Checks(Board.Rows).Concat(Checks(Board.Tabs)).Append(CollapseWhileOpenScenario()).Append(HidesAllyCardsScenario())
                 .Append(new Scenario(1, "scoreboard_panels_off_and_on_at_once", Stages.TitanicPlains, PanelsOffAndOnAtOnce))
-                .Append(TabsOffScenario());
+                .Append(TabsOffScenario()).Concat(ScoreboardInspectScenarios.All());
 
         internal static Scenario TabsOffScenario() => new Scenario(1, "scoreboard_tabs_off", Stages.TitanicPlains, TabsOff);
 
