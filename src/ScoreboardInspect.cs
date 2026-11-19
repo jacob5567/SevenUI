@@ -51,6 +51,7 @@ namespace SevenUI
         private const float StatsRowGap = 6f * Canvas;
         private const float StatsLabelGap = 16f * Canvas;
         private const float StatsSize = 13f * Canvas;
+        private const float LineHeightSlack = 0.5f;
         private const float NameSize = 16f * Canvas;
         private const float DescriptionSize = 13f * Canvas;
         private const float DescriptionLineHeight = 1.4f;
@@ -96,6 +97,7 @@ namespace SevenUI
         private static Dictionary<string, ItemDef> itemsByDescription;
         private Transform panel;
         private Transform boardRoot;
+        private Image iconVisual;
         private float shownSince = -1f;
         private bool dumped;
         private bool reportedFade;
@@ -139,6 +141,12 @@ namespace SevenUI
             }
             Control(box, false, false, TextAnchor.UpperLeft, PaddingX, PaddingY, IconGap);
             this.box = box as RectTransform;
+            if (box)
+            {
+                // Only as tall as its content: nothing in the box may take the height the panel's parents have spare.
+                LayoutElement boxElement = Element(box);
+                boxElement.flexibleHeight = 0f;
+            }
             boxGroup = box ? box.GetComponent<HorizontalOrVerticalLayoutGroup>() : null;
             recorder.OnRestore(RestoreText);
 
@@ -178,8 +186,19 @@ namespace SevenUI
                         }
                     });
                 }
-                UiFactory.Stretch(visual.rectTransform, Vector2.zero, Vector2.one, new Vector2(IconInset, IconInset),
-                    new Vector2(-IconInset, -IconInset));
+                if (visual.rectTransform.localScale != Vector3.one)
+                {
+                    Vector3 scale = visual.rectTransform.localScale;
+                    recorder.OnRestore(() =>
+                    {
+                        if (visual)
+                        {
+                            visual.rectTransform.localScale = scale;
+                        }
+                    });
+                }
+                iconVisual = visual;
+                FitIcon();
             }
 
             Transform textContainer = box ? box.Find(TextContainerName) : null;
@@ -207,6 +226,7 @@ namespace SevenUI
         public void Update()
         {
             UpdateStats();
+            FitIcon();
             if (title)
             {
                 Color color = title.color;
@@ -225,6 +245,28 @@ namespace SevenUI
                 flavorObject.SetActive(false);
             }
             KeepOpaque();
+        }
+
+        // Keeps the icon stretched to the slot minus its inset at scale 1. Whatever sizes an Image once its sprite has loaded
+        // (the game's async image loading, a layout pass) runs after Style, so the fit is checked each frame and re-applied
+        // only when it differs.
+        private void FitIcon()
+        {
+            if (!iconVisual)
+            {
+                return;
+            }
+            RectTransform rect = iconVisual.rectTransform;
+            Vector2 inset = new Vector2(IconInset, IconInset);
+            if (rect.anchorMin != Vector2.zero || rect.anchorMax != Vector2.one || rect.offsetMin != inset ||
+                rect.offsetMax != -inset)
+            {
+                UiFactory.Stretch(rect, Vector2.zero, Vector2.one, inset, -inset);
+            }
+            if (rect.localScale != Vector3.one)
+            {
+                rect.localScale = Vector3.one;
+            }
         }
 
         // The area's CanvasGroup was seen at alpha 0 with the panel restyled, leaving the face, icon and texts barely
@@ -390,6 +432,10 @@ namespace SevenUI
                 // Styled again meanwhile, which sets the icon's gap.
                 SetSpacing(StatsSpacing);
             }
+            if (statsShown)
+            {
+                SizeDivider();
+            }
             ItemStatsText.Parts parts = StatsParts();
             if (parts == null)
             {
@@ -472,7 +518,7 @@ namespace SevenUI
                 lineElement.flexibleWidth = 0f;
                 lineElement.minHeight = 0f;
                 lineElement.preferredHeight = 0f;
-                lineElement.flexibleHeight = 1f;
+                lineElement.flexibleHeight = 0f;
 
                 stats = UiFactory.NewObject(StatsName, box);
                 recorder.Add(stats.gameObject);
@@ -511,6 +557,26 @@ namespace SevenUI
             stats.gameObject.SetActive(true);
             statsShown = true;
             SetSpacing(StatsSpacing);
+            SizeDivider();
+        }
+
+        // The line as tall as the content beside it: the tallest of the icon's slot, the text and the column. It has no
+        // height of its own to ask the layout for, and letting it stretch would make it as tall as whatever the box is
+        // given. The text's height is what the layout gave it, so this follows a description that wraps differently.
+        private void SizeDivider()
+        {
+            if (!divider || !box || !statsElement) return;
+            Transform textContainer = box.Find(TextContainerName);
+            float height = Mathf.Max(IconSize, statsElement.preferredHeight);
+            if (textContainer)
+            {
+                height = Mathf.Max(height, ((RectTransform)textContainer).rect.height);
+            }
+            LayoutElement lineElement = divider.GetComponent<LayoutElement>();
+            if (Mathf.Abs(lineElement.preferredHeight - height) < LineHeightSlack) return;
+            lineElement.minHeight = height;
+            lineElement.preferredHeight = height;
+            LayoutRebuilder.ForceRebuildLayoutImmediate(box);
         }
 
         private TMP_Text NewStatText(string name, Color color, TextAlignmentOptions alignment, FontStyles style)
