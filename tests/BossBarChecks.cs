@@ -9,13 +9,17 @@ using UnityEngine.UI;
 
 namespace SevenUI.Tests
 {
-    // The boss bar's shield, barrier, curse and execute segments (BossBarEffects), read as shares of the bar's width and
-    // compared with what the group's bodies hold, summed in the game's scale: over the group's largest observed maximum.
+    // The boss bar's parts (BossBarEffects), read as shares of the bar's width and compared with what the group's bodies
+    // hold, summed in the game's scale: over the group's largest observed maximum, and with the player's health bar.
     internal static class BossBarChecks
     {
         // A share of the bar's width.
         private const float SpanTolerance = 0.02f;
         private const float MinimumSpan = 0.005f;
+        // How long the trail must be right after a hit to count as one.
+        private const float TrailShown = 0.05f;
+        // How long a part that mustn't show is watched after a hit, longer than the player bar's trail takes.
+        private const float NoTrailSeconds = 1f;
         private const float ExecuteShare = 0.3f;
         private const float CurseStacks = 50;
 
@@ -27,6 +31,7 @@ namespace SevenUI.Tests
             public float Shield;
             public float VoidShield;
             public float Barrier;
+            public float Ruined;
             public float CurrentMax;
             public float Execute;
         }
@@ -48,11 +53,20 @@ namespace SevenUI.Tests
                     held.Shield += health.shield;
                 }
                 held.Barrier += health.barrier;
-                held.CurrentMax += health.fullCombinedHealth;
-                if (health.isInFrozenState && (body.bodyFlags & CharacterBody.BodyFlags.ImmuneToExecutes) == 0)
+                if (body.HasBuff(DLC2Content.Buffs.lunarruin))
                 {
-                    held.Execute += ExecuteShare * health.fullCombinedHealth;
+                    held.Ruined += health.health;
                 }
+                held.CurrentMax += health.fullCombinedHealth;
+                // As the player's bar: frozen, or an elite under the shown player's Old Guillotine threshold.
+                float threshold = health.isInFrozenState && (body.bodyFlags & CharacterBody.BodyFlags.ImmuneToExecutes) == 0
+                    ? ExecuteShare
+                    : 0f;
+                if (body.isElite && Harness.LocalBody)
+                {
+                    threshold = Mathf.Max(threshold, Harness.LocalBody.executeEliteHealthFraction);
+                }
+                held.Execute += threshold * health.fullCombinedHealth;
             }
             return held;
         }
@@ -95,26 +109,29 @@ namespace SevenUI.Tests
         private static string Look(HUDBossHealthBarController boss, Held held, BossGroup group) =>
             $"fill {boss.fillRectImage.fillAmount:0.###}, held health {held.Health / held.Max:0.###} shield " +
             $"{held.Shield / held.Max:0.###} void {held.VoidShield / held.Max:0.###} barrier {held.Barrier / held.Max:0.###} " +
-            $"max {held.CurrentMax / held.Max:0.###} execute {held.Execute / held.Max:0.###}; " +
+            $"ruin {held.Ruined / held.Max:0.###} max {held.CurrentMax / held.Max:0.###} execute {held.Execute / held.Max:0.###}; " +
             string.Join(", ", new[]
             {
-                BossBarEffects.ShieldName, BossBarEffects.VoidShieldName, BossBarEffects.BarrierName,
-                BossBarEffects.CurseName, BossBarEffects.ExecuteName,
+                BossBarEffects.ShieldName, BossBarEffects.VoidShieldName, BossBarEffects.BarrierCoverName,
+                BossBarEffects.BarrierName, BossBarEffects.TrailName, BossBarEffects.HealName,
+                BossBarEffects.LunarRuinName, BossBarEffects.CurseName, BossBarEffects.ExecuteName,
             }.Select(name => Describe(boss, name)));
 
-        // The segments as the bodies call for, each drawn in its own place and color or not drawn at all: the shield after
-        // the health, the void shield after that, the barrier after that so the three end where the game's fill does, the
-        // curse from where the bodies' maximum ends to the end of the bar, and the execute mark where the frozen ones
-        // would be executed.
+        // The settled bar as the bodies call for, each part drawn in its own place and color or not drawn at all: the
+        // shield after the health, the void shield after that, the trough-colored cover over the barrier's share at the
+        // end of the game's fill, the barrier strip from the bar's left end for that share, as on the player's bar,
+        // Lunar Ruin over the ruined members' health in the player bar's style, the curse from where the bodies' maximum
+        // ends to the end of the bar, and the execute mark where they would be executed; no trail or healed part, and
+        // the game's own trail never drawn.
         public static IEnumerator ExpectEffects(this Harness h, BossGroup group, List<CharacterBody> bodies, bool shield,
-            bool voidShield, bool barrier, bool curse, bool execute)
+            bool voidShield, bool barrier, bool curse, bool execute, bool lunarRuin = false)
         {
             HUDBossHealthBarController boss = BossBarSetUp.Bar(h);
             string failure = "no boss bar";
             yield return h.Until(
                 () =>
                 {
-                    failure = Mismatch(boss, group, bodies, shield, voidShield, barrier, curse, execute);
+                    failure = Mismatch(boss, group, bodies, shield, voidShield, barrier, curse, execute, lunarRuin);
                     return failure == null;
                 },
                 () => $"the boss bar's segments ({failure}; {Look(boss, Read(group, bodies), group)}) {h.Diagnosis()}");
@@ -122,9 +139,10 @@ namespace SevenUI.Tests
 
         // Null when the bar is as expected, or what isn't.
         private static string Mismatch(HUDBossHealthBarController boss, BossGroup group, List<CharacterBody> bodies,
-            bool shield, bool voidShield, bool barrier, bool curse, bool execute)
+            bool shield, bool voidShield, bool barrier, bool curse, bool execute, bool lunarRuin)
         {
             if (!boss || !boss.fillRectImage) return "no boss bar";
+            if (boss.delayRectImage && boss.delayRectImage.enabled) return "the game's own trail is drawn";
             Held held = Read(group, bodies);
             if (held.Max <= 0f) return "no observed maximum";
             float shieldStart = held.Health / held.Max;
@@ -140,9 +158,16 @@ namespace SevenUI.Tests
             Image shieldImage = Segment(boss, BossBarEffects.ShieldName);
             Image voidImage = Segment(boss, BossBarEffects.VoidShieldName);
             Image barrierImage = Segment(boss, BossBarEffects.BarrierName);
+            Image coverImage = Segment(boss, BossBarEffects.BarrierCoverName);
             Image curseImage = Segment(boss, BossBarEffects.CurseName);
             Image executeImage = Segment(boss, BossBarEffects.ExecuteName);
-            if (!shieldImage || !voidImage || !barrierImage || !curseImage || !executeImage) return "a segment is missing";
+            Image trailImage = Segment(boss, BossBarEffects.TrailName);
+            Image healImage = Segment(boss, BossBarEffects.HealName);
+            Image ruinImage = Segment(boss, BossBarEffects.LunarRuinName);
+            if (!shieldImage || !voidImage || !barrierImage || !coverImage || !curseImage || !executeImage || !trailImage ||
+                !healImage) return "a segment is missing";
+            if (Drawn(trailImage)) return "the trail is still drawn";
+            if (Drawn(healImage)) return "the healed part is still drawn";
 
             if (shield)
             {
@@ -164,12 +189,29 @@ namespace SevenUI.Tests
             }
             if (barrier)
             {
-                if (!SpanIs(boss, barrierImage, voidEnd, barrierEnd)) return "barrier misplaced";
+                if (!SpanIs(boss, barrierImage, 0f, held.Barrier / held.Max)) return "barrier doesn't start at the bar's left end";
                 if (!StackedWith(barrierImage, Palette.Barrier, FlatSprite.TopStrip)) return "barrier's color or sprite";
+                if (!SpanIs(boss, coverImage, voidEnd, barrierEnd)) return "the barrier's share of the fill isn't covered";
+                if (!StackedWith(coverImage, Palette.Trough, FlatSprite.White)) return "barrier cover's color or sprite";
+                if (barrierImage.transform.GetSiblingIndex() < coverImage.transform.GetSiblingIndex()) return "barrier under its cover";
             }
-            else if (Drawn(barrierImage))
+            else if (Drawn(barrierImage) || Drawn(coverImage))
             {
                 return "barrier drawn";
+            }
+            if (lunarRuin)
+            {
+                HealthBarStyle.BarStyle style = PlayerStyle().lunarRuinStyle;
+                if (!ruinImage) return "no Lunar Ruin part";
+                if (!SpanIs(boss, ruinImage, 0f, held.Ruined / held.Max)) return "Lunar Ruin misplaced";
+                if (ruinImage.sprite != style.sprite || !SevenUIChecks.Near(ruinImage.color, style.baseColor))
+                {
+                    return "Lunar Ruin not in the player bar's style";
+                }
+            }
+            else if (ruinImage && Drawn(ruinImage))
+            {
+                return "Lunar Ruin drawn";
             }
             if (curse)
             {
@@ -198,6 +240,13 @@ namespace SevenUI.Tests
             return null;
         }
 
+        // The local player's health bar style, whose Lunar Ruin the boss bar copies.
+        internal static HealthBarStyle PlayerStyle()
+        {
+            HUD hud = HUD.readOnlyInstanceList.FirstOrDefault(found => found && found.healthBar);
+            return hud ? hud.healthBar._style : null;
+        }
+
         private static bool StackedWith(Image image, Color color, Sprite sprite) =>
             SevenUIChecks.Near(image.color, color) && image.sprite == sprite;
 
@@ -207,8 +256,9 @@ namespace SevenUI.Tests
             HUDBossHealthBarController boss = BossBarSetUp.Bar(h);
             string[] names =
             {
-                BossBarEffects.ShieldName, BossBarEffects.VoidShieldName, BossBarEffects.BarrierName,
-                BossBarEffects.CurseName, BossBarEffects.ExecuteName,
+                BossBarEffects.ShieldName, BossBarEffects.VoidShieldName, BossBarEffects.BarrierCoverName,
+                BossBarEffects.BarrierName, BossBarEffects.TrailName, BossBarEffects.HealName,
+                BossBarEffects.LunarRuinName, BossBarEffects.CurseName, BossBarEffects.ExecuteName,
             };
             yield return h.Until(
                 () => boss && names.All(name => !Drawn(Segment(boss, name))),
@@ -216,27 +266,79 @@ namespace SevenUI.Tests
                       h.Diagnosis());
         }
 
-        // The game's trail of lost health and its fill are under every segment, and the segments sit on the fill's panel.
+        // The parts sit on the fill's panel over the game's fill, in the player bar's order: the cover, then the trail
+        // under the shield, the healed part, the shields, the barrier and Lunar Ruin over the health, then the curse and
+        // the execute mark.
         public static IEnumerator ExpectSegmentsOverTrail(this Harness h)
         {
             HUDBossHealthBarController boss = BossBarSetUp.Bar(h);
+            string[] order =
+            {
+                BossBarEffects.BarrierCoverName, BossBarEffects.TrailName, BossBarEffects.HealName, BossBarEffects.ShieldName,
+                BossBarEffects.VoidShieldName, BossBarEffects.BarrierName, BossBarEffects.LunarRuinName,
+                BossBarEffects.CurseName, BossBarEffects.ExecuteName,
+            };
             yield return h.Until(
                 () =>
                 {
-                    int trail = boss.delayRectImage.transform.GetSiblingIndex();
-                    int fill = boss.fillRectImage.transform.GetSiblingIndex();
-                    return new[]
-                    {
-                        BossBarEffects.ShieldName, BossBarEffects.VoidShieldName, BossBarEffects.BarrierName,
-                        BossBarEffects.CurseName, BossBarEffects.ExecuteName,
-                    }.All(name =>
+                    int below = boss.fillRectImage.transform.GetSiblingIndex();
+                    foreach (string name in order)
                     {
                         Image segment = Segment(boss, name);
-                        return segment && segment.transform.parent == boss.fillRectImage.transform.parent &&
-                               segment.transform.GetSiblingIndex() > Mathf.Max(trail, fill);
-                    });
+                        // Lunar Ruin is only made when the player's style draws it.
+                        if (!segment && name == BossBarEffects.LunarRuinName) continue;
+                        if (!segment || segment.transform.parent != boss.fillRectImage.transform.parent) return false;
+                        if (segment.transform.GetSiblingIndex() <= below) return false;
+                        below = segment.transform.GetSiblingIndex();
+                    }
+                    return true;
                 },
-                () => $"the boss's trail and fill drawn under every segment {h.Diagnosis()}");
+                () => $"the parts over the fill in the player bar's order {h.Diagnosis()}");
+        }
+
+        // Right after a hit to its health the trail runs from the health's end, as long as the hit; a moment later it
+        // has caught up and is gone. The game's own trail stays hidden.
+        public static IEnumerator ExpectHealthTrail(this Harness h, HUDBossHealthBarController boss, bool trailing)
+        {
+            yield return h.Until(
+                () =>
+                {
+                    Image trail = Segment(boss, BossBarEffects.TrailName);
+                    if (!trail || (boss.delayRectImage && boss.delayRectImage.enabled)) return false;
+                    if (!trailing) return !Drawn(trail);
+                    if (!Drawn(trail)) return false;
+                    Vector2 span = Span(boss, trail);
+                    return span.y - span.x > TrailShown;
+                },
+                () => $"the boss's lost health {(trailing ? "trailing after the health" : "caught up")} " +
+                      $"({Describe(boss, BossBarEffects.TrailName)}) {h.Diagnosis()}");
+        }
+
+        // A hit that only takes shield or barrier leaves no trail, as on the player's bar, for longer than a trail takes.
+        public static IEnumerator ExpectNoTrail(this Harness h, HUDBossHealthBarController boss)
+        {
+            yield return h.Holds(
+                () => !Drawn(Segment(boss, BossBarEffects.TrailName)) && !(boss.delayRectImage && boss.delayRectImage.enabled),
+                () => $"no trail after a hit that took no health ({Describe(boss, BossBarEffects.TrailName)})",
+                NoTrailSeconds);
+        }
+
+        // Right after a heal the new health shows in the lighter red, from the trail's end to the health's; a moment
+        // later the trail has caught up and it is gone.
+        public static IEnumerator ExpectHealedPart(this Harness h, HUDBossHealthBarController boss, bool healing)
+        {
+            yield return h.Until(
+                () =>
+                {
+                    Image heal = Segment(boss, BossBarEffects.HealName);
+                    if (!heal) return false;
+                    if (!healing) return !Drawn(heal);
+                    if (!Drawn(heal) || !StackedWith(heal, Palette.BossHealthHealing, FlatSprite.White)) return false;
+                    Vector2 span = Span(boss, heal);
+                    return span.y - span.x > TrailShown;
+                },
+                () => $"the healed health {(healing ? "drawn in the lighter red" : "caught up")} " +
+                      $"({Describe(boss, BossBarEffects.HealName)}) {h.Diagnosis()}");
         }
 
         public static void Hit(CharacterBody body, float damage)

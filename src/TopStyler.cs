@@ -9,8 +9,9 @@ namespace SevenUI
 {
     // Restyles the top of the HUD: the currencies in a row, each on its own flat panel fitted to it, without the
     // cluster's frame; the item bar without its frame; and the boss bar flat, with the boss's name in Barlow Condensed
-    // capitals in a title row above it (BossTitleRow), the game's trail of health just lost under its fill, and the
-    // shield, barrier, curse and execute line the game's one fill leaves out drawn over it (BossBarEffects).
+    // capitals in a title row above it (BossTitleRow), and drawn as the player's health bar is over the game's one
+    // fill: the trail of health just lost, the healed part, shield, barrier, Lunar Ruin, curse and execute line
+    // (BossBarEffects).
     internal sealed class TopStyler : IStyler
     {
         // Under each currency's MoneyText object.

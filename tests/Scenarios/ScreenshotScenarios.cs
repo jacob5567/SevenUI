@@ -712,10 +712,10 @@ namespace SevenUI.Tests
             yield return h.ExpectBossRowFilled(boss);
             yield return h.ExpectChargeRow();
             yield return h.AimAway();
-            // Most of the health left, as on the canvas. The game's trail follows each hit within a moment.
+            // Most of the health left, as on the canvas. The trail follows each hit within a moment.
             HitBoss(boss, FirstBossHit);
-            yield return h.ExpectBossTrail(boss, true);
-            yield return h.ExpectBossTrail(boss, false);
+            yield return h.ExpectHealthTrail(boss, true);
+            yield return h.ExpectHealthTrail(boss, false);
             HitBoss(boss, SecondBossHit);
             yield return h.CaptureLooks();
         }

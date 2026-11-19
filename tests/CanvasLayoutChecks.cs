@@ -42,8 +42,6 @@ namespace SevenUI.Tests
         // meet the bar's within this, as glyphs sit a little inside their boxes.
         private const float BossBarWidth = 800f;
         private const float BossEdgeTolerance = 4f;
-        // A share of the boss bar.
-        private const float TrailMinimum = 0.02f;
         // Between the name's last letter and the subtitle's cloud: half the canvas's 12.
         private const float MinSubtitleGap = 6f;
         // In the buff display's units.
@@ -512,12 +510,10 @@ namespace SevenUI.Tests
                 return "the name or subtitle still in the container's layout";
             }
             if (!bar.Find(BossTitleRow.HealthName)) return "no health text above the bar";
-            if (!boss.delayRectImage || !boss.delayRectImage.enabled) return "the game's trailing bar off";
+            // SevenUI draws the player bar's trail of health alone in place of the game's (BossBarEffects).
+            if (boss.delayRectImage && boss.delayRectImage.enabled) return "the game's own trail still drawn";
             return null;
         }
-
-        private static float TrailFill(HUDBossHealthBarController boss) =>
-            boss.delayRectImage && boss.delayRectImage.enabled ? boss.delayRectImage.fillAmount : -1f;
 
         // With a boss showing: its health written as the canvas's "28,410 / 45,800", the title row above the bar with
         // the subtitle after the name and the health at the bar's right end.
@@ -557,17 +553,6 @@ namespace SevenUI.Tests
             Bounds bounds = new Bounds(space.InverseTransformPoint(text.transform.TransformPoint(local.min)), Vector3.zero);
             bounds.Encapsulate(space.InverseTransformPoint(text.transform.TransformPoint(local.max)));
             return bounds;
-        }
-
-        // Right after a hit the game's trail of lost health is still beyond the fill; a moment later it meets it.
-        public static IEnumerator ExpectBossTrail(this Harness h, HUDBossHealthBarController boss, bool trailing)
-        {
-            yield return h.Until(
-                () => trailing
-                    ? TrailFill(boss) > boss.fillRectImage.fillAmount + TrailMinimum
-                    : Mathf.Abs(TrailFill(boss) - boss.fillRectImage.fillAmount) < TrailMinimum / 10f,
-                () => $"the boss's lost health {(trailing ? "drawn after the fill" : "drained to the fill")} " +
-                      $"(trail {TrailFill(boss):0.###}, fill {boss.fillRectImage.fillAmount:0.###}) {h.Diagnosis()}");
         }
 
         // The player's buffs: each on a slot no wider than the bars' row, in more than one row when there are
