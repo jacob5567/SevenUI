@@ -11,21 +11,31 @@ using UnityEngine.UI;
 namespace SevenUI.Tests
 {
     // The scoreboard's inspect panel (what Tab shows for the pickup or interactable beside the player), restyled in place
-    // as the canvas's design A: the board's width, 6px under it, the board's flat face, a 2px strip along its top in the
-    // title's color, the 56px icon on a dark slot, the name in bold 16 over the description in 13, in the body color.
+    // as the canvas's design A: the board's width, 6px under it (the top padding of the panel's own layout, not the
+    // container's spacing), the board's flat face, a 2px strip along its top in the title's color, the 56px icon on a
+    // dark slot with a 3px strip of that color along its foot, the name in bold 16 over the description in 13, in the
+    // body color, wrapping beside the icon.
     // The panel is shown through the game's own controller (Show), which is what the interact prompt's Inspect does,
     // with an item (Alien Head) and with a small chest's own inspect info. FlatPanels off puts the game's panel back as
     // it was (compared with a look taken before the mod touched it), and on again styles it again.
     internal static class ScoreboardInspectScenarios
     {
+        private const string PanelPath = "Container/InspectPanel";
         private const string BoardPath = "Container/StripContainer";
         private const string InspectionPath = "Container/InspectPanel/InspectPanelArea/InspectionPanel";
         private const string IconPath = InspectionPath + "/HorizontalBox/InspectIconContainer/InspectVisualBackground";
         private const string TextsPath = InspectionPath + "/HorizontalBox/InspectDescriptionContainer";
+        // The parts whose layout the restyle sets, which FlatPanels off must put back as the game had them.
+        private static readonly string[] LayoutPaths =
+        {
+            PanelPath, PanelPath + "/InspectPanelArea", InspectionPath, InspectionPath + "/HorizontalBox",
+            InspectionPath + "/HorizontalBox/InspectIconContainer", IconPath, TextsPath,
+        };
         private const BindingFlags Fields = BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public;
         // In the canvas's pixels, which Box measures in.
         private const float BoardGap = 6f;
         private const float StripHeight = 2f;
+        private const float FootStripHeight = 3f;
         private const float IconSize = 56f;
         private const float PaddingX = 14f;
         private const float PaddingY = 12f;
@@ -57,7 +67,7 @@ namespace SevenUI.Tests
             yield return h.Screenshot("scoreboard_inspect");
         }
 
-        // A chest has no tier: its inspect info's own title color names it and colors the strip, the slot has no strip.
+        // A chest has no tier: its inspect info's own title color names it and colors both strips.
         private static IEnumerator ChestAsCanvas(Harness h)
         {
             h.SetConfig(SevenUIPlugin.Settings.DebugLogging, true);
@@ -87,7 +97,7 @@ namespace SevenUI.Tests
             yield return Inspect(h, info);
             yield return h.Wait(SettleSeconds);
             string vanilla = Look(h);
-            if (Strip(h)) throw h.Fail($"the mod's strip on the panel with FlatPanels off {h.Diagnosis()}");
+            if (Strip(h) || FootStrip(h)) throw h.Fail($"the mod's strips on the panel with FlatPanels off {h.Diagnosis()}");
             yield return h.Screenshot("scoreboard_inspect_off");
 
             h.SetConfig(settings.FlatPanels, true);
@@ -96,8 +106,8 @@ namespace SevenUI.Tests
 
             h.SetConfig(settings.FlatPanels, false);
             string restored = null;
-            yield return h.Until(() => !Strip(h) && (restored = Look(h)) == vanilla,
-                () => $"the game's panel back with FlatPanels off (strip {(Strip(h) ? "still there" : "gone")}; " +
+            yield return h.Until(() => !Strip(h) && !FootStrip(h) && (restored = Look(h)) == vanilla,
+                () => $"the game's panel back with FlatPanels off (strips {(Strip(h) || FootStrip(h) ? "still there" : "gone")}; " +
                       $"before: {vanilla}; now: {restored}) {h.Diagnosis()}");
 
             h.SetConfig(settings.FlatPanels, true);
@@ -148,6 +158,13 @@ namespace SevenUI.Tests
             return strip ? strip.GetComponent<Image>() : null;
         }
 
+        private static Image FootStrip(Harness h)
+        {
+            Transform slot = Board(h) ? Board(h).Find(IconPath) : null;
+            Transform strip = slot ? slot.Find(ScoreboardInspect.FootStripName) : null;
+            return strip ? strip.GetComponent<Image>() : null;
+        }
+
         // The game's parts of the panel, found by what the controller points at.
         private static TMP_Text Title(InspectPanelController controller) =>
             typeof(InspectPanelController).GetField("InspectTitleText", Fields).GetValue(controller) as TMP_Text;
@@ -188,6 +205,16 @@ namespace SevenUI.Tests
                 $"flavor {(flavor ? flavor.activeSelf.ToString() : "none")}",
                 $"container {container.spacing:0.##} {container.padding.left} {container.padding.top} {container.childControlWidth}",
             };
+            foreach (string path in LayoutPaths)
+            {
+                Transform part = board.Find(path);
+                HorizontalOrVerticalLayoutGroup group = part ? part.GetComponent<HorizontalOrVerticalLayoutGroup>() : null;
+                LayoutElement element = part ? part.GetComponent<LayoutElement>() : null;
+                parts.Add($"{path} {(group ? $"{group.padding.left},{group.padding.top},{group.padding.right},{group.padding.bottom} " +
+                    $"{group.spacing:0.##} {group.childAlignment} {group.childControlWidth}{group.childControlHeight} " +
+                    $"{group.childForceExpandWidth}{group.childForceExpandHeight}" : "no group")} " +
+                    $"{(element ? $"{element.minWidth}/{element.preferredWidth}/{element.flexibleWidth} {element.minHeight}/{element.preferredHeight}/{element.flexibleHeight}" : "no element")}");
+            }
             return string.Join("; ", parts);
         }
 
@@ -222,10 +249,11 @@ namespace SevenUI.Tests
             {
                 return $"panel {Format(panel)} not the board's width {Format(boardBox)}";
             }
-            // Screen y grows upward: the panel's top is the board's bottom less the gap.
+            // Screen y grows upward: the face's top is the board's bottom less the gap, which the panel's own top padding
+            // holds (the container's spacing is the game's and not counted on).
             if (Mathf.Abs(boardBox.yMin - panel.yMax - BoardGap) > Tolerance)
             {
-                return $"{boardBox.yMin - panel.yMax:0.#}px between the board and the panel, not {BoardGap}";
+                return $"{boardBox.yMin - panel.yMax:0.#}px between the board's bottom and the panel's face, not {BoardGap}";
             }
             Image face = inspection.GetComponent<Image>();
             if (!face || face.sprite || !SevenUIChecks.Near(face.color, Palette.ScoreboardPanel))
@@ -253,10 +281,37 @@ namespace SevenUI.Tests
             {
                 return $"icon slot {Format(slotBox)} not {PaddingX}px in and {PaddingY}px down in the panel {Format(panel)}";
             }
+            Image foot = FootStrip(h);
+            if (!foot) return "no strip along the icon slot's foot";
+            Rect footBox = CanvasSizeChecks.Box(h, foot.rectTransform);
+            if (Mathf.Abs(footBox.height - FootStripHeight) > Tolerance || Mathf.Abs(footBox.width - slotBox.width) > Tolerance ||
+                Mathf.Abs(footBox.xMin - slotBox.xMin) > Tolerance || Mathf.Abs(footBox.yMin - slotBox.yMin) > Tolerance)
+            {
+                return $"foot strip {Format(footBox)} not {FootStripHeight}px along the foot of the icon slot {Format(slotBox)}";
+            }
+            if (!SevenUIChecks.Near(foot.color, expected)) return $"foot strip {foot.color} not the title's {expected}";
             Rect textBox = CanvasSizeChecks.Box(h, (RectTransform)texts);
             if (Mathf.Abs(textBox.xMin - slotBox.xMax - IconGap) > Tolerance)
             {
                 return $"texts start {textBox.xMin - slotBox.xMax:0.#}px from the icon, not {IconGap}";
+            }
+            // The texts wrap in what the icon and the padding leave, one under the other, and the panel holds them.
+            Rect titleBox = CanvasSizeChecks.Box(h, title.rectTransform);
+            Rect descriptionBox = CanvasSizeChecks.Box(h, description.rectTransform);
+            if (titleBox.xMin < slotBox.xMax + IconGap - Tolerance || descriptionBox.xMin < slotBox.xMax + IconGap - Tolerance ||
+                titleBox.xMax > panel.xMax - PaddingX + Tolerance || descriptionBox.xMax > panel.xMax - PaddingX + Tolerance)
+            {
+                return $"texts {Format(titleBox)} and {Format(descriptionBox)} not beside the icon {Format(slotBox)} " +
+                       $"and {PaddingX}px inside the panel {Format(panel)}";
+            }
+            if (Mathf.Min(titleBox.yMax, descriptionBox.yMax) - Mathf.Max(titleBox.yMin, descriptionBox.yMin) > Tolerance)
+            {
+                return $"name {Format(titleBox)} and description {Format(descriptionBox)} overlap";
+            }
+            float content = Mathf.Min(Mathf.Min(titleBox.yMin, descriptionBox.yMin), slotBox.yMin);
+            if (content - panel.yMin < PaddingY - Tolerance)
+            {
+                return $"the panel {Format(panel)} does not hold its content {PaddingY}px in (lowest at {content:0.#})";
             }
             if (Mathf.Abs(title.fontSize - NameSize * HudUnits.PerCanvasPixel) > 0.01f || (title.fontStyle & FontStyles.Bold) == 0 ||
                 !SevenUIChecks.IsBarlow(title))
@@ -269,7 +324,8 @@ namespace SevenUI.Tests
                 return $"description {description.fontSize:0.##} rich {description.richText} in {description.font.name}, not Barlow {DescriptionSize}";
             }
             if (!SevenUIChecks.Near(description.color, Palette.TooltipBody)) return $"description {description.color} not the body color";
-            float lines = description.font.faceInfo.lineHeight / description.font.faceInfo.pointSize * (1f + description.lineSpacing / 100f);
+            // TextMeshPro adds the line spacing, in percent of the font size, to the font's own line height.
+            float lines = description.font.faceInfo.lineHeight / description.font.faceInfo.pointSize + description.lineSpacing / 100f;
             if (Mathf.Abs(lines - LineHeight) > LineTolerance) return $"description line height {lines:0.##}, not {LineHeight}";
             GameObject flavor = Flavor(controller);
             if (flavor && flavor.activeInHierarchy) return "the lore still shows";
