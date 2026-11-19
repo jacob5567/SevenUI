@@ -206,7 +206,14 @@ namespace SevenUI.Tests
             if (!panel.Cancel?.Button) return "the cancel button isn't styled";
             RectTransform cancel = (RectTransform)panel.Cancel.Button.transform;
             string outsideCancel = Outside(main, cancel, true);
-            if (outsideCancel != null) return $"the cancel button {outsideCancel}";
+            if (outsideCancel != null)
+            {
+                RectTransform up = cancel.parent as RectTransform;
+                return $"the cancel button {outsideCancel}: anchors {cancel.anchorMin}-{cancel.anchorMax}, pivot {cancel.pivot}, " +
+                       $"position {cancel.anchoredPosition}, size {cancel.sizeDelta}, parent '{(up ? up.name : "none")}' " +
+                       $"{(up ? up.rect.ToString() : "")} anchors {(up ? up.anchorMin + "-" + up.anchorMax + " offsets " + up.offsetMin + "/" + up.offsetMax : "")}, " +
+                       $"main anchors {main.anchorMin}-{main.anchorMax} size {main.sizeDelta}";
+            }
             Vector3[] panelCorners = new Vector3[4];
             Vector3[] cancelCorners = new Vector3[4];
             main.GetWorldCorners(panelCorners);
@@ -549,7 +556,11 @@ namespace SevenUI.Tests
             .Where(part => part.name.StartsWith(SevenUIPrefix)).Select(part => part.name).Distinct());
 
         // Every part's state: whether it is on, where it is, and for what draws or lays out, whether it is enabled and in
-        // what color. Colors in the buttons are left out, which the game fades as it hovers and selects them.
+        // what color. Colors in the buttons are left out, which the game fades as it hovers and selects them, as are
+        // the hover art's on and off and the inspect panel's laid-out places.
+        private static readonly string[] HoverArt = { "HoverHighlight", "ButtonFlashPanel", "Highlight", "HoverOutline" };
+        private const string InspectPanelName = "InspectPanel";
+
         private static Dictionary<string, string> Snapshot(DroneScrapperPickerPanel panel)
         {
             Dictionary<string, string> state = new Dictionary<string, string>();
@@ -557,8 +568,13 @@ namespace SevenUI.Tests
             {
                 string path = Path(panel.transform, part);
                 RectTransform rect = part as RectTransform;
-                string look = $"{part.gameObject.activeSelf}";
-                if (rect)
+                // The game turns a button's hover art on and off as the pointer or the selection moves, and lays out
+                // the inspect panel once a drone is shown in it, so those states depend on input, not on the mod.
+                bool hoverArt = System.Array.IndexOf(HoverArt, part.name) >= 0;
+                bool laidOutByShow = part != panel.transform && part.GetComponentsInParent<Transform>(true)
+                    .Any(up => up.name == InspectPanelName);
+                string look = hoverArt ? "" : $"{part.gameObject.activeSelf}";
+                if (rect && !laidOutByShow)
                 {
                     look += $" {rect.anchorMin} {rect.anchorMax} {rect.pivot} {rect.anchoredPosition} {rect.sizeDelta}";
                 }
