@@ -267,6 +267,10 @@ namespace SevenUI
                     after = true;
                     continue;
                 }
+                // The text's own fallback-font submeshes (TMP_SubMeshUI children) are the text, not something over it.
+                if (after && graphic.transform.IsChildOf(text.transform)) continue;
+                // The text's own fallback-font submeshes (TMP_SubMeshUI children) are the text, not something over it.
+                if (after && graphic.transform.IsChildOf(text.transform)) continue;
                 if (!after || !graphic.enabled || graphic.canvas != canvas || graphic.color.a <= 0f) continue;
                 if (graphic.name == StripName || graphic.name == FootStripName) continue;
                 if (EffectiveAlpha(graphic.transform) <= 0f) continue;
