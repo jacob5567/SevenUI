@@ -49,6 +49,7 @@ namespace SevenUI.Tests
         private const float LineHeight = 1.4f;
         private const float Tolerance = 1.5f;
         private const float LineTolerance = 0.05f;
+        private const float OpaqueAlpha = 0.99f;
         private const float SettleSeconds = 0.5f;
         // The stats column: its width, the line before it, the gaps, in the canvas's pixels.
         private const float StatsWidth = 200f;
@@ -595,6 +596,28 @@ namespace SevenUI.Tests
             GameObject flavor = Flavor(controller);
             if (flavor && flavor.activeInHierarchy) return "the lore still shows";
             if (description.text.Length == 0 || title.text.Length == 0) return "the name or description is empty";
+            return Visible(inspection, title, description, slotObject);
+        }
+
+        // Null when the panel is drawn at full strength: the groups up its hierarchy and each text's own color leave it
+        // opaque (it was seen at a tenth of that, as if under a faded group), and nothing but the mod's strips is drawn
+        // after the texts over their rects.
+        private static string Visible(Transform inspection, TMP_Text title, TMP_Text description, Transform slot)
+        {
+            float panelAlpha = ScoreboardInspect.EffectiveAlpha(inspection);
+            if (panelAlpha < OpaqueAlpha) return $"the panel is under CanvasGroups at alpha {panelAlpha:0.##}, not 1";
+            foreach (TMP_Text text in new[] { title, description })
+            {
+                float alpha = ScoreboardInspect.EffectiveAlpha(text.transform) * text.color.a;
+                if (alpha < OpaqueAlpha) return $"'{text.name}' draws at alpha {alpha:0.##} (color {text.color}), not 1";
+                List<Graphic> over = ScoreboardInspect.DrawnOver(text);
+                if (over.Count > 0) return $"'{text.name}' is drawn over by '{over[0].name}' ({over[0].GetType().Name} {over[0].color})";
+            }
+            Image visual = slot.GetComponentInChildren<Image>(true);
+            if (visual && ScoreboardInspect.EffectiveAlpha(visual.transform) < OpaqueAlpha)
+            {
+                return $"the icon is under CanvasGroups at alpha {ScoreboardInspect.EffectiveAlpha(visual.transform):0.##}, not 1";
+            }
             return null;
         }
     }
