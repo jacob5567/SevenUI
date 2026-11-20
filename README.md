@@ -16,10 +16,10 @@ Found a bug or have an idea? Open an issue on [GitHub](https://github.com/jacob5
 - **Functional Coupler:** the equipment you can switch to shows above the equipment slot, next first with your keys, the rest fading behind it.
 - **Prompts and notifications:** keycaps, with a strip in the color of the cost or the item's tier.
 - **Ally cards:** allies of one kind share a card, "Gunner Drone ×8", with a bar segment for each, and the cards stay clear of the chat: when they would reach it, the cards of single allies shrink to one-line rows, and if that is still too tall, the last allies' cards fold into a "+N more" row with an icon for each kind it holds. Other players' cards stay full size at the top and are never folded; their allies' cards sit indented under them, as in the game, and fold into a "+N more" row of their own.
-- **Scoreboard:** a row or a tab per player, with item counts per tier and the items at full size sorted by tier. The item or equipment you point at is described in a panel docked on the board, with who else holds it. The game's inspect panel under it, for what you stand beside, matches.
+- **Scoreboard:** a row or a tab per player, with item counts per tier and the items at full size sorted by tier. The item or equipment you point at is described in a panel docked on the board, with who else holds it. The game's inspect panel under it, for what you stand beside, matches, with LookingGlass's item stats in a column.
 - **Boss bar:** drawn as your health bar is, with the trail, shield, barrier, Lunar Ruin and curse, and a line where the boss would be executed.
 - **Countdowns:** the moon's escape, Winnowing trial and Champ Rush timers as flat panels with a draining bar.
-- **Tooltips, item pickers, pause menu and dialog boxes:** restyled to match.
+- **Tooltips, item pickers, pause menu and dialog boxes:** restyled to match, including the Drone Scrapper's panel. With LookingGlass, item stats count the stack you'd end up with: one less when a picker takes the item, one more when it gives it.
 
 ![The game's HUD and SevenUI side by side, midway through a run](https://raw.githubusercontent.com/jacob5567/SevenUI/main/docs/screenshots/before-after.jpg)
 

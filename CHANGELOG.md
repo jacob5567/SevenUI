@@ -1,8 +1,10 @@
-## Unreleased
+## 1.7.0
 
-- The scoreboard's inspect panel, shown for a pickup, chest, shrine or drone beside you, is restyled as on the design: 60% of the board's width, centered under it, on its flat face, a thin strip in the item's tier color, the icon on a dark slot, and the name in bold over the description.
-- Item picker options show how many you hold once, without LookingGlass's own "x2" beside SevenUI's count. An item you hold none of shows the count of held items void corruption ties it to, in their color, as LookingGlass's count did.
-- With LookingGlass's full descriptions on, item stats count the stack you'd actually end up with. On a panel that takes the item (the Lemurian egg, the rebirth shrine, the Solus vendor) they show one less stack, every panel that gives an item shows one more, and an item you click on the scoreboard shows the stack you hold.
+- The scoreboard's inspect panel, shown for the pickup, chest, shrine or drone beside you, is a flat panel centered under the board at 60% of its width: a thin strip in the item's tier color, the icon on a dark slot, and the name in bold over the description.
+- With LookingGlass's full descriptions on, the inspect panel shows an item's stats in a column at its right.
+- The Drone Scrapper's panel (Alloyed Collective) matches the other item pickers: a grid of drones that scrolls when long, the hovered drone's name and description, and the scrap it gives.
+- With LookingGlass's full descriptions on, item stats count the stack you'd end up with. Pickers that take the item (the Lemurian egg, the rebirth shrine, the Solus vendor) show one less stack, pickers that give it show one more, and an item you click on the scoreboard shows the stack you hold.
+- Item picker options show how many you hold once, without LookingGlass's own "x2" beside SevenUI's count. For an item you hold none of, the count shows the held items tied to it by void corruption, in their color.
 
 ## 1.6.0
 
