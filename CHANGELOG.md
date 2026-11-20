@@ -1,6 +1,6 @@
 ## Unreleased
 
-- The scoreboard's inspect panel, shown for a pickup, chest, shrine or drone beside you, is restyled as on the design: the board's width and flat face, a thin strip in the item's tier color, the icon on a dark slot, and the name in bold over the description.
+- The scoreboard's inspect panel, shown for a pickup, chest, shrine or drone beside you, is restyled as on the design: three quarters of the board's width on its flat face, a thin strip in the item's tier color, the icon on a dark slot, and the name in bold over the description.
 - Item picker options show how many you hold once, without LookingGlass's own "x2" beside SevenUI's count.
 - With LookingGlass's full descriptions on, item stats count the stack you'd actually end up with. On a panel that takes the item (the Lemurian egg, the rebirth shrine, the Solus vendor) they show one less stack, every panel that gives an item shows one more, and an item you click on the scoreboard shows the stack you hold.
 

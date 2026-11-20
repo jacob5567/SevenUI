@@ -9,8 +9,9 @@ using UnityEngine.UI;
 namespace SevenUI
 {
     // Restyles the game's inspect panel under the scoreboard (the description of the pickup or interactable the
-    // pointer is on, or that Tab was pressed beside) as the canvas's design A, in place: the board's flat face the
-    // board's width and a gap above it (top padding in the panel's own layout, not the scoreboard container's spacing),
+    // pointer is on, or that Tab was pressed beside) as the canvas's design A, in place: the board's flat face, three
+    // quarters of the board's width from its left edge, and a gap above it (top padding in the panel's own layout, not
+    // the scoreboard container's spacing),
     // a thin strip along its top in the title's color, the icon on a dark slot with a strip of that color along its
     // foot, and the name in bold over the description. The game's objects are not moved or replaced, only resized through their
     // layout groups, and its texts keep what it writes into them: the title's color is whatever the game set for the
@@ -57,6 +58,8 @@ namespace SevenUI
         private const float DescriptionLineHeight = 1.4f;
         private const float PercentPerLine = 100f;
         private const float DumpDelaySeconds = 0.5f;
+        // The share of the board's width the panel spans, from the board's left edge.
+        public const float WidthShare = 0.75f;
 
         private static readonly FieldInfo PanelField = typeof(InspectPanelController).GetField("InspectPanel", Fields);
         private static readonly FieldInfo TitleField = typeof(InspectPanelController).GetField("InspectTitleText", Fields);
@@ -112,6 +115,9 @@ namespace SevenUI
         // maps to none.
         private static Dictionary<string, ItemDef> itemsByDescription;
         private Transform panel;
+        private LayoutElement panelElement;
+        private Transform sizedPart;
+        private RectTransform boardFace;
         private Transform boardRoot;
         private Image iconVisual;
         private float shownSince = -1f;
@@ -145,16 +151,24 @@ namespace SevenUI
             panel = panelObject.transform;
             boardRoot = board;
 
+            boardFace = board.Find(ScoreboardStyler.BoardPath) as RectTransform;
             FullWidth(panelObject.transform, container);
             Transform box = inspection.Find(BoxName);
             // Down the chain the game lays the panel out through, each part the width of the one above and as tall as its
             // content. The gap above the face is the top padding of the nearest group above the face itself.
             Transform gapPart = GapPart(inspection, panelObject.transform);
+            // The face itself is a share of the board's width (FitWidth) at its left, so the group it is in doesn't
+            // stretch it.
             foreach (Transform part in new[] { panelObject.transform, panelObject.transform.childCount > 0 ?
                          panelObject.transform.GetChild(0) : null, inspection })
             {
-                Control(part, true, false, TextAnchor.UpperLeft, 0, 0, null, part == gapPart ? BoardGap : 0);
+                Control(part, part != inspection.parent, false, TextAnchor.UpperLeft, 0, 0, null, part == gapPart ? BoardGap : 0);
             }
+            sizedPart = inspection;
+            panelElement = Element(inspection);
+            panelElement.minWidth = 0f;
+            panelElement.flexibleWidth = 0f;
+            FitWidth();
             Control(box, false, false, TextAnchor.UpperLeft, PaddingX, PaddingY, IconGap);
             this.box = box as RectTransform;
             if (box)
@@ -339,6 +353,7 @@ namespace SevenUI
         // is hidden again if the game's Show turned it back on.
         private void Refresh()
         {
+            FitWidth();
             UpdateStats();
             FitIcon();
             if (title)
@@ -526,6 +541,9 @@ namespace SevenUI
             title = null;
             description = null;
             panel = null;
+            panelElement = null;
+            sizedPart = null;
+            boardFace = null;
             boardRoot = null;
             shownSince = -1f;
             strip = null;
@@ -746,7 +764,8 @@ namespace SevenUI
             LayoutRebuilder.ForceRebuildLayoutImmediate(box);
         }
 
-        // Spans the board: the game's panel hands out the container's width, after the board's share.
+        // Spans the board: the game's panel hands out the container's width, after the board's share. The face inside it
+        // is narrower (FitWidth).
         private void FullWidth(Transform panel, VerticalLayoutGroup container)
         {
             if (container)
@@ -774,6 +793,20 @@ namespace SevenUI
                     if (fitter) fitter.horizontalFit = fit;
                 });
                 fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+            }
+        }
+
+        // The face a share of the board's width (WidthShare), checked each update since the board's width changes with
+        // the number of players and its place; its group's alignment keeps it under the board's left edge.
+        private void FitWidth()
+        {
+            if (!panelElement || !boardFace || !sizedPart) return;
+            float scale = sizedPart.lossyScale.x;
+            if (scale <= 0f) return;
+            float width = Mathf.Round(boardFace.rect.width * boardFace.lossyScale.x / scale * WidthShare);
+            if (!Mathf.Approximately(panelElement.preferredWidth, width))
+            {
+                panelElement.preferredWidth = width;
             }
         }
 

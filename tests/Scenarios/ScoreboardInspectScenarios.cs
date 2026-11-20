@@ -14,8 +14,8 @@ using UnityEngine.UI;
 namespace SevenUI.Tests
 {
     // The scoreboard's inspect panel (what Tab shows for the pickup or interactable beside the player), restyled in place
-    // as the canvas's design A: the board's width, 6px under it (the top padding of the panel's own layout, not the
-    // container's spacing), the board's flat face, a 2px strip along its top in the title's color, the 56px icon on a
+    // as the canvas's design A: three quarters of the board's width from its left edge, 6px under it (the top padding
+    // of the panel's own layout, not the container's spacing), the board's flat face, a 2px strip along its top in the title's color, the 56px icon on a
     // dark slot with a 3px strip of that color along its foot, the name in bold 16 over the description in 13, in the
     // body color, wrapping beside the icon.
     // The panel is shown through the game's own controller (Show), which is what the interact prompt's Inspect does,
@@ -605,9 +605,10 @@ namespace SevenUI.Tests
             if (!inspection.gameObject.activeInHierarchy) return "the panel is not showing";
             Rect panel = CanvasSizeChecks.Box(h, (RectTransform)inspection);
             Rect boardBox = CanvasSizeChecks.Box(h, (RectTransform)boardFace);
-            if (Mathf.Abs(panel.xMin - boardBox.xMin) > Tolerance || Mathf.Abs(panel.width - boardBox.width) > Tolerance)
+            float width = Mathf.Round(boardBox.width * ScoreboardInspect.WidthShare);
+            if (Mathf.Abs(panel.xMin - boardBox.xMin) > Tolerance || Mathf.Abs(panel.width - width) > Tolerance)
             {
-                return $"panel {Format(panel)} not the board's width {Format(boardBox)}";
+                return $"panel {Format(panel)} not {ScoreboardInspect.WidthShare:P0} of the board's width from its left edge {Format(boardBox)}";
             }
             // Screen y grows upward: the face's top is the board's bottom less the gap, which the panel's own top padding
             // holds (the container's spacing is the game's and not counted on).

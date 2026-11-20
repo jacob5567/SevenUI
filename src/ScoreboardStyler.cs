@@ -20,7 +20,7 @@ namespace SevenUI
     internal sealed class ScoreboardStyler : IStyler
     {
         // Under the scoreboard panel.
-        private const string BoardPath = "Container/StripContainer";
+        public const string BoardPath = "Container/StripContainer";
         // The game's column headers, which the rows' columns no longer line up with.
         private const string HeadersPath = "Container/HeaderGroup";
         private const string InspectPanelPath = "Container/InspectPanel/InspectPanelArea/InspectionPanel";
