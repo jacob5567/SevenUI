@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using RoR2;
+using RoR2.Items;
 using RoR2.UI;
 using TMPro;
 using UnityEngine;
@@ -35,8 +37,54 @@ namespace SevenUI
         public TMP_Text Key;
 
         private int shownCount = -1;
+        private int shownCorrupting = -1;
+        // The items that corrupt this one (the void item it turns into) or that it corrupts (for a void item), found
+        // the first time the count is shown.
+        private ItemIndex corruptedInto = ItemIndex.None;
+        private List<ItemIndex> corrupts;
+        private Color corruptsColor;
         private bool shownAvailable = true;
         private bool wasHovered;
+
+        // How many held items are tied to this one by void corruption, as LookingGlass's own picker count shows it (which
+        // SevenUI hides): of the void item that would corrupt it, in the void color, or, for a void item, of the items
+        // it would corrupt, in their tier's color. 0 when none are held.
+        private int Corrupting(Inventory inventory, out Color color)
+        {
+            color = Color.white;
+            if (!inventory || Pickup == null || Pickup.itemIndex == ItemIndex.None) return 0;
+            if (corrupts == null)
+            {
+                corruptedInto = ContagiousItemManager.GetTransformedItemIndex(Pickup.itemIndex);
+                corrupts = new List<ItemIndex>();
+                foreach (ContagiousItemManager.TransformationInfo info in ContagiousItemManager.transformationInfos)
+                {
+                    if (info.transformedItem == Pickup.itemIndex)
+                    {
+                        corrupts.Add(info.originalItem);
+                    }
+                }
+                ItemDef first = corrupts.Count > 0 ? ItemCatalog.GetItemDef(corrupts[0]) : null;
+                ItemTierDef tier = first ? ItemTierCatalog.GetItemTierDef(first.tier) : null;
+                corruptsColor = tier ? GameColors.ToCanvas(ColorCatalog.GetColor(tier.colorIndex)) : Palette.Text;
+            }
+            if (corruptedInto != ItemIndex.None)
+            {
+                int held = inventory.GetItemCountTotal(corruptedInto);
+                if (held > 0)
+                {
+                    color = Palette.CountVoid;
+                    return held;
+                }
+            }
+            int originals = 0;
+            foreach (ItemIndex original in corrupts)
+            {
+                originals += inventory.GetItemCountTotal(original);
+            }
+            color = corruptsColor;
+            return originals;
+        }
 
         // Hovered with the pointer, or selected with a gamepad: the game's own state, which it shows by fading in its
         // hover outline.
@@ -82,11 +130,24 @@ namespace SevenUI
             if (Count)
             {
                 int count = inventory && Pickup != null && Pickup.itemIndex != ItemIndex.None ? inventory.GetItemCountTotal(Pickup.itemIndex) : 0;
-                if (count != shownCount)
+                Color color = Color.white;
+                int corrupting = count == 0 ? Corrupting(inventory, out color) : 0;
+                if (count != shownCount || corrupting != shownCorrupting)
                 {
                     shownCount = count;
-                    // As in the item bar: a count only for two or more.
-                    Count.text = count > 1 ? count.ToString() : "";
+                    shownCorrupting = corrupting;
+                    if (corrupting > 0)
+                    {
+                        // None of the item held, but void items tie it to a stack: the count in the color of what is held.
+                        Count.text = corrupting.ToString();
+                        Count.color = color;
+                    }
+                    else
+                    {
+                        // As in the item bar: a count only for two or more.
+                        Count.text = count > 1 ? count.ToString() : "";
+                        Count.color = Color.white;
+                    }
                 }
             }
             bool available = Available;

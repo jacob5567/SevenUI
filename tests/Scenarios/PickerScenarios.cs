@@ -114,6 +114,10 @@ namespace SevenUI.Tests
                 h => StatsByPanel(h, "fragment_potential", StackChange.Gain));
             yield return new Scenario(1, "picker_stats_as_held_delusion", Stages.TitanicPlains,
                 h => StatsByPanel(h, "delusion", StackChange.None));
+            yield return new Scenario(1, "picker_count_corrupted_by_void", Stages.TitanicPlains,
+                h => CorruptionCount(h, RoR2Content.Items.ChainLightning, DLC1Content.Items.ChainLightningVoid, 3, Palette.CountVoid));
+            yield return new Scenario(1, "picker_count_void_corrupts_held", Stages.TitanicPlains,
+                h => CorruptionCount(h, DLC1Content.Items.ChainLightningVoid, RoR2Content.Items.ChainLightning, 2, Palette.CountUncommon));
             yield return new Scenario(1, "picker_egg_empty", Stages.TitanicPlains, EggEmpty);
             yield return new Scenario(1, "picker_egg_empty_then_items", Stages.TitanicPlains, EggEmptyThenItems);
             yield return new Scenario(1, "picker_egg_items_no_message", Stages.TitanicPlains, EggWithItems);
@@ -870,6 +874,45 @@ namespace SevenUI.Tests
                 throw h.Fail($"LookingGlass's count \"{lookingGlassCount.GetComponent<TMP_Text>()?.text}\" shows beside the slot's");
             yield return h.Wait(SettleSeconds);
             yield return h.Screenshot("stats_" + name);
+        }
+
+        // With none of an offered item held but items tied to it by void corruption, the option's count shows how many
+        // of those are held, in their color, as LookingGlass's own count (which SevenUI hides) does: Polylutes held
+        // over Ukulele, in the void color, and Ukuleles held over Polylute, in the uncommon tier's. Opened from
+        // Command for the offered item, whose group holds it.
+        private static IEnumerator CorruptionCount(Harness h, ItemDef offered, ItemDef held, int count, Color color)
+        {
+            if (!offered || !held) throw h.Skip("the items' expansion isn't loaded");
+            Inventory inventory = Harness.LocalBody.master.inventory;
+            int before = inventory.GetItemCountPermanent(held);
+            int offeredBefore = inventory.GetItemCountPermanent(offered);
+            if (offeredBefore > 0) inventory.RemoveItemPermanent(offered, offeredBefore);
+            inventory.GiveItemPermanent(held, count);
+            h.OnCleanup(() =>
+            {
+                if (!inventory) return;
+                inventory.RemoveItemPermanent(held, count);
+                if (offeredBefore > 0) inventory.GiveItemPermanent(offered, offeredBefore);
+            });
+            // Giving a plain item while its void item is held corrupts it, so only the corruption's own pair is set up.
+            yield return h.Wait(SettleSeconds);
+            int total = inventory.GetItemCountTotal(held);
+            yield return GoHome(h);
+            PickupPickerController command = h.SpawnPrefab<PickupPickerController>(GameNames.CommandCube);
+            command.SetOptionsFromPickupForCommandArtifact(new UniquePickup(PickupCatalog.FindPickupIndex(offered.itemIndex)));
+            PickerPanel panel = null;
+            yield return OpenStyled(h, command, found => panel = found);
+            PickerButton option = panel.Buttons.FirstOrDefault(button => button.Pickup != null && button.Pickup.itemIndex == offered.itemIndex);
+            if (option == null) throw h.Skip($"Command for {offered.name} doesn't offer it");
+            if (!option.Count) throw h.Fail($"{offered.name}'s option has no count");
+            string expected = total.ToString();
+            yield return h.Until(() => option.Count.text == expected && SevenUIChecks.Near(option.Count.color, color),
+                () => $"{offered.name}'s count \"{option.Count.text}\" in {option.Count.color}, not \"{expected}\" in {color} " +
+                      $"for {total} {held.name} held");
+            Transform lookingGlassCount = option.Button.transform.Find(PickerPanel.LookingGlassCountName);
+            if (lookingGlassCount && lookingGlassCount.gameObject.activeInHierarchy) throw h.Fail("LookingGlass's own count shows too");
+            yield return h.Wait(SettleSeconds);
+            yield return h.Screenshot("corruption_" + offered.name);
         }
 
         // The Lemurian egg's panel, opened from a Command cube given it and these options (none for an egg with no items to
