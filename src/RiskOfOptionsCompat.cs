@@ -37,6 +37,7 @@ namespace SevenUI
             ModSettingsManager.AddOption(new CheckBoxOption(settings.LevelHud));
             ModSettingsManager.AddOption(new CheckBoxOption(settings.ScoreboardDetailPanel));
             ModSettingsManager.AddOption(new CheckBoxOption(settings.ScoreboardTabs));
+            ModSettingsManager.AddOption(new CheckBoxOption(settings.ScoreboardAllies));
             ModSettingsManager.AddOption(new CheckBoxOption(settings.RestylePauseMenu));
             ModSettingsManager.AddOption(new CheckBoxOption(settings.RestyleTooltips));
             ModSettingsManager.AddOption(new CheckBoxOption(settings.TimerHundredths));

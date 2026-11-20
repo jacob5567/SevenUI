@@ -5,6 +5,8 @@ namespace SevenUI.Tests
     {
         // The baked font assets are named "Barlow Medium" and "Barlow SemiBold" (FontLibrary).
         public const string BarlowFontPrefix = "Barlow";
+        // A scoreboard row's allies summary for a player without any (ScoreboardAlliesSummary).
+        public const string NoAllies = "No allies";
         // The run timer's font (FontLibrary.Condensed).
         public const string CondensedFontPrefix = "Barlow Condensed";
         // The mod's copy of the health bar style is named after the game's with this suffix (PlayerBarsStyler).

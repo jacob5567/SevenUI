@@ -60,6 +60,9 @@ namespace SevenUI
         private bool tabsAllowed;
         private float itemsHeight;
         private ScoreboardDetailPane pane;
+        private ScoreboardAllies allies;
+        // A row's least height: the plain row's, or taller to hold the allies' summary line while any player has allies.
+        private float plainRow = ScoreboardStyler.RowHeight;
         private ScoreboardTabShape tab;
         private bool stale = true;
         private float laidOutLimit;
@@ -79,6 +82,8 @@ namespace SevenUI
         // Read by the SevenUI.Tests plugin.
         public bool Collapsed => collapsed;
         public ScoreboardDetailPane Pane => pane;
+        public ScoreboardAllies Allies => allies;
+        public float PlainRowHeight => plainRow;
         public ScoreboardTabShape Tab => tab;
         public IReadOnlyList<ScoreboardItemGrid> Grids => grids;
         public ScoreboardStrip ShownStrip => shown;
@@ -126,6 +131,7 @@ namespace SevenUI
             line.offsetMin = Vector2.zero;
             line.offsetMax = new Vector2(HudUnits.DividerHeight, 0f);
             pane = new ScoreboardDetailPane(column, style, recorder);
+            allies = new ScoreboardAllies(recorder, strips, style);
             // Behind the rows, which the game keeps at the container's end (UIElementAllocator).
             RectTransform shape = UiFactory.NewObject(TabName, strips);
             recorder.Add(shape.gameObject);
@@ -150,6 +156,7 @@ namespace SevenUI
             described = null;
             highlighted = ItemIndex.None;
             pane?.Hide();
+            allies?.Close();
         }
 
         // While the rows are collapsed, shows this player's items.
@@ -177,6 +184,11 @@ namespace SevenUI
             {
                 if (grid.Refresh()) changed = true;
             }
+            if (allies.Update(grids))
+            {
+                plainRow = allies.LineShown ? ScoreboardStyler.AlliesRowHeight : ScoreboardStyler.RowHeight;
+                changed = true;
+            }
             if (collapsed)
             {
                 FollowSelection();
@@ -200,6 +212,7 @@ namespace SevenUI
                 grid.Highlight(highlighted, !collapsed);
             }
             PlacePane();
+            allies.Place();
         }
 
         private int RowsPaddingRight(bool withPane) =>
@@ -305,7 +318,7 @@ namespace SevenUI
                 size = SlotSize(candidate => CollapsedHeight(open, candidate, across), limit);
             }
             int shownIndex = open != null ? grids.IndexOf(open) : -1;
-            float step = ScoreboardStyler.RowHeight + spacing;
+            float step = plainRow + spacing;
             rowsHeight = Mathf.Max(0, grids.Count - 1) * spacing;
             itemsHeight = 0f;
             for (int i = 0; i < grids.Count; i++)
@@ -314,7 +327,7 @@ namespace SevenUI
                 bool withItems = !collapsed || grid == open;
                 grid.SetLayout(size, across);
                 float items = grid.HeightAt(size, across);
-                float height = collapsed ? ScoreboardStyler.RowHeight : RowHeight(grid, size, across);
+                float height = collapsed ? plainRow : RowHeight(grid, size, across);
                 rowsHeight += height;
                 SetRowHeight(grid.Strip, height);
                 // The tab's outline takes the place of the lines over and under the shown row.
@@ -344,7 +357,7 @@ namespace SevenUI
             float rowsTop = rowsPadding.top;
             float rowTop = rowsTop + shownIndex * step;
             float itemsTop = Mathf.Min(rowTop, rowsTop + Mathf.Max(rowsHeight, itemsHeight) - itemsHeight);
-            float itemsBottom = Mathf.Max(itemsTop + itemsHeight, rowTop + ScoreboardStyler.RowHeight);
+            float itemsBottom = Mathf.Max(itemsTop + itemsHeight, rowTop + plainRow);
             float stepX = rowsPadding.left + ScoreboardStyler.RowItemsLeft;
             // A full line of items is centered in the tab's width: slots fill from the left, so the cell is only as wide
             // as a line, or the leftover would all land at the right.
@@ -352,7 +365,7 @@ namespace SevenUI
             StatsSection.TopLeft(open.Cell, ScoreboardStyler.RowItemsLeft + TabInset + (across - used) / 2f,
                 itemsTop - rowTop + TabInset, used, itemsHeight - 2f * TabInset);
             tab.gameObject.SetActive(true);
-            tab.Place(Rect.MinMaxRect(rowsPadding.left, rowTop, stepX, rowTop + ScoreboardStyler.RowHeight),
+            tab.Place(Rect.MinMaxRect(rowsPadding.left, rowTop, stepX, rowTop + plainRow),
                 Rect.MinMaxRect(stepX, itemsTop, rowsPadding.left + rowWidth, itemsBottom), rowsTop, rowsTop + rowsHeight);
         }
 
@@ -377,7 +390,7 @@ namespace SevenUI
         }
 
         private float CollapsedHeight(ScoreboardItemGrid open, float size, float across) =>
-            Mathf.Max(grids.Count * ScoreboardStyler.RowHeight, 2f * TabInset + open.HeightAt(size, across));
+            Mathf.Max(grids.Count * plainRow, 2f * TabInset + open.HeightAt(size, across));
 
         // The line between rows, none over the first.
         private static void ShowDivider(ScoreboardItemGrid grid, bool show)
@@ -390,8 +403,8 @@ namespace SevenUI
         }
 
         // The items from the row's top line down, the row at least the plain row's height.
-        private static float RowHeight(ScoreboardItemGrid grid, float size, float across) =>
-            Mathf.Max(ScoreboardStyler.RowHeight, 2f * ScoreboardStyler.RowPaddingY + grid.HeightAt(size, across));
+        private float RowHeight(ScoreboardItemGrid grid, float size, float across) =>
+            Mathf.Max(plainRow, 2f * ScoreboardStyler.RowPaddingY + grid.HeightAt(size, across));
 
         private static void SetRowHeight(ScoreboardStrip strip, float height)
         {

@@ -28,6 +28,7 @@ namespace SevenUI.Tests
             (settings => settings.LevelHud, true),
             (settings => settings.ScoreboardDetailPanel, true),
             (settings => settings.ScoreboardTabs, true),
+            (settings => settings.ScoreboardAllies, true),
             (settings => settings.RestylePauseMenu, true),
             (settings => settings.RestyleTooltips, true),
             (settings => settings.TimerHundredths, false),
@@ -57,6 +58,7 @@ namespace SevenUI.Tests
             yield return new Suite("countdowns", CountdownScenarios.All());
             yield return new Suite("ally_portraits", AllyPortraitScenarios.All().Concat(AllyTierScenarios.All()));
             yield return new Suite("scoreboard_leave", ScoreboardLeaveScenarios.All());
+            yield return new Suite("scoreboard_allies", ScoreboardAlliesScenarios.All());
             yield return new Suite("screenshots", ScreenshotScenarios.All().Append(ScoreboardScenarios.SpreadScreenshot()).Concat(DialogScenarios.All()));
             // Changes the run for good, so only when named.
             yield return new Suite("store", true, StoreScenarios.All());
