@@ -9,8 +9,8 @@ using UnityEngine.UI;
 namespace SevenUI
 {
     // Restyles the game's inspect panel under the scoreboard (the description of the pickup or interactable the
-    // pointer is on, or that Tab was pressed beside) as the canvas's design A, in place: the board's flat face, three
-    // quarters of the board's width from its left edge, and a gap above it (top padding in the panel's own layout, not
+    // pointer is on, or that Tab was pressed beside) as the canvas's design A, in place: the board's flat face, 60% of
+    // the board's width, centered under it, and a gap above it (top padding in the panel's own layout, not
     // the scoreboard container's spacing),
     // a thin strip along its top in the title's color, the icon on a dark slot with a strip of that color along its
     // foot, and the name in bold over the description. The game's objects are not moved or replaced, only resized through their
@@ -58,8 +58,8 @@ namespace SevenUI
         private const float DescriptionLineHeight = 1.4f;
         private const float PercentPerLine = 100f;
         private const float DumpDelaySeconds = 0.5f;
-        // The share of the board's width the panel spans, from the board's left edge.
-        public const float WidthShare = 0.75f;
+        // The share of the board's width the panel spans, centered under the board.
+        public const float WidthShare = 0.6f;
 
         private static readonly FieldInfo PanelField = typeof(InspectPanelController).GetField("InspectPanel", Fields);
         private static readonly FieldInfo TitleField = typeof(InspectPanelController).GetField("InspectTitleText", Fields);
@@ -157,12 +157,14 @@ namespace SevenUI
             // Down the chain the game lays the panel out through, each part the width of the one above and as tall as its
             // content. The gap above the face is the top padding of the nearest group above the face itself.
             Transform gapPart = GapPart(inspection, panelObject.transform);
-            // The face itself is a share of the board's width (FitWidth) at its left, so the group it is in doesn't
+            // The face itself is a share of the board's width (FitWidth), centered, so the group it is in doesn't
             // stretch it.
             foreach (Transform part in new[] { panelObject.transform, panelObject.transform.childCount > 0 ?
                          panelObject.transform.GetChild(0) : null, inspection })
             {
-                Control(part, part != inspection.parent, false, TextAnchor.UpperLeft, 0, 0, null, part == gapPart ? BoardGap : 0);
+                bool faceGroup = part == inspection.parent;
+                Control(part, !faceGroup, false, faceGroup ? TextAnchor.UpperCenter : TextAnchor.UpperLeft, 0, 0, null,
+                    part == gapPart ? BoardGap : 0);
             }
             sizedPart = inspection;
             panelElement = Element(inspection);
@@ -797,7 +799,7 @@ namespace SevenUI
         }
 
         // The face a share of the board's width (WidthShare), checked each update since the board's width changes with
-        // the number of players and its place; its group's alignment keeps it under the board's left edge.
+        // the number of players and its place; its group's alignment centers it under the board.
         private void FitWidth()
         {
             if (!panelElement || !boardFace || !sizedPart) return;
