@@ -63,6 +63,7 @@ namespace SevenUI
         private static readonly FieldInfo DescriptionField = typeof(InspectPanelController).GetField("InspectDescription", Fields);
         private static readonly FieldInfo FlavorField = typeof(InspectPanelController).GetField("InspectFlavor", Fields);
         private static readonly FieldInfo SidecarField = typeof(InspectPanelController).GetField("Sidecar", Fields);
+        private static readonly FieldInfo SidecarInfoField = typeof(InspectPanelController).GetField("SidecarStoredInfo", Fields);
 
         private readonly StyleRecorder recorder;
         private readonly HUD hud;
@@ -101,6 +102,10 @@ namespace SevenUI
         private readonly Dictionary<ItemIcon, System.Action> clickHandlers = new Dictionary<ItemIcon, System.Action>();
         private readonly Dictionary<ItemInventoryDisplay, int> watchedIcons = new Dictionary<ItemInventoryDisplay, int>();
         private Button sidecarButton;
+        private InspectPanelController controller;
+        // The info the game keeps for the sidecar, which it replaces only when it shows a pickup from beside the
+        // player (Show with the sidecar), never on a click on the board.
+        private object sidecarInfo;
         private ItemStatsText.Parts shownParts;
         private ItemStatsText.Parts columnParts;
         // Each item by its description token, which the game's Show puts on the description; a token two items share
@@ -251,10 +256,15 @@ namespace SevenUI
         public void Update(IReadOnlyList<ScoreboardItemGrid> grids)
         {
             WatchClicks(grids);
+            object info = controller && SidecarInfoField != null ? SidecarInfoField.GetValue(controller) : null;
+            if (info != sidecarInfo)
+            {
+                sidecarInfo = info;
+                FromWorld();
+            }
             if (clicked && (!panel || !panel.gameObject.activeSelf))
             {
-                clicked = null;
-                clickedMaster = null;
+                FromWorld();
             }
             Refresh();
         }
@@ -287,6 +297,8 @@ namespace SevenUI
 
         private void WatchSidecar(InspectPanelController controller)
         {
+            this.controller = controller;
+            sidecarInfo = SidecarInfoField?.GetValue(controller);
             if (sidecarButton) return;
             GameObject sidecar = SidecarField != null ? SidecarField.GetValue(controller) as GameObject : null;
             sidecarButton = sidecar ? sidecar.GetComponentInChildren<HGButton>(true) : null;
@@ -318,6 +330,8 @@ namespace SevenUI
                 sidecarButton.onClick.RemoveListener(FromWorld);
             }
             sidecarButton = null;
+            controller = null;
+            sidecarInfo = null;
             FromWorld();
         }
 
