@@ -18,7 +18,7 @@ namespace SevenUI
         private readonly PickerSlots slots;
 
         // What the tallest-details measurement was made from. Hovering changes none of it, so hovers reuse the result.
-        private PickupPickerController.Option[] measuredOptions;
+        private object measuredOptions;
         private int measuredCount = -1;
         private float measuredTextWidth;
         private TMP_FontAsset measuredFont;
@@ -72,8 +72,8 @@ namespace SevenUI
             int columns = pickerGrid.Columns;
             int count = buttons.Count;
             float titleHeight = title ? title.GetPreferredValues("A").y : 0f;
-            RectTransform container = ui.Panel.buttonContainer;
-            GridLayoutGroup grid = ui.Panel.gridlayoutGroup;
+            PickerSource source = ui.Source;
+            GridLayoutGroup grid = source.Grid;
             Vector2 size;
             // How far above the screen's middle the panel's top sits.
             float top;
@@ -115,13 +115,13 @@ namespace SevenUI
                 float cardHeight = statsTop + statsHeight + CardPadding;
                 float width = count * cardWidth + (count - 1) * CardGap;
                 grid.cellSize = new Vector2(cardWidth, cardHeight);
-                container.anchoredPosition = new Vector2(0f, -(titleHeight + CardGap));
-                container.sizeDelta = new Vector2(width, cardHeight);
+                source.PlaceContent(0f, titleHeight + CardGap, width, cardHeight, cardHeight);
+                float panelHeight = titleHeight + CardGap + cardHeight;
                 if (title)
                 {
                     TopLeft(title.rectTransform, 0f, 0f, width, titleHeight);
                 }
-                size = new Vector2(width, titleHeight + CardGap + cardHeight);
+                size = new Vector2(width, panelHeight);
                 top = size.y / 2f;
             }
             else
@@ -138,9 +138,10 @@ namespace SevenUI
                 }
                 grid.cellSize = new Vector2(SlotSize, SlotSize);
                 float y = StripHeight + PartGap;
-                container.anchoredPosition = new Vector2(PaddingX, -y);
-                container.sizeDelta = new Vector2(gridWidth, gridHeight);
-                y += gridHeight + PartGap;
+                // A scroll view shows no more than so many rows; the rest scrolls.
+                float shownHeight = Mathf.Min(gridHeight, source.MaxContentHeight);
+                source.PlaceContent(PaddingX, y, gridWidth, shownHeight, gridHeight);
+                y += shownHeight + PartGap;
                 TopLeft(slots.Divider, PaddingX, y, textWidth, HudUnits.DividerHeight);
                 y += HudUnits.DividerHeight + DetailsGap;
                 float nameHeight = slots.DetailsName.GetPreferredValues("A").y;
@@ -155,9 +156,18 @@ namespace SevenUI
                 y += nameHeight + NameGap;
                 TopLeft(slots.DetailsDescription.rectTransform, PaddingX, y, textWidth, shownDescription);
                 float shownStats = slots.DetailsStats.Layout(PaddingX, y + shownDescription, textWidth);
-                size = new Vector2(width, y + shownDescription + shownStats + PaddingBottom);
-                top = (y + detailsHeight + PaddingBottom) / 2f;
+                // Parts of the game's the panel keeps (the drone scrapper's icon and scrap arrow) under the details.
+                float extrasTop = y + shownDescription + shownStats + PartGap;
+                float extras = source.PlaceExtras(PaddingX, extrasTop, textWidth);
+                float extrasHeight = extras > 0f ? PartGap + extras : 0f;
+                size = new Vector2(width, y + shownDescription + shownStats + extrasHeight + PaddingBottom);
+                top = (y + detailsHeight + extrasHeight + PaddingBottom) / 2f;
             }
+            SetPanel(mainPanel, size, top);
+        }
+
+        private static void SetPanel(RectTransform mainPanel, Vector2 size, float top)
+        {
             mainPanel.anchorMin = mainPanel.anchorMax = new Vector2(0.5f, 0.5f);
             mainPanel.pivot = new Vector2(0.5f, 1f);
             mainPanel.anchoredPosition = new Vector2(0f, top);

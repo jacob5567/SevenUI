@@ -60,6 +60,15 @@ namespace SevenUI
             return parts;
         }
 
+        // The text with a caption put above its first stat as LookingGlass puts its own (a blank line after the
+        // description, the caption, then the stats); the text as it was when it has no stats.
+        public static string WithCaption(string text, string caption)
+        {
+            if (string.IsNullOrEmpty(text)) return text;
+            Match first = StatLine.Match(text);
+            return first.Success ? text.Insert(first.Index, "\n" + caption) : text;
+        }
+
         // LookingGlass's Command descriptions are written without the player's master, so the stats it works out from
         // the master (Cautious Slug's regen, Tougher Times' block chance and a few more) fail, and it leaves the caption
         // with no stats under it. The caption is dropped then, as it heads nothing.

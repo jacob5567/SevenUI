@@ -29,10 +29,31 @@ namespace SevenUI
         {
             if (Button == null || !Button.Button) return;
             RectTransform rect = (RectTransform)Button.Button.transform;
+            Place(rect);
             RectTransform juice = ui.Juice;
             RectTransform main = owner.MainPanel;
             Vector3 panelRight = juice.InverseTransformPoint(main.TransformPoint(new Vector3(main.rect.xMax, 0f, 0f)));
             rect.anchoredPosition = new Vector2(panelRight.x - juice.rect.xMax, -LegendGap);
+        }
+
+        // Something in the Drone Scrapper's prefab sets the button's width again after it is styled (it was seen
+        // -1182 wide, reaching far to the right), so the size is put back whenever it has drifted.
+        public void Keep()
+        {
+            if (Button == null || !Button.Button) return;
+            RectTransform rect = (RectTransform)Button.Button.transform;
+            if (rect.sizeDelta != new Vector2(CancelWidth, CancelHeight) || rect.anchorMin != new Vector2(1f, 0f) ||
+                rect.anchorMax != new Vector2(1f, 0f))
+            {
+                Align();
+            }
+        }
+
+        private static void Place(RectTransform rect)
+        {
+            rect.anchorMin = rect.anchorMax = new Vector2(1f, 0f);
+            rect.pivot = Vector2.one;
+            rect.sizeDelta = new Vector2(CancelWidth, CancelHeight);
         }
 
         public void Clear()
@@ -56,9 +77,6 @@ namespace SevenUI
             Button = ui.StyleButton(mpButton, null, Palette.GhostButton);
             RectTransform rect = (RectTransform)button;
             ui.Recorder.RecordRect(rect);
-            rect.anchorMin = rect.anchorMax = new Vector2(1f, 0f);
-            rect.pivot = Vector2.one;
-            rect.sizeDelta = new Vector2(CancelWidth, CancelHeight);
             Align();
             // The game sizes the label to fit its own larger button, which overrides the font size: its label is
             // 13px regular text, centered in the button.

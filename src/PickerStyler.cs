@@ -30,7 +30,7 @@ namespace SevenUI
             root.GetComponentsInChildren(true, found);
             foreach (PickupPickerPanel panel in found)
             {
-                if (panels.Exists(styled => styled.Panel == panel)) continue;
+                if (panels.Exists(styled => styled.Component == panel)) continue;
                 PickerPanel styled = PickerPanel.For(panel, hud);
                 if (styled == null) continue;
                 panels.Add(styled);
@@ -68,7 +68,7 @@ namespace SevenUI
             foreach (PickerPanel panel in panels)
             {
                 if (!panel.Alive) continue;
-                output.AppendLine($"  picker {panel.Panel.name}: options={panel.Buttons.Count} cards={panel.Cards} empty={panel.Empty} " +
+                output.AppendLine($"  picker {panel.Component.name}: options={panel.Buttons.Count} cards={panel.Cards} empty={panel.Empty} " +
                                   $"size={panel.MainPanel.sizeDelta}");
             }
         }

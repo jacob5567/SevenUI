@@ -1,3 +1,9 @@
+## Unreleased
+
+- The scoreboard's inspect panel, shown for a pickup, chest, shrine or drone beside you, is restyled as on the design: 60% of the board's width, centered under it, on its flat face, a thin strip in the item's tier color, the icon on a dark slot, and the name in bold over the description.
+- Item picker options show how many you hold once, without LookingGlass's own "x2" beside SevenUI's count. An item you hold none of shows the count of held items void corruption ties it to, in their color, as LookingGlass's count did.
+- With LookingGlass's full descriptions on, item stats count the stack you'd actually end up with. On a panel that takes the item (the Lemurian egg, the rebirth shrine, the Solus vendor) they show one less stack, every panel that gives an item shows one more, and an item you click on the scoreboard shows the stack you hold.
+
 ## 1.6.0
 
 - The boss bar is drawn as your health bar is: health the boss just lost trails behind in dark red, health just healed shows in a lighter red, and its shield, void shield, barrier, Lunar Ruin and curse show as on your own bar. A thin line marks where the boss would be executed, while it is frozen or, for an elite boss, at your Old Guillotine threshold.

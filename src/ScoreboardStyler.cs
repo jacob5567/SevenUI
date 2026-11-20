@@ -20,7 +20,7 @@ namespace SevenUI
     internal sealed class ScoreboardStyler : IStyler
     {
         // Under the scoreboard panel.
-        private const string BoardPath = "Container/StripContainer";
+        public const string BoardPath = "Container/StripContainer";
         // The game's column headers, which the rows' columns no longer line up with.
         private const string HeadersPath = "Container/HeaderGroup";
         private const string InspectPanelPath = "Container/InspectPanel/InspectPanelArea/InspectionPanel";
@@ -93,11 +93,13 @@ namespace SevenUI
         private readonly HashSet<ScoreboardStrip> skipped = new HashSet<ScoreboardStrip>();
         private ScoreboardPlacement placement;
         private ScoreboardItemsBoard itemsBoard;
+        private readonly ScoreboardInspect inspect;
 
         public ScoreboardStyler(HUD hud, Transform root)
         {
             this.hud = hud;
             this.root = root;
+            inspect = new ScoreboardInspect(recorder, hud);
         }
 
         public bool Enabled => SevenUIPlugin.Settings.FlatPanels.Value;
@@ -119,7 +121,7 @@ namespace SevenUI
             {
                 itemsBoard.enabled = false;
             }
-            recorder.Restore();
+            inspect.Restore(recorder.Restore);
             styled.Clear();
             attempts.Clear();
             skipped.Clear();
@@ -134,6 +136,7 @@ namespace SevenUI
             {
                 placement.Update(SevenUIPlugin.Settings.ScoreboardBesideRunInfo.Value);
             }
+            inspect.Update(itemsBoard ? itemsBoard.Grids : null);
             styled.RemoveWhere(row => !row);
             skipped.RemoveWhere(row => !row);
             // The styler otherwise runs only when the HUD's hierarchy changes, which a row still being built may not do.
@@ -165,6 +168,7 @@ namespace SevenUI
             {
                 placement = new ScoreboardPlacement((RectTransform)board, container, root, recorder);
             }
+            inspect.Style(board, InspectPanelPath, container);
 
             Transform headers = board.Find(HeadersPath);
             RectTransform strips = board.Find(BoardPath) as RectTransform;

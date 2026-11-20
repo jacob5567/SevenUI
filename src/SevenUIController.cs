@@ -39,6 +39,7 @@ namespace SevenUI
         private TiltFlattener tilt;
         private SkillSlotsStyler skillSlots;
         private PickerStyler pickers;
+        private DroneScrapperStyler droneScrapper;
         private CountdownStyler countdowns;
         // Restored when the HUD goes: the text it hides is MusicDisplay's, which outlives the HUD.
         private MusicDisplayStyler music;
@@ -48,6 +49,9 @@ namespace SevenUI
         private int lastHierarchyCount = -1;
 
         public PickerStyler Pickers => pickers;
+
+        public DroneScrapperStyler DroneScrapper => droneScrapper;
+
         // Read by the SevenUI.Tests plugin.
         public CountdownStyler Countdowns => countdowns;
 
@@ -67,6 +71,7 @@ namespace SevenUI
             AllyCardsStyler allyCards = new AllyCardsStyler(hud, root);
             PromptsStyler prompts = new PromptsStyler(hud, root);
             pickers = new PickerStyler(hud, root);
+            droneScrapper = new DroneScrapperStyler(hud, root);
             NowPlaying nowPlaying = new NowPlaying();
             ScoreboardStyler scoreboard = new ScoreboardStyler(hud, root);
             ChatStyler chat = new ChatStyler(root);
@@ -80,17 +85,17 @@ namespace SevenUI
             HudMargins margins = new HudMargins(hud, root, skillSlots);
             stylers = new IStyler[]
             {
-                tilt, runInfo, rightInfoBar, playerBars, skillSlots, top, countdowns, itemIcons, allyCards, prompts, pickers,
+                tilt, runInfo, rightInfoBar, playerBars, skillSlots, top, countdowns, itemIcons, allyCards, prompts, pickers, droneScrapper,
                 scoreboard, chat, topBars, margins, fontSwapper, pause, music, nowPlayingPanel,
             };
             restoreOrder = new IStyler[]
             {
-                runInfo, rightInfoBar, playerBars, skillSlots, top, countdowns, itemIcons, allyCards, prompts, pickers, scoreboard,
+                runInfo, rightInfoBar, playerBars, skillSlots, top, countdowns, itemIcons, allyCards, prompts, pickers, droneScrapper, scoreboard,
                 chat, tilt, topBars, margins, fontSwapper, pause, music, nowPlayingPanel,
             };
             updateOrder = new IStyler[]
             {
-                runInfo, prompts, pickers, playerBars, top, countdowns, skillSlots, scoreboard, chat, allyCards, pause, music, nowPlayingPanel, margins, topBars,
+                runInfo, prompts, pickers, droneScrapper, playerBars, top, countdowns, skillSlots, scoreboard, chat, allyCards, pause, music, nowPlayingPanel, margins, topBars,
             };
             watched = new[]
             {
