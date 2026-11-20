@@ -26,6 +26,7 @@ namespace SevenUI.Tests
             h.OnCleanup(() => h.Cmd($"{NoEnemies} 0"));
             h.Cmd(Commands.KillAll);
             yield return h.Wait(ClearSeconds);
+            HoldAllies(h);
             yield return LensInstakills.SpawnLemurians(h, count, bodies);
             foreach (CharacterBody body in bodies)
             {
@@ -63,6 +64,38 @@ namespace SevenUI.Tests
                       h.Diagnosis(),
                 BarTimeout);
             found(group);
+        }
+
+        // The player's allies (Operator's drones, Engineer's turrets) would shoot the bosses and move the numbers, so
+        // their AI is off while the scenario runs and back on after.
+        private static void HoldAllies(Harness h)
+        {
+            CharacterMaster owner = Harness.LocalBody ? Harness.LocalBody.master : null;
+            if (!owner) return;
+            List<RoR2.CharacterAI.BaseAI> held = new List<RoR2.CharacterAI.BaseAI>();
+            foreach (CharacterMaster master in CharacterMaster.readOnlyInstancesList)
+            {
+                if (!master || master == owner || !master.minionOwnership || master.minionOwnership.ownerMaster != owner) continue;
+                foreach (RoR2.CharacterAI.BaseAI ai in master.GetComponents<RoR2.CharacterAI.BaseAI>())
+                {
+                    if (ai.enabled)
+                    {
+                        ai.enabled = false;
+                        held.Add(ai);
+                    }
+                }
+            }
+            if (held.Count > 0)
+            {
+                h.Log($"holding {held.Count} allies' AI so they leave the bosses alone");
+            }
+            h.OnCleanup(() =>
+            {
+                foreach (RoR2.CharacterAI.BaseAI ai in held)
+                {
+                    if (ai) ai.enabled = true;
+                }
+            });
         }
 
         public static HUDBossHealthBarController Bar(Harness h) =>
