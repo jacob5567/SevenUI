@@ -108,6 +108,12 @@ namespace SevenUI
                 });
                 hg.imageOnInteractable = null;
             }
+            // LookingGlass's own count ("x2" at the top right), which the slot's count already shows.
+            Transform lookingGlassCount = button.transform.Find(LookingGlassCountName);
+            if (lookingGlassCount && lookingGlassCount.gameObject.activeSelf)
+            {
+                Recorder.SetActive(lookingGlassCount.gameObject, false);
+            }
             Transform icon = button.transform.Find(IconName);
             if (icon)
             {

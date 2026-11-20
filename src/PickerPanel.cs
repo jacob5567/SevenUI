@@ -29,6 +29,8 @@ namespace SevenUI
         internal const string LegendName = "SubmenuLegend";
         internal const string CancelName = "CancelButton";
         internal const string IconName = "Icon";
+        // LookingGlass's count of the option held, which it adds to each option's button.
+        internal const string LookingGlassCountName = "LG_Quantity";
         internal const string BaseOutlineName = "BaseOutline";
         internal const string HoverOutlineName = "HoverOutline";
         // The parts of a panel's content the flat look keeps; everything else is the panel's own art (its outlines,

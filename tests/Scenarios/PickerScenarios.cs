@@ -864,6 +864,10 @@ namespace SevenUI.Tests
                              $"\"{expected.Caption}\" {expectedValues} ({change})");
             }
             h.Log($"{name}: \"{shown.Caption}\" {shownValues} for {held} held");
+            // The count shows once, as the slot's: LookingGlass's own "x2" is hidden.
+            Transform lookingGlassCount = panel.Buttons[0].Button.transform.Find(PickerPanel.LookingGlassCountName);
+            if (lookingGlassCount && lookingGlassCount.gameObject.activeInHierarchy)
+                throw h.Fail($"LookingGlass's count \"{lookingGlassCount.GetComponent<TMP_Text>()?.text}\" shows beside the slot's");
             yield return h.Wait(SettleSeconds);
             yield return h.Screenshot("stats_" + name);
         }
