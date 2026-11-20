@@ -44,7 +44,6 @@ namespace SevenUI.Tests
             yield return Allies.SummonDrones(h, Allies.GunnerDroneMaster, GunnerDrones, drones);
             yield return Allies.SummonDrones(h, Allies.HealingDroneMaster, HealingDrones, drones);
             CharacterBody hurt = drones[0].GetBody();
-            hurt.healthComponent.Networkhealth = hurt.healthComponent.fullHealth * HurtFraction;
             ScoreboardSetUp.GiveDifferentItems(h, 3);
             yield return ScoreboardSetUp.Open(h);
             ScoreboardItemsBoard board = Board(h);
@@ -70,10 +69,14 @@ namespace SevenUI.Tests
             {
                 throw h.Fail($"expected tiles counting ×{GunnerDrones} and ×{HealingDrones}, got \"{gunner}\" and \"{healing}\"");
             }
+            h.SetHealthFraction(hurt, HurtFraction);
+            float setTo = hurt.healthComponent.combinedHealthFraction;
             yield return h.Until(() => Mathf.Abs(board.Allies.SegmentFill(0, 0) - HurtFraction) < FillTolerance &&
                                        board.Allies.SegmentFill(0, 1) > 1f - FillTolerance,
                 () => $"the hurt drone's segment at half, the next full ({board.Allies.SegmentFill(0, 0):0.00}, " +
-                      $"{board.Allies.SegmentFill(0, 1):0.00})");
+                      $"{board.Allies.SegmentFill(0, 1):0.00}; the drone's health {setTo:0.00} when set, " +
+                      $"{(hurt ? hurt.healthComponent.combinedHealthFraction : -1f):0.00} now, " +
+                      $"first member {(board.Allies.AlliesOf(viewer).Kinds[0].Members[0] == drones[0] ? "is" : "isn't")} the hurt drone)");
             ExpectUnderBoard(h, board);
             yield return h.Wait(SettleSeconds);
             yield return h.Screenshot("scoreboard_allies_panel");
