@@ -52,10 +52,8 @@ namespace SevenUI
         private readonly Dictionary<AllyCardController, AllyKindParts> shared = new Dictionary<AllyCardController, AllyKindParts>();
         // Each ally's name as the game shows it, found again when its body or drone tier changes: a hidden card's own
         // label stops updating.
-        private readonly Dictionary<CharacterMaster, (CharacterBody Body, int Tier, string Name)> names =
-            new Dictionary<CharacterMaster, (CharacterBody, int, string)>();
+        private readonly AllyNames names = new AllyNames();
         private readonly List<AllyCardController> goneCards = new List<AllyCardController>();
-        private readonly List<CharacterMaster> goneMasters = new List<CharacterMaster>();
         private readonly Vector3[] corners = new Vector3[4];
         // The cards' container (the game's AllyCardManager, which stacks them) and the chat's message area.
         private RectTransform container;
@@ -605,33 +603,8 @@ namespace SevenUI
             return body && body.healthComponent && body.healthComponent.alive;
         }
 
-        // The name the game's card shows (Util.GetBestBodyName, as AllyCardController reads it), found again only when
-        // the ally's body or drone tier changes. An upgrade adds hidden items to the same body, so the tier is read from
-        // the synced inventory each time rather than assumed from the body.
-        // A master whose body died keeps its last name: the game destroys a dead ally's master a second after its body
-        // goes, and until then it would otherwise stand alone, its own card showing the dead mark beside its kind's.
-        // (lostBodyToDeath is in the master's synced flags, so a client sees it too.)
-        private string NameOf(CharacterMaster master, out int tier)
-        {
-            tier = 0;
-            CharacterBody body = master.GetBody();
-            names.TryGetValue(master, out (CharacterBody Body, int Tier, string Name) known);
-            if (!body)
-            {
-                if (!master.lostBodyToDeath || known.Name == null) return null;
-                tier = known.Tier;
-                return known.Name;
-            }
-            tier = body.inventory ? body.inventory.GetItemCountEffective(DLC3Content.Items.DroneUpgradeHidden) : 0;
-            if (known.Name != null && known.Body == body && known.Tier == tier) return known.Name;
-            string name = Util.GetBestBodyName(body.gameObject);
-            names[master] = (body, tier, name);
-            if (names.Count > cards.Count * 2)
-            {
-                ForgetGoneMasters();
-            }
-            return name;
-        }
+        // The name and tier the ally's kind is grouped by (AllyNames).
+        private string NameOf(CharacterMaster master, out int tier) => names.NameOf(master, cards.Count, out tier);
 
         // The height the cards may take down from the container's top: to the chat's top, less a gap, and never past
         // the container's own bottom, where the game would start squeezing them together.
@@ -692,22 +665,6 @@ namespace SevenUI
                 shared.Remove(card);
             }
             goneCards.Clear();
-        }
-
-        private void ForgetGoneMasters()
-        {
-            foreach (CharacterMaster master in names.Keys)
-            {
-                if (!master)
-                {
-                    goneMasters.Add(master);
-                }
-            }
-            foreach (CharacterMaster master in goneMasters)
-            {
-                names.Remove(master);
-            }
-            goneMasters.Clear();
         }
 
         private void StyleCard(AllyCardController card)
