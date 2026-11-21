@@ -40,6 +40,8 @@ namespace SevenUI
         private const string PlayersName = "PlayersBackground";
         public const string DividerName = "SevenUIRowDivider";
         private const string RowTextsName = "SevenUIRowTexts";
+        // The mod's holder of the name block's lines, from the row.
+        public const string RowTextsPath = RowBackgroundName + "/" + NameObjectName + "/" + RowTextsName;
         private const string OutlineName = "SevenUIEquipmentOutline";
 
         private const float Canvas = HudUnits.PerCanvasPixel;
@@ -65,6 +67,11 @@ namespace SevenUI
         // The name block's three lines, which the portrait beside it is centered on, as on the canvas.
         public const float NameBlockHeight = (NameFontSize + SurvivorFontSize + CountsFontSize) * LineHeight + 2f * LineGap;
         private const float MoneyFontSize = 20f * Canvas;
+        // The allies' summary line under the name block (ScoreboardAlliesSummary), 26px tall and 6px below it, and the
+        // row's least height while the rows have it.
+        public const float AlliesLineHeight = 26f * Canvas;
+        public const float AlliesLineGap = 6f * Canvas;
+        public const float AlliesRowHeight = 2f * RowPaddingY + NameBlockHeight + AlliesLineGap + AlliesLineHeight;
         // In a row, where the items start: after the portrait, the name block, the key item and the equipment.
         public const float RowItemsLeft = RowPaddingX + SlotSize + RowColumnGap + NameWidth + RowColumnGap + SlotSize +
                                           RowColumnGap + SlotSize + RowColumnGap;

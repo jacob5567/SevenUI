@@ -18,6 +18,7 @@ namespace SevenUI
         public readonly ConfigEntry<bool> LevelHud;
         public readonly ConfigEntry<bool> ScoreboardDetailPanel;
         public readonly ConfigEntry<bool> ScoreboardTabs;
+        public readonly ConfigEntry<bool> ScoreboardAllies;
         public readonly ConfigEntry<bool> RestylePauseMenu;
         public readonly ConfigEntry<bool> RestyleTooltips;
         public readonly ConfigEntry<bool> TimerHundredths;
@@ -61,6 +62,9 @@ namespace SevenUI
             ScoreboardTabs = config.Bind("Panels", "ScoreboardTabs", true,
                 "Collapses the scoreboard's rows to tabs when the items would not fit at a readable size. Off keeps every row " +
                 "and shrinks the items to fit. Only with FlatPanels on.");
+            ScoreboardAllies = config.Bind("Panels", "ScoreboardAllies", true,
+                "Shows each player's drones and other allies on the scoreboard: a summary under the player's name, which opens " +
+                "their allies in a panel under the board when clicked. Off shows none. Only with FlatPanels on.");
             RestylePauseMenu = config.Bind("Panels", "RestylePauseMenu", true,
                 "Restyle the pause menu with a title, the run's line and outlined buttons. Off keeps the game's look for it. " +
                 "Only with FlatPanels on.");

@@ -27,7 +27,7 @@ namespace SevenUI.Tests
         // The canvas's item slots on the scoreboard, at most 40px, and the items' place, 16px after the equipment, their
         // top at the name block's. With the rows collapsed, the shown items are 16px in from every side of their part
         // of the tab, which starts 16px after the equipment. The key item and equipment slots are 52px, and a collapsed
-        // row 92px tall.
+        // row 92px tall, or as tall as the allies' summary line needs while it shows (ScoreboardStyler.AlliesRowHeight).
         private const float ScoreboardItemSlot = 40f;
         // The gap between item slots, as a share of a slot (4px to 40px, ScoreboardItemGrid).
         private const float ScoreboardItemGapRatio = 4f / 40f;
@@ -998,7 +998,7 @@ namespace SevenUI.Tests
                   $"equipment {BoxText(equipmentBox)}";
         }
 
-        // Null when the collapsed rows are each a plain row's height, one under another as the rows' container spaces
+        // Null when the collapsed rows are each a plain row's height (taller while the allies' line shows), one under another as the rows' container spaces
         // them, their backgrounds ending before the items; only the shown player's items showing, inside the board.
         private static string CollapsedProblem(Harness h, ScoreboardItemsBoard board)
         {
@@ -1010,7 +1010,10 @@ namespace SevenUI.Tests
             Rect items = Box(h, shown.Cell);
             List<Rect> rows = board.Grids.Select(grid => Box(h, (RectTransform)grid.Strip.transform)).ToList();
             List<Rect> backgrounds = board.Grids.Select(grid => Box(h, grid.Background.rectTransform)).ToList();
-            bool plain = rows.All(row => Near(row.height, ScoreboardCollapsedRow));
+            float plainRow = board.Allies.LineShown
+                ? ScoreboardStyler.AlliesRowHeight / HudUnits.PerCanvasPixel
+                : ScoreboardCollapsedRow;
+            bool plain = rows.All(row => Near(row.height, plainRow));
             bool stacked = rows.Zip(rows.Skip(1), (above, below) => Near(above.yMin - below.yMax, spacing)).All(next => next);
             bool clear = backgrounds.All(background => background.xMax <= items.xMin + SizeTolerance);
             bool hidden = board.Grids.Where(grid => grid != shown).All(grid =>
