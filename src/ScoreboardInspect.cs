@@ -74,6 +74,10 @@ namespace SevenUI
         // the mod's.
         private readonly HashSet<Object> captured = new HashSet<Object>();
         private TMP_Text title;
+        // The title's color as the game last set it, and the shade it was given in its place.
+        private Color gameTitleColor;
+        private Color shadedTitleColor;
+        private bool titleShaded;
         private Image strip;
         private Image footStrip;
         private GameObject flavorObject;
@@ -351,8 +355,9 @@ namespace SevenUI
             FromWorld();
         }
 
-        // The strips take the title's color, which the game sets each time it shows something, at full opacity. The lore
-        // is hidden again if the game's Show turned it back on.
+        // The strips take the title's color, which the game sets each time it shows something, at full opacity, in
+        // SevenUI's shade of it (GameColors.ToCanvas), and the title turns that shade too, so a tier is one color
+        // everywhere (Jacob's pick, 2026-11-20). The lore is hidden again if the game's Show turned it back on.
         private void Refresh()
         {
             FitWidth();
@@ -360,8 +365,20 @@ namespace SevenUI
             FitIcon();
             if (title)
             {
-                Color color = title.color;
-                color.a = 1f;
+                // Only a color other than the shade is the game's: its alpha alone may change after.
+                Color current = title.color;
+                if (!titleShaded || !SameRgb(current, shadedTitleColor))
+                {
+                    gameTitleColor = current;
+                }
+                Color color = GameColors.ToCanvas(gameTitleColor);
+                Color shaded = new Color(color.r, color.g, color.b, current.a);
+                shadedTitleColor = shaded;
+                titleShaded = true;
+                if (current != shaded)
+                {
+                    title.color = shaded;
+                }
                 if (strip && strip.color != color)
                 {
                     strip.color = color;
@@ -519,12 +536,21 @@ namespace SevenUI
             SevenUIPlugin.Log.LogInfo(text.ToString());
         }
 
+        private static bool SameRgb(Color a, Color b) =>
+            Mathf.Approximately(a.r, b.r) && Mathf.Approximately(a.g, b.g) && Mathf.Approximately(a.b, b.b);
+
         // Puts the game's panel back by the recorder's restore. The title's color is the game's, set at each Show since it
-        // was recorded, so it is read first and put back over the recorded one.
+        // was recorded, so it is read first and put back over the recorded one; when it is still the shade Refresh gave
+        // it, the game's color it replaced goes back instead.
         public void Restore(System.Action restoreRecorded)
         {
             TMP_Text text = title;
             Color live = text ? text.color : default;
+            if (titleShaded && SameRgb(live, shadedTitleColor))
+            {
+                live = new Color(gameTitleColor.r, gameTitleColor.g, gameTitleColor.b, live.a);
+            }
+            titleShaded = false;
             restoreRecorded();
             Unwatch();
             box = null;
@@ -894,7 +920,7 @@ namespace SevenUI
             return element;
         }
 
-        // Its color is the game's, set at each Show for the pickup's tier or the interactable's kind.
+        // Its color is the game's, set at each Show for the pickup's tier or the interactable's kind; Refresh shades it.
         private void StyleName(TMP_Text text)
         {
             recorder.Record(text);

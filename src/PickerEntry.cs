@@ -26,14 +26,14 @@ namespace SevenUI
             Change = change,
             Permanent = permanent,
             NameToken = pickup?.nameToken,
-            Color = pickup != null ? pickup.baseColor : Palette.Text,
+            Color = pickup != null ? GameColors.ToCanvas(pickup.baseColor) : Palette.Text,
         };
 
         public static PickerEntry ForDrone(DroneDef drone) => new PickerEntry
         {
             Drone = drone,
             NameToken = drone ? drone.nameToken : null,
-            Color = drone ? ColorCatalog.GetColor(drone.color) : Palette.Text,
+            Color = drone ? GameColors.ToCanvas(ColorCatalog.GetColor(drone.color)) : Palette.Text,
         };
 
         // The description as the panel shows it: the game's short text, or the full one when LookingGlass is set to.

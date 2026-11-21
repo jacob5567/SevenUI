@@ -174,7 +174,7 @@ namespace SevenUI
         // Describes a row's key item, with every row holding the same. Reads only.
         public void Show(KeyItemDef keyItem, KeyItemIcon shown, IReadOnlyList<ScoreboardItemGrid> grids)
         {
-            Describe(ColorCatalog.GetColor(keyItem.colorIndex), AsyncTexture(shown.asyncIconImage), shown.tooltipProvider,
+            Describe(GameColors.ToCanvas(ColorCatalog.GetColor(keyItem.colorIndex)), AsyncTexture(shown.asyncIconImage), shown.tooltipProvider,
                 keyItem.nameToken, keyItem.descriptionToken);
             KeyItem = keyItem.keyItemIndex;
             rebuild = () => Show(keyItem, shown, grids);

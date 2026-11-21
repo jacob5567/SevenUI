@@ -290,7 +290,7 @@ namespace SevenUI.Tests
             string description = Expected(drone);
             string command = Language.GetStringFormatted(CommandToken, Language.GetString(drone.droneTechCommandToken));
             TooltipProvider tooltip = board.Allies.TileTooltip(0);
-            yield return h.Until(() => tooltip.titleColor == ColorCatalog.GetColor(drone.color) &&
+            yield return h.Until(() => tooltip.titleColor == (Color)ColorCatalog.GetColor(drone.color) &&
                                        board.Allies.TileText(0).StartsWith(tooltip.overrideTitleText) &&
                                        tooltip.overrideBodyText.Contains(description) &&
                                        tooltip.overrideBodyText.Contains(command) == commands,
