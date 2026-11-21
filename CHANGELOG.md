@@ -1,3 +1,8 @@
+## 1.8.0
+
+- The scoreboard shows each player's drones and other allies: under their name, the portraits of up to four kinds of ally and how many they have ("7 allies"). Clicking that line opens the player's allies in a panel under the board, with a tile per kind showing its count and each ally's health. Clicking it again, or closing the scoreboard, closes the panel. The new `ScoreboardAllies` setting turns this off.
+- Pointing at a drone's tile shows what the drone does, as its notification does when you buy one, or its skill description with LookingGlass installed. As Operator with ADMIN-OVERRIDE, the drone's command follows in green.
+
 ## 1.7.0
 
 - The scoreboard's inspect panel, shown for the pickup, chest, shrine or drone beside you, is a flat panel centered under the board at 60% of its width: a thin strip in the item's tier color, the icon on a dark slot, and the name in bold over the description.
