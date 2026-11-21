@@ -14,8 +14,8 @@ namespace SevenUI
     // centered at the inspect panel's share of the board's width: a header with the player, then a tile per kind with
     // its portrait, name, count and a health segment per ally. Clicking it again, or closing the scoreboard, closes
     // the panel. Kinds are grouped as the ally cards group them (AllyNames): one name, drone tier and leader.
-    // Hovering a drone's tile shows the tooltip the game's notification shows when the drone is bought: its name and
-    // function, and for an Operator with ADMIN-OVERRIDE what its command does (Tooltip).
+    // Hovering a drone's tile shows a tooltip like the game's notification when the drone is bought: its name, its full
+    // description, and for an Operator with ADMIN-OVERRIDE what its command does (Tooltip).
     //
     // A player's allies are the minions in their minion group (MinionOwnership, synced, so a client sees every
     // player's), and those minions' own minions, alive. Read only. The board (ScoreboardItemsBoard) updates this while
@@ -493,7 +493,8 @@ namespace SevenUI
         }
 
         // The drone notification's texts (GenericNotification.SetDrone): the name, here with its tier as the tile has
-        // it, in the drone's color, its function, then for an Operator its command, which the notification shows in a
+        // it, in the drone's color, its description (the full one, not the notification's short function), then for an
+        // Operator its command, which the notification shows in a
         // panel of its own. Each in the notification's color, in the look the tooltip has (restyled by TooltipStyler or
         // the game's). Without a title color the game shows no tooltip, so other allies have none.
         private static void Tooltip(TooltipProvider tooltip, Kind kind, bool commands, bool restyled)
@@ -506,16 +507,34 @@ namespace SevenUI
                 tooltip.overrideBodyText = "";
                 return;
             }
-            string body = Colored(Language.GetString(drone.pickupToken), restyled ? Palette.HeaderText : NotificationDescription);
+            string description = Description(drone);
+            string body = description.Length > 0 ? Colored(description, restyled ? Palette.HeaderText : NotificationDescription) : "";
             if (commands && !string.IsNullOrWhiteSpace(drone.droneTechCommandToken))
             {
-                body += CommandSeparator + Colored(
+                body += (body.Length > 0 ? CommandSeparator : "") + Colored(
                     Language.GetStringFormatted(CommandToken, Language.GetString(drone.droneTechCommandToken)), NotificationCommand);
             }
             tooltip.titleColor = ColorCatalog.GetColor(drone.color);
             tooltip.overrideTitleText = kind.Name;
             tooltip.bodyColor = TooltipBodyColor;
             tooltip.overrideBodyText = body;
+        }
+
+        // The drone's full description ("A companion bought with gold that will follow the survivor..."), or its short
+        // function, which the notification has, should a drone have no description. A token missing from the language
+        // files comes back as the token itself, so it counts as none: Operator's own drones (CROSSHAIRS, DOC, CHIRP) have
+        // a description but no function.
+        private static string Description(DroneDef drone)
+        {
+            string description = Text(drone.descriptionToken);
+            return description.Length > 0 ? description : Text(drone.pickupToken);
+        }
+
+        private static string Text(string token)
+        {
+            if (string.IsNullOrEmpty(token)) return "";
+            string text = Language.GetString(token);
+            return text != token ? text : "";
         }
 
         private static string Colored(string text, Color color) =>
