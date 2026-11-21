@@ -230,6 +230,7 @@ namespace SevenUI.Tests
             GiveBuffs(h, ManyBuffs);
             GiveStacks(h, StackedBuffCount);
             yield return h.ExpectBuffsInRows(2);
+            yield return h.ExpectBuffPicturesFillSquares();
             yield return h.ExpectBuffCountsInCorner();
             h.SetConfig(SevenUIPlugin.Settings.FlatPanels, false);
             yield return h.ExpectBuffsInGameRow();
