@@ -493,8 +493,7 @@ namespace SevenUI
         }
 
         // The drone notification's texts (GenericNotification.SetDrone): the name, here with its tier as the tile has
-        // it, in the drone's color, its short function (or its full description without one), then for an
-        // Operator its command, which the notification shows in a
+        // it, in the drone's color, its description (Description), then for an Operator its command, which the notification shows in a
         // panel of its own. Each in the notification's color, in the look the tooltip has (restyled by TooltipStyler or
         // the game's). Without a title color the game shows no tooltip, so other allies have none.
         private static void Tooltip(TooltipProvider tooltip, Kind kind, bool commands, bool restyled)
@@ -520,11 +519,16 @@ namespace SevenUI
             tooltip.overrideBodyText = body;
         }
 
-        // The drone's short function, as the notification has it ("Shoots nearby enemies."), or its full description
-        // for a drone without one. A token missing from the language files comes back as the token itself, so it counts
-        // as none: Operator's own drones (CROSSHAIRS, DOC, CHIRP) have a description but no function.
+        // With LookingGlass installed, the drone's skill description ("Deploys a healing beam that restores health
+        // equal to 200% base damage."), which LookingGlass shows on its ally cards and, with its Full Descriptions On
+        // Pickup setting, in the notification. Otherwise, or for a drone without one, its short function as the game's
+        // notification has it ("Heals you and close allies."), then its full description. A token missing from the
+        // language files comes back as the token itself, so it counts as none: Operator's own drones (CROSSHAIRS, DOC,
+        // CHIRP) have no function.
         private static string Description(DroneDef drone)
         {
+            string skill = PickupDescriptions.LookingGlass() ? Text(drone.skillDescriptionToken) : "";
+            if (skill.Length > 0) return skill;
             string function = Text(drone.pickupToken);
             return function.Length > 0 ? function : Text(drone.descriptionToken);
         }

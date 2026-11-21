@@ -33,6 +33,10 @@ namespace SevenUI
         private static bool itemDescriptionLooked;
         private static bool itemDescriptionFailed;
 
+        // Whether LookingGlass is loaded, whatever its settings.
+        public static bool LookingGlass() =>
+            Chainloader.PluginInfos.TryGetValue(LookingGlassGUID, out PluginInfo info) && info.Instance;
+
         // Read each time a panel is styled, so a change in Risk Of Options shows on the next picker.
         public static bool Full()
         {

@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using BepInEx.Bootstrap;
 using ModTestRunner;
 using RoR2;
 using RoR2.UI;
@@ -211,7 +212,7 @@ namespace SevenUI.Tests
         }
 
         // The pointer on a Gunner Drone's tile opens the drone notification's tooltip: the tile's name in the drone's
-        // color and its short function, without Operator's command for a survivor who isn't one: Commando, as the run may
+        // color and its description (Expected), without Operator's command for a survivor who isn't one: Commando, as the run may
         // start as Operator.
         private static IEnumerator DroneTooltip(Harness h)
         {
@@ -235,8 +236,8 @@ namespace SevenUI.Tests
             yield return TooltipOfGunnerDrone(h, commands, "scoreboard_allies_operator_tooltip");
         }
 
-        // Operator's own CROSSHAIRS has a description but no short function (DRONE_DTGUNNER_FUNCTION isn't in the
-        // language files): its tooltip has its full description instead, and no token.
+        // Operator's own CROSSHAIRS has no short function (DRONE_DTGUNNER_FUNCTION isn't in the language files): its
+        // tooltip has its skill description with LookingGlass, its full description without, and never the token.
         private static IEnumerator OperatorOwnDroneTooltip(Harness h)
         {
             yield return h.TurnInto(GameNames.DroneTech);
@@ -249,9 +250,18 @@ namespace SevenUI.Tests
             yield return OpenOneTile(h);
             ScoreboardItemsBoard opened = Board(h);
             TooltipProvider tooltip = opened.Allies.TileTooltip(0);
-            string description = Language.GetString(drone.descriptionToken);
+            string description = Expected(drone);
             yield return h.Until(() => tooltip.overrideBodyText.Contains(description) && !tooltip.overrideBodyText.Contains(drone.pickupToken),
-                () => $"CROSSHAIRS's tooltip with its description \"{description}\" and no token, got \"{tooltip.overrideBodyText}\"");
+                () => $"CROSSHAIRS's tooltip with \"{description}\" and no token, got \"{tooltip.overrideBodyText}\"");
+        }
+
+        // A drone's tooltip text: with LookingGlass its skill description, as LookingGlass's ally cards have; without, the
+        // notification's short function, or the full description for a drone with none.
+        private static string Expected(DroneDef drone)
+        {
+            if (Chainloader.PluginInfos.ContainsKey(GameNames.LookingGlassGUID)) return Language.GetString(drone.skillDescriptionToken);
+            string function = Language.GetString(drone.pickupToken);
+            return function != drone.pickupToken ? function : Language.GetString(drone.descriptionToken);
         }
 
         // Opens the scoreboard and the viewer's allies panel, which has one tile.
@@ -277,7 +287,7 @@ namespace SevenUI.Tests
             yield return h.Until(() => (summary = OwnSummary(board)) && summary.Clickable, "the viewer's summary");
             yield return Click(h, summary);
             yield return h.Until(() => Shown(board.Allies.Panel) && board.Allies.TileCount == 1, "the allies panel with one tile");
-            string description = Language.GetString(drone.pickupToken);
+            string description = Expected(drone);
             string command = Language.GetStringFormatted(CommandToken, Language.GetString(drone.droneTechCommandToken));
             TooltipProvider tooltip = board.Allies.TileTooltip(0);
             yield return h.Until(() => tooltip.titleColor == ColorCatalog.GetColor(drone.color) &&
