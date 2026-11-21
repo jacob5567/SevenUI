@@ -1,4 +1,5 @@
 using System;
+using RoR2.UI;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -10,6 +11,12 @@ namespace SevenUI
     // button that opens the player's allies under the board (ScoreboardAllies). Its outline is the accent's while that
     // panel shows this player. A player without allies has "No allies" there instead, so the rows stay alike; the line
     // is hidden while no player has any.
+    //
+    // It is the game's kind of button (MPButton), as the row's own are, with the row's UIInputPassthrough. While any
+    // UI object is selected the game takes the player's input away unless that object lets it through
+    // (PlayerCharacterMasterController via LocalUser.isUIFocused), and only an MPButton's selection is dropped once it is
+    // hidden (MPEventSystem.ValidateCurrentSelectedGameobject). A plain Unity button stayed selected after a click,
+    // even with the scoreboard closed, and took every key away until the player clicked elsewhere.
     internal sealed class ScoreboardAlliesSummary : MonoBehaviour
     {
         public const string SummaryName = "SevenUIAlliesSummary";
@@ -35,7 +42,7 @@ namespace SevenUI
         private readonly RawImage[] portraits = new RawImage[MaxStacked];
         private readonly RectTransform[] cells = new RectTransform[MaxStacked];
         private Image face;
-        private Button button;
+        private MPButton button;
         private TMP_Text label;
         private PixelOutline outline;
         private int shownShape = -1;
@@ -65,7 +72,11 @@ namespace SevenUI
         {
             face = rect.gameObject.AddComponent<Image>();
             face.color = Color.white;
-            button = rect.gameObject.AddComponent<Button>();
+            // MPButton finds its event system through this in its Awake, so it goes first.
+            rect.gameObject.AddComponent<MPEventSystemLocator>();
+            button = rect.gameObject.AddComponent<MPButton>();
+            // As on the game's scoreboard row: while selected, the player can still move.
+            rect.gameObject.AddComponent<UIInputPassthrough>().OnlyAllowMovement = true;
             button.targetGraphic = face;
             ColorBlock colors = button.colors;
             colors.normalColor = Rest;

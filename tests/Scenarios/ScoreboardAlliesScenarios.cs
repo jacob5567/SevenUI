@@ -173,8 +173,19 @@ namespace SevenUI.Tests
             yield return Click(h, summary);
             yield return h.Until(() => Shown(board.Allies.Panel), "the allies panel");
             LocalUser user = LocalUserManager.GetFirstLocalUser();
+            // The press selected the summary, as a real one does; while it is selected the player can still move, as
+            // on the game's row.
+            if (user.eventSystem.currentSelectedGameObject == summary.gameObject && !user.GetUIPassthrough())
+            {
+                throw h.Fail("the selected summary takes all of the player's input away");
+            }
             HUD.SetScoreboardActive(user, false, EScoreboardDeactivateReturnContext.Game);
             yield return h.Until(() => !HUD.IsScoreboardActive(user), "the scoreboard closed");
+            // Closed, nothing of the scoreboard stays selected to keep the player's input from them.
+            yield return h.Until(() => user.eventSystem.currentSelectedGameObject != summary.gameObject && !user.isUIFocused,
+                () => $"the player's input back with the scoreboard closed (selected " +
+                      $"{(user.eventSystem.currentSelectedGameObject ? user.eventSystem.currentSelectedGameObject.name : "nothing")}, " +
+                      $"UI focused {user.isUIFocused})");
             yield return ScoreboardSetUp.Open(h);
             yield return h.Wait(SettleSeconds);
             if (board.Allies.Open || Shown(board.Allies.Panel))
@@ -183,10 +194,15 @@ namespace SevenUI.Tests
             }
         }
 
-        // A left click on the summary, as the pointer gives it.
+        // A left click on the summary, as the pointer gives it: down, up and click, through the HUD's event system, as
+        // the game's button takes only its own's (MPButton.InputModuleIsAllowed). The press selects it, as a real one
+        // does.
         private static IEnumerator Click(Harness h, ScoreboardAlliesSummary summary)
         {
-            PointerEventData click = new PointerEventData(EventSystem.current) { button = PointerEventData.InputButton.Left };
+            EventSystem events = summary.Button is MPButton button && button.eventSystem ? button.eventSystem : EventSystem.current;
+            PointerEventData click = new PointerEventData(events) { button = PointerEventData.InputButton.Left };
+            ExecuteEvents.Execute(summary.gameObject, click, ExecuteEvents.pointerDownHandler);
+            ExecuteEvents.Execute(summary.gameObject, click, ExecuteEvents.pointerUpHandler);
             ExecuteEvents.Execute(summary.gameObject, click, ExecuteEvents.pointerClickHandler);
             yield return null;
         }
