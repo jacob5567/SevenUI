@@ -37,6 +37,7 @@ namespace SevenUI.Tests
         private const float TrialNotificationSeconds = 2f;
         // The health bar fits about a dozen buff slots across.
         private const int ManyBuffs = 20;
+        private const int MarkedStacks = 3;
         private const int StackedBuffCount = 3;
         private const int AllyCount = 2;
         // One, so its card keeps the game's health bar: allies of one kind share a card with a bar split per ally.
@@ -78,6 +79,7 @@ namespace SevenUI.Tests
             yield return new Scenario(1, "ntormat_pages_follow_key_item", Stages.TitanicPlains, NtormatPagesFollowKeyItem);
             yield return new Scenario(1, "top_is_flat", Stages.TitanicPlains, TopIsFlat);
             yield return new Scenario(1, "item_icons_are_flat", Stages.TitanicPlains, ItemIconsAreFlat);
+            yield return new Scenario(1, "item_count_clear_of_marks", Stages.TitanicPlains, ItemCountClearOfMarks);
             yield return new Scenario(1, "prompt_is_flat", Stages.TitanicPlains, PromptIsFlat);
             yield return new Scenario(1, "prompt_as_canvas", Stages.TitanicPlains, PromptAsCanvas);
             yield return new Scenario(1, "prompt_strip_health", Stages.TitanicPlains, PromptStripHealth);
@@ -236,6 +238,68 @@ namespace SevenUI.Tests
             yield return h.ExpectBuffsInGameRow();
             h.SetConfig(SevenUIPlugin.Settings.FlatPanels, true);
             yield return h.ExpectBuffsInRows(2);
+        }
+
+        // With temporary and Ethereal (rented) stacks held, each slot's count sits in its top-right corner, clear of the
+        // game's cooldown ring and Ethereal mark at the bottom right. Stacks given on the host and taken back at cleanup.
+        private static IEnumerator ItemCountClearOfMarks(Harness h)
+        {
+            Inventory inventory = Harness.LocalBody.inventory;
+            ItemIndex temporary = RoR2Content.Items.Hoof.itemIndex;
+            ItemIndex rented = RoR2Content.Items.Mushroom.itemIndex;
+            inventory.GiveItemTemp(temporary, MarkedStacks);
+            inventory.GiveItemRented(rented, MarkedStacks);
+            h.OnCleanup(() =>
+            {
+                if (!inventory) return;
+                inventory.RemoveItemTemp(temporary, MarkedStacks);
+                inventory.RemoveItemRented(rented, MarkedStacks);
+            });
+            HUD hud = SevenUIChecks.HudRoot(h).GetComponent<HUD>();
+            string problem = null;
+            yield return h.Until(() =>
+            {
+                ItemIcon[] icons = hud.itemInventoryDisplay.GetComponentsInChildren<ItemIcon>()
+                    .Where(icon => icon.itemIndex == temporary || icon.itemIndex == rented).ToArray();
+                if (icons.Length < 2)
+                {
+                    problem = $"{icons.Length} of the 2 marked items in the bar";
+                    return false;
+                }
+                foreach (ItemIcon icon in icons)
+                {
+                    TMP_Text count = icon.stackText;
+                    Image mark = icon.itemIndex == temporary ? icon.durationImage : icon.rentalImage;
+                    if (!count || count.text != MarkedStacks.ToString() || count.alignment != TextAlignmentOptions.TopRight)
+                    {
+                        problem = $"{icon.itemIndex}'s count \"{(count ? count.text : "-")}\" aligned {(count ? count.alignment.ToString() : "-")}";
+                        return false;
+                    }
+                    if (!mark || !mark.isActiveAndEnabled)
+                    {
+                        problem = $"{icon.itemIndex}'s mark isn't shown";
+                        return false;
+                    }
+                    Rect digits = WorldRect(count.rectTransform, count.textBounds);
+                    Rect markBox = WorldRect(mark.rectTransform, new Bounds(mark.rectTransform.rect.center, mark.rectTransform.rect.size));
+                    if (digits.Overlaps(markBox))
+                    {
+                        problem = $"{icon.itemIndex}'s count {digits} overlaps its mark {markBox}";
+                        return false;
+                    }
+                }
+                problem = null;
+                return true;
+            }, () => $"the counts of a temporary and an Ethereal stack clear of their marks: {problem}");
+            yield return h.Screenshot("marks");
+        }
+
+        // A box in the rect's local space, in world space.
+        private static Rect WorldRect(RectTransform rect, Bounds local)
+        {
+            Vector3 min = rect.TransformPoint(local.min);
+            Vector3 max = rect.TransformPoint(local.max);
+            return Rect.MinMaxRect(Mathf.Min(min.x, max.x), Mathf.Min(min.y, max.y), Mathf.Max(min.x, max.x), Mathf.Max(min.y, max.y));
         }
 
         // Distinct shown buffs that aren't elite auras, each taken off again at cleanup. The runner is the host.

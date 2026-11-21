@@ -19,11 +19,12 @@ namespace SevenUI
         // In the icon's own units (the icon is 58 across before the bar scales it).
         private const float SlotInset = 1f;
         private const float TierStripHeight = 4f;
-        // The design's count: 15px on a 40px slot, 3px from the right and just above the tier strip. TMP puts the
-        // line's descender at the bottom margin, so the digits stand that much higher than it.
+        // The design's count: 15px on a 40px slot, 3px from the right, in the top-right corner as the game puts it. The
+        // bottom right is where the game draws a temporary item's cooldown ring and an Ethereal item's mark, which the
+        // count used to sit on (Jacob's pick, 2026-11-20).
         private const float CountFontSize = 22f;
         private const float CountInsetRight = 4f;
-        private const float CountInsetBottom = 2f;
+        private const float CountInsetTop = 1f;
 
         private readonly Transform root;
         private readonly StyleRecorder recorder = new StyleRecorder();
@@ -84,8 +85,8 @@ namespace SevenUI
                 count.fontSize = CountFontSize;
                 count.fontStyle |= FontStyles.Bold;
                 count.color = Color.white;
-                count.alignment = TextAlignmentOptions.BottomRight;
-                count.margin = new Vector4(0f, 0f, CountInsetRight, CountInsetBottom);
+                count.alignment = TextAlignmentOptions.TopRight;
+                count.margin = new Vector4(0f, CountInsetTop, CountInsetRight, 0f);
                 count.text = "";
                 // The label comes before the item's picture, which would draw over it; the sprite digits it stands in
                 // for come last.
