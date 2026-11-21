@@ -1,5 +1,7 @@
 # Plan for the open Super Productivity tasks
 
+**Status (2026-11-20):** Phases A to F shipped in 1.5.0 to 1.8.0, except three tasks that were not addressed: B4 and C2 were never started, and F2 was split off. Each table's Status column says which; the three now sit in Phases H to J. D3 and F1 shipped without the C2 and B4 they were planned to follow. Phase G has not started.
+
 This plan orders the open tasks in the SevenUI project in Super Productivity: 23 as of 2026-11-15 (Phases A to G), and the ten added on 2026-11-20 with what A to G left open and four older bugs (Phases H to J). Each task's notes there hold the detail: repro, design and scope. This file only adds the order, the reasons for it and what each task depends on. Task titles are shortened; estimates are the ones in Super Productivity and total about 170 hours for Phases A to G and 64 for H to J (H10 and H11 are B4 and C2, counted in both).
 
 ## Why this order
@@ -28,12 +30,12 @@ Phases A, B and C1 can be in progress at once: each has its own phase branch, te
 
 All four edit `AllyCardsStyler` and its cards, so each branches from the one before it where they overlap.
 
-| # | Task | Est. | Depends on |
-|---|---|---|---|
-| A1 | Different drone tiers share one card | 3 h | none |
-| A2 | Dead X over a stack that still has living drones | 5 h | A1 |
-| A3 | Players must stay full size and at the top | 2 h | A1 |
-| A4 | Barrier covers the whole bar on compact rows | 1 h | none |
+| # | Task | Est. | Depends on | Status |
+|---|---|---|---|---|
+| A1 | Different drone tiers share one card | 3 h | none | Done, 1.5.0 |
+| A2 | Dead X over a stack that still has living drones | 5 h | A1 | Done, 1.5.0 |
+| A3 | Players must stay full size and at the top | 2 h | A1 | Done, 1.5.0 |
+| A4 | Barrier covers the whole bar on compact rows | 1 h | none | Done, 1.5.0 |
 
 - A1 goes first because it changes the grouping key (name and leader, plus tier). A2 asks which card owns a kind after a death or a scrap, and the answer depends on that key. A1's notes also suspect a stale per-body name cache, which may be A2's cause too, so check it once in A1.
 - A3 changes the fitting (which cards go compact or fold into "+N more"). Do it after A2 so the two don't both rewrite the card ordering.
@@ -45,12 +47,12 @@ A3's scenario uses stand-in players, as the `scoreboard_leave` suite does (AI Co
 
 ## Phase B: scoreboard bugs (10 h)
 
-| # | Task | Est. | Depends on |
-|---|---|---|---|
-| B1 | Equipment outline is unevenly thick | 2 h | none |
-| B2 | Unequal side padding in the tabbed board | 2 h | none |
-| B3 | Hide the holders list with one player | 1 h | none |
-| B4 | Frame rate drops when hovering the item list | 5 h | B1, B3 |
+| # | Task | Est. | Depends on | Status |
+|---|---|---|---|---|
+| B1 | Equipment outline is unevenly thick | 2 h | none | Done, 1.5.0 |
+| B2 | Unequal side padding in the tabbed board | 2 h | none | Done, 1.5.0 |
+| B3 | Hide the holders list with one player | 1 h | none | Done, 1.5.0 |
+| B4 | Frame rate drops when hovering the item list | 5 h | B1, B3 | **Not addressed**, now H10 |
 
 - B1 replaces the sliced outline sprite with `PixelOutline`. The same sprite is still used at `ScoreboardStyler.cs:509` and `:548`, `ScoreboardItemGrid.cs:268` (the hovered item highlight) and `SkillSlotsStyler.cs:180` and `:266`. Check all five in this task.
 - B4 goes last because B1 changes how the hover highlight is drawn and B3 changes what the detail panel builds. Profiling before them would measure code that is about to change.
@@ -61,10 +63,10 @@ B3's scenario adds and removes a stand-in player.
 
 ## Phase C: last bug and the mod audit (5 h)
 
-| # | Task | Est. | Depends on |
-|---|---|---|---|
-| C1 | Operator's and Drifter's displays are too big | 2 h | none |
-| C2 | Check that my other mods fit with SevenUI (audit only) | 3 h | A, B |
+| # | Task | Est. | Depends on | Status |
+|---|---|---|---|---|
+| C1 | Operator's and Drifter's displays are too big | 2 h | none | Done, 1.5.0 |
+| C2 | Check that my other mods fit with SevenUI (audit only) | 3 h | A, B | **Not addressed**, now H11 |
 
 - C2 changes no code and produces follow-up tasks. It goes after A and B so the audit looks at the fixed layout, and before the features so its follow-ups can be slotted into Phase D.
 - C2 is mostly in-game time for Jacob. Claude can prepare the checklist, read each mod's code for what it attaches to, and take screenshots with each mod's own test scenarios while SevenUI is installed.
@@ -73,20 +75,20 @@ B3's scenario adds and removes a stand-in player.
 **Tests for C1:** `panels` and `screenshots`, then the full run.
 **Manual check for C1:** the Operator and Drifter screenshots look right beside the skill row.
 
-**Release point:** a bug-fix release (1.4.1) with A, B and C1.
+**Release point:** a bug-fix release (1.4.1) with A, B and C1. **Shipped in 1.5.0** instead, without B4 and C2, which were never started.
 
 ## Phase D: small features on existing parts (17 h)
 
 These are independent of each other. They are listed cheapest first.
 
-| # | Task | Est. | Depends on |
-|---|---|---|---|
-| D1 | Empty state for the Lemurian egg picker | 2 h | none |
-| D2 | Desperado stacks above the special skill | 3 h | none |
-| D3 | Restyle the MusicDisplay mod's panel | 3 h | C2 |
-| D4 | Shield and other effects on the boss bar | 5 h | none |
-| D5 | Restyle the "moon detonation" countdown and other timers | 5 h | none |
-| D6 | Restyle the "confirm quit" dialog and similar ones | 5 h | none |
+| # | Task | Est. | Depends on | Status |
+|---|---|---|---|---|
+| D1 | Empty state for the Lemurian egg picker | 2 h | none | Done, 1.6.0 |
+| D2 | Desperado stacks above the special skill | 3 h | none | Done, 1.6.0 |
+| D3 | Restyle the MusicDisplay mod's panel | 3 h | C2 | Done, 1.6.0 |
+| D4 | Shield and other effects on the boss bar | 5 h | none | Done, 1.6.0 |
+| D5 | Restyle the "moon detonation" countdown and other timers | 5 h | none | Done, 1.6.0 |
+| D6 | Restyle the "confirm quit" dialog and similar ones | 5 h | none | Done, 1.6.0 |
 
 - D3 follows C2 because both are about another mod's panel inside SevenUI's look. If the audit shows a shared need, such as one way for another mod's text to pick up Barlow, build it once and use it in D3.
 - D4, D5 and D6 each start with a list made from the assembly (what the vanilla boss bar shows, every HUD countdown, every dialog reachable in a run). Agree the list before the styling starts.
@@ -99,32 +101,32 @@ These are independent of each other. They are listed cheapest first.
 
 Each needs a mock-up agreed before the code.
 
-| # | Task | Est. | Depends on |
-|---|---|---|---|
-| E1 | Redesign the scoreboard's inspect panel | 8 h | B |
-| E2 | LookingGlass stats in the inspect panel | 3 h | E1 |
-| E3 | Restyle the drone scrapper's panel | 8 h | D1 |
+| # | Task | Est. | Depends on | Status |
+|---|---|---|---|---|
+| E1 | Redesign the scoreboard's inspect panel | 8 h | B | Done, 1.7.0 |
+| E2 | LookingGlass stats in the inspect panel | 3 h | E1 | Done, 1.7.0 |
+| E3 | Restyle the drone scrapper's panel | 8 h | D1 | Done, 1.7.0 |
 
 - E1 reuses `ScoreboardDetailPane`'s layout, so it goes after B3 and B4 have settled that file.
 - E3 goes after D1 because both extend the picker styling, and D1 is the smaller change to it.
 
-**Release point:** a feature release (1.5.0) with D and E.
+**Release point:** a feature release (1.5.0) with D and E. **Shipped as 1.6.0 (D) and 1.7.0 (E)**, all six D tasks and all three E tasks done.
 
 ## Phase F: allies on the scoreboard, and pinning (21 h)
 
 One task in Super Productivity; split it in two.
 
-| # | Task | Depends on |
-|---|---|---|
-| F1 | Show each player's allies on the scoreboard | A1, B4, E1 |
-| F2 | Pin an ally kind so it keeps a full card near the top | A3, F1 |
+| # | Task | Depends on | Status |
+|---|---|---|---|
+| F1 | Show each player's allies on the scoreboard | A1, B4, E1 | Done, 1.8.0 |
+| F2 | Pin an ally kind so it keeps a full card near the top | A3, F1 | **Not addressed**, split off; Jacob is doing it separately |
 
 - F1 needs A1 for the grouping key (it should reuse the ally cards' kinds, not build a second grouping) and B4 so the board is fast before it grows.
 - F2 extends A3's rule (players exempt from compacting, sorted first) to pinned kinds, and it needs F1 if pinning is done by clicking on the board.
 
 **Jacob decides before F2 starts:** how to pin (click on the board, a key, or something else), whether pins last across stages and runs, and whether a stack is identified by kind, leader and tier. These questions are in F2's ticket.
 
-**Release point:** 1.8.0 with F1. F2 is out of this release; Jacob is working on it separately.
+**Release point:** 1.8.0 with F1. F2 is out of this release; Jacob is working on it separately. **Shipped as 1.8.0** with F1 only.
 
 ## Tasks added after 1.8.0 (Phases H to J)
 
@@ -213,11 +215,11 @@ Why this order:
 
 ## Phase G: large design jobs (81 h)
 
-| # | Task | Est. | Depends on |
-|---|---|---|---|
-| G1 | New icons for Drifter's display and the Radar Scanner | 13 h | C1 |
-| G2 | A background for each item picker | 34 h | D1, E3, J2 |
-| G3 | Restyle the character select screen | 34 h | D6 |
+| # | Task | Est. | Depends on | Status |
+|---|---|---|---|---|
+| G1 | New icons for Drifter's display and the Radar Scanner | 13 h | C1 | Not started; after Phase J |
+| G2 | A background for each item picker | 34 h | D1, E3, J2 | Not started; after Phase J |
+| G3 | Restyle the character select screen | 34 h | D6 | Not started; after Phase J |
 
 - G1 follows C1 so the icons are drawn at the display's final size.
 - G2 follows D1, E3 and J2 so the backgrounds are designed for every picker state, including the empty one, and for both scrappers in their shared design. Split it into one subtask per picker once the designs are agreed, as its notes say.
