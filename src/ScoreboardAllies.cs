@@ -59,6 +59,11 @@ namespace SevenUI
         private const string CommandToken = "DRONETECH_COMMAND";
         private const string CommandSeparator = "\n\n";
         private static readonly Color TooltipBodyColor = Color.gray;
+        // The drone notification's text colors (DroneRepairNotificationPanel): its description's light blue, and the
+        // command's green, which the mod's restyled notification keeps (PromptsStyler). Restyled, the description is
+        // the mod's notification description color instead.
+        private static readonly Color NotificationDescription = new Color(0.824f, 0.949f, 1f, 1f);
+        private static readonly Color NotificationCommand = new Color(0f, 0.991f, 0.698f, 1f);
         private static readonly Color TileFace = new Color(1f, 1f, 1f, 0.04f);
 
         // A kind of ally one player has: its members alive, in the order the minion groups list them.
@@ -121,6 +126,7 @@ namespace SevenUI
         private TMP_FontAsset laidOutFont;
         private float faceHeight;
         private int counted;
+        private bool laidOutRestyled;
         private static int commandSkill = -1;
 
         public ScoreboardAllies(StyleRecorder recorder, RectTransform strips, TMP_Text style)
@@ -223,9 +229,12 @@ namespace SevenUI
             if (!show) return;
             float width = Mathf.Round(strips.rect.width * ScoreboardInspect.WidthShare);
             int shape = allies.Shape ^ allies.Player.GetInstanceID();
-            if (shape != laidOutShape || !Mathf.Approximately(width, laidOutWidth) || headerLabel.font != laidOutFont)
+            bool restyled = Restyled();
+            if (shape != laidOutShape || !Mathf.Approximately(width, laidOutWidth) || headerLabel.font != laidOutFont ||
+                restyled != laidOutRestyled)
             {
                 laidOutShape = shape;
+                laidOutRestyled = restyled;
                 laidOutWidth = width;
                 laidOutFont = headerLabel.font;
                 Fill(allies);
@@ -479,14 +488,15 @@ namespace SevenUI
                 tile.Label.text = kind.Name + " <color=#" + ColorUtility.ToHtmlStringRGB(Palette.Accent) + ">" + Times +
                                   kind.Members.Count + "</color>";
                 Segments(tile, kind.Members.Count > MaxSegments ? 1 : kind.Members.Count);
-                Tooltip(tile.Tooltip, kind, allies.Commands);
+                Tooltip(tile.Tooltip, kind, allies.Commands, laidOutRestyled);
             }
         }
 
         // The drone notification's texts (GenericNotification.SetDrone): the name, here with its tier as the tile has
         // it, in the drone's color, its function, then for an Operator its command, which the notification shows in a
-        // panel of its own. Without a title color the game shows no tooltip, so other allies have none.
-        private static void Tooltip(TooltipProvider tooltip, Kind kind, bool commands)
+        // panel of its own. Each in the notification's color, in the look the tooltip has (restyled by TooltipStyler or
+        // the game's). Without a title color the game shows no tooltip, so other allies have none.
+        private static void Tooltip(TooltipProvider tooltip, Kind kind, bool commands, bool restyled)
         {
             DroneDef drone = kind.Drone;
             if (!drone)
@@ -496,16 +506,24 @@ namespace SevenUI
                 tooltip.overrideBodyText = "";
                 return;
             }
-            string body = Language.GetString(drone.pickupToken);
+            string body = Colored(Language.GetString(drone.pickupToken), restyled ? Palette.HeaderText : NotificationDescription);
             if (commands && !string.IsNullOrWhiteSpace(drone.droneTechCommandToken))
             {
-                body += CommandSeparator + Language.GetStringFormatted(CommandToken, Language.GetString(drone.droneTechCommandToken));
+                body += CommandSeparator + Colored(
+                    Language.GetStringFormatted(CommandToken, Language.GetString(drone.droneTechCommandToken)), NotificationCommand);
             }
             tooltip.titleColor = ColorCatalog.GetColor(drone.color);
             tooltip.overrideTitleText = kind.Name;
             tooltip.bodyColor = TooltipBodyColor;
             tooltip.overrideBodyText = body;
         }
+
+        private static string Colored(string text, Color color) =>
+            "<color=#" + ColorUtility.ToHtmlStringRGB(color) + ">" + text + "</color>";
+
+        // Whether TooltipStyler restyles tooltips, as it decides.
+        private static bool Restyled() =>
+            SevenUIPlugin.Settings.FlatPanels.Value && SevenUIPlugin.Settings.RestyleTooltips.Value;
 
         private ScoreboardStrip RowOf(CharacterMaster player)
         {

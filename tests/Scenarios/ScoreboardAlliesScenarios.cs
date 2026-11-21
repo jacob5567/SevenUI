@@ -248,7 +248,7 @@ namespace SevenUI.Tests
             TooltipProvider tooltip = board.Allies.TileTooltip(0);
             yield return h.Until(() => tooltip.titleColor == ColorCatalog.GetColor(drone.color) &&
                                        board.Allies.TileText(0).StartsWith(tooltip.overrideTitleText) &&
-                                       tooltip.overrideBodyText.StartsWith(function) &&
+                                       tooltip.overrideBodyText.Contains(function) &&
                                        tooltip.overrideBodyText.Contains(command) == commands,
                 () => $"the tile's tooltip \"{tooltip.overrideTitleText}\": \"{tooltip.overrideBodyText}\", expected " +
                       $"\"{function}\" {(commands ? "with" : "without")} \"{command}\"");
