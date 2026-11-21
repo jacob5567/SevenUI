@@ -30,14 +30,21 @@ namespace SevenUI.Tests
 
         public static IEnumerable<Scenario> All()
         {
-            yield return new Scenario(1, "scoreboard_allies_summary_and_panel", Stages.TitanicPlains, SummaryAndPanel);
-            yield return new Scenario(1, "scoreboard_allies_none_shows_nothing", Stages.TitanicPlains, NoneShowsNothing);
-            yield return new Scenario(1, "scoreboard_allies_of_another_player", Stages.TitanicPlains, OfAnotherPlayer);
-            yield return new Scenario(1, "scoreboard_allies_minion_of_minion", Stages.TitanicPlains, MinionOfMinion);
-            yield return new Scenario(1, "scoreboard_allies_setting_off", Stages.TitanicPlains, SettingOff);
-            yield return new Scenario(1, "scoreboard_allies_close_with_scoreboard", Stages.TitanicPlains, CloseWithScoreboard);
-            yield return new Scenario(1, "scoreboard_allies_drone_tooltip", Stages.TitanicPlains, DroneTooltip);
-            yield return new Scenario(1, "scoreboard_allies_operator_tooltip", Stages.TitanicPlains, OperatorTooltip);
+            yield return new Scenario(1, "scoreboard_allies_summary_and_panel", Stages.TitanicPlains, h => Alone(h, SummaryAndPanel));
+            yield return new Scenario(1, "scoreboard_allies_none_shows_nothing", Stages.TitanicPlains, h => Alone(h, NoneShowsNothing));
+            yield return new Scenario(1, "scoreboard_allies_of_another_player", Stages.TitanicPlains, h => Alone(h, OfAnotherPlayer));
+            yield return new Scenario(1, "scoreboard_allies_minion_of_minion", Stages.TitanicPlains, h => Alone(h, MinionOfMinion));
+            yield return new Scenario(1, "scoreboard_allies_setting_off", Stages.TitanicPlains, h => Alone(h, SettingOff));
+            yield return new Scenario(1, "scoreboard_allies_close_with_scoreboard", Stages.TitanicPlains, h => Alone(h, CloseWithScoreboard));
+            yield return new Scenario(1, "scoreboard_allies_drone_tooltip", Stages.TitanicPlains, h => Alone(h, DroneTooltip));
+            yield return new Scenario(1, "scoreboard_allies_operator_tooltip", Stages.TitanicPlains, h => Alone(h, OperatorTooltip));
+        }
+
+        // The scenario with none of the player's own allies (Allies.SetAsideOwn).
+        private static IEnumerator Alone(Harness h, System.Func<Harness, IEnumerator> scenario)
+        {
+            yield return Allies.SetAsideOwn(h);
+            yield return scenario(h);
         }
 
         // Three Gunner Drones and a Healing Drone: two kinds stacked in the summary with "4 allies", the rows taller to
@@ -200,9 +207,12 @@ namespace SevenUI.Tests
         }
 
         // The pointer on a Gunner Drone's tile opens the drone notification's tooltip: the tile's name in the drone's
-        // color and its function, without Operator's command for a survivor who isn't one.
+        // color and its function, without Operator's command for a survivor who isn't one: Commando, as the run may
+        // start as Operator.
         private static IEnumerator DroneTooltip(Harness h)
         {
+            yield return h.TurnInto(GameNames.Commando);
+            yield return h.Wait(SettleSeconds);
             yield return TooltipOfGunnerDrone(h, false, "scoreboard_allies_tooltip");
         }
 
@@ -213,6 +223,7 @@ namespace SevenUI.Tests
         {
             yield return h.TurnInto(GameNames.DroneTech);
             yield return h.Wait(SettleSeconds);
+            yield return Allies.SetAsideOwn(h);
             GenericSkill secondary = Harness.LocalBody.skillLocator ? Harness.LocalBody.skillLocator.secondary : null;
             bool commands = secondary && secondary.baseSkill && secondary.baseSkill.skillName == CommandSkillName;
             h.Log($"Operator's secondary is {(secondary && secondary.baseSkill ? secondary.baseSkill.skillName : "none")}, " +

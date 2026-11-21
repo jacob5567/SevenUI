@@ -94,6 +94,19 @@ namespace SevenUI.Tests
             }
         }
 
+        // The player's own allies set aside, destroyed with their bodies, so a scenario counts only the ones it summons:
+        // Operator (DroneTech in code) starts a run with two drones of its own, CROSSHAIRS and DOC, and the run starts
+        // as whichever survivor the profile last picked.
+        public static IEnumerator SetAsideOwn(Harness h)
+        {
+            CharacterMaster player = Harness.LocalBody.master;
+            List<CharacterMaster> own = Minions(player).ToList();
+            if (own.Count == 0) yield break;
+            h.Log($"Set aside the player's {own.Count} allies: {string.Join(", ", own.Select(master => master.name))}");
+            Remove(own);
+            yield return h.Until(() => !Minions(player).Any(), "the player's own allies gone");
+        }
+
         // Destroys the drones, bodies and all.
         public static void Remove(IEnumerable<CharacterMaster> drones)
         {
