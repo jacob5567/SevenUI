@@ -470,7 +470,7 @@ namespace SevenUI.Tests
 
         // Shows what the interact prompt's Inspect would, through the game's controller. Autopause, which the panel asks
         // for while it is up in a single-player run, would stop the game, so it is off for the scenario.
-        private static IEnumerator Inspect(Harness h, InspectInfo info)
+        internal static IEnumerator Inspect(Harness h, InspectInfo info)
         {
             InspectPanelController controller = null;
             yield return h.Until(() => (controller = Controller(h)) != null, "the scoreboard's inspect panel");
