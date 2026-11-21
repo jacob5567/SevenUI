@@ -422,7 +422,9 @@ namespace SevenUI.Tests
                 () => $"the run timer {(shown ? "with" : "without")} hundredths, ending left of the stage text ({look}) {h.Diagnosis()}");
         }
 
-        // Each open objective's box drawn as the mod's outline, on whole screen pixels, and a done one's as the game's check.
+        // Each objective's box drawn as the mod's outline on whole screen pixels, the game's picture hidden: grey while
+        // open; for a done or failed one in SevenUI's softer yellow or red, with a flat check or cross of that color
+        // and the objective's text dimmed.
         public static IEnumerator ExpectObjectiveBoxesFlat(this Harness h)
         {
             string look = null;
@@ -431,14 +433,39 @@ namespace SevenUI.Tests
                 {
                     List<ObjectiveCheckbox> boxes = SevenUIChecks.HudRoot(h).GetComponentsInChildren<ObjectiveCheckbox>()
                         .Where(box => box.Checkbox && box.Checkbox.gameObject.activeInHierarchy).ToList();
-                    look = string.Join(", ", boxes.Select(box =>
-                        $"open={box.Checkbox.sprite == box.OpenSprite} outline={box.Box.enabled} game={box.Checkbox.enabled}" +
-                        (box.Box.enabled ? $" {CanvasLayoutChecks.PixelOutlineProblem(box.Box) ?? "on whole pixels"}" : "")));
-                    return boxes.Count > 0 && boxes.All(box =>
-                        (box.Checkbox.sprite == box.OpenSprite) == (box.Box.enabled && !box.Checkbox.enabled) &&
-                        (!box.Box.enabled || CanvasLayoutChecks.PixelOutlineProblem(box.Box) == null));
+                    look = string.Join(", ", boxes.Select(BoxLook));
+                    return boxes.Count > 0 && boxes.All(box => BoxProblem(box) == null);
                 },
-                () => $"the open objectives' boxes as flat outlines ({look}) {h.Diagnosis()}");
+                () => $"the objectives' boxes as flat outlines ({look}) {h.Diagnosis()}");
+        }
+
+        private static string BoxLook(ObjectiveCheckbox box) =>
+            $"{BoxState(box)}: outline {box.Box.enabled} #{ColorUtility.ToHtmlStringRGB(box.Box.color)}, game {box.Checkbox.enabled}, " +
+            $"mark {(box.Mark && box.Mark.enabled ? box.Mark.sprite.name : "none")}, label " +
+            $"{(box.Label ? "#" + ColorUtility.ToHtmlStringRGB(box.Label.color) : "-")}: {BoxProblem(box) ?? "as designed"}";
+
+        private static string BoxState(ObjectiveCheckbox box) =>
+            box.Checkbox.sprite == box.DoneSprite ? "done" : box.Checkbox.sprite == box.FailedSprite ? "failed" : "open";
+
+        // Null when the box is as design H draws it.
+        internal static string BoxProblem(ObjectiveCheckbox box)
+        {
+            if (!box.Box.enabled || box.Checkbox.enabled) return "not the mod's outline alone";
+            string pixels = CanvasLayoutChecks.PixelOutlineProblem(box.Box);
+            if (pixels != null) return pixels;
+            string state = BoxState(box);
+            bool finished = state != "open";
+            Color color = state == "done" ? Palette.ObjectiveDone : state == "failed" ? Palette.ObjectiveFailed : Palette.HeaderText;
+            if (!SevenUIChecks.Near(box.Box.color, color)) return $"outline not #{ColorUtility.ToHtmlStringRGB(color)}";
+            bool marked = box.Mark && box.Mark.enabled;
+            if (marked != finished) return finished ? "no mark" : "a mark on an open box";
+            if (finished)
+            {
+                Sprite sprite = state == "done" ? FlatIcons.Check : FlatIcons.Cross;
+                if (box.Mark.sprite != sprite || !SevenUIChecks.Near(box.Mark.color, color)) return "the wrong mark";
+                if (!box.Label || !SevenUIChecks.Near(box.Label.color, Palette.HeaderSubtle)) return "the text not dimmed";
+            }
+            return null;
         }
 
         // The charge's percentage at the right, the game's, and out of the text.

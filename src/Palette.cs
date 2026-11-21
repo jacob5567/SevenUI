@@ -53,6 +53,10 @@ namespace SevenUI
         public static readonly Color Trial = new Color(0.537f, 0.890f, 0.192f, 1f);
         // Karma, a lunar mechanic, in the lunar items' blue, apart from the run info's accent.
         public static readonly Color Karma = CountLunar;
+        // A done objective's box and check, and a failed one's box and cross: the boss tier's yellow and the legendary
+        // tier's red, softer than the game's pure yellow and red. A finished objective's text dims to HeaderSubtle.
+        public static readonly Color ObjectiveDone = CountBoss;
+        public static readonly Color ObjectiveFailed = CountLegendary;
         // Pickup notifications sit on a slightly darker panel, since they appear over the middle of the screen.
         public static readonly Color NotificationPanel = new Color(0f, 0f, 0f, 0.55f);
         // #2c303a, the slot behind an item icon.

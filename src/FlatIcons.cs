@@ -6,7 +6,8 @@ namespace SevenUI
     // each with a square marker), a double chevron for sprint, and the same chevrons pointing down for descending,
     // which the sprint button shows while the player flies a remote-operated drone. Also the hairline arrow between the
     // old and new items of a transformation notification, and a single chevron pointing down, from the next equipment
-    // into the equipment slot. Each is a union of square-capped strokes, so the chevrons' corners come out mitred.
+    // into the equipment slot, and the check and cross drawn inside a done or failed objective's box. Each is a union of
+    // square-capped strokes, so the chevrons' corners come out mitred.
     internal static class FlatIcons
     {
         // Each icon is designed on a 30-unit grid, as on the design canvas, and drawn in the middle of a 36-unit
@@ -58,17 +59,36 @@ namespace SevenUI
             new Vector2(15f, 18f), new Vector2(21f, 12f),
         };
         private const float ChevronHalfWidth = 1.25f;
+        // A check and a cross filling an objective's box when the grid's 30 units span it (ObjectiveCheckbox), as on the
+        // Phase H design doc's design H; their strokes are heavier, about the box's edge.
+        private static readonly Vector2[] CheckStrokes =
+        {
+            new Vector2(7.9f, 15.5f), new Vector2(13.1f, 20.5f),
+            new Vector2(13.1f, 20.5f), new Vector2(22.4f, 9.5f),
+        };
+        private static readonly Vector2[] CrossStrokes =
+        {
+            new Vector2(9.5f, 9.5f), new Vector2(20.5f, 20.5f),
+            new Vector2(20.5f, 9.5f), new Vector2(9.5f, 20.5f),
+        };
+        private const float MarkHalfWidth = 2.4f;
+        // The grid's share drawn as the design's 30 units: a mark's image is this much larger than the box it fills.
+        public const float GridPerDesign = Grid / (Grid - 2f * DesignOffset);
 
         private static Sprite scoreboard;
         private static Sprite sprint;
         private static Sprite descend;
         private static Sprite arrow;
         private static Sprite down;
+        private static Sprite check;
+        private static Sprite cross;
         public const string ScoreboardName = "SevenUIScoreboardIcon";
         public const string SprintName = "SevenUISprintIcon";
         public const string DescendName = "SevenUIDescendIcon";
         public const string ArrowName = "SevenUIArrowIcon";
         public const string DownName = "SevenUIDownIcon";
+        public const string CheckName = "SevenUICheckIcon";
+        public const string CrossName = "SevenUICrossIcon";
 
         public static Sprite Scoreboard
         {
@@ -130,6 +150,30 @@ namespace SevenUI
             }
         }
 
+        public static Sprite Check
+        {
+            get
+            {
+                if (!check)
+                {
+                    check = Draw(CheckName, point => StrokesDistance(point, CheckStrokes, MarkHalfWidth));
+                }
+                return check;
+            }
+        }
+
+        public static Sprite Cross
+        {
+            get
+            {
+                if (!cross)
+                {
+                    cross = Draw(CrossName, point => StrokesDistance(point, CrossStrokes, MarkHalfWidth));
+                }
+                return cross;
+            }
+        }
+
         private delegate float Shape(Vector2 point);
 
         // Each pixel's coverage from the shape's signed distance (negative inside), in design units from the top left.
@@ -169,18 +213,18 @@ namespace SevenUI
         }
 
         // Strokes given as pairs of points: from, to.
-        private static float StrokesDistance(Vector2 point, Vector2[] strokes)
+        private static float StrokesDistance(Vector2 point, Vector2[] strokes, float halfWidth = ChevronHalfWidth)
         {
             float nearest = float.MaxValue;
             for (int i = 0; i < strokes.Length; i += 2)
             {
-                nearest = Mathf.Min(nearest, StrokeDistance(point, strokes[i], strokes[i + 1]));
+                nearest = Mathf.Min(nearest, StrokeDistance(point, strokes[i], strokes[i + 1], halfWidth));
             }
             return nearest;
         }
 
         // A straight stroke with square caps: a box along the segment, reaching half its width past each end.
-        private static float StrokeDistance(Vector2 point, Vector2 from, Vector2 to)
+        private static float StrokeDistance(Vector2 point, Vector2 from, Vector2 to, float halfWidth)
         {
             Vector2 along = to - from;
             float length = along.magnitude;
@@ -188,7 +232,7 @@ namespace SevenUI
             Vector2 local = point - (from + to) / 2f;
             Vector2 rotated = new Vector2(Vector2.Dot(local, direction),
                 Vector2.Dot(local, new Vector2(-direction.y, direction.x)));
-            return BoxDistance(rotated, new Vector2(length / 2f + ChevronHalfWidth, ChevronHalfWidth));
+            return BoxDistance(rotated, new Vector2(length / 2f + halfWidth, halfWidth));
         }
 
         // The signed distance from a point to an axis-aligned box around the origin.

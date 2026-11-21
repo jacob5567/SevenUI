@@ -19,6 +19,7 @@ namespace SevenUI
         private const string LabelName = "Label";
         private const string CheckboxName = "Checkbox";
         public const string BoxName = "SevenUICheckbox";
+        public const string MarkName = "SevenUICheckMark";
         public const string ChargeName = "SevenUICharge";
         public const string ProgressName = "SevenUIProgress";
         private const string ChargeBarName = "SevenUIChargeBar";
@@ -130,7 +131,7 @@ namespace SevenUI
                 Image image = box.GetComponent<Image>();
                 if (image && panel && !box.Find(BoxName))
                 {
-                    AddBox(box, image, panel.checkboxActiveSprite, recorder);
+                    AddBox(box, image, panel, label, recorder);
                 }
             }
             return true;
@@ -150,15 +151,29 @@ namespace SevenUI
             return null;
         }
 
-        private static void AddBox(RectTransform checkbox, Image image, Sprite openSprite, StyleRecorder recorder)
+        private static void AddBox(RectTransform checkbox, Image image, ObjectivePanelController panel, TMP_Text label,
+            StyleRecorder recorder)
         {
             PixelOutline outline = PixelOutline.Add(checkbox, BoxName, Palette.HeaderText, BoxEdge);
             GameObject created = outline.gameObject;
+            // The check or cross, drawn on FlatIcons' grid: its 30 design units span the box.
+            Image mark = UiFactory.NewObject(MarkName, created.transform).gameObject.AddComponent<Image>();
+            mark.raycastTarget = false;
+            mark.enabled = false;
+            RectTransform markRect = mark.rectTransform;
+            markRect.anchorMin = markRect.anchorMax = markRect.pivot = new Vector2(0.5f, 0.5f);
+            markRect.anchoredPosition = Vector2.zero;
+            markRect.sizeDelta = new Vector2(BoxSize, BoxSize) * FlatIcons.GridPerDesign;
             ObjectiveCheckbox follower = created.AddComponent<ObjectiveCheckbox>();
             follower.Checkbox = image;
-            follower.OpenSprite = openSprite;
+            follower.OpenSprite = panel.checkboxActiveSprite;
+            follower.DoneSprite = panel.checkboxSuccessSprite;
+            follower.FailedSprite = panel.checkboxFailSprite;
             follower.Box = outline;
-            // The follower turns the game's picture off while the box is open; restoring turns it back on.
+            follower.Mark = mark;
+            follower.Label = label;
+            // The follower keeps the game's picture off; restoring turns it back on, and the label's recorded color
+            // (ObjectiveRow records the label) undoes the dimming.
             recorder.SetEnabled(image, image.enabled);
             recorder.Add(created);
         }
