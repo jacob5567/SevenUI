@@ -1,6 +1,6 @@
 # Plan for the open Super Productivity tasks
 
-This plan orders the open tasks in the SevenUI project in Super Productivity: 23 as of 2026-11-15 (Phases A to G), and the ten added on 2026-11-20 with four older unplanned bugs (Phases H to J). Each task's notes there hold the detail: repro, design and scope. This file only adds the order, the reasons for it and what each task depends on. Task titles are shortened; estimates are the ones in Super Productivity and total about 170 hours for Phases A to G and 61 for H to J (H10 is B4, counted in both).
+This plan orders the 23 open tasks in the SevenUI project in Super Productivity (as of 2026-11-15). The tasks triaged after 1.8.0 have a second plan at the end of this file, with its own phases from A. Each task's notes there hold the detail: repro, design and scope. This file only adds the order, the reasons for it and what each task depends on. Task titles are shortened; estimates are the ones in Super Productivity and total about 170 hours.
 
 ## Why this order
 
@@ -126,94 +126,101 @@ One task in Super Productivity; split it in two.
 
 **Release point:** 1.8.0 with F1. F2 is out of this release; Jacob is working on it separately.
 
-## Tasks added after 1.8.0 (Phases H to J)
-
-Ten tasks were triaged on 2026-11-20, after 1.8.0. Four older bugs had no phase yet, and B4 (the hover frame rate) is still open, so those go in here too. Phases H to J come before Phase G: G2's picker backgrounds should be designed for the restyled item scrapper (J2), and G3's character select may reuse the dialog design (J1).
-
-Why this order:
-1. **Bugs first, in one bug-fix release.** They are small, independent of each other except where noted, and none needs a design decision.
-2. **Shared data before what reads it.** The tier colors (H1) are used by the inspect panel, the pickers and the scrapper, so they are settled before I2, I3 and J2 draw anything with them. The count audit (H4) decides which stacks each count includes before H5 changes how counts look and I2 adds a corruption mark next to the picker count.
-3. **One file, one task at a time.** H4, H5 and I2 all touch the picker count (`PickerButton`); I3 and I2 both change `ScoreboardInspect`, size first, then the new line.
-4. **Mock-up tasks last, mock-ups early.** I2, I3, J1 and J2 each need an agreed mock-up before code. The mock-ups touch no code, so they can be made while Phase H is in progress.
-
-### Phase H: bugs (29 h)
-
-| # | Task | Est. | Depends on |
-|---|---|---|---|
-| H1 | Item rarity colors differ in tooltips, inspect panel and scoreboard | 3 h | none |
-| H2 | Equipment description wrong with a Functional Coupler | 3 h | none |
-| H3 | Moon detonation timer hard to read over the white sky | 3 h | none |
-| H4 | LookingGlass and SevenUI counts both showing; temporary and Ethereal stacks | 5 h | none |
-| H5 | Item count clashes with the cooldown ring and the Ethereal mark | 3 h | H4 |
-| H6 | Less padding on the status effect display in the lower left | 1 h | none |
-| H7 | Equal padding between the bars on a shared ally card | 3 h | none |
-| H8 | The checked objective checkbox matches the unchecked one's size | 3 h | none |
-| H9 | Operator's and Drifter's displays don't overlap the Functional Coupler's deck | 2 h | none |
-| H10 | Frame rate drops when hovering the item list (B4, still open) | 5 h | H1, H2 |
-
-- H1 routes every tier color through one helper (`GameColors.ToCanvas` or `TierGroups`). It goes first because I2, I3 and J2 draw tier colors.
-- H4 is an audit first: list each count and the inventory method it uses, then fix double counts. H5 then fixes the look with the counts settled.
-- H2 and H10 both touch the scoreboard's hover path (`ScoreboardItemsBoard.Point`, `ScoreboardDetailPane`), so H10 is profiled last, after H1 and H2 change it. Since B4 was planned, the inspect panel and the allies panel have added work on hover; profile with both open.
-- H9 and H2 are unrelated despite both being about the Functional Coupler: H9 is the HUD's equipment deck (`EquipmentDeck`) beside the survivor displays, H2 is the scoreboard.
-- H6 to H8 are small and independent: `BuffRows`, `AllyCardsStyler`'s segments, `ObjectiveCheckbox`.
-
-**Tests:** `panels`, `objectives`, `ally_portraits`, `countdowns`, `pickers`, `scoreboard` and `scoreboard_inspect`, then the full run. New scenarios: one item of each tier compared across tooltip, inspect and pane strips (H1); a coupler swap with the pane open (H2); the escape countdown over a white backdrop (H3); a permanent, a temporary and an Ethereal stack of one item, checking each count (H4, H5); the hover timing scenario from B4 (H10).
-**Manual check:** the moon's real escape sequence looking at the sky (H3); a Winnowing trial's Ethereal items in the item bar (H5); how smooth the hover feels on a crowded board (H10).
-
-**Release point:** a bug-fix release, 1.8.1.
-
-### Phase I: small features (11 h)
-
-| # | Task | Est. | Depends on |
-|---|---|---|---|
-| I1 | Drone tiers as short colored tags ("T2", "T3") | 3 h | F2, or agreed with it |
-| I2 | Warn when an item you might pick would be corrupted | 5 h | H1, H4, I3 |
-| I3 | Make the inspect panel slightly larger | 3 h | H1 |
-
-- I1 changes how `AllyNames` builds a name (the base name plus a tier, drawn as a tag in a color per tier). F2 (pinning), which Jacob is doing separately, identifies a stack by kind, leader and tier in the same code. Do I1 after F2 merges, or agree first that both use the tier number, never the display text.
-- I3 goes before I2 because I2 adds a line to the inspect panel, and the panel's size should be settled first. Decide in I3 whether the allies panel keeps the inspect panel's width (it reads `ScoreboardInspect.WidthShare`).
-- I2 marks the option in pickers and adds a line in the inspect panel, as Jacob agreed. It reads the synced inventory and `ContagiousItemManager`, as `PickupDescriptions.Contagious` does.
-- Mock-ups for I2 and I3 can be made during Phase H.
-
-**Tests:** `pickers`, `scoreboard_inspect`, `ally_portraits` and `scoreboard_allies`, then the full run. I1: upgraded drones show the tag in its color on the cards and the scoreboard tiles. I2: a held Lysate Cell marks its original item in a Command picker and on the ground.
-**Manual check:** the new mock-up-led looks (I2, I3), and the tier colors on a crowded ally list.
-
-**Release point:** a feature release, 1.9.0.
-
-### Phase J: redesigns (21 h)
-
-| # | Task | Est. | Depends on |
-|---|---|---|---|
-| J1 | Further redesign of "confirm quit" and similar dialogs | 8 h | none |
-| J2 | Restyle all scrappers, with one design for the item and drone scrappers | 13 h | H1 |
-
-- Both need mock-ups agreed with Jacob first. Make them during Phases H and I.
-- J1 changes `DialogBoxStyler`, which also runs in the menus outside a run. G3 (character select) is the other screen outside a run, so J1's design should be one G3 can reuse.
-- J2 adds a `PickerSource` for the item scrapper's scrolling list, which `PickupSource.For` skips today, and moves the drone scrapper (`DroneSource`) to the shared design. Split it into a design task and an implementation task once the design is agreed if it grows.
-
-**Tests:** `panels` (the dialog checks) and `pickers` (the item scrapper with few and many items, as the drone scrapper is tested with 3 and 9), then the full run.
-**Manual check:** the dialogs in the main menu and in a run; scrapping with a gamepad and with the mouse.
-
-**Release point:** a feature release, 1.10.0. Then Phase G, whose G2 now also depends on J2.
-
 ## Phase G: large design jobs (81 h)
 
 | # | Task | Est. | Depends on |
 |---|---|---|---|
 | G1 | New icons for Drifter's display and the Radar Scanner | 13 h | C1 |
-| G2 | A background for each item picker | 34 h | D1, E3, J2 |
+| G2 | A background for each item picker | 34 h | D1, E3, second plan's C2 |
 | G3 | Restyle the character select screen | 34 h | D6 |
 
 - G1 follows C1 so the icons are drawn at the display's final size.
-- G2 follows D1, E3 and J2 so the backgrounds are designed for every picker state, including the empty one, and for both scrappers in their shared design. Split it into one subtask per picker once the designs are agreed, as its notes say.
+- G2 follows D1, E3 and the second plan's C2 so the backgrounds are designed for every picker state, including the empty one, and for both scrappers in their shared design. Split it into one subtask per picker once the designs are agreed, as its notes say.
 - G3 is last. It is the only task outside a run, so it needs a controller that isn't tied to a HUD. D6 gives the first dialog styling that may carry over.
 - Each is its own release.
 
-**Start early:** the lists and mock-ups for G1, G2 and G3 need no code changes, so they can be made at any time while Phases A to J are in progress.
+**Start early:** the lists and mock-ups for G1, G2 and G3 need no code changes, so they can be made at any time while Phases A to F, and the second plan, are in progress.
 
 ## What the tests can't cover
 
 These stay with Jacob, at the phase's manual check:
 - Anything as a client of an unmodded host (D4 reads synced health; D2 reads synced buffs). The runner hosts the run, and extra players are stand-ins on the host, so nothing is tested as a client.
 - How smooth the hover feels (B4): a scenario can time it but not judge it.
-- Whether the look is right, for every mock-up-led task (E, G, I2, I3, J) and every new screenshot, and whether text is readable over a bright background (H3). The tests check sizes and places, not taste.
+- Whether the look is right, for every mock-up-led task (E, G) and every new screenshot. The tests check sizes and places, not taste.
+
+# Second plan: tasks triaged after 1.8.0
+
+Ten tasks were triaged on 2026-11-20, after 1.8.0. Four older bugs had no phase in the first plan, and the first plan's B4 (the hover frame rate) is still open, so those go in here too. The phases start again at A; a task from the first plan is named as such ("the first plan's B4"). Phase branches for this plan are `phase/2-<letter>`, to keep them apart from the first plan's merged `phase/<letter>` branches; otherwise each phase is built, tested and merged as the first plan describes. Estimates total about 61 hours.
+
+These phases come before the first plan's Phase G: G2's picker backgrounds should be designed for the restyled item scrapper (C2), and G3's character select may reuse the dialog design (C1).
+
+## Why this order
+
+1. **Bugs first, in one bug-fix release.** They are small, independent of each other except where noted, and none needs a design decision.
+2. **Shared data before what reads it.** The tier colors (A1) are used by the inspect panel, the pickers and the scrapper, so they are settled before B2, B3 and C2 draw anything with them. The count audit (A4) decides which stacks each count includes before A5 changes how counts look and B2 adds a corruption mark next to the picker count.
+3. **One file, one task at a time.** A4, A5 and B2 all touch the picker count (`PickerButton`); B3 and B2 both change `ScoreboardInspect`, size first, then the new line.
+4. **Mock-up tasks last, mock-ups early.** B2, B3, C1 and C2 each need an agreed mock-up before code. The mock-ups touch no code, so they can be made while Phase A is in progress.
+
+## Phase A: bugs (29 h)
+
+| # | Task | Est. | Depends on |
+|---|---|---|---|
+| A1 | Item rarity colors differ in tooltips, inspect panel and scoreboard | 3 h | none |
+| A2 | Equipment description wrong with a Functional Coupler | 3 h | none |
+| A3 | Moon detonation timer hard to read over the white sky | 3 h | none |
+| A4 | LookingGlass and SevenUI counts both showing; temporary and Ethereal stacks | 5 h | none |
+| A5 | Item count clashes with the cooldown ring and the Ethereal mark | 3 h | A4 |
+| A6 | Less padding on the status effect display in the lower left | 1 h | none |
+| A7 | Equal padding between the bars on a shared ally card | 3 h | none |
+| A8 | The checked objective checkbox matches the unchecked one's size | 3 h | none |
+| A9 | Operator's and Drifter's displays don't overlap the Functional Coupler's deck | 2 h | none |
+| A10 | Frame rate drops when hovering the item list (the first plan's B4, still open) | 5 h | A1, A2 |
+
+- A1 routes every tier color through one helper (`GameColors.ToCanvas` or `TierGroups`). It goes first because B2, B3 and C2 draw tier colors.
+- A4 is an audit first: list each count and the inventory method it uses, then fix double counts. A5 then fixes the look with the counts settled.
+- A2 and A10 both touch the scoreboard's hover path (`ScoreboardItemsBoard.Point`, `ScoreboardDetailPane`), so A10 is profiled last, after A1 and A2 change it. Since the first plan's B4 was planned, the inspect panel and the allies panel have added work on hover; profile with both open.
+- A9 and A2 are unrelated despite both being about the Functional Coupler: A9 is the HUD's equipment deck (`EquipmentDeck`) beside the survivor displays, A2 is the scoreboard.
+- A6 to A8 are small and independent: `BuffRows`, `AllyCardsStyler`'s segments, `ObjectiveCheckbox`.
+
+**Tests:** `panels`, `objectives`, `ally_portraits`, `countdowns`, `pickers`, `scoreboard` and `scoreboard_inspect`, then the full run. New scenarios: one item of each tier compared across tooltip, inspect and pane strips (A1); a coupler swap with the pane open (A2); the escape countdown over a white backdrop (A3); a permanent, a temporary and an Ethereal stack of one item, checking each count (A4, A5); the hover timing scenario planned for the first plan's B4 (A10).
+**Manual check:** the moon's real escape sequence looking at the sky (A3); a Winnowing trial's Ethereal items in the item bar (A5); how smooth the hover feels on a crowded board (A10).
+
+**Release point:** a bug-fix release, 1.8.1.
+
+## Phase B: small features (11 h)
+
+| # | Task | Est. | Depends on |
+|---|---|---|---|
+| B1 | Drone tiers as short colored tags ("T2", "T3") | 3 h | the first plan's F2, or agreed with it |
+| B2 | Warn when an item you might pick would be corrupted | 5 h | A1, A4, B3 |
+| B3 | Make the inspect panel slightly larger | 3 h | A1 |
+
+- B1 changes how `AllyNames` builds a name (the base name plus a tier, drawn as a tag in a color per tier). The first plan's F2 (pinning), which Jacob is doing separately, identifies a stack by kind, leader and tier in the same code. Do B1 after F2 merges, or agree first that both use the tier number, never the display text.
+- B3 goes before B2 because B2 adds a line to the inspect panel, and the panel's size should be settled first. Decide in B3 whether the allies panel keeps the inspect panel's width (it reads `ScoreboardInspect.WidthShare`).
+- B2 marks the option in pickers and adds a line in the inspect panel, as Jacob agreed. It reads the synced inventory and `ContagiousItemManager`, as `PickupDescriptions.Contagious` does.
+- Mock-ups for B2 and B3 can be made during Phase A.
+
+**Tests:** `pickers`, `scoreboard_inspect`, `ally_portraits` and `scoreboard_allies`, then the full run. B1: upgraded drones show the tag in its color on the cards and the scoreboard tiles. B2: a held Lysate Cell marks its original item in a Command picker and on the ground.
+**Manual check:** the new mock-up-led looks (B2, B3), and the tier colors on a crowded ally list.
+
+**Release point:** a feature release, 1.9.0.
+
+## Phase C: redesigns (21 h)
+
+| # | Task | Est. | Depends on |
+|---|---|---|---|
+| C1 | Further redesign of "confirm quit" and similar dialogs | 8 h | none |
+| C2 | Restyle all scrappers, with one design for the item and drone scrappers | 13 h | A1 |
+
+- Both need mock-ups agreed with Jacob first. Make them during Phases A and B.
+- C1 changes `DialogBoxStyler`, which also runs in the menus outside a run. The first plan's G3 (character select) is the other screen outside a run, so C1's design should be one G3 can reuse.
+- C2 adds a `PickerSource` for the item scrapper's scrolling list, which `PickupSource.For` skips today, and moves the drone scrapper (`DroneSource`) to the shared design. Split it into a design task and an implementation task once the design is agreed if it grows.
+
+**Tests:** `panels` (the dialog checks) and `pickers` (the item scrapper with few and many items, as the drone scrapper is tested with 3 and 9), then the full run.
+**Manual check:** the dialogs in the main menu and in a run; scrapping with a gamepad and with the mouse.
+
+**Release point:** a feature release, 1.10.0. Then the first plan's Phase G, whose G2 now also depends on C2.
+
+## What the tests can't cover
+
+As in the first plan: anything as a client of an unmodded host, how smooth the hover feels (A10), and whether the look is right for the mock-up-led tasks (B2, B3, C) and every new screenshot. Also whether text is readable over a bright background (A3): a scenario can put a white backdrop behind the countdown, but not judge it.
