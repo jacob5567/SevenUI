@@ -211,7 +211,7 @@ namespace SevenUI.Tests
         }
 
         // The pointer on a Gunner Drone's tile opens the drone notification's tooltip: the tile's name in the drone's
-        // color and its full description, without Operator's command for a survivor who isn't one: Commando, as the run may
+        // color and its short function, without Operator's command for a survivor who isn't one: Commando, as the run may
         // start as Operator.
         private static IEnumerator DroneTooltip(Harness h)
         {
@@ -236,7 +236,7 @@ namespace SevenUI.Tests
         }
 
         // Operator's own CROSSHAIRS has a description but no short function (DRONE_DTGUNNER_FUNCTION isn't in the
-        // language files): its tooltip has the description and no token.
+        // language files): its tooltip has its full description instead, and no token.
         private static IEnumerator OperatorOwnDroneTooltip(Harness h)
         {
             yield return h.TurnInto(GameNames.DroneTech);
@@ -277,7 +277,7 @@ namespace SevenUI.Tests
             yield return h.Until(() => (summary = OwnSummary(board)) && summary.Clickable, "the viewer's summary");
             yield return Click(h, summary);
             yield return h.Until(() => Shown(board.Allies.Panel) && board.Allies.TileCount == 1, "the allies panel with one tile");
-            string description = Language.GetString(drone.descriptionToken);
+            string description = Language.GetString(drone.pickupToken);
             string command = Language.GetStringFormatted(CommandToken, Language.GetString(drone.droneTechCommandToken));
             TooltipProvider tooltip = board.Allies.TileTooltip(0);
             yield return h.Until(() => tooltip.titleColor == ColorCatalog.GetColor(drone.color) &&
