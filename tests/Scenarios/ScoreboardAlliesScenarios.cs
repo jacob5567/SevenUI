@@ -24,6 +24,9 @@ namespace SevenUI.Tests
         // In the board's units: a pixel or two, for the panel's width and center.
         private const float Tolerance = 2f;
         private const int StandInItems = 5;
+        // Operator's secondary that the drone notification adds the command for (CharacterMasterNotificationQueue).
+        private const string CommandSkillName = "Command: Activate";
+        private const string CommandToken = "DRONETECH_COMMAND";
 
         public static IEnumerable<Scenario> All()
         {
@@ -33,6 +36,8 @@ namespace SevenUI.Tests
             yield return new Scenario(1, "scoreboard_allies_minion_of_minion", Stages.TitanicPlains, MinionOfMinion);
             yield return new Scenario(1, "scoreboard_allies_setting_off", Stages.TitanicPlains, SettingOff);
             yield return new Scenario(1, "scoreboard_allies_close_with_scoreboard", Stages.TitanicPlains, CloseWithScoreboard);
+            yield return new Scenario(1, "scoreboard_allies_drone_tooltip", Stages.TitanicPlains, DroneTooltip);
+            yield return new Scenario(1, "scoreboard_allies_operator_tooltip", Stages.TitanicPlains, OperatorTooltip);
         }
 
         // Three Gunner Drones and a Healing Drone: two kinds stacked in the summary with "4 allies", the rows taller to
@@ -192,6 +197,58 @@ namespace SevenUI.Tests
             {
                 throw h.Fail("the allies panel was still open when the scoreboard opened again");
             }
+        }
+
+        // The pointer on a Gunner Drone's tile opens the drone notification's tooltip: the tile's name in the drone's
+        // color and its function, without Operator's command for a survivor who isn't one.
+        private static IEnumerator DroneTooltip(Harness h)
+        {
+            yield return TooltipOfGunnerDrone(h, false, "scoreboard_allies_tooltip");
+        }
+
+        // As Operator (DroneTech in code), the tooltip adds the drone's command when the secondary is ADMIN-OVERRIDE
+        // (Command: Activate), as the notification does, and not with the other secondary; skipped without the
+        // expansion. The secondary is the profile's loadout, so the log says which was checked.
+        private static IEnumerator OperatorTooltip(Harness h)
+        {
+            yield return h.TurnInto(GameNames.DroneTech);
+            yield return h.Wait(SettleSeconds);
+            GenericSkill secondary = Harness.LocalBody.skillLocator ? Harness.LocalBody.skillLocator.secondary : null;
+            bool commands = secondary && secondary.baseSkill && secondary.baseSkill.skillName == CommandSkillName;
+            h.Log($"Operator's secondary is {(secondary && secondary.baseSkill ? secondary.baseSkill.skillName : "none")}, " +
+                  $"so the command is {(commands ? "expected" : "not expected")}");
+            yield return TooltipOfGunnerDrone(h, commands, "scoreboard_allies_operator_tooltip");
+        }
+
+        private static IEnumerator TooltipOfGunnerDrone(Harness h, bool commands, string shot)
+        {
+            List<CharacterMaster> drones = new List<CharacterMaster>();
+            yield return Allies.SummonDrones(h, Allies.GunnerDroneMaster, 1, drones);
+            DroneDef drone = DroneCatalog.GetDroneDef(DroneCatalog.GetDroneIndexFromBodyIndex(drones[0].GetBody().bodyIndex));
+            if (!drone) throw h.Fail("the Gunner Drone has no DroneDef");
+            yield return ScoreboardSetUp.Open(h);
+            ScoreboardItemsBoard board = Board(h);
+            ScoreboardAlliesSummary summary = null;
+            yield return h.Until(() => (summary = OwnSummary(board)) && summary.Clickable, "the viewer's summary");
+            yield return Click(h, summary);
+            yield return h.Until(() => Shown(board.Allies.Panel) && board.Allies.TileCount == 1, "the allies panel with one tile");
+            string function = Language.GetString(drone.pickupToken);
+            string command = Language.GetStringFormatted(CommandToken, Language.GetString(drone.droneTechCommandToken));
+            TooltipProvider tooltip = board.Allies.TileTooltip(0);
+            yield return h.Until(() => tooltip.titleColor == ColorCatalog.GetColor(drone.color) &&
+                                       board.Allies.TileText(0).StartsWith(tooltip.overrideTitleText) &&
+                                       tooltip.overrideBodyText.StartsWith(function) &&
+                                       tooltip.overrideBodyText.Contains(command) == commands,
+                () => $"the tile's tooltip \"{tooltip.overrideTitleText}\": \"{tooltip.overrideBodyText}\", expected " +
+                      $"\"{function}\" {(commands ? "with" : "without")} \"{command}\"");
+            yield return h.Wait(SettleSeconds);
+            RectTransform tile = (RectTransform)tooltip.transform;
+            MPEventSystem events = ScoreboardScenarios.PointAt(h, tile, "the drone's tile");
+            yield return h.Until(() => events.currentTooltipProvider == tooltip && events.currentTooltip,
+                () => $"the pointer on the tile opened " +
+                      $"{(events.currentTooltipProvider ? events.currentTooltipProvider.name + "'s tooltip" : "no tooltip")}");
+            yield return h.Wait(SettleSeconds);
+            yield return h.Screenshot(shot);
         }
 
         // A left click on the summary, as the pointer gives it: down, up and click, through the HUD's event system, as

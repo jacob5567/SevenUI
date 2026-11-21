@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using RoR2;
+using RoR2.Skills;
 using RoR2.UI;
 using TMPro;
 using UnityEngine;
@@ -13,6 +14,8 @@ namespace SevenUI
     // centered at the inspect panel's share of the board's width: a header with the player, then a tile per kind with
     // its portrait, name, count and a health segment per ally. Clicking it again, or closing the scoreboard, closes
     // the panel. Kinds are grouped as the ally cards group them (AllyNames): one name, drone tier and leader.
+    // Hovering a drone's tile shows the tooltip the game's notification shows when the drone is bought: its name and
+    // function, and for an Operator with ADMIN-OVERRIDE what its command does (Tooltip).
     //
     // A player's allies are the minions in their minion group (MinionOwnership, synced, so a client sees every
     // player's), and those minions' own minions, alive. Read only. The board (ScoreboardItemsBoard) updates this while
@@ -50,6 +53,12 @@ namespace SevenUI
         // How far up a chain of minion owners allies are looked for (a minion's minion, and so on).
         private const int MaxDepth = 8;
         private const string Times = "×";
+        // The game's own check (CharacterMasterNotificationQueue.PushDroneNotification) for the drone notification's
+        // command line: an Operator (DroneTechBody) whose secondary is this skill, ADMIN-OVERRIDE.
+        private const string CommandSkillName = "Command: Activate";
+        private const string CommandToken = "DRONETECH_COMMAND";
+        private const string CommandSeparator = "\n\n";
+        private static readonly Color TooltipBodyColor = Color.gray;
         private static readonly Color TileFace = new Color(1f, 1f, 1f, 0.04f);
 
         // A kind of ally one player has: its members alive, in the order the minion groups list them.
@@ -59,6 +68,8 @@ namespace SevenUI
             public int Tier;
             public CharacterMaster Leader;
             public Texture Portrait;
+            // The drone's def, null for an ally that isn't a drone (a turret, a Beetle Guard).
+            public DroneDef Drone;
             public readonly List<CharacterMaster> Members = new List<CharacterMaster>();
         }
 
@@ -70,6 +81,9 @@ namespace SevenUI
             public readonly List<Kind> Kinds = new List<Kind>();
             public int Total;
             public int Shape;
+            // Whether the player is an Operator who commands drones, so their tooltips add the command; kept from the
+            // last body while the player has none.
+            public bool Commands;
         }
 
         private sealed class Tile
@@ -77,6 +91,7 @@ namespace SevenUI
             public RectTransform Rect;
             public RawImage Portrait;
             public TMP_Text Label;
+            public TooltipProvider Tooltip;
             public RectTransform Bar;
             public readonly List<RectTransform> Fills = new List<RectTransform>();
             public readonly List<RectTransform> Segments = new List<RectTransform>();
@@ -106,6 +121,7 @@ namespace SevenUI
         private TMP_FontAsset laidOutFont;
         private float faceHeight;
         private int counted;
+        private static int commandSkill = -1;
 
         public ScoreboardAllies(StyleRecorder recorder, RectTransform strips, TMP_Text style)
         {
@@ -130,6 +146,7 @@ namespace SevenUI
         public string TileText(int index) => tiles[index].Label.text;
         public string HeaderText => headerLabel ? headerLabel.text : "";
         public float SegmentFill(int tile, int segment) => tiles[tile].Fills[segment].anchorMax.x;
+        public TooltipProvider TileTooltip(int index) => tiles[index].Tooltip;
 
         // Opens the panel on this player's allies, or closes it if it shows them already.
         public void Toggle(CharacterMaster player)
@@ -232,7 +249,12 @@ namespace SevenUI
         {
             Release(allies);
             Walk(allies, allies.Player, 0);
-            int shape = 17;
+            CharacterBody player = allies.Player.GetBody();
+            if (player)
+            {
+                allies.Commands = Commands(player);
+            }
+            int shape = allies.Commands ? 19 : 17;
             foreach (Kind kind in allies.Kinds)
             {
                 allies.Total += kind.Members.Count;
@@ -241,8 +263,22 @@ namespace SevenUI
                 shape = shape * 31 + (kind.Leader ? kind.Leader.GetInstanceID() : 0);
                 shape = shape * 31 + kind.Members.Count;
                 shape = shape * 31 + (kind.Portrait ? kind.Portrait.GetInstanceID() : 0);
+                shape = shape * 31 + (kind.Drone ? (int)kind.Drone.droneIndex : -1);
             }
             allies.Shape = shape;
+        }
+
+        // Reads the body's skills only; SkillCatalog.FindSkillIndexByName is a lookup, found once.
+        private static bool Commands(CharacterBody body)
+        {
+            if (body.bodyIndex != DLC3Content.BodyPrefabs.DroneTechBody.bodyIndex) return false;
+            GenericSkill secondary = body.skillLocator ? body.skillLocator.secondary : null;
+            if (!secondary || !secondary.baseSkill) return false;
+            if (commandSkill < 0)
+            {
+                commandSkill = SkillCatalog.FindSkillIndexByName(CommandSkillName);
+            }
+            return commandSkill >= 0 && secondary.baseSkill.skillIndex == commandSkill;
         }
 
         private void Walk(PlayerAllies allies, CharacterMaster leader, int depth)
@@ -300,6 +336,12 @@ namespace SevenUI
                 found.Portrait = body ? body.portraitIcon : null;
                 allies.Kinds.Add(found);
             }
+            // A member that just died has no body; the kind's drone is read from one that has.
+            if (!found.Drone)
+            {
+                CharacterBody body = master.GetBody();
+                found.Drone = body ? DroneCatalog.GetDroneDef(DroneCatalog.GetDroneIndexFromBodyIndex(body.bodyIndex)) : null;
+            }
             found.Members.Add(master);
         }
 
@@ -310,6 +352,7 @@ namespace SevenUI
                 kind.Members.Clear();
                 kind.Leader = null;
                 kind.Portrait = null;
+                kind.Drone = null;
                 kind.Name = null;
                 spareKinds.Push(kind);
             }
@@ -436,7 +479,32 @@ namespace SevenUI
                 tile.Label.text = kind.Name + " <color=#" + ColorUtility.ToHtmlStringRGB(Palette.Accent) + ">" + Times +
                                   kind.Members.Count + "</color>";
                 Segments(tile, kind.Members.Count > MaxSegments ? 1 : kind.Members.Count);
+                Tooltip(tile.Tooltip, kind, allies.Commands);
             }
+        }
+
+        // The drone notification's texts (GenericNotification.SetDrone): the name, here with its tier as the tile has
+        // it, in the drone's color, its function, then for an Operator its command, which the notification shows in a
+        // panel of its own. Without a title color the game shows no tooltip, so other allies have none.
+        private static void Tooltip(TooltipProvider tooltip, Kind kind, bool commands)
+        {
+            DroneDef drone = kind.Drone;
+            if (!drone)
+            {
+                tooltip.titleColor = Color.clear;
+                tooltip.overrideTitleText = "";
+                tooltip.overrideBodyText = "";
+                return;
+            }
+            string body = Language.GetString(drone.pickupToken);
+            if (commands && !string.IsNullOrWhiteSpace(drone.droneTechCommandToken))
+            {
+                body += CommandSeparator + Language.GetStringFormatted(CommandToken, Language.GetString(drone.droneTechCommandToken));
+            }
+            tooltip.titleColor = ColorCatalog.GetColor(drone.color);
+            tooltip.overrideTitleText = kind.Name;
+            tooltip.bodyColor = TooltipBodyColor;
+            tooltip.overrideBodyText = body;
         }
 
         private ScoreboardStrip RowOf(CharacterMaster player)
@@ -474,7 +542,12 @@ namespace SevenUI
 
         private Tile NewTile()
         {
-            Tile tile = new Tile { Rect = UiFactory.NewImage(TileName, face, TileFace).rectTransform };
+            Image background = UiFactory.NewImage(TileName, face, TileFace);
+            // The face takes the pointer, for the tooltip.
+            background.raycastTarget = true;
+            Tile tile = new Tile { Rect = background.rectTransform };
+            tile.Tooltip = background.gameObject.AddComponent<TooltipProvider>();
+            tile.Tooltip.titleColor = Color.clear;
             RectTransform slot = UiFactory.NewImage("PortraitSlot", tile.Rect, Palette.ItemSlot).rectTransform;
             StatsSection.TopLeft(slot, TileInset, (TileHeight - TilePortrait) / 2f, TilePortrait, TilePortrait);
             tile.Portrait = NewPortrait(slot);
