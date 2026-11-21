@@ -27,6 +27,10 @@ namespace SevenUI
             new Dictionary<(Material, TMP_FontAsset), Material>();
         private static readonly Dictionary<Material, Material> ShadowlessMaterials = new Dictionary<Material, Material>();
         private static readonly Dictionary<Material, Material> PlainMaterials = new Dictionary<Material, Material>();
+        private static readonly Dictionary<Material, Material> ShadowedMaterials = new Dictionary<Material, Material>();
+        // The soft shadow's spread and blur, in TMP's underlay units (fractions of the glyphs' distance field).
+        private const float ShadowDilate = 0.5f;
+        private const float ShadowSoftness = 0.6f;
 
         // Barlow Medium with Barlow SemiBold as its bold and Barlow Medium Italic as its italic, or null if baking
         // failed. The template material is a game font's, so the baked asset's own material uses the game's text shader.
@@ -109,6 +113,28 @@ namespace SevenUI
                 SetIfPresent(material, ShaderUtilities.ID_OutlineSoftness, 0f);
                 SetIfPresent(material, ShaderUtilities.ID_FaceDilate, 0f);
                 PlainMaterials[source] = material;
+            }
+            return material;
+        }
+
+        // A copy of a text material with a soft dark shadow under its letters (TMP's underlay, centered), for text that
+        // may sit over something bright: the countdowns' label and time over the moon's white sky, and a buff's count
+        // over its picture.
+        public static Material SoftShadow(Material source)
+        {
+            if (!ShadowedMaterials.TryGetValue(source, out Material material) || !material)
+            {
+                material = new Material(source) { name = source.name + " (soft shadow)" };
+                material.EnableKeyword(ShaderUtilities.Keyword_Underlay);
+                if (material.HasProperty(ShaderUtilities.ID_UnderlayColor))
+                {
+                    material.SetColor(ShaderUtilities.ID_UnderlayColor, Palette.TextShadow);
+                }
+                SetIfPresent(material, ShaderUtilities.ID_UnderlayOffsetX, 0f);
+                SetIfPresent(material, ShaderUtilities.ID_UnderlayOffsetY, 0f);
+                SetIfPresent(material, ShaderUtilities.ID_UnderlayDilate, ShadowDilate);
+                SetIfPresent(material, ShaderUtilities.ID_UnderlaySoftness, ShadowSoftness);
+                ShadowedMaterials[source] = material;
             }
             return material;
         }

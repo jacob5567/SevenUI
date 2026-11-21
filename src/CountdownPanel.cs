@@ -128,7 +128,8 @@ namespace SevenUI
             UiFactory.Stretch(holder);
             holder.SetAsFirstSibling();
             recorder.Add(holder.gameObject);
-            UiFactory.Stretch(UiFactory.NewImage("Background", holder, Palette.Panel).rectTransform);
+            // Darker than the other panels, and its texts shadowed, so it reads over the moon's white sky.
+            UiFactory.Stretch(UiFactory.NewImage("Background", holder, Palette.CountdownPanel).rectTransform);
 
             // Blended as the canvas draws it: the plain tint is a solid grey block over a dark sky in linear light.
             Image strip = UiFactory.NewImage("HeaderStrip", holder, CanvasBlend.HeaderStrip);
@@ -138,7 +139,7 @@ namespace SevenUI
             // The game's time may already be in Barlow when the panel is restyled again. Its material draws a thick
             // outline, which the design's flat texts don't have; the Barlow swap keeps the plain one.
             HudFontSwapper.StartInGameFont(label);
-            label.fontSharedMaterial = FontLibrary.Plain(label.fontSharedMaterial);
+            label.fontSharedMaterial = FontLibrary.SoftShadow(FontLibrary.Plain(label.fontSharedMaterial));
             // Barlow Condensed capitals, as the time: the canvas draws both at the same weight.
             label.fontStyle = FontStyles.UpperCase;
             label.characterSpacing = LabelTracking;
@@ -149,7 +150,7 @@ namespace SevenUI
 
             TMP_Text time = UiFactory.NewText("Time", holder, gameTime, TimeFontSize, Palette.Text);
             HudFontSwapper.StartInGameFont(time);
-            time.fontSharedMaterial = FontLibrary.Plain(time.fontSharedMaterial);
+            time.fontSharedMaterial = FontLibrary.SoftShadow(FontLibrary.Plain(time.fontSharedMaterial));
             time.alignment = TextAlignmentOptions.Center;
             UiFactory.KeepOnOneLine(time);
             time.gameObject.AddComponent<CondensedText>();

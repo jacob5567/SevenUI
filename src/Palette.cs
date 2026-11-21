@@ -8,6 +8,11 @@ namespace SevenUI
         // Panels are flat 45% black, with a 6% white strip behind their header.
         public static readonly Color Panel = new Color(0f, 0f, 0f, 0.45f);
         public static readonly Color HeaderStrip = new Color(1f, 1f, 1f, 0.06f);
+        // The countdowns' panel, darker so its text reads over the moon's white sky after Mithrix (the game blends in
+        // linear light, so 45% black turns light grey there).
+        public static readonly Color CountdownPanel = new Color(0f, 0f, 0f, 0.75f);
+        // The soft shadow under text that may sit over something bright (FontLibrary.SoftShadow).
+        public static readonly Color TextShadow = new Color(0.02f, 0.03f, 0.05f, 0.85f);
         // #a9aebb, for header strip text and secondary labels.
         public static readonly Color HeaderText = new Color(0.663f, 0.682f, 0.733f, 1f);
         // #8b90a0, for fainter header text, such as the stats panel's source.
