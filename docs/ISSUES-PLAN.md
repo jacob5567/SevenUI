@@ -122,9 +122,9 @@ One task in Super Productivity; split it in two.
 - F1 needs A1 for the grouping key (it should reuse the ally cards' kinds, not build a second grouping) and B4 so the board is fast before it grows.
 - F2 extends A3's rule (players exempt from compacting, sorted first) to pinned kinds, and it needs F1 if pinning is done by clicking on the board.
 
-**Jacob decides before F starts:** how to pin (click on the board, a key, or something else), whether pins last across stages and runs, and whether a stack is identified by kind, leader and tier.
+**Jacob decides before F2 starts:** how to pin (click on the board, a key, or something else), whether pins last across stages and runs, and whether a stack is identified by kind, leader and tier. These questions are in F2's ticket.
 
-**Release point:** 1.6.0.
+**Release point:** 1.8.0 with F1. F2 is out of this release; Jacob is working on it separately.
 
 ## Phase G: large design jobs (81 h)
 
