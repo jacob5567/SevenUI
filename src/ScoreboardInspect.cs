@@ -34,27 +34,29 @@ namespace SevenUI
 
         private const float Canvas = HudUnits.PerCanvasPixel;
 
-        // The canvas's sizes, in its pixels, scaled to the HUD's units (HudUnits).
+        // The canvas's sizes, in its pixels, scaled to the HUD's units (HudUnits). The text is 30% larger and the icon 15%
+        // larger than the 1.7.0 design (I3, Jacob's pick, 2026-11-22): name 21, description and stats 17, icon 64, and the
+        // stats column wider to hold the larger text.
         private const int BoardGap = (int)(6f * Canvas + 0.5f);
         private const float StripHeight = 2f * Canvas;
         private const float FootStripHeight = 3f * Canvas;
         private const int PaddingX = (int)(14f * Canvas + 0.5f);
         private const int PaddingY = (int)(12f * Canvas + 0.5f);
-        private const float IconSize = 56f * Canvas;
+        private const float IconSize = 64f * Canvas;
         private const int IconInset = (int)(4f * Canvas + 0.5f);
         private const float IconGap = 12f * Canvas;
         private const float ColumnGap = 4f * Canvas;
         // LookingGlass's stats: a column on the right, after a 1px line, each gap between them this wide.
         private const float StatsSpacing = 14f * Canvas;
-        private const float StatsWidth = 200f * Canvas;
+        private const float StatsWidth = 260f * Canvas;
         private const float DividerWidth = 1f * Canvas;
         private const float StatsTop = 2f * Canvas;
         private const float StatsRowGap = 6f * Canvas;
         private const float StatsLabelGap = 16f * Canvas;
-        private const float StatsSize = 13f * Canvas;
+        private const float StatsSize = 17f * Canvas;
         private const float LineHeightSlack = 0.5f;
-        private const float NameSize = 16f * Canvas;
-        private const float DescriptionSize = 13f * Canvas;
+        private const float NameSize = 21f * Canvas;
+        private const float DescriptionSize = 17f * Canvas;
         private const float DescriptionLineHeight = 1.4f;
         private const float PercentPerLine = 100f;
         private const float DumpDelaySeconds = 0.5f;
