@@ -37,10 +37,12 @@ namespace SevenUI
         // the canvas's sharp one, shown while the game's would be.
         public PickerButton StyleButton(MPButton button, PickerEntry entry, Color face)
         {
+            string description = entry != null ? entry.Description(button, FullDescriptions) : "";
             PickerButton styled = new PickerButton
             {
                 Button = button, Hover = button as HGButton, Entry = entry, Pickup = entry?.Pickup,
-                DescriptionText = entry != null ? entry.Description(button, FullDescriptions) : "",
+                LookingGlassNote = Corruption.HasLookingGlassNote(description),
+                DescriptionText = Corruption.StyleLookingGlassNote(description),
             };
             styled.Parts = ItemStatsText.Split(styled.DescriptionText);
             // The game's skin sets the button's tint, which multiplies the face's color (the options' slots came out

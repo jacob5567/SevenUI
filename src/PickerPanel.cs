@@ -176,6 +176,8 @@ namespace SevenUI
         internal PickerSource Source => source;
 
         public TMP_Text DetailsNameText => slots.DetailsName;
+        // Counts changes to the options' shown descriptions (their corruption lines), so the details are measured again.
+        public int DescriptionsVersion { get; private set; }
 
         public TMP_Text DetailsDescriptionText => slots.DetailsDescription;
 
@@ -266,6 +268,7 @@ namespace SevenUI
         // The option's description with its corruption line, on its card or in the details if they show it.
         private void ShowDescriptionAgain(PickerButton button, int index)
         {
+            DescriptionsVersion++;
             if (button.Description)
             {
                 button.Description.text = button.ShownDescription;

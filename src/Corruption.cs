@@ -13,6 +13,24 @@ namespace SevenUI
     {
         private const string CorruptedByText = "Corrupted by {0}";
         private const string CorruptsText = "Corrupts your {0}";
+        // LookingGlass's own note in a picker option's full description, followed by the void item's description:
+        // "\n\nHas been corrupted by: <style=cIsVoid>Polylute</style>\n\n" (CommandItemCountClass.CreateToolTip).
+        private static readonly System.Text.RegularExpressions.Regex LookingGlassNote =
+            new System.Text.RegularExpressions.Regex(@"\s*(Has been corrupted by:) <style=cIsVoid>(.*?)</style>\s*");
+        // Space around the note, so the item's own description and the void item's read apart.
+        private const string NoteGap = "\n<line-height=60%>\n</line-height>";
+
+        // Whether the text has LookingGlass's note, which then says what the line would.
+        public static bool HasLookingGlassNote(string text) => !string.IsNullOrEmpty(text) && LookingGlassNote.IsMatch(text);
+
+        // LookingGlass's note in the void color, whole, set apart from the descriptions around it (I2, Jacob's call,
+        // 2026-11-22).
+        public static string StyleLookingGlassNote(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return text;
+            return LookingGlassNote.Replace(text, match => NoteGap + "\n" + Colored(Palette.CountVoid, match.Groups[1].Value + " " +
+                match.Groups[2].Value) + NoteGap + "\n");
+        }
 
         // The held stacks behind the line: of the void item that would corrupt the item, and of the items a void item
         // would corrupt.

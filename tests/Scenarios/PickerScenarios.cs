@@ -1048,6 +1048,22 @@ namespace SevenUI.Tests
                                        option.ShownDescription.Contains(line),
                 () => $"{offered.name}'s corner {(option.CorruptMark && option.CorruptMark.enabled ? "shown" : "hidden")} and line " +
                       $"\"{option.CorruptionLine}\", not {(corrupted ? "shown" : "hidden")} and \"{line}\"");
+            // Shown where the player reads it: on the card, or in the grid's details once the option is hovered.
+            PointerEventData pointer = new PointerEventData(EventSystem.current);
+            GameObject hovered = option.Button.gameObject;
+            ExecuteEvents.Execute(hovered, pointer, ExecuteEvents.pointerEnterHandler);
+            h.OnCleanup(() =>
+            {
+                if (hovered) ExecuteEvents.Execute(hovered, pointer, ExecuteEvents.pointerExitHandler);
+            });
+            string Shown() => panel.Cards ? (option.Description ? option.Description.text : "") :
+                panel.DetailsDescriptionText ? panel.DetailsDescriptionText.text : "";
+            // With LookingGlass's full descriptions, its own note says it, in the void color, in place of the line.
+            string note = "Has been corrupted by: " + heldName;
+            yield return h.Until(() => option.LookingGlassNote
+                    ? Shown().Contains(note) && Shown().Contains(ColorUtility.ToHtmlStringRGB(Palette.CountVoid)) && !Shown().Contains(line + "</color>")
+                    : Shown().Contains(line),
+                () => $"{offered.name}'s shown description \"{Shown()}\" without \"{(option.LookingGlassNote ? note : line)}\"");
             yield return h.Wait(SettleSeconds);
             yield return h.Screenshot("corruption_" + offered.name);
         }

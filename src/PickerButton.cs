@@ -123,7 +123,11 @@ namespace SevenUI
         }
 
         // The description as the card or the details show it: with the corruption line under it, if any.
-        public string ShownDescription => CorruptionLine.Length > 0 ? Parts.Description + "\n" + CorruptionLine : Parts.Description;
+        // LookingGlass's own note, when its full description has one, already says it, so the line isn't added again.
+        public bool LookingGlassNote;
+        public string ShownDescription => CorruptionLine.Length > 0 && !LookingGlassNote
+            ? Parts.Description + "\n" + CorruptionLine
+            : Parts.Description;
 
         // Set when the line changes, for the panel to show it again; the panel clears it.
         public bool CorruptionChanged;
