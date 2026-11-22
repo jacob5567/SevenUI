@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace SevenUI
 {
-    // A drone's name as SevenUI shows it, rising in color like item tiers: the base name in the tier's color, then the
+    // A drone's name as SevenUI shows it, rising in color like item tiers: the base name in the tier's color, then, from tier 2, the
     // tier as a short tag ("T2") on a badge tinted with that color, in place of the game's "(Tier 2)" suffix. Tier 1 is
     // white, 2 green, 3 red, 4 and up yellow, in SevenUI's item tier shades (I1, Jacob's picks, 2026-11-22). Allies that
     // aren't drones keep their plain name.
@@ -43,18 +43,22 @@ namespace SevenUI
             return gameName ?? "";
         }
 
-        // The tier's tag on its tinted badge, as rich text.
+        // The tier's tag on its tinted badge, as rich text; none for tier 1, which is the plain drone.
         public static string Badge(int upgrades)
         {
             int tier = Of(upgrades);
+            if (tier <= 1) return "";
             string hex = ColorUtility.ToHtmlStringRGB(ColorOf(tier));
             return "<mark=#" + hex + BadgeAlpha + "><size=" + BadgeSize + "><color=#" + hex + "><b>" + BadgePad + "T" + tier + BadgePad +
                    "</b></color></size></mark>";
         }
 
-        // The base name in the tier's color, then the badge.
+        // The base name in the tier's color, then the badge (none at tier 1).
         public static string Name(string gameName, string baseNameToken, int upgrades) =>
-            "<color=#" + ColorUtility.ToHtmlStringRGB(ColorOf(Of(upgrades))) + ">" + BaseName(gameName, baseNameToken, upgrades) +
-            "</color> " + Badge(upgrades);
+            WithBadge("<color=#" + ColorUtility.ToHtmlStringRGB(ColorOf(Of(upgrades))) + ">" + BaseName(gameName, baseNameToken, upgrades) +
+                      "</color>", upgrades);
+
+        // 'name', then a space and the badge, or just 'name' at tier 1.
+        public static string WithBadge(string name, int upgrades) => Of(upgrades) <= 1 ? name : name + " " + Badge(upgrades);
     }
 }

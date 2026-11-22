@@ -29,7 +29,7 @@ namespace SevenUI.Tests
         }
 
         // I1: four Gunner Drones of tiers 1 to 4 (0 to 3 upgrades) each show their base name in the tier's color and
-        // the tier's badge ("T3"), never the game's "(Tier 3)" suffix, on their card and on the scoreboard's ally tile;
+        // the tier's badge ("T3", none at tier 1), never the game's "(Tier 3)" suffix, on their card and on the scoreboard's ally tile;
         // with FlatPanels off the cards read as the game writes them again.
         private static IEnumerator Tagged(Harness h)
         {
@@ -57,10 +57,10 @@ namespace SevenUI.Tests
             yield return h.Until(() =>
                 {
                     tiles = string.Join(" | ", Enumerable.Range(0, board.Allies.TileCount).Select(board.Allies.TileText));
-                    return board.Allies.TileCount >= 4 && Enumerable.Range(1, 4).All(tier => tiles.Contains("T" + tier + DroneTier.BadgePad)) &&
-                           !tiles.Contains("(Tier");
+                    return board.Allies.TileCount >= 4 && Enumerable.Range(2, 3).All(tier => tiles.Contains("T" + tier + DroneTier.BadgePad)) &&
+                           !tiles.Contains("T1") && !tiles.Contains("(Tier");
                 },
-                () => $"the scoreboard's ally tiles read \"{tiles}\", not a badge per tier 1 to 4 {h.Diagnosis()}");
+                () => $"the scoreboard's ally tiles read \"{tiles}\", not a badge per tier 2 to 4 and none on tier 1 {h.Diagnosis()}");
             yield return h.Screenshot("tiles");
             HUD.SetScoreboardActive(LocalUserManager.GetFirstLocalUser(), false, EScoreboardDeactivateReturnContext.Game);
 
@@ -113,9 +113,9 @@ namespace SevenUI.Tests
                 if (!card || !card.nameLabel) return $"no card for the drone with {upgrades} upgrades";
                 string text = card.nameLabel.text;
                 string hex = UnityEngine.ColorUtility.ToHtmlStringRGB(DroneTier.ColorOf(upgrades + 1));
-                if (!text.StartsWith("<color=#" + hex + ">" + baseName + "</color>") || !text.Contains("T" + (upgrades + 1)) || text.Contains("("))
+                if (!text.StartsWith("<color=#" + hex + ">" + baseName + "</color>") || text.Contains("T" + (upgrades + 1)) != (upgrades > 0) || text.Contains("("))
                 {
-                    return $"the tier {upgrades + 1} card reads \"{text}\", not {baseName} in #{hex} with a T{upgrades + 1} badge";
+                    return $"the tier {upgrades + 1} card reads \"{text}\", not {baseName} in #{hex} {(upgrades > 0 ? $"with a T{upgrades + 1} badge" : "with no badge")}";
                 }
             }
             return null;

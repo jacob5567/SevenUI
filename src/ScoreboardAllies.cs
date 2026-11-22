@@ -524,7 +524,7 @@ namespace SevenUI
             tooltip.titleColor = ColorCatalog.GetColor(drone.color);
             // The name stays in the drone's color, as the notification has it, with the tier's badge after it.
             tooltip.overrideTitleText = DroneTier.HasTier(drone)
-                ? DroneTier.BaseName(kind.Name, kind.BaseNameToken, kind.Tier) + " " + DroneTier.Badge(kind.Tier)
+                ? DroneTier.WithBadge(DroneTier.BaseName(kind.Name, kind.BaseNameToken, kind.Tier), kind.Tier)
                 : kind.Name;
             tooltip.bodyColor = TooltipBodyColor;
             tooltip.overrideBodyText = body;
