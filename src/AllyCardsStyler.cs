@@ -443,7 +443,7 @@ namespace SevenUI
             CharacterMaster master = card.sourceMaster;
             if (!card.nameLabel || !master || master.playerCharacterMasterController) return;
             CharacterBody body = master.GetBody();
-            if (!DroneTier.IsDrone(body)) return;
+            if (!DroneTier.HasTier(body)) return;
             string gameName = NameOf(master, out int upgrades);
             if (gameName == null) return;
             if (!tierNames.TryGetValue(card, out (CharacterBody Body, int Upgrades, string Text) shown) || shown.Body != body ||

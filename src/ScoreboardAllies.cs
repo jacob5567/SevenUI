@@ -497,8 +497,8 @@ namespace SevenUI
             }
         }
 
-        // A drone's name in its tier's color with its tier's badge (DroneTier); another ally's as the game has it.
-        private static string ShownName(Kind kind) => kind.Drone ? DroneTier.Name(kind.Name, kind.BaseNameToken, kind.Tier) : kind.Name;
+        // A drone's name in its tier's color with its tier's badge (DroneTier); another ally's, or a drone without a tier's, as the game has it.
+        private static string ShownName(Kind kind) => DroneTier.HasTier(kind.Drone) ? DroneTier.Name(kind.Name, kind.BaseNameToken, kind.Tier) : kind.Name;
 
         // The drone notification's texts (GenericNotification.SetDrone): the name, here with its tier as the tile has
         // it, in the drone's color, its description (Description), then for an Operator its command, which the notification shows in a
@@ -523,7 +523,9 @@ namespace SevenUI
             }
             tooltip.titleColor = ColorCatalog.GetColor(drone.color);
             // The name stays in the drone's color, as the notification has it, with the tier's badge after it.
-            tooltip.overrideTitleText = DroneTier.BaseName(kind.Name, kind.BaseNameToken, kind.Tier) + " " + DroneTier.Badge(kind.Tier);
+            tooltip.overrideTitleText = DroneTier.HasTier(drone)
+                ? DroneTier.BaseName(kind.Name, kind.BaseNameToken, kind.Tier) + " " + DroneTier.Badge(kind.Tier)
+                : kind.Name;
             tooltip.bodyColor = TooltipBodyColor;
             tooltip.overrideBodyText = body;
         }
