@@ -115,6 +115,7 @@ namespace SevenUI.Tests
             yield return new Scenario(1, "picker_stats_as_held_delusion", Stages.TitanicPlains,
                 h => StatsByPanel(h, "delusion", StackChange.None));
             yield return new Scenario(1, "item_counts_with_temporary_and_ethereal", Stages.TitanicPlains, CountsWithTemporaryAndEthereal);
+            yield return new Scenario(1, "picker_count_hidden_on_locked_options", Stages.TitanicPlains, CountHiddenOnLockedOptions);
             yield return new Scenario(1, "picker_count_corrupted_by_void", Stages.TitanicPlains,
                 h => CorruptionCount(h, RoR2Content.Items.ChainLightning, DLC1Content.Items.ChainLightningVoid, 3, Palette.CountVoid));
             yield return new Scenario(1, "picker_count_void_corrupts_held", Stages.TitanicPlains,
@@ -959,6 +960,47 @@ namespace SevenUI.Tests
             if (option == null || !option.Count) throw h.Fail($"Command for {item.name} has no option with a count for it");
             yield return h.Until(() => option.Count.text == Permanent.ToString(),
                 () => $"{item.name}'s Command count \"{option.Count.text}\", not \"{Permanent}\" for its permanent stacks");
+        }
+
+        // An option the game locks (its picture a padlock) shows no count, though its item is held, as LookingGlass's
+        // count shows none there; an open option shows its count. LookingGlass's own count, turned on again as it does
+        // when the game sets the options again, is hidden again.
+        private static IEnumerator CountHiddenOnLockedOptions(Harness h)
+        {
+            ItemDef open = RoR2Content.Items.Syringe;
+            ItemDef locked = RoR2Content.Items.Feather;
+            Inventory inventory = Harness.LocalBody.master.inventory;
+            (ItemDef item, int count)[] held = { (open, 2), (locked, 3) };
+            foreach ((ItemDef item, int count) in held)
+            {
+                int before = inventory.GetItemCountPermanent(item);
+                inventory.GiveItemPermanent(item, count);
+                h.OnCleanup(() =>
+                {
+                    if (inventory) inventory.RemoveItemPermanent(item, inventory.GetItemCountPermanent(item) - before);
+                });
+            }
+            yield return GoHome(h);
+            PickupPickerController picker = h.SpawnPrefab<PickupPickerController>(GameNames.CommandCube);
+            picker.SetOptionsServer(new[]
+            {
+                new PickupPickerController.Option { pickup = new UniquePickup(PickupCatalog.FindPickupIndex(open.itemIndex)), available = true },
+                new PickupPickerController.Option { pickup = new UniquePickup(PickupCatalog.FindPickupIndex(locked.itemIndex)), available = false },
+            });
+            PickerPanel panel = null;
+            yield return OpenStyled(h, picker, found => panel = found);
+            PickerButton openButton = panel.Buttons.FirstOrDefault(button => button.Pickup != null && button.Pickup.itemIndex == open.itemIndex);
+            PickerButton lockedButton = panel.Buttons.FirstOrDefault(button => button.Pickup != null && button.Pickup.itemIndex == locked.itemIndex);
+            if (openButton == null || lockedButton == null || !openButton.Count || !lockedButton.Count) throw h.Fail("the two options have no counts");
+            yield return h.Until(() => openButton.Count.text == "2" && lockedButton.Count.text == "",
+                () => $"counts \"{openButton.Count.text}\" on the open option (2 held) and \"{lockedButton.Count.text}\" on the locked one, not 2 and none");
+            Transform lookingGlass = openButton.Button.transform.Find(PickerPanel.LookingGlassCountName);
+            if (lookingGlass)
+            {
+                lookingGlass.gameObject.SetActive(true);
+                yield return h.Until(() => !lookingGlass.gameObject.activeSelf, "LookingGlass's count hidden again after it was turned on");
+            }
+            yield return h.Screenshot("locked_option");
         }
 
         // With none of an offered item held but items tied to it by void corruption, the option's count shows how many
