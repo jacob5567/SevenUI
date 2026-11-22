@@ -15,6 +15,8 @@ namespace SevenUI
     {
         // The share of its color an unavailable option's text keeps, as on the design canvas.
         private const float UnavailableAlpha = 0.4f;
+        // The game's padlock picture (PickupPickerPanel's Textures/MiscIcons/texUnlockIcon).
+        private const string LockSpriteName = "texUnlockIcon";
 
         public MPButton Button;
         public HGButton Hover;
@@ -37,6 +39,13 @@ namespace SevenUI
         public TMP_Text Key;
 
         private int shownCount = -1;
+        private bool shownLocked;
+        // The game's icon on the option, which it swaps for a padlock when the option can't be picked.
+        private Image iconImage;
+        private Sprite seenSprite;
+        private bool locked;
+        // LookingGlass's own count on the option, found once it exists.
+        public Transform LookingGlassCount;
         private int shownCorrupting = -1;
         // The items that corrupt this one (the void item it turns into) or that it corrupts (for a void item), found
         // the first time the count is shown.
@@ -65,12 +74,11 @@ namespace SevenUI
                     }
                 }
                 ItemDef first = corrupts.Count > 0 ? ItemCatalog.GetItemDef(corrupts[0]) : null;
-                ItemTierDef tier = first ? ItemTierCatalog.GetItemTierDef(first.tier) : null;
-                corruptsColor = tier ? GameColors.ToCanvas(ColorCatalog.GetColor(tier.colorIndex)) : Palette.Text;
+                corruptsColor = first ? GameColors.OfTier(first.tier, Palette.Text) : Palette.Text;
             }
             if (corruptedInto != ItemIndex.None)
             {
-                int held = inventory.GetItemCountTotal(corruptedInto);
+                int held = inventory.GetItemCountPermanent(corruptedInto);
                 if (held > 0)
                 {
                     color = Palette.CountVoid;
@@ -80,7 +88,7 @@ namespace SevenUI
             int originals = 0;
             foreach (ItemIndex original in corrupts)
             {
-                originals += inventory.GetItemCountTotal(original);
+                originals += inventory.GetItemCountPermanent(original);
             }
             color = corruptsColor;
             return originals;
@@ -127,15 +135,32 @@ namespace SevenUI
                     }
                 }
             }
+            if (Icon && !iconImage)
+            {
+                iconImage = Icon.GetComponent<Image>();
+            }
+            Sprite sprite = iconImage ? iconImage.sprite : null;
+            if (sprite != seenSprite)
+            {
+                seenSprite = sprite;
+                locked = sprite && sprite.name == LockSpriteName;
+            }
             if (Count)
             {
-                int count = inventory && Pickup != null && Pickup.itemIndex != ItemIndex.None ? inventory.GetItemCountTotal(Pickup.itemIndex) : 0;
+                // Permanent stacks only, as LookingGlass counts them in its own picker count and stats (Jacob's call,
+                // 2026-11-22): a temporary or Ethereal stack isn't counted, though the item bar counts it.
+                // None on an option behind the game's padlock, as LookingGlass shows none there: the padlock hides
+                // which item it is.
+                int count = !locked && inventory && Pickup != null && Pickup.itemIndex != ItemIndex.None
+                    ? inventory.GetItemCountPermanent(Pickup.itemIndex)
+                    : 0;
                 Color color = Color.white;
-                int corrupting = count == 0 ? Corrupting(inventory, out color) : 0;
-                if (count != shownCount || corrupting != shownCorrupting)
+                int corrupting = count == 0 && !locked ? Corrupting(inventory, out color) : 0;
+                if (count != shownCount || corrupting != shownCorrupting || locked != shownLocked)
                 {
                     shownCount = count;
                     shownCorrupting = corrupting;
+                    shownLocked = locked;
                     if (corrupting > 0)
                     {
                         // None of the item held, but void items tie it to a stack: the count in the color of what is held.
@@ -144,8 +169,9 @@ namespace SevenUI
                     }
                     else
                     {
-                        // As in the item bar: a count only for two or more.
-                        Count.text = count > 1 ? count.ToString() : "";
+                        // From one up, as LookingGlass's own count ("x1") shows it, unlike the item bar, which counts only
+                        // two or more (Jacob's call, 2026-11-22).
+                        Count.text = count > 0 ? count.ToString() : "";
                         Count.color = Color.white;
                     }
                 }

@@ -153,7 +153,7 @@ namespace SevenUI.Tests
         }
 
         // Tight margins and the level HUD, each on or off; the first is the defaults.
-        private readonly struct LayoutCombo
+        internal readonly struct LayoutCombo
         {
             public readonly string Label;
             public readonly bool TightMargins;
@@ -167,7 +167,7 @@ namespace SevenUI.Tests
             }
         }
 
-        private static readonly LayoutCombo[] LayoutCombos =
+        internal static readonly LayoutCombo[] LayoutCombos =
         {
             new LayoutCombo("tight_level", true, true),
             new LayoutCombo("tight_nolevel", true, false),
@@ -178,7 +178,7 @@ namespace SevenUI.Tests
         // The kinds Drifter's card is also checked for under the other combinations; the rest only under the defaults.
         private static readonly string[] AllLayoutKinds = { GameNames.SmallChest, GameNames.ShrineOfChance };
 
-        private static IEnumerator SetLayout(Harness h, LayoutCombo combo)
+        internal static IEnumerator SetLayout(Harness h, LayoutCombo combo)
         {
             PluginConfig settings = SevenUIPlugin.Settings;
             h.SetConfig(settings.TightMargins, combo.TightMargins);

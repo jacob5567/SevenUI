@@ -31,7 +31,7 @@ namespace SevenUI
                 TierStrip.enabled = tier;
                 if (tier)
                 {
-                    TierStrip.color = ColorCatalog.GetColor(tier.colorIndex);
+                    TierStrip.color = GameColors.ToCanvas(ColorCatalog.GetColor(tier.colorIndex));
                 }
             }
             // The game shows a count only for stacks of two or more.

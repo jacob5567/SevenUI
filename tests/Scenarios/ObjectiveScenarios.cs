@@ -2,6 +2,9 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using ModTestRunner;
+using RoR2;
+using RoR2.UI;
+using UnityEngine.UI;
 
 namespace SevenUI.Tests
 {
@@ -21,6 +24,7 @@ namespace SevenUI.Tests
             yield return new Scenario(1, "each_objective_alone_as_canvas", Stages.TitanicPlains, EachObjectiveAlone);
             yield return new Scenario(1, "every_objective_as_canvas", Stages.TitanicPlains, EveryObjective);
             yield return new Scenario(1, "trial_progress_as_canvas", Stages.TitanicPlains, TrialProgress);
+            yield return new Scenario(1, "objective_done_and_failed_boxes", Stages.TitanicPlains, DoneAndFailedBoxes);
         }
 
         private static IEnumerator EachObjectiveAlone(Harness h)
@@ -46,6 +50,40 @@ namespace SevenUI.Tests
                 yield return h.ExpectObjectivesAsCanvas(sources);
                 hide();
             }
+        }
+
+        // An open, a done and a failed objective, the states set as the game sets them (ObjectiveTracker.SetState): each
+        // box as design H draws it; with FlatPanels off the game's pictures and text colors back, and on again restyled.
+        private static IEnumerator DoneAndFailedBoxes(Harness h)
+        {
+            string[] tokens = TestObjectives.Tokens;
+            (List<TestObjectiveSource> sources, System.Action hide) = TestObjectives.Show(h, tokens.Take(3)
+                .Select(token => (TestObjectives.Text(token), typeof(TestObjectiveTracker), 0f)));
+            h.OnCleanup(hide);
+            ObjectivePanelController controller = null;
+            yield return h.Until(() => (controller = SevenUIChecks.HudRoot(h).GetComponentInChildren<ObjectivePanelController>()) &&
+                                       sources.All(source => controller.objectiveTrackers.Any(shown => shown.sourceDescriptor.source == source)),
+                "the test objectives on the panel");
+            yield return TestObjectives.SkipStripAnimations(h, sources);
+            ObjectivePanelController.ObjectiveTracker Tracker(int i) =>
+                controller.objectiveTrackers.First(shown => shown.sourceDescriptor.source == sources[i]);
+            Tracker(1).SetState(ObjectivePanelController.ObjectiveTracker.ObjectiveState.Completed);
+            Tracker(2).SetState(ObjectivePanelController.ObjectiveTracker.ObjectiveState.Failure);
+            yield return h.ExpectObjectiveBoxesFlat();
+            if (SevenUIChecks.HudRoot(h).GetComponentsInChildren<ObjectiveCheckbox>().Count(box => box.Mark && box.Mark.enabled) < 2)
+            {
+                throw h.Fail("fewer than two boxes marked done or failed");
+            }
+            yield return h.Screenshot("objective_boxes");
+
+            h.SetConfig(SevenUIPlugin.Settings.FlatPanels, false);
+            h.OnCleanup(() => h.SetConfig(SevenUIPlugin.Settings.FlatPanels, true));
+            yield return h.Until(() => !SevenUIChecks.HudRoot(h).GetComponentInChildren<ObjectiveCheckbox>() &&
+                                       sources.Select((_, i) => Tracker(i).stripObject.GetComponent<ChildLocator>()
+                                           .FindChildComponent<Image>("Checkbox")).All(image => image && image.enabled),
+                "the game's checkbox pictures back with FlatPanels off");
+            h.SetConfig(SevenUIPlugin.Settings.FlatPanels, true);
+            yield return h.ExpectObjectiveBoxesFlat();
         }
 
         private static IEnumerator TrialProgress(Harness h)

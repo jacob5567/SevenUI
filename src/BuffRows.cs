@@ -29,11 +29,13 @@ namespace SevenUI
         // The design canvas's sizes, in its pixels, scaled to the buff display's units: 34px squares 4px apart, with a
         // 2px strip; the count 13px, its baseline about 12.7px under the square's top and 2px from its right; the
         // timer 12px, its baseline about 14.6px under the square, which leaves 17px under each row for it. The
-        // picture sits inside the square with a margin, a little larger than the canvas's placeholder.
+        // picture fills the square above the strip, 32px against its top and 1px in from its sides (Jacob's pick,
+        // 2026-11-20); the count, which then sits over it, has a soft shadow.
         private const float Canvas = HudUnits.PerCanvasPixel;
         private const float SlotSize = 34f * Canvas;
         private const float SlotGap = 4f * Canvas;
-        private const float IconSize = 25f * Canvas;
+        private const float IconSize = 32f * Canvas;
+        private const float IconMarginX = (SlotSize - IconSize) / 2f;
         private const float StripHeight = 2f * Canvas;
         private const float CountFontSize = 13f * Canvas;
         private const float CountInset = 2f * Canvas;
@@ -89,7 +91,6 @@ namespace SevenUI
             if (buffs == null) return;
             float pitch = SlotSize + SlotGap;
             int perRow = Mathf.Max(1, Mathf.FloorToInt((RowWidth() + SlotGap) / pitch));
-            float margin = (SlotSize - IconSize) / 2f;
 
             bool anyTimer = false;
             foreach (BuffDisplay.BuffIconDisplayData buff in buffs)
@@ -114,7 +115,7 @@ namespace SevenUI
                 }
                 Vector2 origin = new Vector2(shown % perRow * pitch, shown / perRow * rowPitch);
                 RectTransform iconRect = icon.rectTransform;
-                Vector2 target = origin + new Vector2(margin, margin) + Vector2.Scale(iconRect.pivot, iconRect.rect.size);
+                Vector2 target = origin + new Vector2(IconMarginX, StripHeight) + Vector2.Scale(iconRect.pivot, iconRect.rect.size);
                 if (iconRect.anchoredPosition != target)
                 {
                     iconRect.anchoredPosition = target;
@@ -286,6 +287,7 @@ namespace SevenUI
             count.gameObject.AddComponent<CondensedText>();
             count.fontStyle = FontStyles.Bold;
             count.color = Palette.Text;
+            count.fontSharedMaterial = FontLibrary.SoftShadow(count.fontSharedMaterial);
             counts.Add(count);
             TMP_Text timer = AddLabel("Timer", new Vector2(0.5f, 0.5f), TextAlignmentOptions.Baseline, TimerFontSize);
             timer.fontStyle = FontStyles.Bold;

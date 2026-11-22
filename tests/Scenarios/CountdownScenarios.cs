@@ -132,11 +132,12 @@ namespace SevenUI.Tests
                 yield return h.Until(() => (panel = Find(h, root)) != null, $"the {name} countdown panel restyled", StyleTimeout);
                 yield return h.Wait(0.3f);
 
-                // Flat, in Barlow, spaced capitals.
+                // Flat and dark enough for the moon's white sky, in Barlow, spaced capitals with a soft shadow.
                 Image background = panel.Root.GetComponentsInChildren<Image>().FirstOrDefault(image => image.name == "Background");
-                if (!background || !background.enabled || background.sprite || !SevenUIChecks.Near(background.color, Palette.Panel))
+                if (!background || !background.enabled || background.sprite || !SevenUIChecks.Near(background.color, Palette.CountdownPanel))
                 {
-                    throw h.Fail($"{name}: the panel is not flat");
+                    throw h.Fail($"{name}: the panel is not flat at the countdowns' 75% black " +
+                                 $"({(background ? $"#{ColorUtility.ToHtmlStringRGBA(background.color)}" : "no background")})");
                 }
                 foreach (TMP_Text text in new[] { panel.Label, panel.Time })
                 {
@@ -304,7 +305,8 @@ namespace SevenUI.Tests
             });
         }
 
-        // Null when the text is drawn flat, as on the design canvas: no outline, drop shadow or glow, and no swelling.
+        // Null when the text is drawn as the design has it: flat (no outline, glow or swelling) over a soft, centered
+        // dark shadow (FontLibrary.SoftShadow), so it reads over the moon's white sky.
         private static string Border(Material material)
         {
             if (!material) return "no material";
@@ -313,7 +315,13 @@ namespace SevenUI.Tests
             {
                 return $"an outline ({material.name})";
             }
-            if (material.IsKeywordEnabled(ShaderUtilities.Keyword_Underlay)) return $"a drop shadow ({material.name})";
+            if (!material.IsKeywordEnabled(ShaderUtilities.Keyword_Underlay)) return $"no soft shadow ({material.name})";
+            if (!SevenUIChecks.Near(material.GetColor(ShaderUtilities.ID_UnderlayColor), Palette.TextShadow) ||
+                material.GetFloat(ShaderUtilities.ID_UnderlayOffsetX) != 0f || material.GetFloat(ShaderUtilities.ID_UnderlayOffsetY) != 0f)
+            {
+                return $"a shadow other than the soft one (#{ColorUtility.ToHtmlStringRGBA(material.GetColor(ShaderUtilities.ID_UnderlayColor))}, " +
+                       $"offset {material.GetFloat(ShaderUtilities.ID_UnderlayOffsetX):0.##}, {material.GetFloat(ShaderUtilities.ID_UnderlayOffsetY):0.##}; {material.name})";
+            }
             if (material.IsKeywordEnabled(ShaderUtilities.Keyword_Glow)) return $"a glow ({material.name})";
             // The game's thick outlined material also swells each letter; the design's are at the font's own weight.
             if (material.HasProperty(ShaderUtilities.ID_FaceDilate) && material.GetFloat(ShaderUtilities.ID_FaceDilate) > 0f)

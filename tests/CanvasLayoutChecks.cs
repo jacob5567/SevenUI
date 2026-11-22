@@ -46,6 +46,10 @@ namespace SevenUI.Tests
         private const float MinSubtitleGap = 6f;
         // In the buff display's units.
         private const float BuffTolerance = 0.5f;
+        // The design's buff square, its picture and its strip, in canvas pixels.
+        private const float BuffSquare = 34f;
+        private const float BuffPicture = 32f;
+        private const float BuffStrip = 2f;
         private const string BuffDisplayPath = BottomLeftPath + "/BarRoots/LevelDisplayCluster/BuffDisplayRoot";
 
         private const string SpringCanvasPath = "MainContainer/MainUIArea/SpringCanvas";
@@ -601,6 +605,50 @@ namespace SevenUI.Tests
                 },
                 () => $"the buffs on slots in at least {minRows} rows within the bars' width " +
                       $"({BuffsLook(display, healthBar)}) {h.Diagnosis()}");
+        }
+
+        // Each buff's picture fills its square above the strip, as the design has it: 32 of the square's 34 pixels,
+        // against its top, centered across it, its foot on the 2px strip.
+        public static IEnumerator ExpectBuffPicturesFillSquares(this Harness h)
+        {
+            BuffDisplay display = null;
+            string problem = null;
+            yield return h.Until(
+                () =>
+                {
+                    display = PlayerBuffs(h);
+                    if (!display) return false;
+                    RectTransform space = (RectTransform)display.transform;
+                    List<Bounds> slots = space.Cast<Transform>()
+                        .Where(child => child.name == BuffRows.SlotName && child.gameObject.activeSelf)
+                        .Select(child => In(space, (RectTransform)child)).ToList();
+                    List<Bounds> icons = ShownBuffIcons(display).Select(icon => In(space, icon)).ToList();
+                    if (icons.Count == 0) return false;
+                    foreach (Bounds icon in icons)
+                    {
+                        Bounds slot = slots.FirstOrDefault(each => each.Contains(new Vector3(icon.center.x, icon.center.y, each.center.z)));
+                        if (slot.size == Vector3.zero)
+                        {
+                            problem = $"a picture at {icon.center} on no square";
+                            return false;
+                        }
+                        float unit = slot.size.x / BuffSquare;
+                        bool size = Mathf.Abs(icon.size.x - BuffPicture * unit) <= BuffTolerance &&
+                                    Mathf.Abs(icon.size.y - BuffPicture * unit) <= BuffTolerance;
+                        bool top = Mathf.Abs(icon.max.y - slot.max.y) <= BuffTolerance;
+                        bool foot = Mathf.Abs(icon.min.y - (slot.min.y + BuffStrip * unit)) <= BuffTolerance;
+                        bool centered = Mathf.Abs(icon.center.x - slot.center.x) <= BuffTolerance;
+                        if (!size || !top || !foot || !centered)
+                        {
+                            problem = $"picture {icon.min:0.#}-{icon.max:0.#} in square {slot.min:0.#}-{slot.max:0.#} " +
+                                      $"(size {size}, top {top}, foot {foot}, centered {centered})";
+                            return false;
+                        }
+                    }
+                    problem = null;
+                    return true;
+                },
+                () => $"each buff picture filling its square above the strip: {problem} {h.Diagnosis()}");
         }
 
         private static bool Overlap(Bounds a, Bounds b) =>

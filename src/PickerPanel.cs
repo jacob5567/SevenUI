@@ -228,6 +228,7 @@ namespace SevenUI
             for (int i = 0; i < buttons.Count; i++)
             {
                 buttons[i].Update(inventory);
+                HideLookingGlassCount(buttons[i]);
                 if (buttons[i].JustHovered)
                 {
                     newlyHovered = i;
@@ -252,6 +253,24 @@ namespace SevenUI
             if (slots.DetailsName)
             {
                 slots.ShowDetails(hovered >= 0 ? hovered : detailsIndex >= 0 ? detailsIndex : 0);
+            }
+        }
+
+        // LookingGlass's own count ("x2"), which the option's count already shows. LookingGlass makes it and turns it on
+        // again each time the game sets the options, which can be after the panel was styled, so it is hidden whenever it
+        // shows. A Find a frame only until it exists.
+        private void HideLookingGlassCount(PickerButton button)
+        {
+            if (!button.Button) return;
+            if (!button.LookingGlassCount)
+            {
+                button.LookingGlassCount = button.Button.transform.Find(LookingGlassCountName);
+                if (!button.LookingGlassCount) return;
+            }
+            GameObject count = button.LookingGlassCount.gameObject;
+            if (count.activeSelf)
+            {
+                recorder.SetActive(count, false);
             }
         }
 

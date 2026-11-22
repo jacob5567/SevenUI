@@ -4,8 +4,8 @@ using UnityEngine;
 namespace SevenUI
 {
     // The scoreboard's item tiers in the canvas's order, each in its color: the counts under a player's name, and the
-    // runs the scoreboard sorts their items into. Items of any other tier (untiered, food, cursed, hex, pages, modded
-    // tiers) sort last, together, in grey.
+    // runs the scoreboard sorts their items into. Items of any other tier (untiered, food, hallowed, hex, pages, modded
+    // tiers) sort last, together, and aren't counted; each still shows its own tier's color (GameColors.OfTier).
     internal static class TierGroups
     {
         public static readonly (ItemTier[] tiers, Color color)[] Main =
@@ -31,7 +31,5 @@ namespace SevenUI
             }
             return Main.Length;
         }
-
-        public static Color ColorOf(int group) => group < Main.Length ? Main[group].color : Palette.HeaderText;
     }
 }

@@ -51,6 +51,9 @@ namespace SevenUI.Tests
         private const float LineTolerance = 0.05f;
         private const float OpaqueAlpha = 0.99f;
         private const float SettleSeconds = 0.5f;
+        // The tooltip's tier strip (TooltipStyler) and the docked panel's (ScoreboardDetailPane).
+        private const string TooltipStripPath = "TooltipOffset/Panel/TitleRect/SevenUITierStrip";
+        private const string PaneStripName = "TierStrip";
         // The stats column: its width, the line before it, the gaps, in the canvas's pixels.
         private const float StatsWidth = 200f;
         private const float DividerWidth = 1f;
@@ -69,6 +72,7 @@ namespace SevenUI.Tests
             yield return new Scenario(1, "scoreboard_inspect_stats_none_without_stats", Stages.TitanicPlains, NoStatsNoColumn);
             yield return new Scenario(1, "scoreboard_inspect_stats_flat_panels_off", Stages.TitanicPlains, StatsFlatPanelsOff);
             yield return new Scenario(1, "scoreboard_inspect_stats_board_item", Stages.TitanicPlains, StatsBoardItem);
+            yield return new Scenario(1, "tier_colors_match_everywhere", Stages.TitanicPlains, TierColorsMatch);
         }
 
         // With the scoreboard open, the panel showing Alien Head: laid out and drawn as the canvas, in the item's tier color.
@@ -85,7 +89,106 @@ namespace SevenUI.Tests
             yield return h.Screenshot("scoreboard_inspect");
         }
 
+        // One item of each tier in the item bar's slot, its tooltip, the scoreboard's docked panel and the inspect panel,
+        // all at once: every strip in the same color, SevenUI's shade of the tier's (GameColors.ToCanvas). Every tier
+        // with a color has a shade, Hallowed Concepts' too, so none shows the game's raw color or the grey of no tier.
+        private static IEnumerator TierColorsMatch(Harness h)
+        {
+            WithoutStats(h);
+            ItemDef[] items = TierSamples(h);
+            yield return ScoreboardSetUp.Open(h);
+            yield return h.Wait(SettleSeconds);
+            HUD hud = SevenUIChecks.HudRoot(h).GetComponent<HUD>();
+            ScoreboardItemsBoard itemsBoard = SevenUIChecks.HudRoot(h).GetComponentInChildren<ScoreboardItemsBoard>();
+            List<string> wrong = new List<string>();
+            foreach (ItemDef item in items)
+            {
+                Color32 game = ColorCatalog.GetColor(ItemTierCatalog.GetItemTierDef(item.tier).colorIndex);
+                Color expected = GameColors.ToCanvas(game);
+                if (item.tier != ItemTier.Tier1 && SevenUIChecks.Near(expected, (Color)game))
+                {
+                    wrong.Add($"{item.name}'s tier {item.tier} has no SevenUI shade (#{ColorUtility.ToHtmlStringRGB(expected)})");
+                }
+                ItemIcon onBoard = SevenUIChecks.HudRoot(h).GetComponentsInChildren<ScoreboardRow>()
+                    .Where(row => row.Strip && row.Strip.master == Harness.LocalBody.master)
+                    .SelectMany(row => row.Strip.itemInventoryDisplay.GetComponentsInChildren<ItemIcon>())
+                    .FirstOrDefault(icon => icon.itemIndex == item.itemIndex);
+                ItemIcon inBar = hud.itemInventoryDisplay.GetComponentsInChildren<ItemIcon>()
+                    .FirstOrDefault(icon => icon.itemIndex == item.itemIndex);
+                if (!onBoard || !inBar) throw h.Fail($"no {item.name} in the scoreboard row or the item bar");
+
+                UnityEngine.EventSystems.PointerEventData boardPointer = null;
+                ScoreboardScenarios.PointAt(h, onBoard.rectTransform, item.name + " on the scoreboard", made => boardPointer = made);
+                yield return h.Until(() => itemsBoard && itemsBoard.Pane.Shown && itemsBoard.Pane.Item == item.itemIndex,
+                    $"the docked panel on {item.name}");
+                UnityEngine.EventSystems.ExecuteEvents.ExecuteHierarchy(onBoard.gameObject, boardPointer,
+                    UnityEngine.EventSystems.ExecuteEvents.pointerExitHandler);
+                yield return Inspect(h, item);
+                UnityEngine.EventSystems.PointerEventData barPointer = null;
+                MPEventSystem events = ScoreboardScenarios.PointAt(h, inBar.rectTransform, item.name + " in the item bar",
+                    made => barPointer = made);
+                yield return h.Until(() => events.currentTooltip && events.currentTooltip.transform.Find(TooltipStripPath),
+                    $"the restyled tooltip of {item.name}");
+                yield return h.Wait(SettleSeconds);
+
+                Image tooltipStrip = events.currentTooltip.transform.Find(TooltipStripPath).GetComponent<Image>();
+                Transform paneStrip = itemsBoard.Pane.Root.Find(PaneStripName);
+                ItemSlot slot = inBar.GetComponentInChildren<ItemSlot>(true);
+                (string place, Image image)[] strips =
+                {
+                    ("item slot", slot ? slot.TierStrip : null),
+                    ("tooltip", tooltipStrip),
+                    ("docked panel", paneStrip ? paneStrip.GetComponent<Image>() : null),
+                    ("inspect panel", Strip(h)),
+                };
+                foreach ((string place, Image image) in strips)
+                {
+                    if (!image || !SevenUIChecks.Near(image.color, expected))
+                    {
+                        wrong.Add($"{item.name}'s {place} strip {(image ? "#" + ColorUtility.ToHtmlStringRGB(image.color) : "missing")}");
+                    }
+                }
+                UnityEngine.EventSystems.ExecuteEvents.ExecuteHierarchy(inBar.gameObject, barPointer,
+                    UnityEngine.EventSystems.ExecuteEvents.pointerExitHandler);
+                h.Log($"{item.name}: expected #{ColorUtility.ToHtmlStringRGB(expected)}");
+            }
+            if (wrong.Count > 0) throw h.Fail("tier colors differ from SevenUI's shades: " + string.Join("; ", wrong));
+        }
+
         // A chest has no tier: its inspect info's own title color names it and colors both strips.
+        // One visible item of each tier with a color: the main six by name, and the first of each other tier in the
+        // catalog (food, hallowed, hex, pages), which are picked by tier since their names change between updates. Each
+        // is given to the viewer and taken back at the end.
+        internal static ItemDef[] TierSamples(Harness h)
+        {
+            List<ItemDef> items = new List<ItemDef>
+            {
+                RoR2Content.Items.Syringe, RoR2Content.Items.Feather, RoR2Content.Items.Behemoth,
+                RoR2Content.Items.Knurl, RoR2Content.Items.LunarDagger, DLC1Content.Items.BleedOnHitVoid,
+            };
+            foreach (ItemTier tier in new[] { ItemTier.FoodTier, ItemTier.Cursed, ItemTier.Hex, ItemTier.Page })
+            {
+                ItemDef sample = ItemCatalog.allItemDefs
+                    .Where(item => item && item.tier == tier && !item.hidden)
+                    .OrderBy(item => item.itemIndex)
+                    .FirstOrDefault();
+                if (!sample) throw h.Fail($"no visible {tier} item in the catalog");
+                items.Add(sample);
+            }
+            Inventory inventory = Harness.LocalBody.inventory;
+            foreach (ItemDef item in items)
+            {
+                inventory.GiveItemPermanent(item.itemIndex);
+                ItemDef given = item;
+                h.OnCleanup(() =>
+                {
+                    if (inventory) inventory.RemoveItemPermanent(given.itemIndex);
+                });
+            }
+            h.Log("tier samples: " + string.Join(", ", items.Select(item => $"{item.name} ({item.tier})")));
+            return items.ToArray();
+        }
+
         private static IEnumerator ChestAsCanvas(Harness h)
         {
             WithoutStats(h);
@@ -470,7 +573,7 @@ namespace SevenUI.Tests
 
         // Shows what the interact prompt's Inspect would, through the game's controller. Autopause, which the panel asks
         // for while it is up in a single-player run, would stop the game, so it is off for the scenario.
-        private static IEnumerator Inspect(Harness h, InspectInfo info)
+        internal static IEnumerator Inspect(Harness h, InspectInfo info)
         {
             InspectPanelController controller = null;
             yield return h.Until(() => (controller = Controller(h)) != null, "the scoreboard's inspect panel");
@@ -628,9 +731,11 @@ namespace SevenUI.Tests
             {
                 return $"strip {Format(stripBox)} not {StripHeight}px along the panel's top {Format(panel)}";
             }
-            Color expected = new Color(titleColor.r, titleColor.g, titleColor.b, 1f);
-            if (!SevenUIChecks.Near(strip.color, expected)) return $"strip {strip.color} not the title's {expected}";
-            if (!SevenUIChecks.Near(title.color, titleColor)) return $"name {title.color} not the game's {titleColor}";
+            // The game's title color in SevenUI's shade, as everywhere a tier color is drawn.
+            Color expected = GameColors.ToCanvas(titleColor);
+            Color expectedTitle = new Color(expected.r, expected.g, expected.b, titleColor.a);
+            if (!SevenUIChecks.Near(strip.color, expected)) return $"strip {strip.color} not the shade of the game's title color {expected}";
+            if (!SevenUIChecks.Near(title.color, expectedTitle)) return $"name {title.color} not the shade of the game's {titleColor}: {expectedTitle}";
             Image slot = slotObject.GetComponent<Image>();
             Rect slotBox = CanvasSizeChecks.Box(h, (RectTransform)slotObject);
             if (!slot || !SevenUIChecks.Near(slot.color, Palette.ItemSlot)) return "the icon's slot is not the item slot color";
@@ -652,7 +757,7 @@ namespace SevenUI.Tests
             {
                 return $"foot strip {Format(footBox)} not {FootStripHeight}px along the foot of the icon slot {Format(slotBox)}";
             }
-            if (!SevenUIChecks.Near(foot.color, expected)) return $"foot strip {foot.color} not the title's {expected}";
+            if (!SevenUIChecks.Near(foot.color, expected)) return $"foot strip {foot.color} not the shade of the title's {expected}";
             Rect textBox = CanvasSizeChecks.Box(h, (RectTransform)texts);
             if (Mathf.Abs(textBox.xMin - slotBox.xMax - IconGap) > Tolerance)
             {

@@ -23,6 +23,9 @@ namespace SevenUI
             (ColorCatalog.ColorIndex.BossItem, Palette.CountBoss),
             (ColorCatalog.ColorIndex.LunarItem, Palette.CountLunar),
             (ColorCatalog.ColorIndex.VoidItem, Palette.CountVoid),
+            (ColorCatalog.ColorIndex.CursedItem, Palette.CountHallowed),
+            (ColorCatalog.ColorIndex.HexedItem, Palette.CountHex),
+            (ColorCatalog.ColorIndex.KeyItem, Palette.CountKey),
             (ColorCatalog.ColorIndex.Equipment, Palette.Equipment),
             // Drones' kinds, and a Winnowing trial's lime.
             (ColorCatalog.ColorIndex.Combat, Palette.Debuff),
@@ -38,6 +41,13 @@ namespace SevenUI
         {
             game.a = byte.MaxValue;
             return Lookup().TryGetValue(game, out Color canvas) ? canvas : (Color)game;
+        }
+
+        // The canvas's color for an item tier, or the fallback for a tier with no ItemTierDef (untiered items).
+        public static Color OfTier(ItemTier tier, Color fallback)
+        {
+            ItemTierDef def = ItemTierCatalog.GetItemTierDef(tier);
+            return def ? ToCanvas(ColorCatalog.GetColor(def.colorIndex)) : fallback;
         }
 
         // The first color tag's color in rich text, in the canvas's color; false without one.

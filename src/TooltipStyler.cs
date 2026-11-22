@@ -153,17 +153,18 @@ namespace SevenUI
             root.sizeDelta = new Vector2(width, height);
         }
 
-        // An item's tier color, equipment's orange, and otherwise the color the game gave the tooltip's title.
+        // An item's tier color, equipment's orange, and otherwise the color the game gave the tooltip's title, each in
+        // SevenUI's shade (GameColors.ToCanvas), as everywhere else in the HUD.
         private static Color StripColor(TooltipProvider provider)
         {
             ItemIcon item = provider.GetComponent<ItemIcon>();
             if (item && item.itemIndex != ItemIndex.None)
             {
                 PickupDef pickup = PickupCatalog.GetPickupDef(PickupCatalog.FindPickupIndex(item.itemIndex));
-                if (pickup != null) return pickup.baseColor;
+                if (pickup != null) return GameColors.ToCanvas(pickup.baseColor);
             }
             if (provider.GetComponent<EquipmentIcon>()) return Palette.Equipment;
-            return provider.titleColor;
+            return GameColors.ToCanvas(provider.titleColor);
         }
 
         private static int StackCount(TooltipProvider provider)

@@ -114,6 +114,8 @@ namespace SevenUI.Tests
                 h => StatsByPanel(h, "fragment_potential", StackChange.Gain));
             yield return new Scenario(1, "picker_stats_as_held_delusion", Stages.TitanicPlains,
                 h => StatsByPanel(h, "delusion", StackChange.None));
+            yield return new Scenario(1, "item_counts_with_temporary_and_ethereal", Stages.TitanicPlains, CountsWithTemporaryAndEthereal);
+            yield return new Scenario(1, "picker_count_hidden_on_locked_options", Stages.TitanicPlains, CountHiddenOnLockedOptions);
             yield return new Scenario(1, "picker_count_corrupted_by_void", Stages.TitanicPlains,
                 h => CorruptionCount(h, RoR2Content.Items.ChainLightning, DLC1Content.Items.ChainLightningVoid, 3, Palette.CountVoid));
             yield return new Scenario(1, "picker_count_void_corrupts_held", Stages.TitanicPlains,
@@ -876,6 +878,131 @@ namespace SevenUI.Tests
             yield return h.Screenshot("stats_" + name);
         }
 
+        // Two permanent, a temporary and an Ethereal (rented) stack of one item, a hallowed item and a hex (H4): the item
+        // bar's slot counts all four stacks as the game does, the scoreboard row's total counts as the game's 50-item
+        // Karma milestone does (permanent stacks, hallowed items but no hexes), and a Command option counts only the
+        // permanent stacks, as LookingGlass does.
+        private static IEnumerator CountsWithTemporaryAndEthereal(Harness h)
+        {
+            ItemDef item = RoR2Content.Items.Syringe;
+            const int Permanent = 2;
+            Inventory inventory = Harness.LocalBody.master.inventory;
+            int before = inventory.GetItemCountPermanent(item);
+            if (before > 0) inventory.RemoveItemPermanent(item, before);
+            inventory.GiveItemPermanent(item, Permanent);
+            inventory.GiveItemTemp(item.itemIndex, 1f);
+            inventory.GiveItemRented(item.itemIndex, 1);
+            ItemDef[] others =
+            {
+                ItemCatalog.allItemDefs.Where(each => each && each.tier == ItemTier.Cursed && !each.hidden).OrderBy(each => each.itemIndex).FirstOrDefault(),
+                ItemCatalog.allItemDefs.Where(each => each && each.tier == ItemTier.Hex && !each.hidden).OrderBy(each => each.itemIndex).FirstOrDefault(),
+            };
+            foreach (ItemDef other in others.Where(each => each))
+            {
+                inventory.GiveItemPermanent(other, 1);
+            }
+            h.OnCleanup(() =>
+            {
+                if (!inventory) return;
+                inventory.RemoveItemTemp(item.itemIndex, inventory.GetItemCountTemp(item.itemIndex));
+                inventory.RemoveItemRented(item.itemIndex, inventory.GetItemCountRented(item.itemIndex));
+                inventory.RemoveItemPermanent(item, inventory.GetItemCountPermanent(item));
+                if (before > 0) inventory.GiveItemPermanent(item, before);
+                foreach (ItemDef other in others.Where(each => each))
+                {
+                    inventory.RemoveItemPermanent(other, 1);
+                }
+            });
+            const int Effective = Permanent + 2;
+            yield return h.Until(() => inventory.GetItemCountEffective(item) == Effective,
+                () => $"{item.name}'s effective count {inventory.GetItemCountEffective(item)}, not {Effective} (permanent " +
+                      $"{inventory.GetItemCountPermanent(item)}, temporary {inventory.GetItemCountTemp(item.itemIndex)}, " +
+                      $"Ethereal {inventory.GetItemCountRented(item.itemIndex)})");
+
+            HUD hud = SevenUIChecks.HudRoot(h).GetComponent<HUD>();
+            ItemSlot slot = null;
+            yield return h.Until(() =>
+                {
+                    ItemIcon icon = hud.itemInventoryDisplay.GetComponentsInChildren<ItemIcon>().FirstOrDefault(each => each.itemIndex == item.itemIndex);
+                    slot = icon ? icon.GetComponentInChildren<ItemSlot>(true) : null;
+                    return slot && slot.Count && slot.Count.text == Effective.ToString();
+                },
+                () => $"the item bar's {item.name} count \"{(slot && slot.Count ? slot.Count.text : "none")}\", not \"{Effective}\"");
+
+            // The milestone's rule, as RoR2.Karma.CollectLotsOfItems has it.
+            int karma = inventory.itemAcquisitionOrder
+                .Select(index => (index, def: ItemCatalog.GetItemDef(index)))
+                .Where(each => each.def && each.def.tier != ItemTier.Hex && each.def.tier != ItemTier.NoTier && !each.def.hidden && !each.def.isConsumed)
+                .Sum(each => inventory.GetItemCountPermanent(each.index));
+            yield return ScoreboardSetUp.Open(h);
+            ScoreboardRow row = null;
+            string total = null;
+            yield return h.Until(() =>
+                {
+                    row = SevenUIChecks.HudRoot(h).GetComponentsInChildren<ScoreboardRow>()
+                        .FirstOrDefault(each => each.Strip && each.Strip.master == Harness.LocalBody.master);
+                    if (!row || !row.Counts) return false;
+                    System.Text.RegularExpressions.Match match = System.Text.RegularExpressions.Regex.Match(row.Counts.text, @"^<b><color=#[0-9A-Fa-f]{6}>(\d+)");
+                    total = match.Success ? match.Groups[1].Value : row.Counts.text;
+                    return total == karma.ToString();
+                },
+                () => $"the scoreboard row's total {total}, not {karma} as the 50-item Karma milestone counts " +
+                      $"(row counts \"{(row && row.Counts ? row.Counts.text : "")}\")");
+            HUD.SetScoreboardActive(LocalUserManager.GetFirstLocalUser(), false, EScoreboardDeactivateReturnContext.Game);
+            yield return h.Wait(SettleSeconds);
+
+            yield return GoHome(h);
+            PickupPickerController command = h.SpawnPrefab<PickupPickerController>(GameNames.CommandCube);
+            command.SetOptionsFromPickupForCommandArtifact(new UniquePickup(PickupCatalog.FindPickupIndex(item.itemIndex)));
+            PickerPanel panel = null;
+            yield return OpenStyled(h, command, found => panel = found);
+            PickerButton option = panel.Buttons.FirstOrDefault(button => button.Pickup != null && button.Pickup.itemIndex == item.itemIndex);
+            if (option == null || !option.Count) throw h.Fail($"Command for {item.name} has no option with a count for it");
+            yield return h.Until(() => option.Count.text == Permanent.ToString(),
+                () => $"{item.name}'s Command count \"{option.Count.text}\", not \"{Permanent}\" for its permanent stacks");
+        }
+
+        // An option the game locks (its picture a padlock) shows no count, though its item is held, as LookingGlass's
+        // count shows none there; an open option shows its count, even for one. LookingGlass's own count, turned on again as it does
+        // when the game sets the options again, is hidden again.
+        private static IEnumerator CountHiddenOnLockedOptions(Harness h)
+        {
+            ItemDef open = RoR2Content.Items.Syringe;
+            ItemDef locked = RoR2Content.Items.Feather;
+            Inventory inventory = Harness.LocalBody.master.inventory;
+            (ItemDef item, int count)[] held = { (open, 1), (locked, 3) };
+            foreach ((ItemDef item, int count) in held)
+            {
+                int before = inventory.GetItemCountPermanent(item);
+                inventory.GiveItemPermanent(item, count);
+                h.OnCleanup(() =>
+                {
+                    if (inventory) inventory.RemoveItemPermanent(item, inventory.GetItemCountPermanent(item) - before);
+                });
+            }
+            yield return GoHome(h);
+            PickupPickerController picker = h.SpawnPrefab<PickupPickerController>(GameNames.CommandCube);
+            picker.SetOptionsServer(new[]
+            {
+                new PickupPickerController.Option { pickup = new UniquePickup(PickupCatalog.FindPickupIndex(open.itemIndex)), available = true },
+                new PickupPickerController.Option { pickup = new UniquePickup(PickupCatalog.FindPickupIndex(locked.itemIndex)), available = false },
+            });
+            PickerPanel panel = null;
+            yield return OpenStyled(h, picker, found => panel = found);
+            PickerButton openButton = panel.Buttons.FirstOrDefault(button => button.Pickup != null && button.Pickup.itemIndex == open.itemIndex);
+            PickerButton lockedButton = panel.Buttons.FirstOrDefault(button => button.Pickup != null && button.Pickup.itemIndex == locked.itemIndex);
+            if (openButton == null || lockedButton == null || !openButton.Count || !lockedButton.Count) throw h.Fail("the two options have no counts");
+            yield return h.Until(() => openButton.Count.text == "1" && lockedButton.Count.text == "",
+                () => $"counts \"{openButton.Count.text}\" on the open option (1 held) and \"{lockedButton.Count.text}\" on the locked one, not 1 and none");
+            Transform lookingGlass = openButton.Button.transform.Find(PickerPanel.LookingGlassCountName);
+            if (lookingGlass)
+            {
+                lookingGlass.gameObject.SetActive(true);
+                yield return h.Until(() => !lookingGlass.gameObject.activeSelf, "LookingGlass's count hidden again after it was turned on");
+            }
+            yield return h.Screenshot("locked_option");
+        }
+
         // With none of an offered item held but items tied to it by void corruption, the option's count shows how many
         // of those are held, in their color, as LookingGlass's own count (which SevenUI hides) does: Polylutes held
         // over Ukulele, in the void color, and Ukuleles held over Polylute, in the uncommon tier's. Opened from
@@ -896,7 +1023,7 @@ namespace SevenUI.Tests
             });
             // Giving a plain item while its void item is held corrupts it, so only the corruption's own pair is set up.
             yield return h.Wait(SettleSeconds);
-            int total = inventory.GetItemCountTotal(held);
+            int total = inventory.GetItemCountPermanent(held);
             yield return GoHome(h);
             PickupPickerController command = h.SpawnPrefab<PickupPickerController>(GameNames.CommandCube);
             command.SetOptionsFromPickupForCommandArtifact(new UniquePickup(PickupCatalog.FindPickupIndex(offered.itemIndex)));

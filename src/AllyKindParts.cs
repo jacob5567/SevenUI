@@ -9,7 +9,8 @@ namespace SevenUI
 {
     // What the mod adds to the card a kind of ally shares when there is more than one of them: "×8" after the name, and
     // the health bar split into a segment per ally, each showing that ally's health, green or red under a quarter, in
-    // place of the game's bar. Only what changed is set each frame.
+    // place of the game's bar. The segments and their gaps land on whole screen pixels (PixelSpans), so every gap draws
+    // as wide. Only what changed is set each frame.
     internal sealed class AllyKindParts
     {
         public const string SegmentsName = "SevenUIAllySegments";
@@ -30,6 +31,11 @@ namespace SevenUI
         private int shownCount = -1;
         private string shownName;
         private float[] shown = new float[0];
+        private float[] spanLefts = new float[0];
+        private float[] spanWidths = new float[0];
+        private float placedLeft = float.NaN;
+        private float placedRight = float.NaN;
+        private int placedCount = -1;
 
         private AllyKindParts(TMP_Text count, RectTransform segments)
         {
@@ -64,10 +70,6 @@ namespace SevenUI
             LayoutElement barLayout = bar.GetComponent<LayoutElement>();
             LayoutElement layout = segments.gameObject.AddComponent<LayoutElement>();
             layout.preferredHeight = barLayout ? barLayout.preferredHeight : ((RectTransform)bar).rect.height;
-            HorizontalLayoutGroup row = segments.gameObject.AddComponent<HorizontalLayoutGroup>();
-            row.spacing = SegmentGap;
-            row.childControlWidth = row.childControlHeight = true;
-            row.childForceExpandWidth = row.childForceExpandHeight = true;
             bar.gameObject.SetActive(false);
             return new AllyKindParts(text, segments);
         }
@@ -93,6 +95,7 @@ namespace SevenUI
                 count.rectTransform.anchoredPosition = new Vector2(nameWidth + CountGap, 0f);
                 SetSegmentCount(allies);
             }
+            PlaceSegments(allies);
             for (int i = 0; i < allies; i++)
             {
                 CharacterBody body = members[i] ? members[i].GetBody() : null;
@@ -133,6 +136,33 @@ namespace SevenUI
             }
         }
 
+        // Two projected corners a frame; the segments move only when the row's edges move by a pixel or the count
+        // changes.
+        private void PlaceSegments(int allies)
+        {
+            if (!segments) return;
+            Camera eye = PixelSpans.Eye(segments);
+            if (!PixelSpans.ScreenEdges(segments, eye, out float left, out float right)) return;
+            left = Mathf.Round(left);
+            right = Mathf.Round(right);
+            if (allies == placedCount && left == placedLeft && right == placedRight) return;
+            if (spanLefts.Length < allies)
+            {
+                spanLefts = new float[allies];
+                spanWidths = new float[allies];
+            }
+            if (!PixelSpans.Split(segments, eye, SegmentGap, spanLefts, spanWidths, allies)) return;
+            placedCount = allies;
+            placedLeft = left;
+            placedRight = right;
+            for (int i = 0; i < allies; i++)
+            {
+                RectTransform slot = (RectTransform)slots[i].transform;
+                slot.anchoredPosition = new Vector2(spanLefts[i], 0f);
+                slot.sizeDelta = new Vector2(spanWidths[i], 0f);
+            }
+        }
+
         private void SetSegmentCount(int allies)
         {
             while (slots.Count < allies)
@@ -141,7 +171,9 @@ namespace SevenUI
                 Image trough = slot.gameObject.AddComponent<Image>();
                 trough.color = Palette.Trough;
                 trough.raycastTarget = false;
-                slot.gameObject.AddComponent<LayoutElement>().flexibleWidth = 1f;
+                slot.anchorMin = Vector2.zero;
+                slot.anchorMax = Vector2.up;
+                slot.pivot = new Vector2(0f, 0.5f);
                 RectTransform fill = UiFactory.NewObject("Fill", slot);
                 fill.anchorMin = Vector2.zero;
                 fill.anchorMax = Vector2.one;

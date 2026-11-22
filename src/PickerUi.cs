@@ -132,7 +132,8 @@ namespace SevenUI
             tierStrip.sizeDelta = new Vector2(0f, TierStripHeight);
         }
 
-        // Bottom right, just above the tier strip, as on the item bar's slots.
+        // Bottom right, just above the tier strip. The item bar's slots put theirs at the top right, clear of the game's
+        // temporary and Ethereal marks, which pickers don't show.
         public TMP_Text AddCount(RectTransform slot)
         {
             TMP_Text count = AddText("Count", slot, CountSize, Color.white);

@@ -20,6 +20,10 @@ namespace SevenUI.Tests
     // the screenshots.
     internal static class ScoreboardScenarios
     {
+        private const int TimingFrames = 240;
+        private const float HoverSlackMs = 2f;
+        private const int HeadLength = 24;
+
         // A few items to hover, and the header band the flat look adds to an item's tooltip (TooltipStyler).
         private const int TooltipItems = 3;
         private const string TooltipBandPath = "TooltipOffset/Panel/TitleRect/SevenUIHeaderBand";
@@ -75,6 +79,8 @@ namespace SevenUI.Tests
                 yield return new Scenario(1, "item_bar_tooltip_setting_off", Stages.TitanicPlains, ItemBarTooltipSettingOff);
                 yield return new Scenario(1, "scoreboard_players_rows_while_roomy", Stages.TitanicPlains, RowsWhileRoomy);
                 yield return new Scenario(1, "scoreboard_pane_holders_by_player_count", Stages.TitanicPlains, HoldersByPlayerCount);
+                yield return new Scenario(1, "scoreboard_equipment_pane_follows_coupler", Stages.TitanicPlains, EquipmentPaneFollowsCoupler);
+                yield return new Scenario(1, "scoreboard_hover_timing", Stages.TitanicPlains, HoverTiming);
             }
             else
             {
@@ -318,6 +324,134 @@ namespace SevenUI.Tests
             yield return h.Wait(SettleSeconds);
             string tabs = board == Board.Tabs ? "_tabs" : "";
             yield return h.Screenshot($"scoreboard{tabs}_{(keyItem ? "key_item" : "equipment")}_pane");
+        }
+
+        // With a Functional Coupler, the pane on the row's equipment follows each swap to the next set: the new
+        // equipment's name, description and icon, not the first one's (H2). LookingGlass writes its full description into
+        // the row's tooltip only when the row is set up, so it kept describing the first; its setting is turned on for
+        // this when it is installed.
+        private static IEnumerator EquipmentPaneFollowsCoupler(Harness h)
+        {
+            // One for each of the three sets two couplers give, so every swap lands on an equipment.
+            EquipmentDef[] held = { RoR2Content.Equipment.Fruit, RoR2Content.Equipment.Blackhole, RoR2Content.Equipment.CommandMissile };
+            yield return PanelScenarios.GiveDeck(h, held);
+            BepInEx.Configuration.ConfigEntry<bool> full = LookingGlassFullDescriptions();
+            if (full != null)
+            {
+                h.SetConfig(full, true);
+            }
+            Inventory inventory = Harness.LocalBody.inventory;
+            yield return ScoreboardSetUp.Open(h);
+            ScoreboardRow row = null;
+            yield return h.Until(() => (row = SevenUIChecks.HudRoot(h).GetComponentsInChildren<ScoreboardRow>()
+                .FirstOrDefault(each => each.Strip && each.Strip.master == Harness.LocalBody.master)) != null,
+                "the viewer's row of the scoreboard");
+            ScoreboardStrip strip = row.Strip;
+            TooltipProvider provider = strip.equipmentIcon ? strip.equipmentIcon.tooltipProvider : null;
+            if (!provider) throw h.Fail("no equipment tooltip in the viewer's row of the scoreboard");
+            yield return h.Wait(SettleSeconds);
+            PointAt(h, (RectTransform)provider.transform, "the equipment in the scoreboard");
+            yield return h.ExpectLoadoutPane(strip, false);
+            for (int swap = 1; swap <= held.Length; swap++)
+            {
+                inventory.DispatchSwitchToNextEquipmentInSet();
+                EquipmentDef now = null;
+                string look = null;
+                int done = swap;
+                yield return h.Until(() =>
+                    {
+                        now = EquipmentCatalog.GetEquipmentDef(inventory.currentEquipmentIndex);
+                        ScoreboardDetailPane pane = strip.GetComponentInParent<ScoreboardItemsBoard>().Pane;
+                        Texture expected = now ? EquipmentIcons.Get(now.equipmentIndex) : null;
+                        look = $"pane on {pane.Title} (equipment {pane.Equipment}), icon {(pane.IconTexture ? pane.IconTexture.name : "none")} " +
+                               $"for {(expected ? expected.name : "none yet")}: \"{Head(pane.Description)}\"";
+                        return now && pane.Shown && pane.Equipment == now.equipmentIndex &&
+                               pane.Title == Language.GetString(now.nameToken) &&
+                               pane.Description.Contains(Head(Language.GetString(now.descriptionToken))) &&
+                               expected && pane.IconTexture == expected;
+                    },
+                    () => $"after swap {done} (LookingGlass {(full != null ? "on" : "absent")}), the pane describes " +
+                          $"{(now ? now.name : "nothing")}? {look} {h.Diagnosis()}");
+            }
+            yield return h.Screenshot("equipment_pane_after_swaps");
+        }
+
+        // H10: on a crowded board (four players with 100 items each), the pointer moving to a new item every frame
+        // keeps the frame time of the board left alone: the median frame within a couple of milliseconds (the frames
+        // are whole refreshes of the screen, so a slow frame is a whole refresh longer). The game made a tooltip for
+        // each item reached, which the docked panel then hid; that halved the frame rate. The same with the docked
+        // panel off, where the game's tooltip shows, and in the game's look, are logged for comparison. The pointer's
+        // events are sent straight to each icon.
+        private static IEnumerator HoverTiming(Harness h)
+        {
+            yield return ScoreboardSetUp.AddPlayers(h, CrowdPlayers, CrowdItems);
+            ScoreboardSetUp.GiveDifferentItems(h, CrowdItems);
+            PluginConfig settings = SevenUIPlugin.Settings;
+            h.SetConfig(settings.FlatPanels, true);
+            h.SetConfig(settings.ScoreboardDetailPanel, true);
+            yield return ScoreboardSetUp.Open(h);
+            yield return h.Wait(SettleSeconds * 4f);
+            (string label, System.Action set)[] phases =
+            {
+                ("still", () => { }),
+                ("hover", () => { }),
+                ("hover_pane_off", () => h.SetConfig(settings.ScoreboardDetailPanel, false)),
+                ("hover_game_look", () => h.SetConfig(settings.FlatPanels, false)),
+            };
+            h.OnCleanup(() =>
+            {
+                h.SetConfig(settings.ScoreboardDetailPanel, true);
+                h.SetConfig(settings.FlatPanels, true);
+            });
+            Dictionary<string, float> medians = new Dictionary<string, float>();
+            foreach ((string label, System.Action set) in phases)
+            {
+                set();
+                yield return h.Wait(SettleSeconds * 2f);
+                List<ItemIcon> icons = SevenUIChecks.HudRoot(h).GetComponentsInChildren<ScoreboardStrip>()
+                    .Where(strip => strip.master == Harness.LocalBody.master)
+                    .SelectMany(strip => strip.itemInventoryDisplay.GetComponentsInChildren<ItemIcon>())
+                    .Where(icon => icon.isActiveAndEnabled)
+                    .ToList();
+                if (icons.Count == 0) throw h.Fail("no items in the viewer's row");
+                bool hover = label != "still";
+                List<float> frames = new List<float>();
+                PointerEventData pointer = new PointerEventData(EventSystem.current);
+                GameObject previous = null;
+                for (int frame = 0; frame < TimingFrames; frame++)
+                {
+                    if (hover)
+                    {
+                        GameObject next = icons[frame % icons.Count].gameObject;
+                        if (previous) ExecuteEvents.ExecuteHierarchy(previous, pointer, ExecuteEvents.pointerExitHandler);
+                        ExecuteEvents.ExecuteHierarchy(next, pointer, ExecuteEvents.pointerEnterHandler);
+                        previous = next;
+                    }
+                    yield return null;
+                    frames.Add(Time.unscaledDeltaTime * 1000f);
+                }
+                if (previous) ExecuteEvents.ExecuteHierarchy(previous, pointer, ExecuteEvents.pointerExitHandler);
+                frames.Sort();
+                medians[label] = frames[frames.Count / 2];
+                h.Log($"timing {label}: frame mean {frames.Average():F2} ms, median {medians[label]:F2}, " +
+                      $"p95 {frames[(int)(frames.Count * 0.95f)]:F2}, max {frames[frames.Count - 1]:F2}; {icons.Count} icons");
+            }
+            if (medians["hover"] > medians["still"] + HoverSlackMs)
+            {
+                throw h.Fail($"hovering the docked board slows the median frame to {medians["hover"]:F2} ms from " +
+                             $"{medians["still"]:F2} ms left alone");
+            }
+        }
+
+        // The start of a text, enough to tell two descriptions apart.
+        private static string Head(string text) => string.IsNullOrEmpty(text) ? "" : text.Substring(0, Mathf.Min(text.Length, HeadLength));
+
+        private static BepInEx.Configuration.ConfigEntry<bool> LookingGlassFullDescriptions()
+        {
+            if (!BepInEx.Bootstrap.Chainloader.PluginInfos.TryGetValue("droppod.lookingglass", out BepInEx.PluginInfo info) || !info.Instance) return null;
+            return info.Instance.Config.TryGetEntry("Misc", "Full Description in Hud", out BepInEx.Configuration.ConfigEntry<bool> entry)
+                ? entry
+                : null;
         }
 
         // FlatPanels off and on in one frame with the scoreboard open: what the restore destroys is still there for the

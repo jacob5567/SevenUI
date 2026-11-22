@@ -62,6 +62,10 @@ namespace SevenUI.Tests
             yield return new Suite("screenshots", ScreenshotScenarios.All().Append(ScoreboardScenarios.SpreadScreenshot()).Concat(DialogScenarios.All()));
             // Changes the run for good, so only when named.
             yield return new Suite("store", true, StoreScenarios.All());
+            // Screenshots of the current look for a design doc; they check nothing, so only when named.
+            yield return new Suite("looks", true, LooksScenarios.All());
+            // H11's screenshots of Jacob's other mods with SevenUI; they check nothing, so only when named.
+            yield return new Suite("audit", true, AuditScenarios.All());
         }
 
         // Sets the settings the scenarios assume, once, before the run's first scenario; Finish puts the user's values

@@ -8,6 +8,11 @@ namespace SevenUI
         // Panels are flat 45% black, with a 6% white strip behind their header.
         public static readonly Color Panel = new Color(0f, 0f, 0f, 0.45f);
         public static readonly Color HeaderStrip = new Color(1f, 1f, 1f, 0.06f);
+        // The countdowns' panel, darker so its text reads over the moon's white sky after Mithrix (the game blends in
+        // linear light, so 45% black turns light grey there).
+        public static readonly Color CountdownPanel = new Color(0f, 0f, 0f, 0.75f);
+        // The soft shadow under text that may sit over something bright (FontLibrary.SoftShadow).
+        public static readonly Color TextShadow = new Color(0.02f, 0.03f, 0.05f, 0.85f);
         // #a9aebb, for header strip text and secondary labels.
         public static readonly Color HeaderText = new Color(0.663f, 0.682f, 0.733f, 1f);
         // #8b90a0, for fainter header text, such as the stats panel's source.
@@ -44,10 +49,19 @@ namespace SevenUI
         public static readonly Color CountBoss = new Color(0.890f, 0.827f, 0.353f, 1f);
         public static readonly Color CountLunar = new Color(0.478f, 0.659f, 1f, 1f);
         public static readonly Color CountVoid = new Color(0.753f, 0.478f, 0.847f, 1f);
+        // Hallowed Concepts' tiers, softened the same way: #a38af0 for hallowed items (the game's Cursed tier, #9368f9),
+        // #c4e25c for hexes (#d0f820), and #62aaec for pages and key items (#2387ff), a little greener than lunar blue.
+        public static readonly Color CountHallowed = new Color(0.639f, 0.541f, 0.941f, 1f);
+        public static readonly Color CountHex = new Color(0.769f, 0.886f, 0.361f, 1f);
+        public static readonly Color CountKey = new Color(0.384f, 0.667f, 0.925f, 1f);
         // #89e331, a Winnowing trial's lime as its icon draws it, greener than the game's #d0ff00 for trials.
         public static readonly Color Trial = new Color(0.537f, 0.890f, 0.192f, 1f);
         // Karma, a lunar mechanic, in the lunar items' blue, apart from the run info's accent.
         public static readonly Color Karma = CountLunar;
+        // A done objective's box and check, and a failed one's box and cross: the boss tier's yellow and the legendary
+        // tier's red, softer than the game's pure yellow and red. A finished objective's text dims to HeaderSubtle.
+        public static readonly Color ObjectiveDone = CountBoss;
+        public static readonly Color ObjectiveFailed = CountLegendary;
         // Pickup notifications sit on a slightly darker panel, since they appear over the middle of the screen.
         public static readonly Color NotificationPanel = new Color(0f, 0f, 0f, 0.55f);
         // #2c303a, the slot behind an item icon.

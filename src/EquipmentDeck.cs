@@ -27,20 +27,21 @@ namespace SevenUI
         public const float SwapSeconds = 0.25f;
 
         // Shares of the slot's side (the canvas's 90px slot at 1440p): the icons are 54, 18 above the slot, each later
-        // one 32 higher; the keys end 12 left of the next icon; the chevron is drawn in a 36 square across the gap.
+        // one 32 higher; the keys end 9 left of the next icon; the chevron is drawn in a 36 square across the gap.
         private const float IconShare = 0.6f;
         private const float GapShare = 0.2f;
         // The game's equipment icons leave about this share of their picture empty at the bottom (2 to 12%), so the
         // chevron sits halfway between the slot and where a typical icon's picture starts, not its box.
         private const float IconPaddingShare = 0.05f;
         private const float StepShare = 0.36f;
-        private const float KeysGapShare = 0.13f;
+        private const float KeysGapShare = 0.10f;
         private const float KeysWidthShare = 2f;
         private const float ArrowShare = 0.4f;
         // The later icons' opacity, as on the design page.
         private static readonly float[] Fades = { 1f, 0.55f, 0.32f };
-        // In the design canvas's pixels.
-        private const float KeySpacing = 4f;
+        // In the design canvas's pixels. Tight, so "E + Q" ends clear of what hangs over the utility area: Operator's
+        // drone queue, which the keys overlapped by up to 5px when spaced 4 apart (H9, Jacob's call, 2026-11-18).
+        private const float KeySpacing = 1f;
         private const float CooldownFontSize = 18f;
 
         private readonly EquipmentIcon main;

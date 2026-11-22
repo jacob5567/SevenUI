@@ -72,6 +72,8 @@ namespace SevenUI
         private float laidOutWidth = -1f;
         private TMP_FontAsset laidOutFont;
         private bool stale = true;
+        // The described equipment's icon is still loading.
+        private bool iconLoading;
 
         public ScoreboardDetailPane(Transform parent, TMP_Text style, StyleRecorder recorder)
         {
@@ -125,6 +127,9 @@ namespace SevenUI
 
         // Read by the SevenUI.Tests plugin.
         public string Title => title.text;
+        // Read by the SevenUI.Tests plugin.
+        public string Description => description.text;
+        public Texture IconTexture => icon.texture;
         public int HolderCount => holderCount;
         public string HolderText(int index) => holders[index].Label.text;
 
@@ -135,7 +140,7 @@ namespace SevenUI
         {
             ItemDef item = ItemCatalog.GetItemDef(shown.itemIndex);
             if (!item) return;
-            Describe(TierGroups.ColorOf(TierGroups.Of(shown.itemIndex)), shown.image ? shown.image.texture : null,
+            Describe(GameColors.OfTier(item.tier, Palette.HeaderText), shown.image ? shown.image.texture : null,
                 shown.tooltipProvider, item.nameToken, item.descriptionToken);
             Item = item.itemIndex;
             rebuild = () => Show(shown, grids);
@@ -155,9 +160,12 @@ namespace SevenUI
         public void Show(EquipmentDef equipment, EquipmentIcon shown, IReadOnlyList<ScoreboardItemGrid> grids)
         {
             Color color = equipment.isLunar ? Palette.CountLunar : equipment.isBoss ? Palette.CountBoss : Palette.Equipment;
-            Texture texture = shown.iconImage && shown.iconImage.texture ? shown.iconImage.texture : AsyncTexture(shown.asyncIconImage);
-            Describe(color, texture, shown.tooltipProvider, equipment.nameToken, equipment.descriptionToken);
+            // The equipment's own icon, not the row's: the game loads the row's in the background, so just after a
+            // Functional Coupler switch it still shows the equipment before. Filled in by Place once loaded.
+            Texture texture = EquipmentIcons.Get(equipment.equipmentIndex);
+            Describe(color, texture, EquipmentDescriptions.Title(equipment, shown.tooltipProvider), EquipmentDescriptions.Body(equipment, shown));
             Equipment = equipment.equipmentIndex;
+            iconLoading = !texture;
             rebuild = () => Show(equipment, shown, grids);
             holderCount = 0;
             foreach (ScoreboardItemGrid grid in Listed(grids))
@@ -174,7 +182,7 @@ namespace SevenUI
         // Describes a row's key item, with every row holding the same. Reads only.
         public void Show(KeyItemDef keyItem, KeyItemIcon shown, IReadOnlyList<ScoreboardItemGrid> grids)
         {
-            Describe(ColorCatalog.GetColor(keyItem.colorIndex), AsyncTexture(shown.asyncIconImage), shown.tooltipProvider,
+            Describe(GameColors.ToCanvas(ColorCatalog.GetColor(keyItem.colorIndex)), AsyncTexture(shown.asyncIconImage), shown.tooltipProvider,
                 keyItem.nameToken, keyItem.descriptionToken);
             KeyItem = keyItem.keyItemIndex;
             rebuild = () => Show(keyItem, shown, grids);
@@ -202,17 +210,23 @@ namespace SevenUI
 
         private void Describe(Color color, Texture texture, TooltipProvider provider, string nameToken, string descriptionToken)
         {
+            string body = provider && !string.IsNullOrEmpty(provider.overrideBodyText)
+                ? provider.overrideBodyText
+                : Language.GetString(descriptionToken);
+            Describe(color, texture, provider ? provider.titleText : Language.GetString(nameToken), body);
+        }
+
+        private void Describe(Color color, Texture texture, string titleText, string body)
+        {
+            iconLoading = false;
             Item = ItemIndex.None;
             Equipment = EquipmentIndex.None;
             KeyItem = KeyItemIndex.None;
             strip.color = color;
             iconStrip.color = color;
             icon.texture = texture;
-            title.text = provider ? provider.titleText : Language.GetString(nameToken);
+            title.text = titleText;
             title.color = color;
-            string body = provider && !string.IsNullOrEmpty(provider.overrideBodyText)
-                ? provider.overrideBodyText
-                : Language.GetString(descriptionToken);
             ItemStatsText.Parts parts = ItemStatsText.Split(body);
             description.text = parts.Description;
             stats.Set(parts);
@@ -243,6 +257,7 @@ namespace SevenUI
 
         public void Hide()
         {
+            iconLoading = false;
             Item = ItemIndex.None;
             Equipment = EquipmentIndex.None;
             KeyItem = KeyItemIndex.None;
@@ -255,6 +270,15 @@ namespace SevenUI
         // the font swap reaches its texts) changed.
         public void Place(float x, float y, float width)
         {
+            if (iconLoading)
+            {
+                Texture loaded = Equipment != EquipmentIndex.None ? EquipmentIcons.Get(Equipment) : null;
+                if (loaded || Equipment == EquipmentIndex.None)
+                {
+                    icon.texture = loaded;
+                    iconLoading = false;
+                }
+            }
             if (rebuild != null && playersListed != PlayerCharacterMasterController.instances.Count)
             {
                 rebuild();
