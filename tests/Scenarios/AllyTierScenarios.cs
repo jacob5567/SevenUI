@@ -21,6 +21,72 @@ namespace SevenUI.Tests
         {
             yield return new Scenario(1, "ally_tiers_split_kind", Stages.TitanicPlains, SplitKind);
             yield return new Scenario(1, "ally_tiers_combined_then_new", Stages.TitanicPlains, CombinedThenNew);
+            yield return new Scenario(1, "ally_tiers_tagged", Stages.TitanicPlains, Tagged);
+        }
+
+        // I1: four Gunner Drones of tiers 1 to 4 (0 to 3 upgrades) each show their base name in the tier's color and
+        // the tier's badge ("T3"), never the game's "(Tier 3)" suffix, on their card and on the scoreboard's ally tile;
+        // with FlatPanels off the cards read as the game writes them again.
+        private static IEnumerator Tagged(Harness h)
+        {
+            List<CharacterMaster> drones = new List<CharacterMaster>();
+            DroneCombining.RemoveOtherDrones(h, drones);
+            yield return Allies.SummonDrones(h, Allies.GunnerDroneMaster, 4, drones);
+            yield return h.Until(() => drones.All(master => master && master.GetBody()), "the four drones' bodies");
+            for (int i = 0; i < drones.Count; i++)
+            {
+                if (i > 0) drones[i].inventory.GiveItemPermanent(DLC3Content.Items.DroneUpgradeHidden, i);
+            }
+            yield return h.Wait(SettleSeconds * 2f);
+            string baseName = Language.GetString(drones[0].GetBody().baseNameToken);
+            string problem = null;
+            yield return h.Until(() => (problem = TagProblem(h, drones, baseName)) == null, () => $"{problem} {h.Diagnosis()}");
+            yield return h.Screenshot("tiers");
+
+            yield return ScoreboardSetUp.Open(h);
+            ScoreboardItemsBoard board = null;
+            ScoreboardAlliesSummary summary = null;
+            yield return h.Until(() => (board = SevenUIChecks.HudRoot(h).GetComponentInChildren<ScoreboardItemsBoard>()) &&
+                                       (summary = ScoreboardAlliesScenarios.OwnSummary(board)) && summary.Clickable, "the viewer's allies line");
+            yield return ScoreboardAlliesScenarios.Click(h, summary);
+            string tiles = null;
+            yield return h.Until(() =>
+                {
+                    tiles = string.Join(" | ", Enumerable.Range(0, board.Allies.TileCount).Select(board.Allies.TileText));
+                    return board.Allies.TileCount >= 4 && Enumerable.Range(1, 4).All(tier => tiles.Contains("T" + tier + DroneTier.BadgePad)) &&
+                           !tiles.Contains("(Tier");
+                },
+                () => $"the scoreboard's ally tiles read \"{tiles}\", not a badge per tier 1 to 4 {h.Diagnosis()}");
+            yield return h.Screenshot("tiles");
+            HUD.SetScoreboardActive(LocalUserManager.GetFirstLocalUser(), false, EScoreboardDeactivateReturnContext.Game);
+
+            h.SetConfig(SevenUIPlugin.Settings.FlatPanels, false);
+            h.OnCleanup(() => h.SetConfig(SevenUIPlugin.Settings.FlatPanels, true));
+            yield return h.Until(() => drones.All(master =>
+                {
+                    AllyCardController card = CardOf(h, master);
+                    return card && card.nameLabel.text == Util.GetBestBodyName(master.GetBody().gameObject);
+                }), "the game's names back with FlatPanels off");
+        }
+
+        private static AllyCardController CardOf(Harness h, CharacterMaster master) =>
+            SevenUIChecks.HudRoot(h).GetComponentsInChildren<AllyCardController>(true).FirstOrDefault(card => card.sourceMaster == master);
+
+        private static string TagProblem(Harness h, List<CharacterMaster> drones, string baseName)
+        {
+            foreach (CharacterMaster master in drones)
+            {
+                int upgrades = master.inventory.GetItemCountEffective(DLC3Content.Items.DroneUpgradeHidden);
+                AllyCardController card = CardOf(h, master);
+                if (!card || !card.nameLabel) return $"no card for the drone with {upgrades} upgrades";
+                string text = card.nameLabel.text;
+                string hex = UnityEngine.ColorUtility.ToHtmlStringRGB(DroneTier.ColorOf(upgrades + 1));
+                if (!text.StartsWith("<color=#" + hex + ">" + baseName + "</color>") || !text.Contains("T" + (upgrades + 1)) || text.Contains("("))
+                {
+                    return $"the tier {upgrades + 1} card reads \"{text}\", not {baseName} in #{hex} with a T{upgrades + 1} badge";
+                }
+            }
+            return null;
         }
 
         // Two Gunner Drones share one card; one is given a drone upgrade, which must split them into two cards, and the

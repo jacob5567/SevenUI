@@ -70,7 +70,10 @@ namespace SevenUI
         public sealed class Kind
         {
             public string Name;
+            // The drone's upgrades (DroneUpgradeHidden), as AllyNames reads them.
             public int Tier;
+            // The body's own name token, for the drone's name without the game's tier suffix (DroneTier).
+            public string BaseNameToken;
             public CharacterMaster Leader;
             public Texture Portrait;
             // The drone's def, null for an ally that isn't a drone (a turret, a Beetle Guard).
@@ -343,6 +346,7 @@ namespace SevenUI
                 found.Leader = leader;
                 CharacterBody body = master.GetBody();
                 found.Portrait = body ? body.portraitIcon : null;
+                found.BaseNameToken = body ? body.baseNameToken : null;
                 allies.Kinds.Add(found);
             }
             // A member that just died has no body; the kind's drone is read from one that has.
@@ -362,6 +366,7 @@ namespace SevenUI
                 kind.Leader = null;
                 kind.Portrait = null;
                 kind.Drone = null;
+                kind.BaseNameToken = null;
                 kind.Name = null;
                 spareKinds.Push(kind);
             }
@@ -485,12 +490,15 @@ namespace SevenUI
                 if (!shown) continue;
                 Kind kind = allies.Kinds[i];
                 tile.Portrait.texture = kind.Portrait;
-                tile.Label.text = kind.Name + " <color=#" + ColorUtility.ToHtmlStringRGB(Palette.Accent) + ">" + Times +
+                tile.Label.text = ShownName(kind) + " <color=#" + ColorUtility.ToHtmlStringRGB(Palette.Accent) + ">" + Times +
                                   kind.Members.Count + "</color>";
                 Segments(tile, kind.Members.Count > MaxSegments ? 1 : kind.Members.Count);
                 Tooltip(tile.Tooltip, kind, allies.Commands, laidOutRestyled);
             }
         }
+
+        // A drone's name in its tier's color with its tier's badge (DroneTier); another ally's as the game has it.
+        private static string ShownName(Kind kind) => kind.Drone ? DroneTier.Name(kind.Name, kind.BaseNameToken, kind.Tier) : kind.Name;
 
         // The drone notification's texts (GenericNotification.SetDrone): the name, here with its tier as the tile has
         // it, in the drone's color, its description (Description), then for an Operator its command, which the notification shows in a
@@ -514,7 +522,8 @@ namespace SevenUI
                     Language.GetStringFormatted(CommandToken, Language.GetString(drone.droneTechCommandToken)), NotificationCommand);
             }
             tooltip.titleColor = ColorCatalog.GetColor(drone.color);
-            tooltip.overrideTitleText = kind.Name;
+            // The name stays in the drone's color, as the notification has it, with the tier's badge after it.
+            tooltip.overrideTitleText = DroneTier.BaseName(kind.Name, kind.BaseNameToken, kind.Tier) + " " + DroneTier.Badge(kind.Tier);
             tooltip.bodyColor = TooltipBodyColor;
             tooltip.overrideBodyText = body;
         }

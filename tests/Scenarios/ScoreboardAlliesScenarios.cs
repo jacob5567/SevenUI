@@ -255,6 +255,15 @@ namespace SevenUI.Tests
                 () => $"CROSSHAIRS's tooltip with \"{description}\" and no token, got \"{tooltip.overrideBodyText}\"");
         }
 
+        // The tooltip's title is the tile's drone name and tier badge (DroneTier, I1), the name left in the drone's color
+        // as the notification has it, where the tile has it in the tier's color: the same words once the color tags go.
+        private static bool TitleMatchesTile(string title, string tile)
+        {
+            string plain = System.Text.RegularExpressions.Regex.Replace(title ?? "", "</?color[^>]*>", "");
+            string plainTile = System.Text.RegularExpressions.Regex.Replace(tile ?? "", "</?color[^>]*>", "");
+            return plain.Length > 0 && plainTile.StartsWith(plain);
+        }
+
         // A drone's tooltip text: with LookingGlass its skill description, as LookingGlass's ally cards have; without, the
         // notification's short function, or the full description for a drone with none.
         private static string Expected(DroneDef drone)
@@ -291,7 +300,7 @@ namespace SevenUI.Tests
             string command = Language.GetStringFormatted(CommandToken, Language.GetString(drone.droneTechCommandToken));
             TooltipProvider tooltip = board.Allies.TileTooltip(0);
             yield return h.Until(() => tooltip.titleColor == (Color)ColorCatalog.GetColor(drone.color) &&
-                                       board.Allies.TileText(0).StartsWith(tooltip.overrideTitleText) &&
+                                       TitleMatchesTile(tooltip.overrideTitleText, board.Allies.TileText(0)) &&
                                        tooltip.overrideBodyText.Contains(description) &&
                                        tooltip.overrideBodyText.Contains(command) == commands,
                 () => $"the tile's tooltip \"{tooltip.overrideTitleText}\": \"{tooltip.overrideBodyText}\", expected " +
@@ -309,7 +318,7 @@ namespace SevenUI.Tests
         // A left click on the summary, as the pointer gives it: down, up and click, through the HUD's event system, as
         // the game's button takes only its own's (MPButton.InputModuleIsAllowed). The press selects it, as a real one
         // does.
-        private static IEnumerator Click(Harness h, ScoreboardAlliesSummary summary)
+        internal static IEnumerator Click(Harness h, ScoreboardAlliesSummary summary)
         {
             EventSystem events = summary.Button is MPButton button && button.eventSystem ? button.eventSystem : EventSystem.current;
             PointerEventData click = new PointerEventData(events) { button = PointerEventData.InputButton.Left };
@@ -356,7 +365,7 @@ namespace SevenUI.Tests
         private static ScoreboardItemsBoard Board(Harness h) =>
             SevenUIChecks.HudRoot(h).GetComponentInChildren<ScoreboardItemsBoard>();
 
-        private static ScoreboardAlliesSummary OwnSummary(ScoreboardItemsBoard board) =>
+        internal static ScoreboardAlliesSummary OwnSummary(ScoreboardItemsBoard board) =>
             SummaryOf(board, Harness.LocalBody.master);
 
         private static ScoreboardAlliesSummary SummaryOf(ScoreboardItemsBoard board, CharacterMaster player)
