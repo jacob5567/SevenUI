@@ -76,6 +76,8 @@ namespace SevenUI.Tests
             yield return new Scenario(1, "ally_cards_not_grouped", Stages.TitanicPlains, AllyCardsNotGrouped);
             yield return new Scenario(1, "hud_lean_kept", Stages.TitanicPlains, HudLeanKept);
             yield return new Scenario(1, "next_equipment_deck_swaps", Stages.TitanicPlains, NextEquipmentDeckSwaps);
+            yield return new Scenario(1, "equipment_deck_keys_clear_of_drones", Stages.TitanicPlains, DeckKeysClearOfDrones);
+            yield return new Scenario(1, "equipment_deck_keys_clear_of_bag", Stages.TitanicPlains, DeckKeysClearOfBag);
             yield return new Scenario(1, "ntormat_pages_follow_key_item", Stages.TitanicPlains, NtormatPagesFollowKeyItem);
             yield return new Scenario(1, "top_is_flat", Stages.TitanicPlains, TopIsFlat);
             yield return new Scenario(1, "item_icons_are_flat", Stages.TitanicPlains, ItemIconsAreFlat);
@@ -471,40 +473,9 @@ namespace SevenUI.Tests
         // the equipment that was in use going to the back; with the panels off the game's slot shows again.
         private static IEnumerator NextEquipmentDeckSwaps(Harness h)
         {
-            Inventory inventory = Harness.LocalBody.inventory;
-            ItemDef coupler = DLC3Content.Items.ExtraEquipment;
-            h.OnCleanup(() =>
-            {
-                if (inventory && inventory.GetItemCountPermanent(coupler) > 0)
-                {
-                    inventory.RemoveItemPermanent(coupler, inventory.GetItemCountPermanent(coupler));
-                }
-            });
-            inventory.GiveItemPermanent(coupler, DeckCouplers);
-            yield return h.Wait(DeckSettleSeconds);
-            if (inventory.accessibleEquipmentSetCount < DeckCouplers + 1) throw h.Skip("the Functional Coupler needs Alloyed Collective");
             EquipmentDef[] held = { RoR2Content.Equipment.Fruit, RoR2Content.Equipment.Blackhole, RoR2Content.Equipment.CommandMissile };
-            EquipmentLocation active = inventory.activeEquipmentLocation;
-            EquipmentLocation[] places = new EquipmentLocation[held.Length];
-            EquipmentIndex[] before = new EquipmentIndex[held.Length];
-            for (int i = 0; i < held.Length; i++)
-            {
-                places[i] = active;
-                places[i].set = (uint)((active.set + i) % inventory.accessibleEquipmentSetCount);
-                before[i] = inventory.GetEquipment(in places[i]).equipmentIndex;
-            }
-            h.OnCleanup(() =>
-            {
-                if (!inventory) return;
-                for (int i = 0; i < held.Length; i++)
-                {
-                    inventory.SetEquipmentIndex(before[i], in places[i]);
-                }
-            });
-            for (int i = 0; i < held.Length; i++)
-            {
-                inventory.SetEquipmentIndex(held[i].equipmentIndex, in places[i]);
-            }
+            yield return GiveDeck(h, held);
+            Inventory inventory = Harness.LocalBody.inventory;
 
             HUD hud = SevenUIChecks.HudRoot(h).GetComponent<HUD>();
             EquipmentIcon main = hud.equipmentIcons.FirstOrDefault(icon => icon && !icon.displayAlternateEquipment);
@@ -540,6 +511,160 @@ namespace SevenUI.Tests
             h.SetConfig(SevenUIPlugin.Settings.EquipmentDeck, true);
             yield return h.Until(() => DeckProblem(h, main, alternate, held[0]) == null,
                 () => $"with EquipmentDeck back on, {DeckProblem(h, main, alternate, held[0])} {h.Diagnosis()}");
+        }
+
+        // Gives two Functional Couplers and puts the equipment in the active slot and the sets after it, so the deck shows
+        // the second next and the third behind it; all taken back at cleanup. Skipped without Alloyed Collective.
+        internal static IEnumerator GiveDeck(Harness h, EquipmentDef[] held)
+        {
+            Inventory inventory = Harness.LocalBody.inventory;
+            ItemDef coupler = DLC3Content.Items.ExtraEquipment;
+            h.OnCleanup(() =>
+            {
+                if (inventory && inventory.GetItemCountPermanent(coupler) > 0)
+                {
+                    inventory.RemoveItemPermanent(coupler, inventory.GetItemCountPermanent(coupler));
+                }
+            });
+            inventory.GiveItemPermanent(coupler, DeckCouplers);
+            yield return h.Wait(DeckSettleSeconds);
+            if (inventory.accessibleEquipmentSetCount < DeckCouplers + 1) throw h.Skip("the Functional Coupler needs Alloyed Collective");
+            EquipmentLocation active = inventory.activeEquipmentLocation;
+            EquipmentLocation[] places = new EquipmentLocation[held.Length];
+            EquipmentIndex[] before = new EquipmentIndex[held.Length];
+            for (int i = 0; i < held.Length; i++)
+            {
+                places[i] = active;
+                places[i].set = (uint)((active.set + i) % inventory.accessibleEquipmentSetCount);
+                before[i] = inventory.GetEquipment(in places[i]).equipmentIndex;
+            }
+            h.OnCleanup(() =>
+            {
+                if (!inventory) return;
+                for (int i = 0; i < held.Length; i++)
+                {
+                    inventory.SetEquipmentIndex(before[i], in places[i]);
+                }
+            });
+            for (int i = 0; i < held.Length; i++)
+            {
+                inventory.SetEquipmentIndex(held[i].equipmentIndex, in places[i]);
+            }
+        }
+
+        // As Operator (DroneTech in code), whose queue of drones hangs over the utility area: the deck's "E + Q" keys end
+        // clear of every drone slot, under the defaults and each combination of tight margins and the level HUD (H9).
+        private static IEnumerator DeckKeysClearOfDrones(Harness h)
+        {
+            yield return ScreenshotScenarios.TurnInto(h, GameNames.DroneTech);
+            yield return GiveDeck(h, new[] { RoR2Content.Equipment.Fruit, RoR2Content.Equipment.Blackhole });
+            yield return h.Until(() => DroneSlots(h).Count > 0 && DeckKeys(h).Count == 3,
+                () => $"Operator's drone slots ({DroneSlots(h).Count}) and the deck's three keys ({DeckKeys(h).Count}) {h.Diagnosis()}");
+            yield return ExpectKeysClear(h, "Operator's drone slots", () => DroneSlots(h).Select(slot => CanvasSizeChecks.Box(h, slot)));
+        }
+
+        // As Drifter with something in her bag, whose card hangs over the utility area: the deck's keys end clear of the
+        // card (H9).
+        private static IEnumerator DeckKeysClearOfBag(Harness h)
+        {
+            yield return ScreenshotScenarios.TurnInto(h, GameNames.Drifter);
+            CharacterBody body = Harness.LocalBody;
+            DrifterBagController bag = body.GetComponent<DrifterBagController>();
+            if (!bag) throw h.Fail("the Drifter has no DrifterBagController");
+            GenericSkill repossess = DrifterBag.FindRepossess(h, body);
+            h.OnCleanup(() =>
+            {
+                if (bag && bag.bagFull)
+                {
+                    bag.ResetBaggedObject();
+                }
+            });
+            SpecialObjectAttributes target = null;
+            foreach (string kind in DrifterBag.Kinds)
+            {
+                SpecialObjectAttributes spawned = null;
+                yield return DrifterBag.Spawn(h, kind, found => spawned = found);
+                if (!spawned) continue;
+                h.OnCleanup(() => DrifterBag.Discard(spawned));
+                string problem = null;
+                yield return DrifterBag.Grab(h, repossess, bag, spawned, reason => problem = reason);
+                if (problem == null)
+                {
+                    target = spawned;
+                    break;
+                }
+            }
+            if (!target) throw h.Skip("nothing could be put in the Drifter's bag");
+            yield return GiveDeck(h, new[] { RoR2Content.Equipment.Fruit, RoR2Content.Equipment.Blackhole });
+            yield return h.Until(() => DrifterBag.FindCard(h) && DeckKeys(h).Count == 3,
+                () => $"the bag's card and the deck's three keys ({DeckKeys(h).Count}) {h.Diagnosis()}");
+            yield return ExpectKeysClear(h, "the bag's card",
+                () => new[] { CanvasSizeChecks.Box(h, (RectTransform)DrifterBag.FindCard(h).transform) });
+        }
+
+        private static List<RectTransform> DroneSlots(Harness h)
+        {
+            Transform area = SevenUIChecks.HudRoot(h).Find(GameNames.UtilityArea);
+            if (!area) return new List<RectTransform>();
+            return area.GetComponentsInChildren<RectTransform>(false)
+                .Where(slot => slot.name.StartsWith(GameNames.DroneSlot) && slot.GetComponentInParent<Canvas>() &&
+                               slot.rect.width > 0f && CanvasSizeChecks.Box(h, slot).width > 0f)
+                .ToList();
+        }
+
+        private static List<TMP_Text> DeckKeys(Harness h)
+        {
+            Transform keys = h.FindUnderHud(EquipmentDeck.Name)?.Find(EquipmentDeck.KeysName);
+            return keys && keys.gameObject.activeInHierarchy
+                ? keys.GetComponentsInChildren<TMP_Text>(false).Where(text => text.textInfo != null && text.textInfo.characterCount > 0).ToList()
+                : new List<TMP_Text>();
+        }
+
+        // The keys' drawn text, from the first glyph's left edge to the last one's right, in canvas pixels on screen.
+        private static Rect KeysTextBox(Harness h)
+        {
+            Camera camera = CanvasLayoutChecks.HudCamera(SevenUIChecks.HudRoot(h));
+            float unit = CanvasLayoutChecks.ScreenOf(camera).height / CanvasSizeChecks.CanvasHeight;
+            Vector2 min = new Vector2(float.MaxValue, float.MaxValue);
+            Vector2 max = new Vector2(float.MinValue, float.MinValue);
+            foreach (TMP_Text text in DeckKeys(h))
+            {
+                Bounds bounds = text.textBounds;
+                foreach (Vector3 corner in new[] { bounds.min, bounds.max, new Vector3(bounds.min.x, bounds.max.y), new Vector3(bounds.max.x, bounds.min.y) })
+                {
+                    Vector2 point = RectTransformUtility.WorldToScreenPoint(camera, text.transform.TransformPoint(corner)) / unit;
+                    min = Vector2.Min(min, point);
+                    max = Vector2.Max(max, point);
+                }
+            }
+            return Rect.MinMaxRect(min.x, min.y, max.x, max.y);
+        }
+
+        // The keys' text overlaps none of the other display's boxes, under each combination of tight margins and the
+        // level HUD. Logs the gap left of the keys, and shoots each combination.
+        private static IEnumerator ExpectKeysClear(Harness h, string what, Func<IEnumerable<Rect>> boxes)
+        {
+            List<string> overlaps = new List<string>();
+            foreach (ScreenshotScenarios.LayoutCombo combo in ScreenshotScenarios.LayoutCombos)
+            {
+                yield return ScreenshotScenarios.SetLayout(h, combo);
+                yield return h.Wait(DeckSettleSeconds);
+                Rect keys = KeysTextBox(h);
+                List<Rect> others = boxes().ToList();
+                float gap = others.Where(box => box.yMax > keys.yMin && box.yMin < keys.yMax)
+                    .Select(box => keys.xMin - box.xMax)
+                    .DefaultIfEmpty(float.PositiveInfinity)
+                    .Min();
+                h.Log($"{combo.Label}: keys {keys.xMin:F1}..{keys.xMax:F1} x {keys.yMin:F1}..{keys.yMax:F1}, " +
+                      $"gap to {what} {gap:F1} canvas px");
+                if (others.Any(box => box.Overlaps(keys)))
+                {
+                    overlaps.Add($"{combo.Label} (gap {gap:F1})");
+                }
+                yield return h.Screenshot("keys_" + combo.Label);
+            }
+            yield return ScreenshotScenarios.SetLayout(h, ScreenshotScenarios.LayoutCombos[0]);
+            if (overlaps.Count > 0) throw h.Fail($"the deck's keys overlap {what}: {string.Join(", ", overlaps)}");
         }
 
         // Null when the deck shows the alternate slot's icon next and the given equipment fainter behind it, both

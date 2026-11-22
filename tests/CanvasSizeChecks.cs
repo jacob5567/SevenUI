@@ -19,7 +19,7 @@ namespace SevenUI.Tests
     // buffs' counts in their squares' top-right corners. Also the run timer's and the objective rows' texts.
     internal static class CanvasSizeChecks
     {
-        private const float CanvasHeight = 1080f;
+        internal const float CanvasHeight = 1080f;
         // Within a pixel or so: the clusters are drawn in perspective, and turned slightly before the mod levels them.
         private const float SizeTolerance = 1.5f;
         // Added to the zone's percentage to write one that doesn't match it.
