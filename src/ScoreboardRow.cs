@@ -128,10 +128,10 @@ namespace SevenUI
             Watch(null);
         }
 
-        // Reads only: the inventory's count of each tier's items.
+        // Reads only: the inventory's count of each tier's items, after the total.
         private static string CountsText(Inventory inventory)
         {
-            int total = 0;
+            int total = KarmaItemCount(inventory);
             Text.Clear().Append(Separator);
             foreach ((ItemTier[] tiers, Color color) in TierGroups.Main)
             {
@@ -140,7 +140,6 @@ namespace SevenUI
                 {
                     count += inventory.GetTotalItemCountOfTier(tier);
                 }
-                total += count;
                 Text.Append("<color=#").Append(ColorUtility.ToHtmlStringRGB(color)).Append('>').Append(count)
                     .Append("</color> ");
             }
@@ -149,6 +148,23 @@ namespace SevenUI
                 .Append(total).Append(Language.currentLanguageName == English ? ItemsWord : "").Append("</color></b>")
                 .Append(tierCounts);
             return Text.ToString();
+        }
+
+        // The items as the game counts them toward its 50-item Karma milestone (RoR2.Karma.CollectLotsOfItems):
+        // permanent stacks only, of every item that isn't a hex, untiered, hidden or consumed. So food, hallowed items
+        // and pages count, and temporary and Ethereal stacks don't (Jacob's call, 2026-11-22).
+        internal static int KarmaItemCount(Inventory inventory)
+        {
+            int total = 0;
+            foreach (ItemIndex item in inventory.itemAcquisitionOrder)
+            {
+                ItemDef def = ItemCatalog.GetItemDef(item);
+                if (def && def.tier != ItemTier.Hex && def.tier != ItemTier.NoTier && !def.hidden && !def.isConsumed)
+                {
+                    total += inventory.GetItemCountPermanent(item);
+                }
+            }
+            return total;
         }
 
         // "Lv", the game's level header without its colon.

@@ -877,8 +877,10 @@ namespace SevenUI.Tests
             yield return h.Screenshot("stats_" + name);
         }
 
-        // Two permanent, a temporary and an Ethereal (rented) stack of one item (H4): the item bar's slot counts them all
-        // as the game does, and a Command option counts only the permanent stacks, as LookingGlass does.
+        // Two permanent, a temporary and an Ethereal (rented) stack of one item, a hallowed item and a hex (H4): the item
+        // bar's slot counts all four stacks as the game does, the scoreboard row's total counts as the game's 50-item
+        // Karma milestone does (permanent stacks, hallowed items but no hexes), and a Command option counts only the
+        // permanent stacks, as LookingGlass does.
         private static IEnumerator CountsWithTemporaryAndEthereal(Harness h)
         {
             ItemDef item = RoR2Content.Items.Syringe;
@@ -889,6 +891,15 @@ namespace SevenUI.Tests
             inventory.GiveItemPermanent(item, Permanent);
             inventory.GiveItemTemp(item.itemIndex, 1f);
             inventory.GiveItemRented(item.itemIndex, 1);
+            ItemDef[] others =
+            {
+                ItemCatalog.allItemDefs.Where(each => each && each.tier == ItemTier.Cursed && !each.hidden).OrderBy(each => each.itemIndex).FirstOrDefault(),
+                ItemCatalog.allItemDefs.Where(each => each && each.tier == ItemTier.Hex && !each.hidden).OrderBy(each => each.itemIndex).FirstOrDefault(),
+            };
+            foreach (ItemDef other in others.Where(each => each))
+            {
+                inventory.GiveItemPermanent(other, 1);
+            }
             h.OnCleanup(() =>
             {
                 if (!inventory) return;
@@ -896,6 +907,10 @@ namespace SevenUI.Tests
                 inventory.RemoveItemRented(item.itemIndex, inventory.GetItemCountRented(item.itemIndex));
                 inventory.RemoveItemPermanent(item, inventory.GetItemCountPermanent(item));
                 if (before > 0) inventory.GiveItemPermanent(item, before);
+                foreach (ItemDef other in others.Where(each => each))
+                {
+                    inventory.RemoveItemPermanent(other, 1);
+                }
             });
             const int Effective = Permanent + 2;
             yield return h.Until(() => inventory.GetItemCountEffective(item) == Effective,
@@ -912,6 +927,28 @@ namespace SevenUI.Tests
                     return slot && slot.Count && slot.Count.text == Effective.ToString();
                 },
                 () => $"the item bar's {item.name} count \"{(slot && slot.Count ? slot.Count.text : "none")}\", not \"{Effective}\"");
+
+            // The milestone's rule, as RoR2.Karma.CollectLotsOfItems has it.
+            int karma = inventory.itemAcquisitionOrder
+                .Select(index => (index, def: ItemCatalog.GetItemDef(index)))
+                .Where(each => each.def && each.def.tier != ItemTier.Hex && each.def.tier != ItemTier.NoTier && !each.def.hidden && !each.def.isConsumed)
+                .Sum(each => inventory.GetItemCountPermanent(each.index));
+            yield return ScoreboardSetUp.Open(h);
+            ScoreboardRow row = null;
+            string total = null;
+            yield return h.Until(() =>
+                {
+                    row = SevenUIChecks.HudRoot(h).GetComponentsInChildren<ScoreboardRow>()
+                        .FirstOrDefault(each => each.Strip && each.Strip.master == Harness.LocalBody.master);
+                    if (!row || !row.Counts) return false;
+                    System.Text.RegularExpressions.Match match = System.Text.RegularExpressions.Regex.Match(row.Counts.text, @"^<b><color=#[0-9A-Fa-f]{6}>(\d+)");
+                    total = match.Success ? match.Groups[1].Value : row.Counts.text;
+                    return total == karma.ToString();
+                },
+                () => $"the scoreboard row's total {total}, not {karma} as the 50-item Karma milestone counts " +
+                      $"(row counts \"{(row && row.Counts ? row.Counts.text : "")}\")");
+            HUD.SetScoreboardActive(LocalUserManager.GetFirstLocalUser(), false, EScoreboardDeactivateReturnContext.Game);
+            yield return h.Wait(SettleSeconds);
 
             yield return GoHome(h);
             PickupPickerController command = h.SpawnPrefab<PickupPickerController>(GameNames.CommandCube);
