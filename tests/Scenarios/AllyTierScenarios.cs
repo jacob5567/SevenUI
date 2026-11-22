@@ -73,7 +73,7 @@ namespace SevenUI.Tests
                 }), "the game's names back with FlatPanels off");
         }
 
-        // A Gunner Turret, which the Drone Combiner can't upgrade (DroneDef.canCombine off), keeps the game's plain name on
+        // A Gunner Turret, which the Drone Combiner can't upgrade (its body lacks the Drone flag), keeps the game's plain name on
         // its card and its scoreboard tile: no tier color, no badge.
         private static IEnumerator TurretUntagged(Harness h)
         {
@@ -81,7 +81,7 @@ namespace SevenUI.Tests
             DroneCombining.RemoveOtherDrones(h, turrets);
             yield return Allies.SummonDrones(h, TurretMaster, 1, turrets);
             yield return h.Until(() => turrets[0] && turrets[0].GetBody(), "the turret's body");
-            if (DroneTier.HasTier(turrets[0].GetBody())) throw h.Fail("the Gunner Turret's DroneDef allows combining, so it has a tier");
+            if (DroneTier.HasTier(turrets[0].GetBody())) throw h.Fail($"the Gunner Turret has a tier (body flags {turrets[0].GetBody().bodyFlags})");
             yield return h.Wait(SettleSeconds * 2f);
             string gameName = Util.GetBestBodyName(turrets[0].GetBody().gameObject);
             AllyCardController card = null;
@@ -95,9 +95,9 @@ namespace SevenUI.Tests
                                        (summary = ScoreboardAlliesScenarios.OwnSummary(board)) && summary.Clickable, "the viewer's allies line");
             yield return ScoreboardAlliesScenarios.Click(h, summary);
             string tile = null;
-            yield return h.Until(() => board.Allies.TileCount >= 1 && (tile = board.Allies.TileText(0)).Contains(gameName) &&
-                                       !tile.Contains("<mark") && !tile.Contains("<color"),
-                () => $"the turret's tile reads \"{tile}\", not the plain \"{gameName}\" {h.Diagnosis()}");
+            yield return h.Until(() => board.Allies.TileCount >= 1 && (tile = board.Allies.TileText(0)).StartsWith(gameName + " ") &&
+                                       !tile.Contains("<mark") && !tile.Contains("T1"),
+                () => $"the turret's tile reads \"{tile}\", not the plain \"{gameName}\" and its count {h.Diagnosis()}");
             HUD.SetScoreboardActive(LocalUserManager.GetFirstLocalUser(), false, EScoreboardDeactivateReturnContext.Game);
         }
 

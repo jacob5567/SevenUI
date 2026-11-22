@@ -23,9 +23,12 @@ namespace SevenUI
         public static Color ColorOf(int tier) =>
             tier <= 1 ? Palette.Text : tier == 2 ? Palette.CountUncommon : tier == 3 ? Palette.CountLegendary : Palette.CountBoss;
 
-        // Whether the drone has a tier: the Drone Combiner can upgrade it (DroneDef.canCombine, the flag
-        // DroneCombinerController checks). A Gunner Turret has none, so it keeps its plain name.
-        public static bool HasTier(DroneDef drone) => drone && drone.canCombine;
+        // Whether the drone has a tier: the Drone Combiner can upgrade it. DroneCombinerController.TryGetCombinableDrones
+        // takes only bodies with the Drone body flag whose DroneDef allows combining. A Gunner Turret's DroneDef allows
+        // it, but its body isn't flagged a drone, so it keeps its plain name.
+        public static bool HasTier(DroneDef drone) =>
+            drone && drone.canCombine && drone.bodyPrefab && drone.bodyPrefab.GetComponent<CharacterBody>() is CharacterBody body &&
+            (body.bodyFlags & CharacterBody.BodyFlags.Drone) != 0;
 
         public static bool HasTier(CharacterBody body) =>
             body && HasTier(DroneCatalog.GetDroneDef(DroneCatalog.GetDroneIndexFromBodyIndex(body.bodyIndex)));
