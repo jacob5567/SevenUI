@@ -125,6 +125,8 @@ namespace SevenUI
 
         // Read by the SevenUI.Tests plugin.
         public string Title => title.text;
+        // Read by the SevenUI.Tests plugin.
+        public string Description => description.text;
         public int HolderCount => holderCount;
         public string HolderText(int index) => holders[index].Label.text;
 
@@ -156,7 +158,7 @@ namespace SevenUI
         {
             Color color = equipment.isLunar ? Palette.CountLunar : equipment.isBoss ? Palette.CountBoss : Palette.Equipment;
             Texture texture = shown.iconImage && shown.iconImage.texture ? shown.iconImage.texture : AsyncTexture(shown.asyncIconImage);
-            Describe(color, texture, shown.tooltipProvider, equipment.nameToken, equipment.descriptionToken);
+            Describe(color, texture, EquipmentDescriptions.Title(equipment, shown.tooltipProvider), EquipmentDescriptions.Body(equipment, shown));
             Equipment = equipment.equipmentIndex;
             rebuild = () => Show(equipment, shown, grids);
             holderCount = 0;
@@ -202,17 +204,22 @@ namespace SevenUI
 
         private void Describe(Color color, Texture texture, TooltipProvider provider, string nameToken, string descriptionToken)
         {
+            string body = provider && !string.IsNullOrEmpty(provider.overrideBodyText)
+                ? provider.overrideBodyText
+                : Language.GetString(descriptionToken);
+            Describe(color, texture, provider ? provider.titleText : Language.GetString(nameToken), body);
+        }
+
+        private void Describe(Color color, Texture texture, string titleText, string body)
+        {
             Item = ItemIndex.None;
             Equipment = EquipmentIndex.None;
             KeyItem = KeyItemIndex.None;
             strip.color = color;
             iconStrip.color = color;
             icon.texture = texture;
-            title.text = provider ? provider.titleText : Language.GetString(nameToken);
+            title.text = titleText;
             title.color = color;
-            string body = provider && !string.IsNullOrEmpty(provider.overrideBodyText)
-                ? provider.overrideBodyText
-                : Language.GetString(descriptionToken);
             ItemStatsText.Parts parts = ItemStatsText.Split(body);
             description.text = parts.Description;
             stats.Set(parts);

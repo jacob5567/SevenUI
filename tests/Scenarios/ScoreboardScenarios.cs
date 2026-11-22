@@ -20,6 +20,8 @@ namespace SevenUI.Tests
     // the screenshots.
     internal static class ScoreboardScenarios
     {
+        private const int HeadLength = 24;
+
         // A few items to hover, and the header band the flat look adds to an item's tooltip (TooltipStyler).
         private const int TooltipItems = 3;
         private const string TooltipBandPath = "TooltipOffset/Panel/TitleRect/SevenUIHeaderBand";
@@ -75,6 +77,7 @@ namespace SevenUI.Tests
                 yield return new Scenario(1, "item_bar_tooltip_setting_off", Stages.TitanicPlains, ItemBarTooltipSettingOff);
                 yield return new Scenario(1, "scoreboard_players_rows_while_roomy", Stages.TitanicPlains, RowsWhileRoomy);
                 yield return new Scenario(1, "scoreboard_pane_holders_by_player_count", Stages.TitanicPlains, HoldersByPlayerCount);
+                yield return new Scenario(1, "scoreboard_equipment_pane_follows_coupler", Stages.TitanicPlains, EquipmentPaneFollowsCoupler);
             }
             else
             {
@@ -318,6 +321,64 @@ namespace SevenUI.Tests
             yield return h.Wait(SettleSeconds);
             string tabs = board == Board.Tabs ? "_tabs" : "";
             yield return h.Screenshot($"scoreboard{tabs}_{(keyItem ? "key_item" : "equipment")}_pane");
+        }
+
+        // With a Functional Coupler, the pane on the row's equipment follows each swap to the next set: the new
+        // equipment's name and description, not the first one's (H2). LookingGlass writes its full description into
+        // the row's tooltip only when the row is set up, so it kept describing the first; its setting is turned on for
+        // this when it is installed.
+        private static IEnumerator EquipmentPaneFollowsCoupler(Harness h)
+        {
+            // One for each of the three sets two couplers give, so every swap lands on an equipment.
+            EquipmentDef[] held = { RoR2Content.Equipment.Fruit, RoR2Content.Equipment.Blackhole, RoR2Content.Equipment.CommandMissile };
+            yield return PanelScenarios.GiveDeck(h, held);
+            BepInEx.Configuration.ConfigEntry<bool> full = LookingGlassFullDescriptions();
+            if (full != null)
+            {
+                h.SetConfig(full, true);
+            }
+            Inventory inventory = Harness.LocalBody.inventory;
+            yield return ScoreboardSetUp.Open(h);
+            ScoreboardRow row = null;
+            yield return h.Until(() => (row = SevenUIChecks.HudRoot(h).GetComponentsInChildren<ScoreboardRow>()
+                .FirstOrDefault(each => each.Strip && each.Strip.master == Harness.LocalBody.master)) != null,
+                "the viewer's row of the scoreboard");
+            ScoreboardStrip strip = row.Strip;
+            TooltipProvider provider = strip.equipmentIcon ? strip.equipmentIcon.tooltipProvider : null;
+            if (!provider) throw h.Fail("no equipment tooltip in the viewer's row of the scoreboard");
+            yield return h.Wait(SettleSeconds);
+            PointAt(h, (RectTransform)provider.transform, "the equipment in the scoreboard");
+            yield return h.ExpectLoadoutPane(strip, false);
+            for (int swap = 1; swap <= held.Length; swap++)
+            {
+                inventory.DispatchSwitchToNextEquipmentInSet();
+                EquipmentDef now = null;
+                string look = null;
+                int done = swap;
+                yield return h.Until(() =>
+                    {
+                        now = EquipmentCatalog.GetEquipmentDef(inventory.currentEquipmentIndex);
+                        ScoreboardDetailPane pane = strip.GetComponentInParent<ScoreboardItemsBoard>().Pane;
+                        look = $"pane on {pane.Title} (equipment {pane.Equipment}): \"{Head(pane.Description)}\"";
+                        return now && pane.Shown && pane.Equipment == now.equipmentIndex &&
+                               pane.Title == Language.GetString(now.nameToken) &&
+                               pane.Description.Contains(Head(Language.GetString(now.descriptionToken)));
+                    },
+                    () => $"after swap {done} (LookingGlass {(full != null ? "on" : "absent")}), the pane describes " +
+                          $"{(now ? now.name : "nothing")}? {look} {h.Diagnosis()}");
+            }
+            yield return h.Screenshot("equipment_pane_after_swaps");
+        }
+
+        // The start of a text, enough to tell two descriptions apart.
+        private static string Head(string text) => string.IsNullOrEmpty(text) ? "" : text.Substring(0, Mathf.Min(text.Length, HeadLength));
+
+        private static BepInEx.Configuration.ConfigEntry<bool> LookingGlassFullDescriptions()
+        {
+            if (!BepInEx.Bootstrap.Chainloader.PluginInfos.TryGetValue("droppod.lookingglass", out BepInEx.PluginInfo info) || !info.Instance) return null;
+            return info.Instance.Config.TryGetEntry("Misc", "Full Description in Hud", out BepInEx.Configuration.ConfigEntry<bool> entry)
+                ? entry
+                : null;
         }
 
         // FlatPanels off and on in one frame with the scoreboard open: what the restore destroys is still there for the
