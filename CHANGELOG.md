@@ -1,3 +1,17 @@
+## 1.8.1
+
+- Item tiers are one color everywhere: the item slots, tooltips, docked panel, inspect panel and pickers all use SevenUI's softer shades. Hallowed items, hexes and pages have shades of their own instead of grey or the game's raw color.
+- The moon's escape, Winnowing trial and Champ Rush countdowns are darker, with a soft shadow under the text, so they read over the moon's pale sky.
+- Item stack counts sit in the slot's top-right corner, clear of a temporary item's cooldown ring and an Ethereal item's mark.
+- Buff pictures fill their squares, and buff stack counts have a soft shadow.
+- Done and failed objectives keep a full-size box, with a soft yellow check or a soft red cross, and their text dims.
+- With a Functional Coupler, the "E + Q" keys no longer overlap Operator's drone queue.
+- The gaps between a shared ally card's health segments are all the same width.
+- After a Functional Coupler switch, the scoreboard's docked panel shows the equipment in use, with its own name, description and icon.
+- The scoreboard's "N items" counts items as the game's 50-item Karma milestone does: permanent stacks, including food, hallowed items and pages, but not hexes.
+- Item picker counts count permanent stacks only, as LookingGlass does, show from one stack up, and don't show on locked options. LookingGlass's own count no longer comes back beside SevenUI's.
+- Moving the pointer across a crowded scoreboard no longer drops the frame rate.
+
 ## 1.8.0
 
 - The scoreboard shows each player's drones and other allies: under their name, the portraits of up to four kinds of ally and how many they have ("7 allies"). Clicking that line opens the player's allies in a panel under the board, with a tile per kind showing its count and each ally's health. Clicking it again, or closing the scoreboard, closes the panel. The new `ScoreboardAllies` setting turns this off.
