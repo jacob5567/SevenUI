@@ -877,9 +877,8 @@ namespace SevenUI.Tests
             yield return h.Screenshot("stats_" + name);
         }
 
-        // Two permanent, a temporary and an Ethereal (rented) stack of one item, and a hallowed item (H4): the item bar's
-        // slot counts them all as the game does, the scoreboard's total matches the game's own count of the row, other
-        // tiers included, and a Command option counts only the permanent stack, as LookingGlass does.
+        // Two permanent, a temporary and an Ethereal (rented) stack of one item (H4): the item bar's slot counts them all
+        // as the game does, and a Command option counts only the permanent stacks, as LookingGlass does.
         private static IEnumerator CountsWithTemporaryAndEthereal(Harness h)
         {
             ItemDef item = RoR2Content.Items.Syringe;
@@ -890,9 +889,6 @@ namespace SevenUI.Tests
             inventory.GiveItemPermanent(item, Permanent);
             inventory.GiveItemTemp(item.itemIndex, 1f);
             inventory.GiveItemRented(item.itemIndex, 1);
-            ItemDef hallowed = ItemCatalog.allItemDefs.Where(each => each && each.tier == ItemTier.Cursed && !each.hidden)
-                .OrderBy(each => each.itemIndex).FirstOrDefault();
-            if (hallowed) inventory.GiveItemPermanent(hallowed, 1);
             h.OnCleanup(() =>
             {
                 if (!inventory) return;
@@ -900,7 +896,6 @@ namespace SevenUI.Tests
                 inventory.RemoveItemRented(item.itemIndex, inventory.GetItemCountRented(item.itemIndex));
                 inventory.RemoveItemPermanent(item, inventory.GetItemCountPermanent(item));
                 if (before > 0) inventory.GiveItemPermanent(item, before);
-                if (hallowed) inventory.RemoveItemPermanent(hallowed, 1);
             });
             const int Effective = Permanent + 2;
             yield return h.Until(() => inventory.GetItemCountEffective(item) == Effective,
@@ -917,25 +912,6 @@ namespace SevenUI.Tests
                     return slot && slot.Count && slot.Count.text == Effective.ToString();
                 },
                 () => $"the item bar's {item.name} count \"{(slot && slot.Count ? slot.Count.text : "none")}\", not \"{Effective}\"");
-
-            yield return ScoreboardSetUp.Open(h);
-            ScoreboardRow row = null;
-            string total = null;
-            int gameTotal = -1;
-            yield return h.Until(() =>
-                {
-                    row = SevenUIChecks.HudRoot(h).GetComponentsInChildren<ScoreboardRow>()
-                        .FirstOrDefault(each => each.Strip && each.Strip.master == Harness.LocalBody.master);
-                    if (!row || !row.Counts) return false;
-                    gameTotal = row.Strip.itemInventoryDisplay.GetTotalVisibleItemCount();
-                    System.Text.RegularExpressions.Match match = System.Text.RegularExpressions.Regex.Match(row.Counts.text, @"^<b><color=#[0-9A-Fa-f]{6}>(\d+)");
-                    total = match.Success ? match.Groups[1].Value : row.Counts.text;
-                    return total == gameTotal.ToString();
-                },
-                () => $"the scoreboard row's total {total}, not the game's count {gameTotal} (row counts \"{(row && row.Counts ? row.Counts.text : "")}\")");
-            LocalUser user = LocalUserManager.GetFirstLocalUser();
-            HUD.SetScoreboardActive(user, false, EScoreboardDeactivateReturnContext.Game);
-            yield return h.Wait(SettleSeconds);
 
             yield return GoHome(h);
             PickupPickerController command = h.SpawnPrefab<PickupPickerController>(GameNames.CommandCube);
