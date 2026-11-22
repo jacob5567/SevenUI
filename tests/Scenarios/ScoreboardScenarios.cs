@@ -327,7 +327,7 @@ namespace SevenUI.Tests
         }
 
         // With a Functional Coupler, the pane on the row's equipment follows each swap to the next set: the new
-        // equipment's name and description, not the first one's (H2). LookingGlass writes its full description into
+        // equipment's name, description and icon, not the first one's (H2). LookingGlass writes its full description into
         // the row's tooltip only when the row is set up, so it kept describing the first; its setting is turned on for
         // this when it is installed.
         private static IEnumerator EquipmentPaneFollowsCoupler(Harness h)
@@ -362,10 +362,13 @@ namespace SevenUI.Tests
                     {
                         now = EquipmentCatalog.GetEquipmentDef(inventory.currentEquipmentIndex);
                         ScoreboardDetailPane pane = strip.GetComponentInParent<ScoreboardItemsBoard>().Pane;
-                        look = $"pane on {pane.Title} (equipment {pane.Equipment}): \"{Head(pane.Description)}\"";
+                        Texture expected = now ? EquipmentIcons.Get(now.equipmentIndex) : null;
+                        look = $"pane on {pane.Title} (equipment {pane.Equipment}), icon {(pane.IconTexture ? pane.IconTexture.name : "none")} " +
+                               $"for {(expected ? expected.name : "none yet")}: \"{Head(pane.Description)}\"";
                         return now && pane.Shown && pane.Equipment == now.equipmentIndex &&
                                pane.Title == Language.GetString(now.nameToken) &&
-                               pane.Description.Contains(Head(Language.GetString(now.descriptionToken)));
+                               pane.Description.Contains(Head(Language.GetString(now.descriptionToken))) &&
+                               expected && pane.IconTexture == expected;
                     },
                     () => $"after swap {done} (LookingGlass {(full != null ? "on" : "absent")}), the pane describes " +
                           $"{(now ? now.name : "nothing")}? {look} {h.Diagnosis()}");
