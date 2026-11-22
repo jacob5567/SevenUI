@@ -20,6 +20,8 @@ namespace SevenUI.Tests
     // the screenshots.
     internal static class ScoreboardScenarios
     {
+        private const int TimingFrames = 240;
+        private const float HoverSlackMs = 2f;
         private const int HeadLength = 24;
 
         // A few items to hover, and the header band the flat look adds to an item's tooltip (TooltipStyler).
@@ -78,6 +80,7 @@ namespace SevenUI.Tests
                 yield return new Scenario(1, "scoreboard_players_rows_while_roomy", Stages.TitanicPlains, RowsWhileRoomy);
                 yield return new Scenario(1, "scoreboard_pane_holders_by_player_count", Stages.TitanicPlains, HoldersByPlayerCount);
                 yield return new Scenario(1, "scoreboard_equipment_pane_follows_coupler", Stages.TitanicPlains, EquipmentPaneFollowsCoupler);
+                yield return new Scenario(1, "scoreboard_hover_timing", Stages.TitanicPlains, HoverTiming);
             }
             else
             {
@@ -368,6 +371,73 @@ namespace SevenUI.Tests
                           $"{(now ? now.name : "nothing")}? {look} {h.Diagnosis()}");
             }
             yield return h.Screenshot("equipment_pane_after_swaps");
+        }
+
+        // H10: on a crowded board (four players with 100 items each), the pointer moving to a new item every frame
+        // keeps the frame time of the board left alone: the median frame within a couple of milliseconds (the frames
+        // are whole refreshes of the screen, so a slow frame is a whole refresh longer). The game made a tooltip for
+        // each item reached, which the docked panel then hid; that halved the frame rate. The same with the docked
+        // panel off, where the game's tooltip shows, and in the game's look, are logged for comparison. The pointer's
+        // events are sent straight to each icon.
+        private static IEnumerator HoverTiming(Harness h)
+        {
+            yield return ScoreboardSetUp.AddPlayers(h, CrowdPlayers, CrowdItems);
+            ScoreboardSetUp.GiveDifferentItems(h, CrowdItems);
+            PluginConfig settings = SevenUIPlugin.Settings;
+            h.SetConfig(settings.FlatPanels, true);
+            h.SetConfig(settings.ScoreboardDetailPanel, true);
+            yield return ScoreboardSetUp.Open(h);
+            yield return h.Wait(SettleSeconds * 4f);
+            (string label, System.Action set)[] phases =
+            {
+                ("still", () => { }),
+                ("hover", () => { }),
+                ("hover_pane_off", () => h.SetConfig(settings.ScoreboardDetailPanel, false)),
+                ("hover_game_look", () => h.SetConfig(settings.FlatPanels, false)),
+            };
+            h.OnCleanup(() =>
+            {
+                h.SetConfig(settings.ScoreboardDetailPanel, true);
+                h.SetConfig(settings.FlatPanels, true);
+            });
+            Dictionary<string, float> medians = new Dictionary<string, float>();
+            foreach ((string label, System.Action set) in phases)
+            {
+                set();
+                yield return h.Wait(SettleSeconds * 2f);
+                List<ItemIcon> icons = SevenUIChecks.HudRoot(h).GetComponentsInChildren<ScoreboardStrip>()
+                    .Where(strip => strip.master == Harness.LocalBody.master)
+                    .SelectMany(strip => strip.itemInventoryDisplay.GetComponentsInChildren<ItemIcon>())
+                    .Where(icon => icon.isActiveAndEnabled)
+                    .ToList();
+                if (icons.Count == 0) throw h.Fail("no items in the viewer's row");
+                bool hover = label != "still";
+                List<float> frames = new List<float>();
+                PointerEventData pointer = new PointerEventData(EventSystem.current);
+                GameObject previous = null;
+                for (int frame = 0; frame < TimingFrames; frame++)
+                {
+                    if (hover)
+                    {
+                        GameObject next = icons[frame % icons.Count].gameObject;
+                        if (previous) ExecuteEvents.ExecuteHierarchy(previous, pointer, ExecuteEvents.pointerExitHandler);
+                        ExecuteEvents.ExecuteHierarchy(next, pointer, ExecuteEvents.pointerEnterHandler);
+                        previous = next;
+                    }
+                    yield return null;
+                    frames.Add(Time.unscaledDeltaTime * 1000f);
+                }
+                if (previous) ExecuteEvents.ExecuteHierarchy(previous, pointer, ExecuteEvents.pointerExitHandler);
+                frames.Sort();
+                medians[label] = frames[frames.Count / 2];
+                h.Log($"timing {label}: frame mean {frames.Average():F2} ms, median {medians[label]:F2}, " +
+                      $"p95 {frames[(int)(frames.Count * 0.95f)]:F2}, max {frames[frames.Count - 1]:F2}; {icons.Count} icons");
+            }
+            if (medians["hover"] > medians["still"] + HoverSlackMs)
+            {
+                throw h.Fail($"hovering the docked board slows the median frame to {medians["hover"]:F2} ms from " +
+                             $"{medians["still"]:F2} ms left alone");
+            }
         }
 
         // The start of a text, enough to tell two descriptions apart.

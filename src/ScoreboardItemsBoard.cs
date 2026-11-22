@@ -69,6 +69,12 @@ namespace SevenUI
         private float laidOutWidth;
         private ScoreboardStrip shown;
         private TooltipProvider seenProvider;
+        // While docked: what a relay says the pointer is on (BoardHoverRelay), and the game's providers it stands in for,
+        // switched off so the game makes no tooltip for them.
+        private TooltipProvider hovered;
+        private readonly Dictionary<TooltipProvider, BoardHoverRelay> relays = new Dictionary<TooltipProvider, BoardHoverRelay>();
+        private bool relaysDocked;
+        private readonly List<TooltipProvider> gone = new List<TooltipProvider>();
         private TooltipController hiddenTooltip;
         private GameObject seenSelection;
         private ItemIcon pointed;
@@ -99,6 +105,14 @@ namespace SevenUI
             this.panel = panel;
             this.style = style;
             strips = (RectTransform)transform;
+            recorder.OnRestore(() =>
+            {
+                foreach (TooltipProvider provider in relays.Keys)
+                {
+                    if (provider) provider.enabled = true;
+                }
+                relays.Clear();
+            });
             // The rows' container keeps laying the rows out, narrower by the column, which takes its right.
             rowsGroup = GetComponent<VerticalLayoutGroup>();
             RectOffset padding = rowsGroup ? rowsGroup.padding : new RectOffset();
@@ -151,6 +165,7 @@ namespace SevenUI
             shown = null;
             stale = true;
             seenProvider = null;
+            hovered = null;
             pointed = null;
             pointedLoadout = null;
             described = null;
@@ -205,6 +220,10 @@ namespace SevenUI
             foreach (ScoreboardItemGrid grid in grids)
             {
                 grid.Apply();
+            }
+            if (changed || relaysDocked != docked)
+            {
+                Relay();
             }
             Point(changed);
             foreach (ScoreboardItemGrid grid in grids)
@@ -484,7 +503,7 @@ namespace SevenUI
         private void Point(bool changed)
         {
             MPEventSystem events = Events();
-            TooltipProvider provider = events ? events.currentTooltipProvider : null;
+            TooltipProvider provider = docked ? hovered : events ? events.currentTooltipProvider : null;
             if (provider != seenProvider)
             {
                 seenProvider = provider;
@@ -623,6 +642,61 @@ namespace SevenUI
             {
                 rowsGroup.padding = new RectOffset(rowsPadding.left, rowsPadding.right, rowsPadding.top, bottom);
             }
+        }
+
+        // Told by a relay: the pointer, or a gamepad's selection, is on this provider's item, or has left it.
+        public void Hover(TooltipProvider provider)
+        {
+            hovered = provider;
+        }
+
+        public void Unhover(TooltipProvider provider)
+        {
+            if (hovered == provider) hovered = null;
+        }
+
+        // Every item, equipment and key item in the rows gets a relay, and while docked its tooltip provider is off, so
+        // the game makes no tooltip the pane would only hide; undocked, the providers are back on. Run when the rows or
+        // their icons change, or the docking does: one pass over the icons.
+        private void Relay()
+        {
+            relaysDocked = docked;
+            // Icons the game destroyed take their providers with them.
+            gone.Clear();
+            foreach (TooltipProvider provider in relays.Keys)
+            {
+                if (!provider) gone.Add(provider);
+            }
+            foreach (TooltipProvider provider in gone)
+            {
+                relays.Remove(provider);
+            }
+            foreach (ScoreboardItemGrid grid in grids)
+            {
+                foreach (ItemIcon icon in grid.Display.itemIcons)
+                {
+                    if (icon) Relay(icon.tooltipProvider);
+                }
+                ScoreboardStrip strip = grid.Strip;
+                if (strip.equipmentIcon) Relay(strip.equipmentIcon.tooltipProvider);
+                if (strip.keyItemIcon) Relay(strip.keyItemIcon.tooltipProvider);
+            }
+            if (!docked) hovered = null;
+        }
+
+        private void Relay(TooltipProvider provider)
+        {
+            if (!provider) return;
+            if (!relays.TryGetValue(provider, out BoardHoverRelay relay) || !relay)
+            {
+                relay = provider.gameObject.AddComponent<BoardHoverRelay>();
+                relay.Board = this;
+                relay.Provider = provider;
+                recorder.Add(relay);
+                relays[provider] = relay;
+            }
+            if (relay.enabled != docked) relay.enabled = docked;
+            if (provider.enabled == docked) provider.enabled = !docked;
         }
 
         private MPEventSystem Events() =>
