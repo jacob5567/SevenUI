@@ -169,8 +169,9 @@ namespace SevenUI
                     }
                     else
                     {
-                        // As in the item bar: a count only for two or more.
-                        Count.text = count > 1 ? count.ToString() : "";
+                        // From one up, as LookingGlass's own count ("x1") shows it, unlike the item bar, which counts only
+                        // two or more (Jacob's call, 2026-11-22).
+                        Count.text = count > 0 ? count.ToString() : "";
                         Count.color = Color.white;
                     }
                 }

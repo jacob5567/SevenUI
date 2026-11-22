@@ -963,14 +963,14 @@ namespace SevenUI.Tests
         }
 
         // An option the game locks (its picture a padlock) shows no count, though its item is held, as LookingGlass's
-        // count shows none there; an open option shows its count. LookingGlass's own count, turned on again as it does
+        // count shows none there; an open option shows its count, even for one. LookingGlass's own count, turned on again as it does
         // when the game sets the options again, is hidden again.
         private static IEnumerator CountHiddenOnLockedOptions(Harness h)
         {
             ItemDef open = RoR2Content.Items.Syringe;
             ItemDef locked = RoR2Content.Items.Feather;
             Inventory inventory = Harness.LocalBody.master.inventory;
-            (ItemDef item, int count)[] held = { (open, 2), (locked, 3) };
+            (ItemDef item, int count)[] held = { (open, 1), (locked, 3) };
             foreach ((ItemDef item, int count) in held)
             {
                 int before = inventory.GetItemCountPermanent(item);
@@ -992,8 +992,8 @@ namespace SevenUI.Tests
             PickerButton openButton = panel.Buttons.FirstOrDefault(button => button.Pickup != null && button.Pickup.itemIndex == open.itemIndex);
             PickerButton lockedButton = panel.Buttons.FirstOrDefault(button => button.Pickup != null && button.Pickup.itemIndex == locked.itemIndex);
             if (openButton == null || lockedButton == null || !openButton.Count || !lockedButton.Count) throw h.Fail("the two options have no counts");
-            yield return h.Until(() => openButton.Count.text == "2" && lockedButton.Count.text == "",
-                () => $"counts \"{openButton.Count.text}\" on the open option (2 held) and \"{lockedButton.Count.text}\" on the locked one, not 2 and none");
+            yield return h.Until(() => openButton.Count.text == "1" && lockedButton.Count.text == "",
+                () => $"counts \"{openButton.Count.text}\" on the open option (1 held) and \"{lockedButton.Count.text}\" on the locked one, not 1 and none");
             Transform lookingGlass = openButton.Button.transform.Find(PickerPanel.LookingGlassCountName);
             if (lookingGlass)
             {
