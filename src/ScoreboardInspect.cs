@@ -636,7 +636,7 @@ namespace SevenUI
             CharacterMaster master = onBoard ? clickedMaster
                 : hud && hud.targetMaster ? hud.targetMaster : LocalUserManager.GetFirstLocalUser()?.cachedMaster;
             int held = onBoard ? clicked.itemCount
-                : item && master && master.inventory ? master.inventory.GetItemCountEffective(item) : 0;
+                : item && master && master.inventory ? master.inventory.GetItemCountPermanent(item) : 0;
             bool oneMore = !onBoard;
             if (token == shownToken && master == shownMaster && held == shownHeld && oneMore == shownOneMore) return shownParts;
             shownToken = token;

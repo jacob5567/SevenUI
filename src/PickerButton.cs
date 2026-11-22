@@ -69,7 +69,7 @@ namespace SevenUI
             }
             if (corruptedInto != ItemIndex.None)
             {
-                int held = inventory.GetItemCountEffective(corruptedInto);
+                int held = inventory.GetItemCountPermanent(corruptedInto);
                 if (held > 0)
                 {
                     color = Palette.CountVoid;
@@ -79,7 +79,7 @@ namespace SevenUI
             int originals = 0;
             foreach (ItemIndex original in corrupts)
             {
-                originals += inventory.GetItemCountEffective(original);
+                originals += inventory.GetItemCountPermanent(original);
             }
             color = corruptsColor;
             return originals;
@@ -128,7 +128,9 @@ namespace SevenUI
             }
             if (Count)
             {
-                int count = inventory && Pickup != null && Pickup.itemIndex != ItemIndex.None ? inventory.GetItemCountEffective(Pickup.itemIndex) : 0;
+                // Permanent stacks only, as LookingGlass counts them in its own picker count and stats (Jacob's call,
+                // 2026-11-22): a temporary or Ethereal stack isn't counted, though the item bar counts it.
+                int count = inventory && Pickup != null && Pickup.itemIndex != ItemIndex.None ? inventory.GetItemCountPermanent(Pickup.itemIndex) : 0;
                 Color color = Color.white;
                 int corrupting = count == 0 ? Corrupting(inventory, out color) : 0;
                 if (count != shownCount || corrupting != shownCorrupting)

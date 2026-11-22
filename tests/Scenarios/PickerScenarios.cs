@@ -114,7 +114,7 @@ namespace SevenUI.Tests
                 h => StatsByPanel(h, "fragment_potential", StackChange.Gain));
             yield return new Scenario(1, "picker_stats_as_held_delusion", Stages.TitanicPlains,
                 h => StatsByPanel(h, "delusion", StackChange.None));
-            yield return new Scenario(1, "item_counts_include_temporary_and_ethereal", Stages.TitanicPlains, CountsIncludeTemporaryAndEthereal);
+            yield return new Scenario(1, "item_counts_with_temporary_and_ethereal", Stages.TitanicPlains, CountsWithTemporaryAndEthereal);
             yield return new Scenario(1, "picker_count_corrupted_by_void", Stages.TitanicPlains,
                 h => CorruptionCount(h, RoR2Content.Items.ChainLightning, DLC1Content.Items.ChainLightningVoid, 3, Palette.CountVoid));
             yield return new Scenario(1, "picker_count_void_corrupts_held", Stages.TitanicPlains,
@@ -877,17 +877,17 @@ namespace SevenUI.Tests
             yield return h.Screenshot("stats_" + name);
         }
 
-        // A permanent, a temporary and an Ethereal (rented) stack of one item, and a hallowed item: every SevenUI count
-        // counts them as the game's item bar does (the effective stack, 3 here), and the scoreboard's total matches the
-        // game's own count of the row, other tiers included (H4). Checked in the item bar's slot, the scoreboard row's
-        // counts, and a Command option's count.
-        private static IEnumerator CountsIncludeTemporaryAndEthereal(Harness h)
+        // Two permanent, a temporary and an Ethereal (rented) stack of one item, and a hallowed item (H4): the item bar's
+        // slot counts them all as the game does, the scoreboard's total matches the game's own count of the row, other
+        // tiers included, and a Command option counts only the permanent stack, as LookingGlass does.
+        private static IEnumerator CountsWithTemporaryAndEthereal(Harness h)
         {
             ItemDef item = RoR2Content.Items.Syringe;
+            const int Permanent = 2;
             Inventory inventory = Harness.LocalBody.master.inventory;
             int before = inventory.GetItemCountPermanent(item);
             if (before > 0) inventory.RemoveItemPermanent(item, before);
-            inventory.GiveItemPermanent(item, 1);
+            inventory.GiveItemPermanent(item, Permanent);
             inventory.GiveItemTemp(item.itemIndex, 1f);
             inventory.GiveItemRented(item.itemIndex, 1);
             ItemDef hallowed = ItemCatalog.allItemDefs.Where(each => each && each.tier == ItemTier.Cursed && !each.hidden)
@@ -902,7 +902,7 @@ namespace SevenUI.Tests
                 if (before > 0) inventory.GiveItemPermanent(item, before);
                 if (hallowed) inventory.RemoveItemPermanent(hallowed, 1);
             });
-            const int Effective = 3;
+            const int Effective = Permanent + 2;
             yield return h.Until(() => inventory.GetItemCountEffective(item) == Effective,
                 () => $"{item.name}'s effective count {inventory.GetItemCountEffective(item)}, not {Effective} (permanent " +
                       $"{inventory.GetItemCountPermanent(item)}, temporary {inventory.GetItemCountTemp(item.itemIndex)}, " +
@@ -944,8 +944,8 @@ namespace SevenUI.Tests
             yield return OpenStyled(h, command, found => panel = found);
             PickerButton option = panel.Buttons.FirstOrDefault(button => button.Pickup != null && button.Pickup.itemIndex == item.itemIndex);
             if (option == null || !option.Count) throw h.Fail($"Command for {item.name} has no option with a count for it");
-            yield return h.Until(() => option.Count.text == Effective.ToString(),
-                () => $"{item.name}'s Command count \"{option.Count.text}\", not \"{Effective}\"");
+            yield return h.Until(() => option.Count.text == Permanent.ToString(),
+                () => $"{item.name}'s Command count \"{option.Count.text}\", not \"{Permanent}\" for its permanent stacks");
         }
 
         // With none of an offered item held but items tied to it by void corruption, the option's count shows how many
@@ -968,7 +968,7 @@ namespace SevenUI.Tests
             });
             // Giving a plain item while its void item is held corrupts it, so only the corruption's own pair is set up.
             yield return h.Wait(SettleSeconds);
-            int total = inventory.GetItemCountEffective(held);
+            int total = inventory.GetItemCountPermanent(held);
             yield return GoHome(h);
             PickupPickerController command = h.SpawnPrefab<PickupPickerController>(GameNames.CommandCube);
             command.SetOptionsFromPickupForCommandArtifact(new UniquePickup(PickupCatalog.FindPickupIndex(offered.itemIndex)));
