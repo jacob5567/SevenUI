@@ -23,6 +23,9 @@ namespace SevenUI.Tests
     // the viewer's, as ScoreboardSetUp.AddPlayers can.)
     internal static class AllyCardChecks
     {
+        // Projected edges of rects placed on whole pixels land within this of them.
+        private const float PixelTolerance = 0.05f;
+
         // AllyCardManager.indentWidth in the game: how far a minion's card sits in under its leader's.
         private const float GameIndent = 16f;
         // As far up a chain of minion owners as the mod looks for a kind's player.
@@ -327,6 +330,8 @@ namespace SevenUI.Tests
                 Transform segments = card.healthBar ? card.healthBar.transform.parent.Find(AllyKindParts.SegmentsName) : null;
                 int bars = segments ? segments.Cast<Transform>().Count(segment => segment.gameObject.activeSelf) : 0;
                 if (bars != kind.Allies) return $"{Name(card)}'s card has {bars} bar segments, not {kind.Allies}";
+                string gaps = SegmentGaps(segments);
+                if (gaps != null) return $"{Name(card)}'s card: {gaps}";
                 if (card.healthBar.gameObject.activeSelf) return $"{Name(card)}'s card still shows the game's bar";
             }
             else if (countLabel && countLabel.gameObject.activeInHierarchy)
@@ -454,6 +459,33 @@ namespace SevenUI.Tests
 
         // How the card's row lays out its children, for a failure message: the row group's settings, then each child's
         // width, the sizes the layout reads from it, and its layout components.
+        // Null when a shared card's segments sit on whole screen pixels with every gap between them the same whole
+        // number of pixels (H7): a gap of the design canvas's 2px is 2.67 pixels at 1440p, which drew 2 or 3 wide.
+        internal static string SegmentGaps(Transform segments)
+        {
+            Camera eye = PixelSpans.Eye(segments);
+            List<Rect> boxes = segments.Cast<Transform>()
+                .Where(segment => segment.gameObject.activeSelf)
+                .Select(segment => CanvasLayoutChecks.OnScreen(eye, (RectTransform)segment))
+                .OrderBy(box => box.xMin)
+                .ToList();
+            if (boxes.Count < 2) return null;
+            List<float> gaps = new List<float>();
+            for (int i = 1; i < boxes.Count; i++)
+            {
+                gaps.Add(boxes[i].xMin - boxes[i - 1].xMax);
+            }
+            string Pixels() => string.Join(", ", boxes.Select(box => $"{box.xMin:F2}..{box.xMax:F2}"));
+            if (boxes.Any(box => !WholePixel(box.xMin) || !WholePixel(box.xMax))) return $"segment edges off whole pixels: {Pixels()}";
+            if (gaps.Any(gap => gap < 1f - PixelTolerance || Mathf.Abs(gap - gaps[0]) > PixelTolerance))
+            {
+                return $"segment gaps differ: {string.Join(", ", gaps.Select(gap => gap.ToString("F2")))} px ({Pixels()})";
+            }
+            return null;
+        }
+
+        private static bool WholePixel(float x) => Mathf.Abs(x - Mathf.Round(x)) <= PixelTolerance;
+
         internal static string RowLayout(AllyCardController card)
         {
             HorizontalLayoutGroup row = card.GetComponent<HorizontalLayoutGroup>();
