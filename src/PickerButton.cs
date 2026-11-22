@@ -34,6 +34,12 @@ namespace SevenUI
         public PixelOutline RestOutline;
         public TMP_Text Label;
         public TMP_Text Count;
+        // The void corner shown while a held void item would corrupt the option, and the line under its description:
+        // "Corrupted by Polylute", or for a void item "Corrupts your 2 Ukulele" (I2). Empty when nothing held ties to it.
+        public Image CorruptMark;
+        public string CorruptionLine { get; private set; } = "";
+        private int shownInto = -1;
+        private int shownOriginals = -1;
         public TMP_Text Name;
         public TMP_Text Description;
         public TMP_Text Key;
@@ -62,20 +68,7 @@ namespace SevenUI
         {
             color = Color.white;
             if (!inventory || Pickup == null || Pickup.itemIndex == ItemIndex.None) return 0;
-            if (corrupts == null)
-            {
-                corruptedInto = ContagiousItemManager.GetTransformedItemIndex(Pickup.itemIndex);
-                corrupts = new List<ItemIndex>();
-                foreach (ContagiousItemManager.TransformationInfo info in ContagiousItemManager.transformationInfos)
-                {
-                    if (info.transformedItem == Pickup.itemIndex)
-                    {
-                        corrupts.Add(info.originalItem);
-                    }
-                }
-                ItemDef first = corrupts.Count > 0 ? ItemCatalog.GetItemDef(corrupts[0]) : null;
-                corruptsColor = first ? GameColors.OfTier(first.tier, Palette.Text) : Palette.Text;
-            }
+            FindCorruption();
             if (corruptedInto != ItemIndex.None)
             {
                 int held = inventory.GetItemCountPermanent(corruptedInto);
@@ -93,6 +86,48 @@ namespace SevenUI
             color = corruptsColor;
             return originals;
         }
+
+        // The void item the option would turn into, and the items a void option would corrupt, found once.
+        private void FindCorruption()
+        {
+            if (corrupts == null)
+            {
+                corruptedInto = ContagiousItemManager.GetTransformedItemIndex(Pickup.itemIndex);
+                corrupts = new List<ItemIndex>();
+                foreach (ContagiousItemManager.TransformationInfo info in ContagiousItemManager.transformationInfos)
+                {
+                    if (info.transformedItem == Pickup.itemIndex)
+                    {
+                        corrupts.Add(info.originalItem);
+                    }
+                }
+                ItemDef first = corrupts.Count > 0 ? ItemCatalog.GetItemDef(corrupts[0]) : null;
+                corruptsColor = first ? GameColors.OfTier(first.tier, Palette.Text) : Palette.Text;
+            }
+        }
+
+        // The corner and the line (Corruption), built again only when the held counts behind them change. Reads only.
+        private void UpdateCorruption(Inventory inventory)
+        {
+            ItemIndex item = Pickup != null ? Pickup.itemIndex : ItemIndex.None;
+            Corruption.Counts(item, inventory, out int into, out int originals);
+            if (into == shownInto && originals == shownOriginals) return;
+            shownInto = into;
+            shownOriginals = originals;
+            CorruptionLine = Corruption.Line(item, inventory);
+            if (CorruptMark && CorruptMark.enabled != into > 0)
+            {
+                CorruptMark.enabled = into > 0;
+            }
+            CorruptionChanged = true;
+        }
+
+        // The description as the card or the details show it: with the corruption line under it, if any.
+        public string ShownDescription => CorruptionLine.Length > 0 ? Parts.Description + "\n" + CorruptionLine : Parts.Description;
+
+        // Set when the line changes, for the panel to show it again; the panel clears it.
+        public bool CorruptionChanged;
+
 
         // Hovered with the pointer, or selected with a gamepad: the game's own state, which it shows by fading in its
         // hover outline.
@@ -145,6 +180,7 @@ namespace SevenUI
                 seenSprite = sprite;
                 locked = sprite && sprite.name == LockSpriteName;
             }
+            UpdateCorruption(inventory);
             if (Count)
             {
                 // Permanent stacks only, as LookingGlass counts them in its own picker count and stats (Jacob's call,

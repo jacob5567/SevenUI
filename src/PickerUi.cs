@@ -145,6 +145,20 @@ namespace SevenUI
             return count;
         }
 
+        // A void-colored corner at the slot's top left, shown while a held void item would corrupt the option (I2).
+        public Image AddCorruptMark(RectTransform slot)
+        {
+            RectTransform rect = NewImage("CorruptMark", slot, Palette.CountVoid);
+            rect.anchorMin = rect.anchorMax = new Vector2(0f, 1f);
+            rect.pivot = new Vector2(0f, 1f);
+            rect.anchoredPosition = Vector2.zero;
+            rect.sizeDelta = new Vector2(PickerPanel.CorruptMarkSize, PickerPanel.CorruptMarkSize);
+            Image image = rect.GetComponent<Image>();
+            image.sprite = FlatIcons.Corner;
+            image.enabled = false;
+            return image;
+        }
+
         public PixelOutline AddOutline(RectTransform holder) => AddOutline(holder, Palette.Accent, OutlineEdge);
 
         // An outline of this color and edge width over the holder, hidden until shown.

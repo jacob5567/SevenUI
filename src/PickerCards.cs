@@ -48,11 +48,12 @@ namespace SevenUI
             AcrossTop(bandParts, CardBandHeight);
             ui.AddTierStrip(bandParts, entry);
             card.Count = ui.AddCount(bandParts);
+            card.CorruptMark = ui.AddCorruptMark(bandParts);
             card.Name = ui.AddText("Name", holder, NameSize, Palette.Text);
             card.Name.fontStyle = FontStyles.Bold;
             card.Name.text = entry.Name;
             card.Description = ui.AddText("Description", holder, DescriptionSize, Palette.HeaderText);
-            card.Description.text = card.Parts.Description;
+            card.Description.text = card.ShownDescription;
             card.Stats = ui.NewStats(holder);
             card.Stats.Set(card.Parts);
             card.Outline = ui.AddOutline(holder);

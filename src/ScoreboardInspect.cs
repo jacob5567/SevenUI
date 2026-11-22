@@ -60,6 +60,7 @@ namespace SevenUI
         private const float DescriptionLineHeight = 1.4f;
         private const float PercentPerLine = 100f;
         private const float DumpDelaySeconds = 0.5f;
+        public const string CorruptionLineName = "SevenUICorruptionLine";
         // The share of the board's width the panel spans, centered under the board.
         public const float WidthShare = 0.6f;
 
@@ -84,6 +85,11 @@ namespace SevenUI
         private Image footStrip;
         private GameObject flavorObject;
         private TMP_Text description;
+        // The corruption line under the description (Corruption, I2), and what it was built from.
+        private TMP_Text corruptionText;
+        private ItemIndex corruptionItem = ItemIndex.None;
+        private int corruptionInto = -1;
+        private int corruptionOriginals = -1;
         private LanguageTextMeshController descriptionToken;
         private HorizontalOrVerticalLayoutGroup boxGroup;
         private RectTransform box;
@@ -259,6 +265,7 @@ namespace SevenUI
 
             StyleName(titleText);
             StyleDescription(descriptionText);
+            AddCorruptionLine(textContainer, descriptionText);
             HideFlavor(controller, titleText, descriptionText);
             if (!strip)
             {
@@ -364,6 +371,7 @@ namespace SevenUI
         {
             FitWidth();
             UpdateStats();
+            UpdateCorruptionLine();
             FitIcon();
             if (title)
             {
@@ -933,6 +941,43 @@ namespace SevenUI
         }
 
         // The description in the body color with its own rich-text colors, whose text the game fills from its token.
+        // Under the description, in its size, hidden until an item held ties to the one shown.
+        private void AddCorruptionLine(Transform textContainer, TMP_Text descriptionText)
+        {
+            if (corruptionText || !textContainer || !descriptionText) return;
+            corruptionText = UiFactory.NewText(CorruptionLineName, textContainer, descriptionText, DescriptionSize, Palette.TooltipBody);
+            recorder.Add(corruptionText.gameObject);
+            corruptionText.alignment = TextAlignmentOptions.TopLeft;
+            corruptionText.enableWordWrapping = true;
+            corruptionText.richText = true;
+            corruptionText.transform.SetSiblingIndex(descriptionText.transform.GetSiblingIndex() + 1);
+            corruptionText.gameObject.SetActive(false);
+            corruptionItem = ItemIndex.None;
+            corruptionInto = corruptionOriginals = -1;
+        }
+
+        // The item shown, found by its description's token as for the stats, against the HUD target's inventory (a
+        // teammate's while spectating). Built again only when the item or the held counts change. Reads only.
+        private void UpdateCorruptionLine()
+        {
+            if (!corruptionText) return;
+            ItemDef item = ItemByDescription(descriptionToken ? descriptionToken.token : null);
+            ItemIndex index = item ? item.itemIndex : ItemIndex.None;
+            CharacterMaster master = hud && hud.targetMaster ? hud.targetMaster : LocalUserManager.GetFirstLocalUser()?.cachedMaster;
+            Inventory inventory = master ? master.inventory : null;
+            Corruption.Counts(index, inventory, out int into, out int originals);
+            if (index == corruptionItem && into == corruptionInto && originals == corruptionOriginals) return;
+            corruptionItem = index;
+            corruptionInto = into;
+            corruptionOriginals = originals;
+            string line = Corruption.Line(index, inventory);
+            corruptionText.text = line;
+            if (corruptionText.gameObject.activeSelf != line.Length > 0)
+            {
+                corruptionText.gameObject.SetActive(line.Length > 0);
+            }
+        }
+
         private void StyleDescription(TMP_Text text)
         {
             if (!text) return;

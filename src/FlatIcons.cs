@@ -82,6 +82,7 @@ namespace SevenUI
         private static Sprite down;
         private static Sprite check;
         private static Sprite cross;
+        private static Sprite corner;
         public const string ScoreboardName = "SevenUIScoreboardIcon";
         public const string SprintName = "SevenUISprintIcon";
         public const string DescendName = "SevenUIDescendIcon";
@@ -89,6 +90,7 @@ namespace SevenUI
         public const string DownName = "SevenUIDownIcon";
         public const string CheckName = "SevenUICheckIcon";
         public const string CrossName = "SevenUICrossIcon";
+        public const string CornerName = "SevenUICornerIcon";
 
         public static Sprite Scoreboard
         {
@@ -171,6 +173,19 @@ namespace SevenUI
                     cross = Draw(CrossName, point => StrokesDistance(point, CrossStrokes, MarkHalfWidth));
                 }
                 return cross;
+            }
+        }
+
+        // A right triangle filling the top-left half of its square: a mark for a slot's corner.
+        public static Sprite Corner
+        {
+            get
+            {
+                if (!corner)
+                {
+                    corner = Draw(CornerName, point => (point.x + point.y + 2f * DesignOffset - Grid) / Mathf.Sqrt(2f));
+                }
+                return corner;
             }
         }
 

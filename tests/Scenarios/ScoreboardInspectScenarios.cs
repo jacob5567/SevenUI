@@ -73,6 +73,7 @@ namespace SevenUI.Tests
             yield return new Scenario(1, "scoreboard_inspect_stats_flat_panels_off", Stages.TitanicPlains, StatsFlatPanelsOff);
             yield return new Scenario(1, "scoreboard_inspect_stats_board_item", Stages.TitanicPlains, StatsBoardItem);
             yield return new Scenario(1, "tier_colors_match_everywhere", Stages.TitanicPlains, TierColorsMatch);
+            yield return new Scenario(1, "scoreboard_inspect_corruption_line", Stages.TitanicPlains, CorruptionLine);
         }
 
         // With the scoreboard open, the panel showing Alien Head: laid out and drawn as the canvas, in the item's tier color.
@@ -156,6 +157,35 @@ namespace SevenUI.Tests
         }
 
         // A chest has no tier: its inspect info's own title color names it and colors both strips.
+        // I2: with a Polylute held, the inspect panel on an Ukulele says "Corrupted by Polylute" under its description, in
+        // the void color; on an Alien Head, which nothing held ties to, it says nothing.
+        private static IEnumerator CorruptionLine(Harness h)
+        {
+            WithoutStats(h);
+            Inventory inventory = Harness.LocalBody.inventory;
+            ItemDef voidItem = DLC1Content.Items.ChainLightningVoid;
+            if (!voidItem) throw h.Skip("Polylute needs Survivors of the Void");
+            inventory.GiveItemPermanent(voidItem, 1);
+            h.OnCleanup(() =>
+            {
+                if (inventory) inventory.RemoveItemPermanent(voidItem, 1);
+            });
+            yield return ScoreboardSetUp.Open(h);
+            yield return Inspect(h, RoR2Content.Items.ChainLightning);
+            string expected = "Corrupted by " + Language.GetString(voidItem.nameToken);
+            TMP_Text line = null;
+            yield return h.Until(() => (line = Line(h)) && line.gameObject.activeInHierarchy && line.text.Contains(expected) &&
+                                       line.text.Contains(ColorUtility.ToHtmlStringRGB(Palette.CountVoid)),
+                () => $"the inspect panel's corruption line \"{(line ? line.text : "none")}\", not \"{expected}\" in the void color");
+            yield return h.Screenshot("corruption_line");
+            yield return Inspect(h, RoR2Content.Items.AlienHead);
+            yield return h.Until(() => !(line = Line(h)) || !line.gameObject.activeInHierarchy,
+                () => $"a corruption line \"{line.text}\" on Alien Head");
+        }
+
+        private static TMP_Text Line(Harness h) => SevenUIChecks.HudRoot(h).GetComponentsInChildren<TMP_Text>(true)
+            .FirstOrDefault(text => text.name == ScoreboardInspect.CorruptionLineName);
+
         // One visible item of each tier with a color: the main six by name, and the first of each other tier in the
         // catalog (food, hallowed, hex, pages), which are picked by tier since their names change between updates. Each
         // is given to the viewer and taken back at the end.

@@ -7,6 +7,7 @@ using BepInEx.Bootstrap;
 using BepInEx.Configuration;
 using ModTestRunner;
 using RoR2;
+using RoR2.Items;
 using RoR2.UI;
 using TMPro;
 using UnityEngine;
@@ -1038,6 +1039,15 @@ namespace SevenUI.Tests
                       $"for {total} {held.name} held");
             Transform lookingGlassCount = option.Button.transform.Find(PickerPanel.LookingGlassCountName);
             if (lookingGlassCount && lookingGlassCount.gameObject.activeInHierarchy) throw h.Fail("LookingGlass's own count shows too");
+            // I2: the void corner and "Corrupted by <void item>" on an item a held void item would corrupt; no corner and
+            // "Corrupts your <count> <item>" on a void item that would corrupt held items.
+            string heldName = Language.GetString(held.nameToken);
+            bool corrupted = ContagiousItemManager.GetTransformedItemIndex(offered.itemIndex) == held.itemIndex;
+            string line = corrupted ? "Corrupted by " + heldName : "Corrupts your " + total + " " + heldName;
+            yield return h.Until(() => option.CorruptMark && option.CorruptMark.enabled == corrupted && option.CorruptionLine.Contains(line) &&
+                                       option.ShownDescription.Contains(line),
+                () => $"{offered.name}'s corner {(option.CorruptMark && option.CorruptMark.enabled ? "shown" : "hidden")} and line " +
+                      $"\"{option.CorruptionLine}\", not {(corrupted ? "shown" : "hidden")} and \"{line}\"");
             yield return h.Wait(SettleSeconds);
             yield return h.Screenshot("corruption_" + offered.name);
         }

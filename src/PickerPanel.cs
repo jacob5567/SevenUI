@@ -79,6 +79,8 @@ namespace SevenUI
         internal const float DescriptionSize = 14f * Canvas;
         internal const float CountSize = 15f * Canvas;
         internal const float CountInset = 3f * Canvas;
+        // The void corner on an option a held void item would corrupt (I2).
+        internal const float CorruptMarkSize = 14f * Canvas;
         internal const float NameGap = 3f * Canvas;
         // The legend's and the cancel button's distance under the panel, and the button's size and text; its resting
         // outline is 1px in the divider's grey.
@@ -229,6 +231,11 @@ namespace SevenUI
             {
                 buttons[i].Update(inventory);
                 HideLookingGlassCount(buttons[i]);
+                if (buttons[i].CorruptionChanged)
+                {
+                    buttons[i].CorruptionChanged = false;
+                    ShowDescriptionAgain(buttons[i], i);
+                }
                 if (buttons[i].JustHovered)
                 {
                     newlyHovered = i;
@@ -253,6 +260,20 @@ namespace SevenUI
             if (slots.DetailsName)
             {
                 slots.ShowDetails(hovered >= 0 ? hovered : detailsIndex >= 0 ? detailsIndex : 0);
+            }
+        }
+
+        // The option's description with its corruption line, on its card or in the details if they show it.
+        private void ShowDescriptionAgain(PickerButton button, int index)
+        {
+            if (button.Description)
+            {
+                button.Description.text = button.ShownDescription;
+                Layout();
+            }
+            if (slots.DetailsName && slots.DetailsIndex == index)
+            {
+                slots.ShowDetailsAgain();
             }
         }
 

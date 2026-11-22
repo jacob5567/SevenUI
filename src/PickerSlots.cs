@@ -68,6 +68,7 @@ namespace SevenUI
             Stretch(holder);
             ui.AddTierStrip(holder, entry);
             slot.Count = ui.AddCount(holder);
+            slot.CorruptMark = ui.AddCorruptMark(holder);
             slot.Outline = ui.AddOutline(holder);
             return slot;
         }
@@ -87,6 +88,14 @@ namespace SevenUI
             DetailsIndex = -1;
         }
 
+        // The shown option's details again, after its text changed.
+        public void ShowDetailsAgain()
+        {
+            int index = DetailsIndex;
+            DetailsIndex = -1;
+            ShowDetails(index);
+        }
+
         public void ShowDetails(int index)
         {
             if (index == DetailsIndex || index >= owner.Buttons.Count) return;
@@ -94,7 +103,7 @@ namespace SevenUI
             PickerEntry entry = owner.Buttons[index].Entry;
             DetailsName.text = entry != null ? entry.Name : "";
             DetailsName.color = entry != null ? entry.Color : Palette.Text;
-            DetailsDescription.text = owner.Buttons[index].Parts.Description;
+            DetailsDescription.text = owner.Buttons[index].ShownDescription;
             DetailsStats.Set(owner.Buttons[index].Parts);
             owner.Layout();
         }
