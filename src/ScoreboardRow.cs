@@ -128,10 +128,20 @@ namespace SevenUI
             Watch(null);
         }
 
-        // Reads only: the inventory's count of each tier's items.
+        // Reads only: the count of every item the row shows, as the game's own count has it (each visible item's
+        // effective stack: permanent, temporary and Ethereal), then the main tiers' counts. Items of other tiers
+        // (hallowed, hex, pages, food) count in the total but have no tier count of their own (H4).
         private static string CountsText(Inventory inventory)
         {
             int total = 0;
+            foreach (ItemIndex item in inventory.itemAcquisitionOrder)
+            {
+                ItemDef def = ItemCatalog.GetItemDef(item);
+                if (def && !def.hidden)
+                {
+                    total += inventory.GetItemCountEffective(item);
+                }
+            }
             Text.Clear().Append(Separator);
             foreach ((ItemTier[] tiers, Color color) in TierGroups.Main)
             {
@@ -140,7 +150,6 @@ namespace SevenUI
                 {
                     count += inventory.GetTotalItemCountOfTier(tier);
                 }
-                total += count;
                 Text.Append("<color=#").Append(ColorUtility.ToHtmlStringRGB(color)).Append('>').Append(count)
                     .Append("</color> ");
             }

@@ -69,7 +69,7 @@ namespace SevenUI
             }
             if (corruptedInto != ItemIndex.None)
             {
-                int held = inventory.GetItemCountTotal(corruptedInto);
+                int held = inventory.GetItemCountEffective(corruptedInto);
                 if (held > 0)
                 {
                     color = Palette.CountVoid;
@@ -79,7 +79,7 @@ namespace SevenUI
             int originals = 0;
             foreach (ItemIndex original in corrupts)
             {
-                originals += inventory.GetItemCountTotal(original);
+                originals += inventory.GetItemCountEffective(original);
             }
             color = corruptsColor;
             return originals;
@@ -128,7 +128,7 @@ namespace SevenUI
             }
             if (Count)
             {
-                int count = inventory && Pickup != null && Pickup.itemIndex != ItemIndex.None ? inventory.GetItemCountTotal(Pickup.itemIndex) : 0;
+                int count = inventory && Pickup != null && Pickup.itemIndex != ItemIndex.None ? inventory.GetItemCountEffective(Pickup.itemIndex) : 0;
                 Color color = Color.white;
                 int corrupting = count == 0 ? Corrupting(inventory, out color) : 0;
                 if (count != shownCount || corrupting != shownCorrupting)

@@ -70,7 +70,7 @@ namespace SevenUI
             PickupPickerController.Option[] given = Panel.pickupOptions;
             UniquePickup pickup = given[index].pickup;
             change ??= ChangeOf(Panel);
-            return PickerEntry.ForPickup(PickupCatalog.GetPickupDef(pickup.pickupIndex), change.Value, !pickup.isTempItem && !pickup.isRental);
+            return PickerEntry.ForPickup(PickupCatalog.GetPickupDef(pickup.pickupIndex), change.Value);
         }
 
         // What a pick does to the player's stack: the panel's name says it for the game's panels; any other panel takes

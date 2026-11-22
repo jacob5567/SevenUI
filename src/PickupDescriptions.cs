@@ -48,13 +48,13 @@ namespace SevenUI
         // LookingGlass writes its tooltip when the game sets the options, before the panel is styled; without its
         // tooltip (its Command Tooltips setting off) the full description is the catalog's. An item's stats are worked
         // out again for what the pick does to the stack (Counted).
-        public static string For(PickupDef pickup, MPButton button, bool full, StackChange change, bool permanent)
+        public static string For(PickupDef pickup, MPButton button, bool full, StackChange change)
         {
             if (pickup == null) return "";
             if (!full) return Language.GetString(pickup.pickupToken);
             TooltipProvider tooltip = button ? button.GetComponent<TooltipProvider>() : null;
             string written = tooltip && !string.IsNullOrEmpty(tooltip.overrideBodyText) ? tooltip.overrideBodyText : null;
-            string counted = Counted(pickup, written, change, permanent);
+            string counted = Counted(pickup, written, change);
             if (counted != null) return counted;
             if (written != null) return written;
             string token = DescriptionToken(pickup);
@@ -67,22 +67,22 @@ namespace SevenUI
         // master: one more on a panel that gives the item, one less on one that takes it, the stack as held where the
         // pick changes nothing. Null when there is nothing to work out (not an item, no LookingGlass) or LookingGlass's
         // own text is the better one: its note that a held void item would corrupt the item, which it writes only
-        // while none of it is held, and a temporary or rented stack taken, which leaves the permanent count it counts
-        // as it is.
-        private static string Counted(PickupDef pickup, string written, StackChange change, bool permanent)
+        // while none of it is held. The stack counted is the one the item bar shows and the game's effects use
+        // (GetItemCountEffective: permanent, temporary and Ethereal stacks together), where LookingGlass counts only
+        // the permanent stack (H4).
+        private static string Counted(PickupDef pickup, string written, StackChange change)
         {
             ItemDef item = ItemCatalog.GetItemDef(pickup.itemIndex);
             CharacterMaster master = LocalUserManager.GetFirstLocalUser()?.cachedMaster;
             if (!item || !master || !master.inventory || ItemDescription() == null) return null;
             Inventory inventory = master.inventory;
-            int held = inventory.GetItemCountPermanent(item);
+            int held = inventory.GetItemCountEffective(item);
             switch (change)
             {
                 case StackChange.Gain:
                     if (written != null && held == 0 && Contagious(item.itemIndex, inventory)) return null;
                     return WithStats(item, held, master, true);
                 case StackChange.Lose:
-                    if (!permanent) return null;
                     // The last one taken leaves no stack to show stats for.
                     if (held <= 1) return Language.GetString(item.descriptionToken);
                     string text = WithStats(item, held - 1, master, false);
@@ -92,14 +92,15 @@ namespace SevenUI
             }
         }
 
-        // Whether a void item held would corrupt the item, or the item is a void one corrupting items held.
+        // Whether a void item held would corrupt the item, or the item is a void one corrupting items held, counted as
+        // ContagiousItemManager counts them (effective stacks).
         private static bool Contagious(ItemIndex item, Inventory inventory)
         {
             ItemIndex transformed = ContagiousItemManager.GetTransformedItemIndex(item);
-            if (transformed != ItemIndex.None && inventory.GetItemCountPermanent(transformed) > 0) return true;
+            if (transformed != ItemIndex.None && inventory.GetItemCountEffective(transformed) > 0) return true;
             foreach (ContagiousItemManager.TransformationInfo info in ContagiousItemManager.transformationInfos)
             {
-                if (info.transformedItem == item && inventory.GetItemCountPermanent(info.originalItem) > 0) return true;
+                if (info.transformedItem == item && inventory.GetItemCountEffective(info.originalItem) > 0) return true;
             }
             return false;
         }
