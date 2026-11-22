@@ -89,26 +89,13 @@ namespace SevenUI.Tests
             yield return h.Screenshot("scoreboard_inspect");
         }
 
-        // One item of each main tier in the item bar's slot, its tooltip, the scoreboard's docked panel and the inspect
-        // panel, all at once: every strip in the same color, SevenUI's shade of the tier's (GameColors.ToCanvas).
+        // One item of each tier in the item bar's slot, its tooltip, the scoreboard's docked panel and the inspect panel,
+        // all at once: every strip in the same color, SevenUI's shade of the tier's (GameColors.ToCanvas). Every tier
+        // with a color has a shade, Hallowed Concepts' too, so none shows the game's raw color or the grey of no tier.
         private static IEnumerator TierColorsMatch(Harness h)
         {
             WithoutStats(h);
-            ItemDef[] items =
-            {
-                RoR2Content.Items.Syringe, RoR2Content.Items.Feather, RoR2Content.Items.Behemoth,
-                RoR2Content.Items.Knurl, RoR2Content.Items.LunarDagger, DLC1Content.Items.BleedOnHitVoid,
-            };
-            Inventory inventory = Harness.LocalBody.inventory;
-            foreach (ItemDef item in items)
-            {
-                inventory.GiveItemPermanent(item.itemIndex);
-                ItemDef given = item;
-                h.OnCleanup(() =>
-                {
-                    if (inventory) inventory.RemoveItemPermanent(given.itemIndex);
-                });
-            }
+            ItemDef[] items = TierSamples(h);
             yield return ScoreboardSetUp.Open(h);
             yield return h.Wait(SettleSeconds);
             HUD hud = SevenUIChecks.HudRoot(h).GetComponent<HUD>();
@@ -116,7 +103,12 @@ namespace SevenUI.Tests
             List<string> wrong = new List<string>();
             foreach (ItemDef item in items)
             {
-                Color expected = GameColors.ToCanvas(ColorCatalog.GetColor(ItemTierCatalog.GetItemTierDef(item.tier).colorIndex));
+                Color32 game = ColorCatalog.GetColor(ItemTierCatalog.GetItemTierDef(item.tier).colorIndex);
+                Color expected = GameColors.ToCanvas(game);
+                if (item.tier != ItemTier.Tier1 && SevenUIChecks.Near(expected, (Color)game))
+                {
+                    wrong.Add($"{item.name}'s tier {item.tier} has no SevenUI shade (#{ColorUtility.ToHtmlStringRGB(expected)})");
+                }
                 ItemIcon onBoard = SevenUIChecks.HudRoot(h).GetComponentsInChildren<ScoreboardRow>()
                     .Where(row => row.Strip && row.Strip.master == Harness.LocalBody.master)
                     .SelectMany(row => row.Strip.itemInventoryDisplay.GetComponentsInChildren<ItemIcon>())
@@ -164,6 +156,39 @@ namespace SevenUI.Tests
         }
 
         // A chest has no tier: its inspect info's own title color names it and colors both strips.
+        // One visible item of each tier with a color: the main six by name, and the first of each other tier in the
+        // catalog (food, hallowed, hex, pages), which are picked by tier since their names change between updates. Each
+        // is given to the viewer and taken back at the end.
+        internal static ItemDef[] TierSamples(Harness h)
+        {
+            List<ItemDef> items = new List<ItemDef>
+            {
+                RoR2Content.Items.Syringe, RoR2Content.Items.Feather, RoR2Content.Items.Behemoth,
+                RoR2Content.Items.Knurl, RoR2Content.Items.LunarDagger, DLC1Content.Items.BleedOnHitVoid,
+            };
+            foreach (ItemTier tier in new[] { ItemTier.FoodTier, ItemTier.Cursed, ItemTier.Hex, ItemTier.Page })
+            {
+                ItemDef sample = ItemCatalog.allItemDefs
+                    .Where(item => item && item.tier == tier && !item.hidden)
+                    .OrderBy(item => item.itemIndex)
+                    .FirstOrDefault();
+                if (!sample) throw h.Fail($"no visible {tier} item in the catalog");
+                items.Add(sample);
+            }
+            Inventory inventory = Harness.LocalBody.inventory;
+            foreach (ItemDef item in items)
+            {
+                inventory.GiveItemPermanent(item.itemIndex);
+                ItemDef given = item;
+                h.OnCleanup(() =>
+                {
+                    if (inventory) inventory.RemoveItemPermanent(given.itemIndex);
+                });
+            }
+            h.Log("tier samples: " + string.Join(", ", items.Select(item => $"{item.name} ({item.tier})")));
+            return items.ToArray();
+        }
+
         private static IEnumerator ChestAsCanvas(Harness h)
         {
             WithoutStats(h);

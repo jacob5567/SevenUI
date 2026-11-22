@@ -65,8 +65,7 @@ namespace SevenUI
                     }
                 }
                 ItemDef first = corrupts.Count > 0 ? ItemCatalog.GetItemDef(corrupts[0]) : null;
-                ItemTierDef tier = first ? ItemTierCatalog.GetItemTierDef(first.tier) : null;
-                corruptsColor = tier ? GameColors.ToCanvas(ColorCatalog.GetColor(tier.colorIndex)) : Palette.Text;
+                corruptsColor = first ? GameColors.OfTier(first.tier, Palette.Text) : Palette.Text;
             }
             if (corruptedInto != ItemIndex.None)
             {

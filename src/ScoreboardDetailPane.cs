@@ -135,7 +135,7 @@ namespace SevenUI
         {
             ItemDef item = ItemCatalog.GetItemDef(shown.itemIndex);
             if (!item) return;
-            Describe(TierGroups.ColorOf(TierGroups.Of(shown.itemIndex)), shown.image ? shown.image.texture : null,
+            Describe(GameColors.OfTier(item.tier, Palette.HeaderText), shown.image ? shown.image.texture : null,
                 shown.tooltipProvider, item.nameToken, item.descriptionToken);
             Item = item.itemIndex;
             rebuild = () => Show(shown, grids);

@@ -49,6 +49,11 @@ namespace SevenUI
         public static readonly Color CountBoss = new Color(0.890f, 0.827f, 0.353f, 1f);
         public static readonly Color CountLunar = new Color(0.478f, 0.659f, 1f, 1f);
         public static readonly Color CountVoid = new Color(0.753f, 0.478f, 0.847f, 1f);
+        // Hallowed Concepts' tiers, softened the same way: #a38af0 for hallowed items (the game's Cursed tier, #9368f9),
+        // #c4e25c for hexes (#d0f820), and #62aaec for pages and key items (#2387ff), a little greener than lunar blue.
+        public static readonly Color CountHallowed = new Color(0.639f, 0.541f, 0.941f, 1f);
+        public static readonly Color CountHex = new Color(0.769f, 0.886f, 0.361f, 1f);
+        public static readonly Color CountKey = new Color(0.384f, 0.667f, 0.925f, 1f);
         // #89e331, a Winnowing trial's lime as its icon draws it, greener than the game's #d0ff00 for trials.
         public static readonly Color Trial = new Color(0.537f, 0.890f, 0.192f, 1f);
         // Karma, a lunar mechanic, in the lunar items' blue, apart from the run info's accent.

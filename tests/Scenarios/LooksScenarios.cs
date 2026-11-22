@@ -36,21 +36,7 @@ namespace SevenUI.Tests
         // place's code reads, for comparison.
         private static IEnumerator TierColors(Harness h)
         {
-            ItemDef[] items =
-            {
-                RoR2Content.Items.Syringe, RoR2Content.Items.Feather, RoR2Content.Items.Behemoth,
-                RoR2Content.Items.Knurl, RoR2Content.Items.LunarDagger, DLC1Content.Items.BleedOnHitVoid,
-            };
-            Inventory inventory = Harness.LocalBody.inventory;
-            foreach (ItemDef item in items)
-            {
-                inventory.GiveItemPermanent(item.itemIndex);
-                ItemDef given = item;
-                h.OnCleanup(() =>
-                {
-                    if (inventory) inventory.RemoveItemPermanent(given.itemIndex);
-                });
-            }
+            ItemDef[] items = ScoreboardInspectScenarios.TierSamples(h);
             yield return ScoreboardSetUp.Open(h);
             yield return h.Wait(SettleSeconds);
             HUD hud = SevenUIChecks.HudRoot(h).GetComponent<HUD>();
@@ -59,7 +45,7 @@ namespace SevenUI.Tests
                 PickupDef pickup = PickupCatalog.GetPickupDef(PickupCatalog.FindPickupIndex(item.itemIndex));
                 Color32 catalog = ColorCatalog.GetColor(ItemTierCatalog.GetItemTierDef(item.tier).colorIndex);
                 h.Log($"{item.name} ({item.tier}): tooltip strip (PickupDef.baseColor) #{Hex(pickup.baseColor)}, " +
-                      $"pane strip (TierGroups) #{Hex(TierGroups.ColorOf(TierGroups.Of(item.itemIndex)))}, " +
+                      $"pane strip (GameColors.OfTier) #{Hex(GameColors.OfTier(item.tier, Palette.HeaderText))}, " +
                       $"catalog #{Hex(catalog)}, canvas shade (GameColors.ToCanvas) #{Hex(GameColors.ToCanvas(catalog))}, " +
                       $"dark #{Hex(pickup.darkColor)}");
 
