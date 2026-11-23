@@ -13,11 +13,24 @@ namespace SevenUI
         // The Bombardier font assets (tmpBombDropShadow and its variants). Languages the game draws in Noto Sans
         // (Russian, Chinese, Japanese, Korean, ...) don't use them, so their text stays as it is.
         private const string GameFontPrefix = "tmpBomb";
+        // Void Fiend's corruption meter beside the crosshair (VoidSurvivorCorruptionUISimplified, made for the survivor's
+        // body) keeps the game's font: Jacob's call, 2026-11-22.
+        private const string KeptGameFontPrefix = "VoidSurvivorCorruptionUI";
 
         // The game's own font and a material of it, as first seen here: texts SevenUI makes start in it, so this swaps
         // them to Barlow and back like the game's, whatever font the text they were made like is in at the time.
         public static TMP_FontAsset GameFont { get; private set; }
         public static Material GameMaterial { get; private set; }
+
+        // Whether the text stays in the game's font whatever the setting: it is part of Void Fiend's corruption meter.
+        public static bool KeepsGameFont(TMP_Text text)
+        {
+            for (Transform part = text ? text.transform : null; part; part = part.parent)
+            {
+                if (part.name.StartsWith(KeptGameFontPrefix)) return true;
+            }
+            return false;
+        }
 
         // Puts a text SevenUI made back in the game's font when the text it was made like was already in Barlow, so
         // turning Barlow off puts it back in the game's font too.
@@ -67,7 +80,7 @@ namespace SevenUI
                     continue;
                 }
                 TMP_FontAsset font = text.font;
-                if (!font || !font.name.StartsWith(GameFontPrefix)) continue;
+                if (!font || !font.name.StartsWith(GameFontPrefix) || KeepsGameFont(text)) continue;
                 if (!GameFont)
                 {
                     GameFont = font;
