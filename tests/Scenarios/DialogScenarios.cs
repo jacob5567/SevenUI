@@ -21,6 +21,7 @@ namespace SevenUI.Tests
         private const string CancelToken = "CANCEL";
         private const string YesToken = "DIALOG_OPTION_YES";
         private const string NoToken = "USER_PROFILE_DELETE_NO";
+        private const string DeleteHeaderToken = "USER_PROFILE_DELETE_HEADER";
         private const int MostButtons = 3;
         // In the dialog canvas's units: how far text may stick out of its panel or button, and how far the panel's
         // middle may be from the canvas's.
@@ -52,6 +53,7 @@ namespace SevenUI.Tests
             yield return new Scenario(1, "dialog_follows_flat_panels", Stages.TitanicPlains, FollowsFlatPanels);
             yield return new Scenario(1, "dialog_opened_while_off", Stages.TitanicPlains, OpenedWhileOff);
             yield return new Scenario(1, "dialog_close_leaves_nothing", Stages.TitanicPlains, CloseLeavesNothing);
+            yield return new Scenario(1, "dialog_ending_in_red", Stages.TitanicPlains, EndingInRed);
         }
 
         // Dialogs with one, two and three buttons: styled, and the selected button gets the accent outline.
@@ -134,6 +136,25 @@ namespace SevenUI.Tests
             yield return h.Until(() => SimpleDialogBox.instancesList.Count == 0, () => $"the dialog is still open {h.Diagnosis()}");
         }
 
+        // A dialog that ends something has its title and first button in red: deleting a profile here, the host's quit
+        // in dialog_one_button. The quit confirmation as single player (dialog_two_buttons) stays in the accent.
+        private static IEnumerator EndingInRed(Harness h)
+        {
+            SimpleDialogBox box = SimpleDialogBox.Create();
+            h.OnCleanup(DestroyAll);
+            box.headerToken = new SimpleDialogBox.TokenParamsPair(DeleteHeaderToken);
+            box.descriptionToken = new SimpleDialogBox.TokenParamsPair(ShortBodyToken);
+            box.AddActionButton(() => { }, YesToken, true);
+            box.AddCancelButton(NoToken);
+            yield return h.Until(() => DialogBoxStyler.IsEnding(box.headerLabel.text, box.descriptionLabel.text) && DialogLook(box, 2, null) == null,
+                () => $"{DialogLook(box, 2, null) ?? "the dialog isn't taken as ending something"} {h.Diagnosis()}");
+            if (!Near(box.headerLabel.color, Palette.CountLegendary)) throw h.Fail($"the title is {box.headerLabel.color}, not red");
+            yield return h.Wait(SettleSeconds);
+            yield return h.Screenshot("dialog_ending");
+            Close(box);
+            yield return h.Until(() => SimpleDialogBox.instancesList.Count == 0, () => $"the dialog is still open {h.Diagnosis()}");
+        }
+
         // Closing a styled dialog leaves none of the mod's objects, and the styler forgets it; the next one is styled.
         private static IEnumerator CloseLeavesNothing(Harness h)
         {
@@ -144,8 +165,9 @@ namespace SevenUI.Tests
             Close(box);
             yield return h.Until(() => SimpleDialogBox.instancesList.Count == 0 && styler.StyledCount == 0,
                 () => $"{SimpleDialogBox.instancesList.Count} dialogs open, {styler.StyledCount} still tracked {h.Diagnosis()}");
-            yield return h.Until(() => Object.FindObjectsOfType<PixelOutline>().All(outline => outline.name != DialogBoxStyler.OutlineName),
-                () => $"a dialog outline is left in the scene {h.Diagnosis()}");
+            yield return h.Until(() => Object.FindObjectsOfType<Image>().All(image => image.name != DialogBoxStyler.BandName &&
+                                                                                       image.name != DialogBoxStyler.UnderlineName),
+                () => $"a dialog band or underline is left in the scene {h.Diagnosis()}");
             SimpleDialogBox next = Open(h, 1, ShortBodyToken);
             yield return h.Until(() => DialogLook(next, 1, null) == null && styler.StyledCount == 1, () => $"the next dialog: {DialogLook(next, 1, null)} {h.Diagnosis()}");
             Close(next);
@@ -187,7 +209,7 @@ namespace SevenUI.Tests
             }
         }
 
-        // Selects each button as a gamepad does: it gets the accent outline and the others keep the grey one.
+        // Selects each button as a gamepad does: its underline goes full and the others' stay faint.
         private static IEnumerator SelectEach(Harness h, SimpleDialogBox box, int buttons)
         {
             h.OnCleanup(() =>
@@ -212,28 +234,30 @@ namespace SevenUI.Tests
             }
         }
 
-        // Null once the dialog is as the mod styles it: a flat dark panel with Barlow text inside it, centered, and
-        // outlined buttons with their labels inside, the selected one (if any) in the accent.
+        // Null once the dialog is as the mod styles it (design E): the game's panel see-through, a dark band across the
+        // whole canvas behind it, the title large and centered and the text under it, in Barlow, and the buttons as
+        // words with an underline, the first in the accent (red when the dialog ends something), the selected one's
+        // underline full and the others' faint.
         private static string DialogLook(SimpleDialogBox box, int buttons, MPButton selected)
         {
             if (!box || !box.rootObject) return "the dialog is gone";
             Image panel = DialogBoxStyler.PanelImage(box);
             if (!panel) return "the dialog has no panel image";
             if (panel.sprite) return $"the panel still has the sprite {panel.sprite.name}";
-            if (!Near(panel.color, Palette.Panel)) return $"the panel is {panel.color}, not the flat panel color";
-            Image header = box.headerLabel.transform.parent.GetComponent<Image>();
-            if (!header || !header.enabled) return "the title has no header strip";
-            if (header.sprite) return $"the header strip still has the sprite {header.sprite.name}";
-            if (!Near(header.color, DialogBoxStyler.HeaderColor) || !Near(header.canvasRenderer.GetColor(), Color.white))
-                return $"the header strip is {header.color} (drawn x{header.canvasRenderer.GetColor()}), not the faint strip color";
-            // Nothing else may draw behind the text and buttons, such as the game's lavender band behind the buttons.
+            if (panel.color.a > ColorTolerance) return $"the panel is {panel.color}, not see-through";
             foreach (Image image in panel.GetComponentsInChildren<Image>(false))
             {
-                if (image != panel && image != header && image.enabled && !DialogBoxStyler.InButton(box, image.transform))
+                if (image != panel && image.enabled && !DialogBoxStyler.InButton(box, image.transform))
                     return $"{image.name} still draws a {image.color} backing";
             }
-            string text = TextProblem(box.headerLabel, panel, Palette.Text) ?? TextProblem(box.descriptionLabel, panel, Palette.HeaderText);
+            string band = BandProblem(panel);
+            if (band != null) return band;
+            bool ending = DialogBoxStyler.IsEnding(box.headerLabel.text, box.descriptionLabel.text);
+            string text = TextProblem(box.headerLabel, panel, ending ? Palette.CountLegendary : Palette.Text) ??
+                          TextProblem(box.descriptionLabel, panel, Palette.TooltipBody);
             if (text != null) return text;
+            if (Mathf.Abs(box.headerLabel.fontSize - DialogBoxStyler.TitleSize) > 0.01f)
+                return $"the title is {box.headerLabel.fontSize}, not {DialogBoxStyler.TitleSize}";
             Canvas root = panel.canvas ? panel.canvas.rootCanvas : null;
             if (root)
             {
@@ -243,38 +267,69 @@ namespace SevenUI.Tests
             }
             MPButton[] all = box.buttonContainer.GetComponentsInChildren<MPButton>(false);
             if (all.Length != buttons) return $"the dialog has {all.Length} buttons, not {buttons}";
-            HashSet<float> widths = new HashSet<float>();
-            foreach (MPButton button in all)
+            for (int i = 0; i < all.Length; i++)
             {
-                string problem = ButtonProblem(button, panel, button == selected, selected != null, widths);
+                string problem = ButtonProblem(all[i], DialogBoxStyler.WordColor(i == 0, ending), all[i] == selected);
                 if (problem != null) return problem;
             }
-            if (widths.Count > 1) return $"the buttons' outlines are {string.Join(", ", widths)} pixels wide, not all one width";
             return null;
         }
 
-        private static string ButtonProblem(MPButton button, Image panel, bool isSelected, bool someSelected, HashSet<float> widths)
+        // The band spans the canvas's width and reaches past the panel above and below by the padding.
+        private static string BandProblem(Image panel)
+        {
+            Canvas canvas = panel.canvas ? panel.canvas.rootCanvas : null;
+            if (!canvas) return "the dialog has no canvas";
+            RectTransform root = (RectTransform)canvas.transform;
+            Image band = root.GetComponentsInChildren<Image>(false).FirstOrDefault(image => image.name == DialogBoxStyler.BandName);
+            if (!band || !band.enabled) return "the dialog has no band";
+            if (!Near(band.color, Palette.DialogBand)) return $"the band is {band.color}, not the band color";
+            Rect bandRect = RectIn(root, band.rectTransform);
+            Rect panelRect = RectIn(root, panel.rectTransform);
+            if (Mathf.Abs(bandRect.width - root.rect.width) > FitTolerance) return $"the band is {bandRect.width} wide, not the canvas's {root.rect.width}";
+            float above = bandRect.yMax - panelRect.yMax;
+            float below = panelRect.yMin - bandRect.yMin;
+            if (Mathf.Abs(above - DialogBoxStyler.BandPadding) > FitTolerance || Mathf.Abs(below - DialogBoxStyler.BandPadding) > FitTolerance)
+                return $"the band reaches {above} above and {below} below the panel, not {DialogBoxStyler.BandPadding}";
+            if (band.transform.GetSiblingIndex() > 0 && panel.transform.IsChildOf(band.transform)) return "the panel is inside the band";
+            return null;
+        }
+
+        private static Rect RectIn(RectTransform root, RectTransform rect)
+        {
+            Vector3[] corners = new Vector3[4];
+            rect.GetWorldCorners(corners);
+            Vector3 min = root.InverseTransformPoint(corners[0]);
+            Vector3 max = root.InverseTransformPoint(corners[2]);
+            return Rect.MinMaxRect(min.x, min.y, max.x, max.y);
+        }
+
+        private static string ButtonProblem(MPButton button, Color words, bool isSelected)
         {
             string name = button.name;
             Image face = button.image;
             if (!face || face.sprite) return $"{name} keeps the game's face";
-            Color want = isSelected ? Palette.HoverFace : Palette.Panel;
-            if (!Near(face.color, want)) return $"{name}'s face is {face.color}, not {want}";
-            PixelOutline[] outlines = button.GetComponentsInChildren<PixelOutline>(true).Where(o => o.name == DialogBoxStyler.OutlineName).ToArray();
-            if (outlines.Length != 2) return $"{name} has {outlines.Length} outlines, not 2";
-            PixelOutline[] shown = outlines.Where(o => o.enabled).ToArray();
-            if (shown.Length != 1) return $"{name} shows {shown.Length} outlines";
-            Color outlineColor = isSelected ? Palette.Accent : Palette.Divider;
-            if (!Near(shown[0].color, outlineColor)) return $"{name}'s outline is {shown[0].color}, not {(isSelected ? "the accent" : "the divider grey")}";
-            string uneven = CanvasLayoutChecks.PixelOutlineProblem(shown[0]);
-            if (uneven != null) return $"{name}'s outline: {uneven}";
-            widths.Add(shown[0].DrawnWidth);
-            foreach (TMP_Text label in button.GetComponentsInChildren<TMP_Text>(true))
-            {
-                string problem = FontProblem(label);
-                if (problem != null) return $"{name}'s label {problem}";
-                if (!Inside(label, button.GetComponent<RectTransform>())) return $"{name}'s label doesn't fit its button";
-            }
+            if (face.color.a > ColorTolerance) return $"{name}'s face is {face.color}, not see-through";
+            if (button.GetComponentsInChildren<PixelOutline>(true).Any()) return $"{name} still has an outline";
+            TMP_Text label = button.GetComponentInChildren<TMP_Text>(true);
+            if (!label) return $"{name} has no label";
+            string font = FontProblem(label);
+            if (font != null) return $"{name}'s label {font}";
+            if (!Near(label.color, words)) return $"{name}'s words are {label.color}, not {words}";
+            if (!Inside(label, button.GetComponent<RectTransform>())) return $"{name}'s label doesn't fit its button";
+            Image line = button.GetComponentsInChildren<Image>(false).FirstOrDefault(image => image.name == DialogBoxStyler.UnderlineName);
+            if (!line || !line.enabled) return $"{name} has no underline";
+            Color want = new Color(words.r, words.g, words.b, isSelected ? 1f : DialogBoxStyler.UnderlineRest);
+            if (!Near(line.color, want)) return $"{name}'s underline is {line.color}, not {want}";
+            RectTransform buttonRect = button.GetComponent<RectTransform>();
+            Rect lineRect = RectIn(buttonRect, line.rectTransform);
+            Bounds bounds = label.textBounds;
+            float textLeft = buttonRect.InverseTransformPoint(label.transform.TransformPoint(bounds.min)).x;
+            float textRight = buttonRect.InverseTransformPoint(label.transform.TransformPoint(bounds.max)).x;
+            float textBottom = buttonRect.InverseTransformPoint(label.transform.TransformPoint(bounds.min)).y;
+            if (Mathf.Abs(lineRect.xMin - textLeft) > FitTolerance || Mathf.Abs(lineRect.xMax - textRight) > FitTolerance)
+                return $"{name}'s underline runs {lineRect.xMin} to {lineRect.xMax}, not under its words ({textLeft} to {textRight})";
+            if (lineRect.yMax > textBottom) return $"{name}'s underline is at {lineRect.yMax}, over its words' bottom {textBottom}";
             if (button.GetComponent<RoR2.UI.SkinControllers.ButtonSkinController>() is Behaviour skin && skin.enabled)
                 return $"{name}'s skin controller is still on";
             return null;
@@ -343,7 +398,8 @@ namespace SevenUI.Tests
             if (box.descriptionLabel.font.name != vanilla.BodyFont) return $"the body is in {box.descriptionLabel.font.name}, not {vanilla.BodyFont}";
             string backings = Backings(box, panel);
             if (backings != vanilla.Backings) return $"the drawn backings are [{backings}], not the game's [{vanilla.Backings}]";
-            if (box.rootObject.GetComponentsInChildren<PixelOutline>(true).Any(o => o.name == DialogBoxStyler.OutlineName)) return "the dialog still has the mod's outlines";
+            if (box.rootObject.GetComponentsInChildren<Image>(true).Any(o => o.name == DialogBoxStyler.BandName || o.name == DialogBoxStyler.UnderlineName))
+                return "the dialog still has the mod's band or underlines";
             MPButton[] buttons = box.buttonContainer.GetComponentsInChildren<MPButton>(false);
             if (buttons.Length != vanilla.Buttons.Count) return $"the dialog has {buttons.Length} buttons, not {vanilla.Buttons.Count}";
             for (int i = 0; i < buttons.Length; i++)
