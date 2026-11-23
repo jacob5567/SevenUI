@@ -629,7 +629,7 @@ namespace SevenUI.Tests
             found(picker.panelInstanceController);
         }
 
-        private static void Close(PickupPickerPanel panel)
+        internal static void Close(PickupPickerPanel panel)
         {
             if (!panel) return;
             // The game's tooltip follows the selected button, and reads it after it is destroyed unless deselected.
@@ -643,7 +643,7 @@ namespace SevenUI.Tests
             Object.Destroy(panel.gameObject);
         }
 
-        private static IEnumerator OpenStyled(Harness h, PickupPickerController picker, Action<PickerPanel> found)
+        internal static IEnumerator OpenStyled(Harness h, PickupPickerController picker, Action<PickerPanel> found)
         {
             PickupPickerPanel opened = null;
             yield return Open(h, picker, found => opened = found);
