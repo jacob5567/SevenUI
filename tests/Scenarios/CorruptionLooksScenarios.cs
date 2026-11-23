@@ -27,7 +27,7 @@ namespace SevenUI.Tests
         private const string LookingGlassMisc = "Misc";
         private const string LookingGlassFull = "Full Description in Hud";
         // Words that say an item is tied to corruption: the game's "Corrupts all Ukuleles.", LookingGlass's "Has been
-        // corrupted by:", SevenUI's "Corrupted by Polylute" and "Corrupts your 2 Ukulele".
+        // corrupted by:", SevenUI's "Corrupted by Polylute" and "Corrupts your Ukulele x2".
         private static readonly Regex CorruptionWords = new Regex("corrupt", RegexOptions.IgnoreCase);
         private static readonly Regex Tags = new Regex("<[^>]*>");
 

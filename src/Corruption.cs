@@ -5,14 +5,23 @@ using UnityEngine;
 
 namespace SevenUI
 {
-    // The line that says an item is tied to held items by void corruption (I2, Jacob's wording, 2026-11-22): "Corrupted
-    // by Polylute" in the void color when a held void item would corrupt it, or for a void item "Corrupts your 2 Ukulele"
-    // in the corrupted items' tier color. Counted from permanent stacks, as the pickers' counts are (H4). Reads only:
-    // ContagiousItemManager's table and the synced inventory.
+    // How an item's description says it is tied to held items by void corruption (I2, Jacob's wording, 2026-11-22). An
+    // item a held void item would corrupt gets a line, "Corrupted by Polylute", in the void color. A void item that would
+    // corrupt held items says so in its own sentence: the game's "Corrupts all Ukuleles" becomes "Corrupts your Ukulele
+    // x2", in the same void style, so it isn't said twice (Jacob's pick after the I2 audit). Counted from permanent
+    // stacks, as the pickers' counts are (H4). Reads only: ContagiousItemManager's table and the synced inventory.
     internal static class Corruption
     {
         private const string CorruptedByText = "Corrupted by {0}";
         private const string CorruptsText = "Corrupts your {0}";
+        private const string HeldText = "{0} x{1}";
+        // The game's sentence in a void item's description, in the void style and the last such span: "<style=cIsVoid>
+        // Corrupts all Ukuleles</style>", or for Newly Hatched Zoea "<style=cIsVoid>Corrupts all </style><style=
+        // cIsTierBoss>yellow items</style><style=cIsVoid></style>". The same in every language; Pluripotent Larva's
+        // "corrupted" comes before it.
+        private static readonly System.Text.RegularExpressions.Regex CorruptsSentence = new System.Text.RegularExpressions.Regex(
+            @"<style=cIsVoid>(?!</style>)[^<]*</style>(?:<style=[^>]*>[^<]*</style>)*(?:<style=cIsVoid></style>)?",
+            System.Text.RegularExpressions.RegexOptions.RightToLeft);
         // LookingGlass's own note in a picker option's full description, followed by the void item's description:
         // "\n\nHas been corrupted by: <style=cIsVoid>Polylute</style>\n\n" (CommandItemCountClass.CreateToolTip).
         private static readonly System.Text.RegularExpressions.Regex LookingGlassNote =
@@ -53,30 +62,41 @@ namespace SevenUI
             }
         }
 
-        // The line as rich text, or "" when no held item ties to the item.
+        // The line for an item a held void item would corrupt, as rich text, or "".
         public static string Line(ItemIndex item, Inventory inventory)
         {
-            Counts(item, inventory, out int into, out int originals);
-            if (into > 0)
-            {
-                return Colored(Palette.CountVoid, string.Format(CorruptedByText, Name(ContagiousItemManager.GetTransformedItemIndex(item))));
-            }
-            if (originals == 0) return "";
+            Counts(item, inventory, out int into, out _);
+            if (into <= 0) return "";
+            return Colored(Palette.CountVoid, string.Format(CorruptedByText, Name(ContagiousItemManager.GetTransformedItemIndex(item))));
+        }
+
+        // For a void item, what it would corrupt of the held items, as plain text ("Corrupts your Ukulele x2"), or "".
+        public static string Corrupts(ItemIndex item, Inventory inventory)
+        {
+            if (!inventory || item == ItemIndex.None) return "";
             List<string> held = new List<string>();
-            Color color = Palette.Text;
             foreach (ContagiousItemManager.TransformationInfo info in ContagiousItemManager.transformationInfos)
             {
                 if (info.transformedItem != item) continue;
                 int count = inventory.GetItemCountPermanent(info.originalItem);
-                if (count <= 0) continue;
-                if (held.Count == 0)
+                if (count > 0)
                 {
-                    ItemDef first = ItemCatalog.GetItemDef(info.originalItem);
-                    color = first ? GameColors.OfTier(first.tier, Palette.Text) : Palette.Text;
+                    held.Add(string.Format(HeldText, Name(info.originalItem), count));
                 }
-                held.Add(count + " " + Name(info.originalItem));
             }
-            return Colored(color, string.Format(CorruptsText, string.Join(", ", held)));
+            return held.Count > 0 ? string.Format(CorruptsText, string.Join(", ", held)) : "";
+        }
+
+        // 'description' with its void sentence saying 'corrupts' (from Corrupts) instead, in the void style; with it
+        // added on a line of its own when the description has no such sentence. 'description' as it is for no corrupts.
+        public static string WithCorrupts(string description, string corrupts)
+        {
+            if (string.IsNullOrEmpty(corrupts) || description == null) return description;
+            string sentence = "<style=cIsVoid>" + corrupts + "</style>";
+            System.Text.RegularExpressions.Match match = CorruptsSentence.Match(description);
+            return match.Success
+                ? description.Substring(0, match.Index) + sentence + description.Substring(match.Index + match.Length)
+                : description + "\n" + sentence;
         }
 
         private static string Name(ItemIndex item)

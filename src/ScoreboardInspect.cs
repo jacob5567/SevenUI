@@ -90,6 +90,12 @@ namespace SevenUI
         private ItemIndex corruptionItem = ItemIndex.None;
         private int corruptionInto = -1;
         private int corruptionOriginals = -1;
+        // For a void item, what it would corrupt of the held items (Corruption.Corrupts), and the description it was last
+        // said in.
+        private string corruptsText = "";
+        private string corruptsSource;
+        private string corruptsMergedFor;
+        private string corruptsMerged;
         private LanguageTextMeshController descriptionToken;
         private HorizontalOrVerticalLayoutGroup boxGroup;
         private RectTransform box;
@@ -370,8 +376,8 @@ namespace SevenUI
         private void Refresh()
         {
             FitWidth();
-            UpdateStats();
             UpdateCorruptionLine();
+            UpdateStats();
             FitIcon();
             if (title)
             {
@@ -608,25 +614,32 @@ namespace SevenUI
                 SizeDivider();
             }
             ItemStatsText.Parts parts = StatsParts();
-            if (parts == null)
+            if (parts == null && statsShown)
             {
-                if (statsShown || handled != null)
-                {
-                    UndoStats();
-                }
-                return;
+                UndoStats();
             }
             if (description.text != handled)
             {
                 gameText = description.text;
                 handled = null;
             }
-            if (handled != parts.Description)
+            // LookingGlass's description without its stats, or the game's; a void item's sentence saying what it would
+            // corrupt of the held items (Corruption.WithCorrupts).
+            string text = WithCorrupts(parts != null ? parts.Description : gameText);
+            if (text == gameText)
             {
-                handled = parts.Description;
+                if (handled != null)
+                {
+                    description.text = gameText;
+                    handled = null;
+                }
+            }
+            else if (handled != text)
+            {
+                handled = text;
                 description.text = handled;
             }
-            if (parts != columnParts || !statsShown)
+            if (parts != null && (parts != columnParts || !statsShown))
             {
                 ShowStats(parts);
             }
@@ -662,6 +675,19 @@ namespace SevenUI
                     (shownParts != null ? string.Join(", ", shownParts.Values) : "none"));
             }
             return shownParts;
+        }
+
+        // 'text' with the void sentence for corruptsText, worked out again only when either changes.
+        private string WithCorrupts(string text)
+        {
+            if (corruptsText.Length == 0) return text;
+            if (text != corruptsSource || corruptsText != corruptsMergedFor)
+            {
+                corruptsSource = text;
+                corruptsMergedFor = corruptsText;
+                corruptsMerged = Corruption.WithCorrupts(text, corruptsText);
+            }
+            return corruptsMerged;
         }
 
         private static ItemDef ItemByDescription(string token)
@@ -954,6 +980,7 @@ namespace SevenUI
             corruptionText.gameObject.SetActive(false);
             corruptionItem = ItemIndex.None;
             corruptionInto = corruptionOriginals = -1;
+            corruptsText = "";
         }
 
         // The item shown, found by its description's token as for the stats, against the HUD target's inventory (a
@@ -970,6 +997,7 @@ namespace SevenUI
             corruptionItem = index;
             corruptionInto = into;
             corruptionOriginals = originals;
+            corruptsText = Corruption.Corrupts(index, inventory);
             string line = Corruption.Line(index, inventory);
             corruptionText.text = line;
             if (corruptionText.gameObject.activeSelf != line.Length > 0)

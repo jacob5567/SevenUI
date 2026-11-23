@@ -181,6 +181,35 @@ namespace SevenUI.Tests
             yield return Inspect(h, RoR2Content.Items.AlienHead);
             yield return h.Until(() => !(line = Line(h)) || !line.gameObject.activeInHierarchy,
                 () => $"a corruption line \"{line.text}\" on Alien Head");
+
+            // Polylute while holding Ukuleles says what it would corrupt in its own void sentence, in place of the game's
+            // "Corrupts all Ukuleles", with no line under it (Jacob's pick after the I2 audit).
+            inventory.RemoveItemPermanent(voidItem, 1);
+            ItemDef original = RoR2Content.Items.ChainLightning;
+            inventory.GiveItemPermanent(original, HeldUkuleles);
+            h.OnCleanup(() =>
+            {
+                if (inventory) inventory.RemoveItemPermanent(original, HeldUkuleles);
+                if (inventory) inventory.GiveItemPermanent(voidItem, 1);
+            });
+            yield return Inspect(h, voidItem);
+            string sentence = "<style=cIsVoid>Corrupts your " + Language.GetString(original.nameToken) + " x" + HeldUkuleles + "</style>";
+            TMP_Text shown = null;
+            yield return h.Until(() => (shown = Description(h)) && shown.text.Contains(sentence) && !shown.text.Contains("Corrupts all") &&
+                                       (!(line = Line(h)) || !line.gameObject.activeInHierarchy),
+                () => $"the inspect panel's Polylute description \"{(shown ? shown.text : "none")}\" without \"{sentence}\" alone");
+            yield return h.Screenshot("corrupts_sentence");
+        }
+
+        private const int HeldUkuleles = 2;
+
+        // The inspect panel's description: the game's text, styled.
+        private static TMP_Text Description(Harness h)
+        {
+            InspectPanelController controller = Controller(h);
+            return controller ? controller.GetComponentsInChildren<LanguageTextMeshController>()
+                .Where(text => text.token != null && text.token.EndsWith("_DESC")).Select(text => text.GetComponent<TMP_Text>())
+                .FirstOrDefault(text => text) : null;
         }
 
         private static TMP_Text Line(Harness h) => SevenUIChecks.HudRoot(h).GetComponentsInChildren<TMP_Text>(true)

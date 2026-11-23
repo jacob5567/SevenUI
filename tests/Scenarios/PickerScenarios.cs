@@ -1040,15 +1040,19 @@ namespace SevenUI.Tests
             Transform lookingGlassCount = option.Button.transform.Find(PickerPanel.LookingGlassCountName);
             if (lookingGlassCount && lookingGlassCount.gameObject.activeInHierarchy) throw h.Fail("LookingGlass's own count shows too");
             // I2: the void corner and "Corrupted by <void item>" on an item a held void item would corrupt; no corner and
-            // "Corrupts your <count> <item>" on a void item that would corrupt held items. The line stays out of the shown
-            // description when LookingGlass's own note says it.
+            // "Corrupts your <item> x<count>" on a void item that would corrupt held items. The line stays out of the
+            // shown description when LookingGlass's own note says it.
             string heldName = Language.GetString(held.nameToken);
             bool corrupted = ContagiousItemManager.GetTransformedItemIndex(offered.itemIndex) == held.itemIndex;
-            string line = corrupted ? "Corrupted by " + heldName : "Corrupts your " + total + " " + heldName;
-            yield return h.Until(() => option.CorruptMark && option.CorruptMark.enabled == corrupted && option.CorruptionLine.Contains(line) &&
-                                       option.ShownDescription.Contains(line) != option.LookingGlassNote,
+            // A void option says it in its own void sentence, in place of the game's "Corrupts all Ukuleles".
+            string line = corrupted ? "Corrupted by " + heldName : "Corrupts your " + heldName + " x" + total;
+            yield return h.Until(() => option.CorruptMark && option.CorruptMark.enabled == corrupted &&
+                                       (corrupted ? option.CorruptionLine.Contains(line) && option.ShownDescription.Contains(line) != option.LookingGlassNote
+                                           : option.CorruptionLine.Length == 0 && option.Corrupts == line &&
+                                             option.ShownDescription.Contains("<style=cIsVoid>" + line + "</style>") &&
+                                             !option.ShownDescription.Contains("Corrupts all")),
                 () => $"{offered.name}'s corner {(option.CorruptMark && option.CorruptMark.enabled ? "shown" : "hidden")} and line " +
-                      $"\"{option.CorruptionLine}\", not {(corrupted ? "shown" : "hidden")} and \"{line}\"");
+                      $"\"{option.CorruptionLine}\" (description \"{option.ShownDescription}\"), not {(corrupted ? "shown" : "hidden")} and \"{line}\"");
             // Shown where the player reads it: on the card, or in the grid's details once the option is hovered.
             PointerEventData pointer = new PointerEventData(EventSystem.current);
             GameObject hovered = option.Button.gameObject;

@@ -38,6 +38,8 @@ namespace SevenUI
         // "Corrupted by Polylute", or for a void item "Corrupts your 2 Ukulele" (I2). Empty when nothing held ties to it.
         public Image CorruptMark;
         public string CorruptionLine { get; private set; } = "";
+        // For a void option, what it would corrupt of the held items, said in its description's own void sentence.
+        public string Corrupts { get; private set; } = "";
         private int shownInto = -1;
         private int shownOriginals = -1;
         public TMP_Text Name;
@@ -115,6 +117,7 @@ namespace SevenUI
             shownInto = into;
             shownOriginals = originals;
             CorruptionLine = Corruption.Line(item, inventory);
+            Corrupts = Corruption.Corrupts(item, inventory);
             if (CorruptMark && CorruptMark.enabled != into > 0)
             {
                 CorruptMark.enabled = into > 0;
@@ -122,12 +125,18 @@ namespace SevenUI
             CorruptionChanged = true;
         }
 
-        // The description as the card or the details show it: with the corruption line under it, if any.
-        // LookingGlass's own note, when its full description has one, already says it, so the line isn't added again.
+        // The description as the card or the details show it: a void option's sentence saying what it would corrupt of
+        // the held items, and the corruption line under it, if any. LookingGlass's own note, when its full description
+        // has one, already says the line, so it isn't added again.
         public bool LookingGlassNote;
-        public string ShownDescription => CorruptionLine.Length > 0 && !LookingGlassNote
-            ? Parts.Description + "\n" + CorruptionLine
-            : Parts.Description;
+        public string ShownDescription
+        {
+            get
+            {
+                string description = Corruption.WithCorrupts(Parts.Description, Corrupts);
+                return CorruptionLine.Length > 0 && !LookingGlassNote ? description + "\n" + CorruptionLine : description;
+            }
+        }
 
         // Set when the line changes, for the panel to show it again; the panel clears it.
         public bool CorruptionChanged;
