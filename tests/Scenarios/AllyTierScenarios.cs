@@ -108,8 +108,10 @@ namespace SevenUI.Tests
         }
 
         // Design B: the badge's outline and fill, drawn before the label so under its text, centered on the tag's letters
-        // both ways to within a screen pixel, and reaching past them on every side.
+        // both ways to within a screen pixel and on the name up and down, and reaching past them on every side.
         private const float CenterTolerance = 1.01f;
+        // The tag's raise is worked out from Barlow's cap height and rounded to a tenth of an em.
+        private const float NameTolerance = 1.5f;
 
         private static string BadgeProblem(TMP_Text label)
         {
@@ -132,6 +134,11 @@ namespace SevenUI.Tests
             Vector2 offset = box.center - letters;
             if (Mathf.Abs(offset.x) > CenterTolerance || Mathf.Abs(offset.y) > CenterTolerance)
                 return $"\"{label.text}\"'s badge is {offset} screen pixels off its letters' middle";
+            // Centered on the name too: the name's first letter, a capital on the same line, in the middle of its quad.
+            TMP_CharacterInfo name = info.characterInfo.Take(info.characterCount).FirstOrDefault(found => found.isVisible);
+            float nameMiddle = Screen(label.transform, (name.bottomLeft + name.topRight) / 2f).y;
+            if (Mathf.Abs(box.center.y - nameMiddle) > NameTolerance)
+                return $"\"{label.text}\"'s badge is {box.center.y - nameMiddle:F1} screen pixels off the name's middle";
             Rect inner = ScreenRect(fill.rectTransform);
             if (!box.Contains(inner.min) || !box.Contains(inner.max) || inner.width >= box.width)
                 return $"\"{label.text}\"'s badge fill {inner} isn't inside its outline {box}";

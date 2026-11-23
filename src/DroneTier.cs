@@ -14,6 +14,10 @@ namespace SevenUI
         private const string BadgeLinkPrefix = "SevenUITier:";
         // The tag a little smaller than the name, with room either side for the badge TierBadge draws around it.
         private const string BadgeSize = "72%";
+        // The smaller tag sits on the name's baseline, so its middle is lower than the name's; raised by half the
+        // difference of their cap heights (Barlow's is 0.7 em), the tag, and the badge drawn around it, are centered on
+        // the name (Jacob, 2026-11-22).
+        private const string BadgeRaise = "<voffset=0.1em>";
         private static readonly string BadgeRoom =
             "<space=" + (TierBadge.PadXEm + TierBadge.BorderEm).ToString(System.Globalization.CultureInfo.InvariantCulture) + "em>";
 
@@ -53,8 +57,8 @@ namespace SevenUI
             int tier = Of(upgrades);
             if (tier <= 1) return "";
             string hex = ColorUtility.ToHtmlStringRGB(ColorOf(tier));
-            return "<size=" + BadgeSize + ">" + BadgeRoom + "<color=#" + hex + "><b><link=\"" + BadgeLinkPrefix + hex + "\">" + Tag(tier) +
-                   "</link></b></color>" + BadgeRoom + "</size>";
+            return BadgeRaise + "<size=" + BadgeSize + ">" + BadgeRoom + "<color=#" + hex + "><b><link=\"" + BadgeLinkPrefix + hex + "\">" +
+                   Tag(tier) + "</link></b></color>" + BadgeRoom + "</size></voffset>";
         }
 
         // The tag itself, as Badge shows it.

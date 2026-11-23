@@ -12,9 +12,9 @@ namespace SevenUI
     internal sealed class TierBadge : MonoBehaviour
     {
         // How far the badge reaches past the tag's letters, and its corners: in the tag's em. The height is the tag's
-        // cap height plus twice the vertical reach.
+        // cap height plus twice the vertical reach, roomy above and below the number (Jacob, 2026-11-22).
         public const float PadXEm = 0.3f;
-        private const float PadYEm = 0.22f;
+        private const float PadYEm = 0.34f;
         private const float RadiusEm = 0.24f;
         // The outline's width in the tag's em, never under one screen pixel.
         public const float BorderEm = 0.08f;
