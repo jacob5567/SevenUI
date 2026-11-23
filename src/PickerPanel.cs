@@ -102,6 +102,7 @@ namespace SevenUI
         private readonly PickerCancel cancel;
         private readonly PickerLegend legend;
         private readonly PickerSlots slots;
+        private readonly PickerExchange exchange;
         private readonly PickerLayout layout;
         private object shownOptions;
         private int shownOptionCount;
@@ -122,18 +123,20 @@ namespace SevenUI
             cancel = new PickerCancel(this, ui);
             legend = new PickerLegend(ui);
             slots = new PickerSlots(this, ui);
-            layout = new PickerLayout(this, ui, cards, grid, slots);
+            exchange = new PickerExchange(this, ui, source);
+            layout = new PickerLayout(this, ui, cards, grid, slots, exchange);
         }
 
+        // The item pickers, or the item scrapper's panel (the same class, laid out as the Drone Scrapper's).
         public static PickerPanel For(PickupPickerPanel panel, HUD hud)
         {
-            PickupSource source = PickupSource.For(panel);
+            PickerSource source = (PickerSource)PickupSource.For(panel) ?? ScrapperSource.For(panel);
             return source != null ? new PickerPanel(source, hud) : null;
         }
 
         public static PickerPanel For(DroneScrapperPickerPanel panel, HUD hud)
         {
-            DroneSource source = DroneSource.For(panel);
+            ScrapperSource source = ScrapperSource.For(panel);
             return source != null ? new PickerPanel(source, hud) : null;
         }
 
@@ -142,8 +145,8 @@ namespace SevenUI
         // The game's panel, whichever class it is.
         public Component Component => source.Component;
 
-        // The item panel's own class; null for the drone scrapper's.
-        public PickupPickerPanel Panel => (source as PickupSource)?.Panel;
+        // The item panel's own class (the item pickers' and the item scrapper's); null for the Drone Scrapper's.
+        public PickupPickerPanel Panel => (source as PickupSource)?.Panel ?? (source as ScrapperSource)?.ItemPanel;
 
         public bool Styled => shownOptions != null;
 
@@ -176,6 +179,12 @@ namespace SevenUI
         internal PickerSource Source => source;
 
         public TMP_Text DetailsNameText => slots.DetailsName;
+
+        // The option the details show, or -1. Read by the SevenUI.Tests plugin.
+        internal int DetailsIndex => slots.DetailsIndex;
+
+        // The scrappers' exchange strip; its strip is null for the other pickers. Read by the SevenUI.Tests plugin.
+        internal PickerExchange Exchange => exchange;
         // Counts changes to the options' shown descriptions (their corruption lines), so the details are measured again.
         public int DescriptionsVersion { get; private set; }
 
@@ -195,6 +204,7 @@ namespace SevenUI
             Empty = false;
             EmptyMessage = null;
             slots.Clear();
+            exchange.Clear();
             shownFont = null;
             cancel.Clear();
             source.Restored();
@@ -262,6 +272,7 @@ namespace SevenUI
             if (slots.DetailsName)
             {
                 slots.ShowDetails(hovered >= 0 ? hovered : detailsIndex >= 0 ? detailsIndex : 0);
+                exchange.Show(slots.DetailsIndex, inventory);
             }
         }
 
@@ -348,6 +359,12 @@ namespace SevenUI
             else
             {
                 slots.AddDetails();
+                if (source.Exchanges)
+                {
+                    // The option's name moves to the exchange strip.
+                    slots.DetailsName.gameObject.SetActive(false);
+                    exchange.Add();
+                }
             }
             shownFont = null;
         }

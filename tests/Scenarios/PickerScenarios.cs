@@ -500,7 +500,8 @@ namespace SevenUI.Tests
         private static IEnumerator CheckStyled(Harness h, PickupPickerController picker, PickerPanel panel)
         {
             int count = picker.options.Length;
-            bool cards = count <= PickerPanel.CardLimit;
+            // The scrappers are a grid whatever their number of options.
+            bool cards = count <= PickerPanel.CardLimit && !panel.Source.AlwaysGrid;
             if (panel.Cards != cards) throw h.Fail($"{count} options are {(panel.Cards ? "cards" : "a grid")}");
             if (cards)
             {
@@ -510,6 +511,11 @@ namespace SevenUI.Tests
             {
                 yield return h.Until(() => GridAsCanvas(panel) == null, () => GridAsCanvas(panel));
                 yield return h.Until(() => DetailsShowResting(panel), () => $"the details show {DetailsLook(panel)}, not the first or hovered item");
+                if (panel.Source.Exchanges)
+                {
+                    // J2: the item scrapper trades each item for scrap in the exchange strip.
+                    yield return h.Until(() => ExchangeChecks.Problem(panel) == null, () => ExchangeChecks.Problem(panel));
+                }
             }
             yield return h.Wait(SettleSeconds);
             string shown = ShownAsStyled(panel);
@@ -555,14 +561,14 @@ namespace SevenUI.Tests
             string others = string.Join(", ", Object.FindObjectsOfType<PickupPickerPanel>()
                 .Where(other => other != panel.Panel && other.isActiveAndEnabled).Select(other => other.name));
             if (others.Length > 0) return $"other picker panels are open beside the restyled one: {others}";
-            Transform shownCancel = panel.Panel.buttonContainer.parent.Find(CancelName);
+            Transform shownCancel = panel.Source.Juice.Find(CancelName);
             if (shownCancel && shownCancel.gameObject.activeInHierarchy && panel.Cancel == null)
             {
                 return "the cancel button is showing in the game's look";
             }
-            Transform juice = panel.Panel.buttonContainer.parent;
+            Transform juice = panel.Source.Juice;
             string art = string.Join(", ", juice.Cast<Transform>()
-                .Where(child => child.gameObject.activeSelf && child != panel.Panel.buttonContainer && !child.name.StartsWith(SevenUIPrefix) &&
+                .Where(child => child.gameObject.activeSelf && child != panel.Source.ContentRoot && !child.name.StartsWith(SevenUIPrefix) &&
                                 !KeptParts.Contains(child.name))
                 .Select(child => child.name));
             return art.Length > 0 ? $"the game's art is showing again: {art}" : null;
