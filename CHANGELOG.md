@@ -1,3 +1,11 @@
+## 1.9.0
+
+- Drone names take their tier's color, rising like item tiers: white at tier 1, then green, red, and yellow from tier 4. From tier 2, a small rounded badge ("T2") replaces the game's "(Tier 2)". This shows on ally cards, the scoreboard's ally tiles and their tooltips. Allies that aren't drones, and drones the Drone Combiner can't upgrade, such as the Gunner Turret, keep their plain names.
+- In item pickers, an item that a void item you hold would corrupt gets a small void-colored corner, and its description says "Corrupted by Polylute". The inspect panel says the same.
+- A void item that would corrupt items you hold says so in its own sentence: "Corrupts your Ukulele x2" instead of the game's "Corrupts all Ukuleles". This applies in pickers and the inspect panel.
+- With LookingGlass, its "Has been corrupted by" note in a picker is in the void color, with space above and below it.
+- The inspect panel's text is 30% larger and its icon 15% larger.
+
 ## 1.8.1
 
 - Item tiers are one color everywhere: the item slots, tooltips, docked panel, inspect panel and pickers all use SevenUI's softer shades. Hallowed items, hexes and pages have shades of their own instead of grey or the game's raw color.
