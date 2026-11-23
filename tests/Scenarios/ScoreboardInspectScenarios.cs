@@ -15,8 +15,8 @@ namespace SevenUI.Tests
 {
     // The scoreboard's inspect panel (what Tab shows for the pickup or interactable beside the player), restyled in place
     // as the canvas's design A: 60% of the board's width centered under it, 6px under it (the top padding
-    // of the panel's own layout, not the container's spacing), the board's flat face, a 2px strip along its top in the title's color, the 56px icon on a
-    // dark slot with a 3px strip of that color along its foot, the name in bold 16 over the description in 13, in the
+    // of the panel's own layout, not the container's spacing), the board's flat face, a 2px strip along its top in the title's color, the 64px icon on a
+    // dark slot with a 3px strip of that color along its foot, the name in bold 21 over the description in 17 (I3), in the
     // body color, wrapping beside the icon.
     // The panel is shown through the game's own controller (Show), which is what the interact prompt's Inspect does,
     // with an item (Alien Head) and with a small chest's own inspect info. FlatPanels off puts the game's panel back as
@@ -40,12 +40,12 @@ namespace SevenUI.Tests
         private const float BoardGap = 6f;
         private const float StripHeight = 2f;
         private const float FootStripHeight = 3f;
-        private const float IconSize = 56f;
+        private const float IconSize = 64f;
         private const float PaddingX = 14f;
         private const float PaddingY = 12f;
         private const float IconGap = 12f;
-        private const float NameSize = 16f;
-        private const float DescriptionSize = 13f;
+        private const float NameSize = 21f;
+        private const float DescriptionSize = 17f;
         private const float LineHeight = 1.4f;
         private const float Tolerance = 1.5f;
         private const float LineTolerance = 0.05f;
@@ -55,13 +55,13 @@ namespace SevenUI.Tests
         private const string TooltipStripPath = "TooltipOffset/Panel/TitleRect/SevenUITierStrip";
         private const string PaneStripName = "TierStrip";
         // The stats column: its width, the line before it, the gaps, in the canvas's pixels.
-        private const float StatsWidth = 200f;
+        private const float StatsWidth = 260f;
         private const float DividerWidth = 1f;
         private const float StatsSpacing = 14f;
         private const float StatsTop = 2f;
         private const float StatsRowGap = 6f;
         private const float StatsLabelGap = 16f;
-        private const float StatsSize = 13f;
+        private const float StatsSize = 17f;
 
         public static IEnumerable<Scenario> All()
         {
@@ -73,6 +73,7 @@ namespace SevenUI.Tests
             yield return new Scenario(1, "scoreboard_inspect_stats_flat_panels_off", Stages.TitanicPlains, StatsFlatPanelsOff);
             yield return new Scenario(1, "scoreboard_inspect_stats_board_item", Stages.TitanicPlains, StatsBoardItem);
             yield return new Scenario(1, "tier_colors_match_everywhere", Stages.TitanicPlains, TierColorsMatch);
+            yield return new Scenario(1, "scoreboard_inspect_corruption_line", Stages.TitanicPlains, CorruptionLine);
         }
 
         // With the scoreboard open, the panel showing Alien Head: laid out and drawn as the canvas, in the item's tier color.
@@ -156,6 +157,64 @@ namespace SevenUI.Tests
         }
 
         // A chest has no tier: its inspect info's own title color names it and colors both strips.
+        // I2: with a Polylute held, the inspect panel on an Ukulele says "Corrupted by Polylute" under its description, in
+        // the void color; on an Alien Head, which nothing held ties to, it says nothing.
+        private static IEnumerator CorruptionLine(Harness h)
+        {
+            WithoutStats(h);
+            Inventory inventory = Harness.LocalBody.inventory;
+            ItemDef voidItem = DLC1Content.Items.ChainLightningVoid;
+            if (!voidItem) throw h.Skip("Polylute needs Survivors of the Void");
+            inventory.GiveItemPermanent(voidItem, 1);
+            h.OnCleanup(() =>
+            {
+                if (inventory) inventory.RemoveItemPermanent(voidItem, 1);
+            });
+            yield return ScoreboardSetUp.Open(h);
+            yield return Inspect(h, RoR2Content.Items.ChainLightning);
+            string expected = "Corrupted by " + Language.GetString(voidItem.nameToken);
+            TMP_Text line = null;
+            yield return h.Until(() => (line = Line(h)) && line.gameObject.activeInHierarchy && line.text.Contains(expected) &&
+                                       line.text.Contains(ColorUtility.ToHtmlStringRGB(Palette.CountVoid)),
+                () => $"the inspect panel's corruption line \"{(line ? line.text : "none")}\", not \"{expected}\" in the void color");
+            yield return h.Screenshot("corruption_line");
+            yield return Inspect(h, RoR2Content.Items.AlienHead);
+            yield return h.Until(() => !(line = Line(h)) || !line.gameObject.activeInHierarchy,
+                () => $"a corruption line \"{line.text}\" on Alien Head");
+
+            // Polylute while holding Ukuleles says what it would corrupt in its own void sentence, in place of the game's
+            // "Corrupts all Ukuleles", with no line under it (Jacob's pick after the I2 audit).
+            inventory.RemoveItemPermanent(voidItem, 1);
+            ItemDef original = RoR2Content.Items.ChainLightning;
+            inventory.GiveItemPermanent(original, HeldUkuleles);
+            h.OnCleanup(() =>
+            {
+                if (inventory) inventory.RemoveItemPermanent(original, HeldUkuleles);
+                if (inventory) inventory.GiveItemPermanent(voidItem, 1);
+            });
+            yield return Inspect(h, voidItem);
+            string sentence = "<style=cIsVoid>Corrupts your " + Language.GetString(original.nameToken) + " x" + HeldUkuleles + "</style>";
+            TMP_Text shown = null;
+            yield return h.Until(() => (shown = Description(h)) && shown.text.Contains(sentence) && !shown.text.Contains("Corrupts all") &&
+                                       (!(line = Line(h)) || !line.gameObject.activeInHierarchy),
+                () => $"the inspect panel's Polylute description \"{(shown ? shown.text : "none")}\" without \"{sentence}\" alone");
+            yield return h.Screenshot("corrupts_sentence");
+        }
+
+        private const int HeldUkuleles = 2;
+
+        // The inspect panel's description: the game's text, styled.
+        private static TMP_Text Description(Harness h)
+        {
+            InspectPanelController controller = Controller(h);
+            return controller ? controller.GetComponentsInChildren<LanguageTextMeshController>()
+                .Where(text => text.token != null && text.token.EndsWith("_DESC")).Select(text => text.GetComponent<TMP_Text>())
+                .FirstOrDefault(text => text) : null;
+        }
+
+        private static TMP_Text Line(Harness h) => SevenUIChecks.HudRoot(h).GetComponentsInChildren<TMP_Text>(true)
+            .FirstOrDefault(text => text.name == ScoreboardInspect.CorruptionLineName);
+
         // One visible item of each tier with a color: the main six by name, and the first of each other tier in the
         // catalog (food, hallowed, hex, pages), which are picked by tier since their names change between updates. Each
         // is given to the viewer and taken back at the end.

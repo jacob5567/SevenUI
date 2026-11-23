@@ -34,30 +34,33 @@ namespace SevenUI
 
         private const float Canvas = HudUnits.PerCanvasPixel;
 
-        // The canvas's sizes, in its pixels, scaled to the HUD's units (HudUnits).
+        // The canvas's sizes, in its pixels, scaled to the HUD's units (HudUnits). The text is 30% larger and the icon 15%
+        // larger than the 1.7.0 design (I3, Jacob's pick, 2026-11-22): name 21, description and stats 17, icon 64, and the
+        // stats column wider to hold the larger text.
         private const int BoardGap = (int)(6f * Canvas + 0.5f);
         private const float StripHeight = 2f * Canvas;
         private const float FootStripHeight = 3f * Canvas;
         private const int PaddingX = (int)(14f * Canvas + 0.5f);
         private const int PaddingY = (int)(12f * Canvas + 0.5f);
-        private const float IconSize = 56f * Canvas;
+        private const float IconSize = 64f * Canvas;
         private const int IconInset = (int)(4f * Canvas + 0.5f);
         private const float IconGap = 12f * Canvas;
         private const float ColumnGap = 4f * Canvas;
         // LookingGlass's stats: a column on the right, after a 1px line, each gap between them this wide.
         private const float StatsSpacing = 14f * Canvas;
-        private const float StatsWidth = 200f * Canvas;
+        private const float StatsWidth = 260f * Canvas;
         private const float DividerWidth = 1f * Canvas;
         private const float StatsTop = 2f * Canvas;
         private const float StatsRowGap = 6f * Canvas;
         private const float StatsLabelGap = 16f * Canvas;
-        private const float StatsSize = 13f * Canvas;
+        private const float StatsSize = 17f * Canvas;
         private const float LineHeightSlack = 0.5f;
-        private const float NameSize = 16f * Canvas;
-        private const float DescriptionSize = 13f * Canvas;
+        private const float NameSize = 21f * Canvas;
+        private const float DescriptionSize = 17f * Canvas;
         private const float DescriptionLineHeight = 1.4f;
         private const float PercentPerLine = 100f;
         private const float DumpDelaySeconds = 0.5f;
+        public const string CorruptionLineName = "SevenUICorruptionLine";
         // The share of the board's width the panel spans, centered under the board.
         public const float WidthShare = 0.6f;
 
@@ -82,6 +85,17 @@ namespace SevenUI
         private Image footStrip;
         private GameObject flavorObject;
         private TMP_Text description;
+        // The corruption line under the description (Corruption, I2), and what it was built from.
+        private TMP_Text corruptionText;
+        private ItemIndex corruptionItem = ItemIndex.None;
+        private int corruptionInto = -1;
+        private int corruptionOriginals = -1;
+        // For a void item, what it would corrupt of the held items (Corruption.Corrupts), and the description it was last
+        // said in.
+        private string corruptsText = "";
+        private string corruptsSource;
+        private string corruptsMergedFor;
+        private string corruptsMerged;
         private LanguageTextMeshController descriptionToken;
         private HorizontalOrVerticalLayoutGroup boxGroup;
         private RectTransform box;
@@ -257,6 +271,7 @@ namespace SevenUI
 
             StyleName(titleText);
             StyleDescription(descriptionText);
+            AddCorruptionLine(textContainer, descriptionText);
             HideFlavor(controller, titleText, descriptionText);
             if (!strip)
             {
@@ -361,6 +376,7 @@ namespace SevenUI
         private void Refresh()
         {
             FitWidth();
+            UpdateCorruptionLine();
             UpdateStats();
             FitIcon();
             if (title)
@@ -598,25 +614,32 @@ namespace SevenUI
                 SizeDivider();
             }
             ItemStatsText.Parts parts = StatsParts();
-            if (parts == null)
+            if (parts == null && statsShown)
             {
-                if (statsShown || handled != null)
-                {
-                    UndoStats();
-                }
-                return;
+                UndoStats();
             }
             if (description.text != handled)
             {
                 gameText = description.text;
                 handled = null;
             }
-            if (handled != parts.Description)
+            // LookingGlass's description without its stats, or the game's; a void item's sentence saying what it would
+            // corrupt of the held items (Corruption.WithCorrupts).
+            string text = WithCorrupts(parts != null ? parts.Description : gameText);
+            if (text == gameText)
             {
-                handled = parts.Description;
+                if (handled != null)
+                {
+                    description.text = gameText;
+                    handled = null;
+                }
+            }
+            else if (handled != text)
+            {
+                handled = text;
                 description.text = handled;
             }
-            if (parts != columnParts || !statsShown)
+            if (parts != null && (parts != columnParts || !statsShown))
             {
                 ShowStats(parts);
             }
@@ -652,6 +675,19 @@ namespace SevenUI
                     (shownParts != null ? string.Join(", ", shownParts.Values) : "none"));
             }
             return shownParts;
+        }
+
+        // 'text' with the void sentence for corruptsText, worked out again only when either changes.
+        private string WithCorrupts(string text)
+        {
+            if (corruptsText.Length == 0) return text;
+            if (text != corruptsSource || corruptsText != corruptsMergedFor)
+            {
+                corruptsSource = text;
+                corruptsMergedFor = corruptsText;
+                corruptsMerged = Corruption.WithCorrupts(text, corruptsText);
+            }
+            return corruptsMerged;
         }
 
         private static ItemDef ItemByDescription(string token)
@@ -931,6 +967,45 @@ namespace SevenUI
         }
 
         // The description in the body color with its own rich-text colors, whose text the game fills from its token.
+        // Under the description, in its size, hidden until an item held ties to the one shown.
+        private void AddCorruptionLine(Transform textContainer, TMP_Text descriptionText)
+        {
+            if (corruptionText || !textContainer || !descriptionText) return;
+            corruptionText = UiFactory.NewText(CorruptionLineName, textContainer, descriptionText, DescriptionSize, Palette.TooltipBody);
+            recorder.Add(corruptionText.gameObject);
+            corruptionText.alignment = TextAlignmentOptions.TopLeft;
+            corruptionText.enableWordWrapping = true;
+            corruptionText.richText = true;
+            corruptionText.transform.SetSiblingIndex(descriptionText.transform.GetSiblingIndex() + 1);
+            corruptionText.gameObject.SetActive(false);
+            corruptionItem = ItemIndex.None;
+            corruptionInto = corruptionOriginals = -1;
+            corruptsText = "";
+        }
+
+        // The item shown, found by its description's token as for the stats, against the HUD target's inventory (a
+        // teammate's while spectating). Built again only when the item or the held counts change. Reads only.
+        private void UpdateCorruptionLine()
+        {
+            if (!corruptionText) return;
+            ItemDef item = ItemByDescription(descriptionToken ? descriptionToken.token : null);
+            ItemIndex index = item ? item.itemIndex : ItemIndex.None;
+            CharacterMaster master = hud && hud.targetMaster ? hud.targetMaster : LocalUserManager.GetFirstLocalUser()?.cachedMaster;
+            Inventory inventory = master ? master.inventory : null;
+            Corruption.Counts(index, inventory, out int into, out int originals);
+            if (index == corruptionItem && into == corruptionInto && originals == corruptionOriginals) return;
+            corruptionItem = index;
+            corruptionInto = into;
+            corruptionOriginals = originals;
+            corruptsText = Corruption.Corrupts(index, inventory);
+            string line = Corruption.Line(index, inventory);
+            corruptionText.text = line;
+            if (corruptionText.gameObject.activeSelf != line.Length > 0)
+            {
+                corruptionText.gameObject.SetActive(line.Length > 0);
+            }
+        }
+
         private void StyleDescription(TMP_Text text)
         {
             if (!text) return;

@@ -34,7 +34,8 @@ namespace SevenUI.Tests
 
         private static IEnumerable<TMP_Text> ActiveTexts(Transform root)
         {
-            return root.GetComponentsInChildren<TMP_Text>(false).Where(text => text.font);
+            // Void Fiend's corruption meter keeps the game's font on purpose (HudFontSwapper.KeepsGameFont).
+            return root.GetComponentsInChildren<TMP_Text>(false).Where(text => text.font && !HudFontSwapper.KeepsGameFont(text));
         }
 
         private static bool IsGameFont(TMP_Text text) => text.font.name.StartsWith(GameNames.GameFontPrefix);

@@ -56,6 +56,11 @@ namespace SevenUI
             TooltipProvider provider = events ? events.currentTooltipProvider : null;
             if (!tooltip || !provider || !provider.transform.IsChildOf(root)) return;
 
+            // A drone's tier badge in its title (ScoreboardAllies), drawn in either look.
+            if (tooltip.titleLabel && DroneTier.HasBadge(tooltip.titleLabel.text))
+            {
+                TierBadge.Attach(tooltip.titleLabel);
+            }
             StatsSection stats = restyle ? Restyle(tooltip, provider) : null;
             if (barlowFont)
             {

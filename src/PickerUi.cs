@@ -37,10 +37,12 @@ namespace SevenUI
         // the canvas's sharp one, shown while the game's would be.
         public PickerButton StyleButton(MPButton button, PickerEntry entry, Color face)
         {
+            string description = entry != null ? entry.Description(button, FullDescriptions) : "";
             PickerButton styled = new PickerButton
             {
                 Button = button, Hover = button as HGButton, Entry = entry, Pickup = entry?.Pickup,
-                DescriptionText = entry != null ? entry.Description(button, FullDescriptions) : "",
+                LookingGlassNote = Corruption.HasLookingGlassNote(description),
+                DescriptionText = Corruption.StyleLookingGlassNote(description),
             };
             styled.Parts = ItemStatsText.Split(styled.DescriptionText);
             // The game's skin sets the button's tint, which multiplies the face's color (the options' slots came out
@@ -143,6 +145,20 @@ namespace SevenUI
             count.margin = new Vector4(0f, 0f, CountInset, TierStripHeight);
             Stretch(count.rectTransform);
             return count;
+        }
+
+        // A void-colored corner at the slot's top left, shown while a held void item would corrupt the option (I2).
+        public Image AddCorruptMark(RectTransform slot)
+        {
+            RectTransform rect = NewImage("CorruptMark", slot, Palette.CountVoid);
+            rect.anchorMin = rect.anchorMax = new Vector2(0f, 1f);
+            rect.pivot = new Vector2(0f, 1f);
+            rect.anchoredPosition = Vector2.zero;
+            rect.sizeDelta = new Vector2(PickerPanel.CorruptMarkSize, PickerPanel.CorruptMarkSize);
+            Image image = rect.GetComponent<Image>();
+            image.sprite = FlatIcons.Corner;
+            image.enabled = false;
+            return image;
         }
 
         public PixelOutline AddOutline(RectTransform holder) => AddOutline(holder, Palette.Accent, OutlineEdge);

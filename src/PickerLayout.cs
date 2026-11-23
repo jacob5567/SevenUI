@@ -23,6 +23,7 @@ namespace SevenUI
         private float measuredTextWidth;
         private TMP_FontAsset measuredFont;
         private bool measuredFull;
+        private int measuredVersion = -1;
         private float tallestDetails;
 
         public PickerLayout(PickerPanel owner, PickerUi ui, PickerCards cards, PickerGrid pickerGrid, PickerSlots slots)
@@ -42,14 +43,14 @@ namespace SevenUI
             TMP_FontAsset font = slots.DetailsDescription.font;
             bool full = ui.FullDescriptions;
             if (owner.ShownOptions == measuredOptions && buttons.Count == measuredCount && textWidth == measuredTextWidth
-                && font == measuredFont && full == measuredFull)
+                && font == measuredFont && full == measuredFull && owner.DescriptionsVersion == measuredVersion)
             {
                 return tallestDetails;
             }
             float tallest = 0f;
             foreach (PickerButton slot in buttons)
             {
-                float description = slots.DetailsDescription.GetPreferredValues(slot.Parts.Description, textWidth, 0f).y;
+                float description = slots.DetailsDescription.GetPreferredValues(slot.ShownDescription, textWidth, 0f).y;
                 slots.DetailsStats.Set(slot.Parts);
                 tallest = Mathf.Max(tallest, description + slots.DetailsStats.Layout(0f, 0f, textWidth));
             }
@@ -58,6 +59,7 @@ namespace SevenUI
             measuredTextWidth = textWidth;
             measuredFont = font;
             measuredFull = full;
+            measuredVersion = owner.DescriptionsVersion;
             tallestDetails = tallest;
             return tallest;
         }
@@ -151,7 +153,8 @@ namespace SevenUI
                 int detailsIndex = slots.DetailsIndex;
                 ItemStatsText.Parts shown = detailsIndex >= 0 && detailsIndex < count ? buttons[detailsIndex].Parts : new ItemStatsText.Parts();
                 slots.DetailsStats.Set(shown);
-                float shownDescription = slots.DetailsDescription.GetPreferredValues(shown.Description, textWidth, 0f).y;
+                string shownText = detailsIndex >= 0 && detailsIndex < count ? buttons[detailsIndex].ShownDescription : "";
+                float shownDescription = slots.DetailsDescription.GetPreferredValues(shownText, textWidth, 0f).y;
                 TopLeft(slots.DetailsName.rectTransform, PaddingX, y, textWidth, nameHeight);
                 y += nameHeight + NameGap;
                 TopLeft(slots.DetailsDescription.rectTransform, PaddingX, y, textWidth, shownDescription);

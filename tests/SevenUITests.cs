@@ -63,7 +63,7 @@ namespace SevenUI.Tests
             // Changes the run for good, so only when named.
             yield return new Suite("store", true, StoreScenarios.All());
             // Screenshots of the current look for a design doc; they check nothing, so only when named.
-            yield return new Suite("looks", true, LooksScenarios.All());
+            yield return new Suite("looks", true, LooksScenarios.All().Concat(CorruptionLooksScenarios.All()));
             // H11's screenshots of Jacob's other mods with SevenUI; they check nothing, so only when named.
             yield return new Suite("audit", true, AuditScenarios.All());
         }

@@ -50,6 +50,9 @@ namespace SevenUI
         private readonly List<(RectTransform Rect, float Y)> places = new List<(RectTransform, float)>();
         private readonly Dictionary<AllyCardController, AllyCompactCard> looks = new Dictionary<AllyCardController, AllyCompactCard>();
         private readonly Dictionary<AllyCardController, AllyKindParts> shared = new Dictionary<AllyCardController, AllyKindParts>();
+        // Each drone card's name as last written (DroneTier), with what it was built from.
+        private readonly Dictionary<AllyCardController, (CharacterBody Body, int Upgrades, string Text)> tierNames =
+            new Dictionary<AllyCardController, (CharacterBody, int, string)>();
         // Each ally's name as the game shows it, found again when its body or drone tier changes: a hidden card's own
         // label stops updating.
         private readonly AllyNames names = new AllyNames();
@@ -153,6 +156,17 @@ namespace SevenUI
         {
             Canvas.willRenderCanvases -= Place;
             places.Clear();
+            // The game writes a card's name only when its ally changes, so its own name is put back here
+            // (Util.GetBestBodyName only reads).
+            foreach (AllyCardController card in tierNames.Keys)
+            {
+                CharacterBody body = card && card.sourceMaster ? card.sourceMaster.GetBody() : null;
+                if (body && card.nameLabel)
+                {
+                    card.nameLabel.text = Util.GetBestBodyName(body.gameObject);
+                }
+            }
+            tierNames.Clear();
             foreach (KeyValuePair<AllyCardController, AllyKindParts> entry in shared)
             {
                 entry.Value.Remove(entry.Key);
@@ -206,6 +220,10 @@ namespace SevenUI
                 return;
             }
             SortIntoKinds();
+            foreach (AllyCardController card in cards)
+            {
+                ShowTier(card);
+            }
             float room = Room();
             float fullHeight = 0f;
             foreach (Kind kind in kinds)
@@ -415,6 +433,29 @@ namespace SevenUI
             if (container)
             {
                 LayoutRebuilder.MarkLayoutForRebuild(container);
+            }
+        }
+
+        // A drone's name in its tier's color with a tier badge (DroneTier). The game writes the name only when its ally
+        // changes, so it is written again only then, or when the drone's tier changes.
+        private void ShowTier(AllyCardController card)
+        {
+            CharacterMaster master = card.sourceMaster;
+            if (!card.nameLabel || !master || master.playerCharacterMasterController) return;
+            CharacterBody body = master.GetBody();
+            if (!DroneTier.HasTier(body)) return;
+            string gameName = NameOf(master, out int upgrades);
+            if (gameName == null) return;
+            if (!tierNames.TryGetValue(card, out (CharacterBody Body, int Upgrades, string Text) shown) || shown.Body != body ||
+                shown.Upgrades != upgrades)
+            {
+                shown = (body, upgrades, DroneTier.Name(gameName, body.baseNameToken, upgrades));
+                tierNames[card] = shown;
+            }
+            if (card.nameLabel.text != shown.Text)
+            {
+                TierBadge.Attach(card.nameLabel);
+                card.nameLabel.text = shown.Text;
             }
         }
 
@@ -659,10 +700,18 @@ namespace SevenUI
                     goneCards.Add(card);
                 }
             }
+            foreach (AllyCardController card in tierNames.Keys)
+            {
+                if (!card)
+                {
+                    goneCards.Add(card);
+                }
+            }
             foreach (AllyCardController card in goneCards)
             {
                 looks.Remove(card);
                 shared.Remove(card);
+                tierNames.Remove(card);
             }
             goneCards.Clear();
         }

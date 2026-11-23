@@ -7,6 +7,7 @@ using BepInEx.Bootstrap;
 using BepInEx.Configuration;
 using ModTestRunner;
 using RoR2;
+using RoR2.Items;
 using RoR2.UI;
 using TMPro;
 using UnityEngine;
@@ -628,7 +629,7 @@ namespace SevenUI.Tests
             found(picker.panelInstanceController);
         }
 
-        private static void Close(PickupPickerPanel panel)
+        internal static void Close(PickupPickerPanel panel)
         {
             if (!panel) return;
             // The game's tooltip follows the selected button, and reads it after it is destroyed unless deselected.
@@ -642,7 +643,7 @@ namespace SevenUI.Tests
             Object.Destroy(panel.gameObject);
         }
 
-        private static IEnumerator OpenStyled(Harness h, PickupPickerController picker, Action<PickerPanel> found)
+        internal static IEnumerator OpenStyled(Harness h, PickupPickerController picker, Action<PickerPanel> found)
         {
             PickupPickerPanel opened = null;
             yield return Open(h, picker, found => opened = found);
@@ -1038,6 +1039,36 @@ namespace SevenUI.Tests
                       $"for {total} {held.name} held");
             Transform lookingGlassCount = option.Button.transform.Find(PickerPanel.LookingGlassCountName);
             if (lookingGlassCount && lookingGlassCount.gameObject.activeInHierarchy) throw h.Fail("LookingGlass's own count shows too");
+            // I2: the void corner and "Corrupted by <void item>" on an item a held void item would corrupt; no corner and
+            // "Corrupts your <item> x<count>" on a void item that would corrupt held items. The line stays out of the
+            // shown description when LookingGlass's own note says it.
+            string heldName = Language.GetString(held.nameToken);
+            bool corrupted = ContagiousItemManager.GetTransformedItemIndex(offered.itemIndex) == held.itemIndex;
+            // A void option says it in its own void sentence, in place of the game's "Corrupts all Ukuleles".
+            string line = corrupted ? "Corrupted by " + heldName : "Corrupts your " + heldName + " x" + total;
+            yield return h.Until(() => option.CorruptMark && option.CorruptMark.enabled == corrupted &&
+                                       (corrupted ? option.CorruptionLine.Contains(line) && option.ShownDescription.Contains(line) != option.LookingGlassNote
+                                           : option.CorruptionLine.Length == 0 && option.Corrupts == line &&
+                                             option.ShownDescription.Contains("<style=cIsVoid>" + line + "</style>") &&
+                                             !option.ShownDescription.Contains("Corrupts all")),
+                () => $"{offered.name}'s corner {(option.CorruptMark && option.CorruptMark.enabled ? "shown" : "hidden")} and line " +
+                      $"\"{option.CorruptionLine}\" (description \"{option.ShownDescription}\"), not {(corrupted ? "shown" : "hidden")} and \"{line}\"");
+            // Shown where the player reads it: on the card, or in the grid's details once the option is hovered.
+            PointerEventData pointer = new PointerEventData(EventSystem.current);
+            GameObject hovered = option.Button.gameObject;
+            ExecuteEvents.Execute(hovered, pointer, ExecuteEvents.pointerEnterHandler);
+            h.OnCleanup(() =>
+            {
+                if (hovered) ExecuteEvents.Execute(hovered, pointer, ExecuteEvents.pointerExitHandler);
+            });
+            string Shown() => panel.Cards ? (option.Description ? option.Description.text : "") :
+                panel.DetailsDescriptionText ? panel.DetailsDescriptionText.text : "";
+            // With LookingGlass's full descriptions, its own note says it, in the void color, in place of the line.
+            string note = "Has been corrupted by: " + heldName;
+            yield return h.Until(() => option.LookingGlassNote
+                    ? Shown().Contains(note) && Shown().Contains(ColorUtility.ToHtmlStringRGB(Palette.CountVoid)) && !Shown().Contains(line + "</color>")
+                    : Shown().Contains(line),
+                () => $"{offered.name}'s shown description \"{Shown()}\" without \"{(option.LookingGlassNote ? note : line)}\"");
             yield return h.Wait(SettleSeconds);
             yield return h.Screenshot("corruption_" + offered.name);
         }
