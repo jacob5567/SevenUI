@@ -153,6 +153,7 @@ namespace SevenUI
             strip && summaries.TryGetValue(strip, out ScoreboardAlliesSummary summary) ? summary : null;
         public int TileCount => tileCount;
         public string TileText(int index) => tiles[index].Label.text;
+        public TMP_Text TileLabel(int index) => tiles[index].Label;
         public string HeaderText => headerLabel ? headerLabel.text : "";
         public float SegmentFill(int tile, int segment) => tiles[tile].Fills[segment].anchorMax.x;
         public TooltipProvider TileTooltip(int index) => tiles[index].Tooltip;
@@ -490,6 +491,7 @@ namespace SevenUI
                 if (!shown) continue;
                 Kind kind = allies.Kinds[i];
                 tile.Portrait.texture = kind.Portrait;
+                TierBadge.Attach(tile.Label);
                 tile.Label.text = ShownName(kind) + " <color=#" + ColorUtility.ToHtmlStringRGB(Palette.Accent) + ">" + Times +
                                   kind.Members.Count + "</color>";
                 Segments(tile, kind.Members.Count > MaxSegments ? 1 : kind.Members.Count);

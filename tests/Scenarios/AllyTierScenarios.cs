@@ -5,6 +5,7 @@ using ModTestRunner;
 using RoR2;
 using RoR2.UI;
 using TMPro;
+using UnityEngine;
 using UnityEngine.UI;
 
 namespace SevenUI.Tests
@@ -45,6 +46,8 @@ namespace SevenUI.Tests
             string baseName = Language.GetString(drones[0].GetBody().baseNameToken);
             string problem = null;
             yield return h.Until(() => (problem = TagProblem(h, drones, baseName)) == null, () => $"{problem} {h.Diagnosis()}");
+            yield return h.Until(() => (problem = drones.Skip(1).Select(master => BadgeProblem(CardOf(h, master).nameLabel))
+                                           .FirstOrDefault(found => found != null)) == null, () => $"on an ally card, {problem}");
             yield return h.Screenshot("tiers");
 
             yield return ScoreboardSetUp.Open(h);
@@ -57,10 +60,13 @@ namespace SevenUI.Tests
             yield return h.Until(() =>
                 {
                     tiles = string.Join(" | ", Enumerable.Range(0, board.Allies.TileCount).Select(board.Allies.TileText));
-                    return board.Allies.TileCount >= 4 && Enumerable.Range(2, 3).All(tier => tiles.Contains("T" + tier + DroneTier.BadgePad)) &&
+                    return board.Allies.TileCount >= 4 && Enumerable.Range(2, 3).All(tier => tiles.Contains(DroneTier.Tag(tier) + "</link>")) &&
                            !tiles.Contains("T1") && !tiles.Contains("(Tier");
                 },
                 () => $"the scoreboard's ally tiles read \"{tiles}\", not a badge per tier 2 to 4 and none on tier 1 {h.Diagnosis()}");
+            yield return h.Until(() => (problem = Enumerable.Range(0, board.Allies.TileCount)
+                    .Select(board.Allies.TileLabel).Where(label => DroneTier.HasBadge(label.text)).Select(BadgeProblem)
+                    .FirstOrDefault(found => found != null)) == null, () => $"on a scoreboard tile, {problem}");
             yield return h.Screenshot("tiles");
             HUD.SetScoreboardActive(LocalUserManager.GetFirstLocalUser(), false, EScoreboardDeactivateReturnContext.Game);
 
@@ -99,6 +105,53 @@ namespace SevenUI.Tests
                                        !tile.Contains("<mark") && !tile.Contains("T1"),
                 () => $"the turret's tile reads \"{tile}\", not the plain \"{gameName}\" and its count {h.Diagnosis()}");
             HUD.SetScoreboardActive(LocalUserManager.GetFirstLocalUser(), false, EScoreboardDeactivateReturnContext.Game);
+        }
+
+        // Design B: the badge's outline and fill, drawn before the label so under its text, centered on the tag's letters
+        // both ways to within a screen pixel, and reaching past them on every side.
+        private const float CenterTolerance = 1.01f;
+
+        private static string BadgeProblem(TMP_Text label)
+        {
+            if (!label) return "no label";
+            Transform parent = label.transform.parent;
+            Image outline = parent.Find(TierBadge.OutlineName)?.GetComponent<Image>();
+            Image fill = parent.Find(TierBadge.FillName)?.GetComponent<Image>();
+            if (!outline || !fill || !outline.enabled || !fill.enabled) return $"\"{label.text}\" has no badge drawn";
+            int index = label.transform.GetSiblingIndex();
+            if (outline.transform.GetSiblingIndex() >= index || fill.transform.GetSiblingIndex() >= index ||
+                fill.transform.GetSiblingIndex() < outline.transform.GetSiblingIndex())
+                return $"\"{label.text}\"'s badge draws over its text";
+            TMP_TextInfo info = label.textInfo;
+            TMP_LinkInfo link = info.linkInfo.Take(info.linkCount).FirstOrDefault(found => DroneTier.IsBadgeLink(found.GetLinkID(), out _));
+            if (link.linkTextLength == 0) return $"\"{label.text}\" has no tag in its layout";
+            TMP_CharacterInfo first = info.characterInfo[link.linkTextfirstCharacterIndex];
+            TMP_CharacterInfo last = info.characterInfo[link.linkTextfirstCharacterIndex + link.linkTextLength - 1];
+            Vector2 letters = Screen(label.transform, (first.bottomLeft + last.topRight) / 2f);
+            Rect box = ScreenRect(outline.rectTransform);
+            Vector2 offset = box.center - letters;
+            if (Mathf.Abs(offset.x) > CenterTolerance || Mathf.Abs(offset.y) > CenterTolerance)
+                return $"\"{label.text}\"'s badge is {offset} screen pixels off its letters' middle";
+            Rect inner = ScreenRect(fill.rectTransform);
+            if (!box.Contains(inner.min) || !box.Contains(inner.max) || inner.width >= box.width)
+                return $"\"{label.text}\"'s badge fill {inner} isn't inside its outline {box}";
+            Vector2 left = Screen(label.transform, new Vector3(first.origin, first.baseLine));
+            Vector2 right = Screen(label.transform, new Vector3(last.xAdvance, last.baseLine));
+            if (box.xMin >= left.x || box.xMax <= right.x || box.yMin >= left.y)
+                return $"\"{label.text}\"'s badge {box} doesn't reach past its letters ({left} to {right})";
+            return null;
+        }
+
+        private static Vector2 Screen(Transform transform, Vector3 local) =>
+            RectTransformUtility.WorldToScreenPoint(null, transform.TransformPoint(local));
+
+        private static Rect ScreenRect(RectTransform rect)
+        {
+            Vector3[] corners = new Vector3[4];
+            rect.GetWorldCorners(corners);
+            Vector2 min = RectTransformUtility.WorldToScreenPoint(null, corners[0]);
+            Vector2 max = RectTransformUtility.WorldToScreenPoint(null, corners[2]);
+            return Rect.MinMaxRect(min.x, min.y, max.x, max.y);
         }
 
         private static AllyCardController CardOf(Harness h, CharacterMaster master) =>

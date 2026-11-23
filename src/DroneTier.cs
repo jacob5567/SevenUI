@@ -3,19 +3,19 @@ using UnityEngine;
 
 namespace SevenUI
 {
-    // A drone's name as SevenUI shows it, rising in color like item tiers: the base name in the tier's color, then, from tier 2, the
-    // tier as a short tag ("T2") on a badge tinted with that color, in place of the game's "(Tier 2)" suffix. Tier 1 is
-    // white, 2 green, 3 red, 4 and up yellow, in SevenUI's item tier shades (I1, Jacob's picks, 2026-11-22). Allies that
-    // aren't drones keep their plain name.
+    // A drone's name as SevenUI shows it, rising in color like item tiers: the base name in the tier's color, then, from
+    // tier 2, the tier as a short tag ("T2") on a rounded badge in a dark shade of that color (TierBadge), in place of the
+    // game's "(Tier 2)" suffix. Tier 1 is white, 2 green, 3 red, 4 and up yellow, in SevenUI's item tier shades (I1,
+    // Jacob's picks, 2026-11-22). Allies that aren't drones keep their plain name.
     internal static class DroneTier
     {
         private const string TierSuffixToken = "DRONE_TIER_SUFFIX";
-        // The badge's tint: the tier's color at this opacity behind the tag.
-        private const string BadgeAlpha = "40";
-        // Space either side of the tag, so the badge reaches a little past it (the font has no thin space), and the tag
-        // a little smaller than the name.
-        public const string BadgePad = "<space=0.2em>";
-        private const string BadgeSize = "85%";
+        // The link that marks the tag for TierBadge, which draws the badge behind it, with the tier's color in its ID.
+        private const string BadgeLinkPrefix = "SevenUITier:";
+        // The tag a little smaller than the name, with room either side for the badge TierBadge draws around it.
+        private const string BadgeSize = "72%";
+        private static readonly string BadgeRoom =
+            "<space=" + (TierBadge.PadXEm + TierBadge.BorderEm).ToString(System.Globalization.CultureInfo.InvariantCulture) + "em>";
 
         // The drone's tier: one more than its upgrades (DroneUpgradeHidden), as DroneCombinerController counts it.
         public static int Of(int upgrades) => upgrades + 1;
@@ -46,14 +46,29 @@ namespace SevenUI
             return gameName ?? "";
         }
 
-        // The tier's tag on its tinted badge, as rich text; none for tier 1, which is the plain drone.
+        // The tier's tag ("T2") as rich text, in the tier's color and marked for TierBadge to draw its badge behind; none
+        // for tier 1, which is the plain drone. A label showing it needs TierBadge.Attach.
         public static string Badge(int upgrades)
         {
             int tier = Of(upgrades);
             if (tier <= 1) return "";
             string hex = ColorUtility.ToHtmlStringRGB(ColorOf(tier));
-            return "<mark=#" + hex + BadgeAlpha + "><size=" + BadgeSize + "><color=#" + hex + "><b>" + BadgePad + "T" + tier + BadgePad +
-                   "</b></color></size></mark>";
+            return "<size=" + BadgeSize + ">" + BadgeRoom + "<color=#" + hex + "><b><link=\"" + BadgeLinkPrefix + hex + "\">" + Tag(tier) +
+                   "</link></b></color>" + BadgeRoom + "</size>";
+        }
+
+        // The tag itself, as Badge shows it.
+        public static string Tag(int tier) => "T" + tier;
+
+        // Whether a text holds a badge.
+        public static bool HasBadge(string text) => text != null && text.Contains(BadgeLinkPrefix);
+
+        // Whether a link in a label is a badge's, and the tier color it carries.
+        public static bool IsBadgeLink(string id, out Color color)
+        {
+            color = Color.clear;
+            return id != null && id.StartsWith(BadgeLinkPrefix) &&
+                   ColorUtility.TryParseHtmlString("#" + id.Substring(BadgeLinkPrefix.Length), out color);
         }
 
         // The base name in the tier's color, then the badge (none at tier 1).

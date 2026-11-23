@@ -454,6 +454,7 @@ namespace SevenUI
             }
             if (card.nameLabel.text != shown.Text)
             {
+                TierBadge.Attach(card.nameLabel);
                 card.nameLabel.text = shown.Text;
             }
         }
