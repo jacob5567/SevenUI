@@ -43,6 +43,7 @@ namespace SevenUI.Tests
             yield return new Scenario(1, "looks_corruption_pickers", Stages.TitanicPlains, Pickers);
             yield return new Scenario(1, "looks_corruption_inspect", Stages.TitanicPlains, InspectPanel);
             yield return new Scenario(1, "looks_corruption_notification", Stages.TitanicPlains, Notification);
+            yield return new Scenario(1, "looks_corruption_scoreboard", Stages.TitanicPlains, Scoreboard);
         }
 
         // Each LookingGlass combination (its picker tooltips and its full descriptions, on and off), each picker layout
@@ -164,6 +165,71 @@ namespace SevenUI.Tests
                 yield return h.Until(() => !shown, "the notification fading", NotificationTimeout);
             }
         }
+
+        // A held item pointed at on the scoreboard (described in the docked pane, or in a tooltip with the pane off) and
+        // in the item bar: Polylute alone and Ukuleles alone (a player can't hold both; the game corrupts the Ukuleles),
+        // with LookingGlass's full descriptions on and off.
+        private static IEnumerator Scoreboard(Harness h)
+        {
+            if (!DLC1Content.Items.ChainLightningVoid) throw h.Skip("Polylute needs Survivors of the Void");
+            ConfigEntry<bool> full = LookingGlassSetting(LookingGlassMisc, LookingGlassFull);
+            Inventory inventory = Harness.LocalBody.master.inventory;
+            HUD hud = SevenUIChecks.HudRoot(h).GetComponent<HUD>();
+            yield return ScoreboardSetUp.Open(h);
+            // Off first: LookingGlass writes its full description onto an icon's tooltip and leaves it there when the
+            // setting is turned off, so an icon reused for another item would keep the old item's text.
+            foreach (bool desc in full != null ? new[] { false, true } : new[] { false })
+            {
+                if (full != null) h.SetConfig(full, desc);
+                string lookingGlass = $"LookingGlass full descriptions {(full == null ? "absent" : desc ? "on" : "off")}";
+                foreach (Held held in new[] { Held.Polylute, Held.Ukuleles })
+                {
+                    Hold(h, inventory, held);
+                    ItemDef item = held == Held.Polylute ? DLC1Content.Items.ChainLightningVoid : RoR2Content.Items.ChainLightning;
+                    yield return h.Wait(SettleSeconds * 2f);
+                    foreach (bool pane in new[] { true, false })
+                    {
+                        h.SetConfig(SevenUIPlugin.Settings.ScoreboardDetailPanel, pane);
+                        yield return h.Wait(SettleSeconds);
+                        ItemIcon onBoard = SevenUIChecks.HudRoot(h).GetComponentsInChildren<ScoreboardRow>()
+                            .Where(row => row.Strip && row.Strip.master == Harness.LocalBody.master)
+                            .SelectMany(row => row.Strip.itemInventoryDisplay.GetComponentsInChildren<ItemIcon>())
+                            .FirstOrDefault(icon => icon.itemIndex == item.itemIndex);
+                        if (!onBoard) throw h.Fail($"no {item.name} in the viewer's scoreboard row");
+                        PointerEventData pointer = null;
+                        MPEventSystem events = ScoreboardScenarios.PointAt(h, onBoard.rectTransform, item.name + " on the scoreboard",
+                            made => pointer = made);
+                        yield return h.Wait(SettleSeconds * 2f);
+                        string shown = pane ? Texts(SevenUIChecks.HudRoot(h).GetComponentsInChildren<Transform>()
+                                .FirstOrDefault(found => found.name == ScoreboardDetailPane.PaneName))
+                            : Texts(events && events.currentTooltip ? events.currentTooltip.transform : null);
+                        Report(h, $"scoreboard {(pane ? "pane" : "tooltip")}, {lookingGlass}, holding {Holding(held)}, " +
+                                  Language.GetString(item.nameToken), shown, "");
+                        yield return h.Screenshot($"board_{(pane ? "pane" : "tooltip")}_{(desc ? "full" : "short")}_{held}");
+                        ExecuteEvents.ExecuteHierarchy(onBoard.gameObject, pointer, ExecuteEvents.pointerExitHandler);
+                    }
+
+                    ItemIcon inBar = hud.itemInventoryDisplay.GetComponentsInChildren<ItemIcon>()
+                        .FirstOrDefault(icon => icon.itemIndex == item.itemIndex);
+                    if (!inBar) throw h.Fail($"no {item.name} in the item bar");
+                    PointerEventData barPointer = null;
+                    MPEventSystem barEvents = ScoreboardScenarios.PointAt(h, inBar.rectTransform, item.name + " in the item bar",
+                        made => barPointer = made);
+                    yield return h.Until(() => barEvents.currentTooltip, "the item bar's tooltip");
+                    yield return h.Wait(SettleSeconds);
+                    Report(h, $"item bar tooltip, {lookingGlass}, holding {Holding(held)}, {Language.GetString(item.nameToken)}",
+                        Texts(barEvents.currentTooltip.transform), "");
+                    yield return h.Screenshot($"bar_tooltip_{(desc ? "full" : "short")}_{held}");
+                    ExecuteEvents.ExecuteHierarchy(inBar.gameObject, barPointer, ExecuteEvents.pointerExitHandler);
+                    yield return h.Wait(SettleSeconds);
+                }
+            }
+        }
+
+        private static string Texts(Transform root) => root
+            ? string.Join(" | ", root.GetComponentsInChildren<TMP_Text>().Where(text => text.isActiveAndEnabled && text.text.Length > 0)
+                .Select(text => text.text))
+            : "";
 
         private static void Report(Harness h, string where, string text, string extra)
         {
