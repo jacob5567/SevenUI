@@ -25,9 +25,12 @@ namespace SevenUI
         private bool measuredFull;
         private int measuredVersion = -1;
         private float tallestDetails;
+        private readonly PickerExchange exchange;
 
-        public PickerLayout(PickerPanel owner, PickerUi ui, PickerCards cards, PickerGrid pickerGrid, PickerSlots slots)
+        public PickerLayout(PickerPanel owner, PickerUi ui, PickerCards cards, PickerGrid pickerGrid, PickerSlots slots,
+            PickerExchange exchange)
         {
+            this.exchange = exchange;
             this.owner = owner;
             this.ui = ui;
             this.cards = cards;
@@ -131,7 +134,8 @@ namespace SevenUI
                 int rows = (count + columns - 1) / columns;
                 float gridWidth = columns * SlotSize + (columns - 1) * SlotGap;
                 float gridHeight = rows * SlotSize + (rows - 1) * SlotGap;
-                float width = Mathf.Max(MinPanelWidth, gridWidth + 2f * PaddingX);
+                // A scrapper's panel is as wide as its exchange strip needs for its widest option.
+                float width = Mathf.Max(Mathf.Max(source.MinWidth, gridWidth + 2f * PaddingX), exchange.NeededWidth());
                 float textWidth = width - 2f * PaddingX;
                 slots.Strip.sizeDelta = new Vector2(0f, StripHeight);
                 if (title)
@@ -146,7 +150,9 @@ namespace SevenUI
                 y += shownHeight + PartGap;
                 TopLeft(slots.Divider, PaddingX, y, textWidth, HudUnits.DividerHeight);
                 y += HudUnits.DividerHeight + DetailsGap;
-                float nameHeight = slots.DetailsName.GetPreferredValues("A").y;
+                // A scrapper's option names itself in the exchange strip instead.
+                bool trades = exchange.Strip;
+                float nameHeight = trades ? -NameGap : slots.DetailsName.GetPreferredValues("A").y;
                 // The panel fits the hovered item's details. Its top stays where it would be for the tallest item's,
                 // centered on the screen, so the grid keeps its place and only the bottom moves as the item changes.
                 float detailsHeight = TallestDetails(textWidth);
@@ -159,12 +165,19 @@ namespace SevenUI
                 y += nameHeight + NameGap;
                 TopLeft(slots.DetailsDescription.rectTransform, PaddingX, y, textWidth, shownDescription);
                 float shownStats = slots.DetailsStats.Layout(PaddingX, y + shownDescription, textWidth);
-                // Parts of the game's the panel keeps (the drone scrapper's icon and scrap arrow) under the details.
-                float extrasTop = y + shownDescription + shownStats + PartGap;
-                float extras = source.PlaceExtras(PaddingX, extrasTop, textWidth);
-                float extrasHeight = extras > 0f ? PartGap + extras : 0f;
-                size = new Vector2(width, y + shownDescription + shownStats + extrasHeight + PaddingBottom);
-                top = (y + detailsHeight + extrasHeight + PaddingBottom) / 2f;
+                // A scrapper's exchange strip across the bottom, edge to edge, ending the panel.
+                float detailsBottom = y + shownDescription + shownStats;
+                if (trades)
+                {
+                    exchange.Place(detailsBottom + PartGap, width);
+                    size = new Vector2(width, detailsBottom + PartGap + PickerExchange.Height);
+                    top = (y + detailsHeight + PartGap + PickerExchange.Height) / 2f;
+                }
+                else
+                {
+                    size = new Vector2(width, detailsBottom + PaddingBottom);
+                    top = (y + detailsHeight + PaddingBottom) / 2f;
+                }
             }
             SetPanel(mainPanel, size, top);
         }

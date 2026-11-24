@@ -9,6 +9,19 @@ namespace SevenUI
     // The game's panel behind a PickerPanel, as the pieces the restyle reads: where its buttons and grid are, what its
     // options are, and what each one shows. The item pickers and the drone scrapper are separate classes in the game
     // with the same parts.
+    // What a scrapper gives for an option: the scrap and how many, and what the strip says of the option given up.
+    internal sealed class Exchange
+    {
+        public PickupDef Scrap;
+        public int ScrapCount = 1;
+        // The item scrapped, or none for a drone, and how many of the option's kind of it (permanent, temporary or
+        // rented) the player holds.
+        public ItemIndex Item = ItemIndex.None;
+        public int Held;
+        public int DroneUpgrades;
+        public bool CarryingItems;
+    }
+
     internal abstract class PickerSource
     {
         public abstract Component Component { get; }
@@ -37,6 +50,19 @@ namespace SevenUI
         // The tallest the buttons' scroll view shows before the rest scrolls.
         public virtual float MaxContentHeight => float.MaxValue;
 
+        // The most columns the grid shows, fewer than the game's (the item scrapper's one long row), or 0 for the game's.
+        public virtual int ColumnCap => 0;
+
+        // The narrowest the panel is in grid mode.
+        public virtual float MinWidth => PickerPanel.MinPanelWidth;
+
+        // Whether the panel trades each option for something (the scrappers), shown in an exchange strip across its
+        // bottom (PickerExchange) in place of the option's name in the details.
+        public virtual bool Exchanges => false;
+
+        // What picking the option gives, for a panel that Exchanges; null when it can't be told.
+        public virtual Exchange ExchangeOf(int index) => null;
+
         // The part of the content holding the buttons, which stays when the rest is hidden, and goes with no options.
         public virtual Transform ContentRoot => ButtonContainer;
 
@@ -58,10 +84,6 @@ namespace SevenUI
             ButtonContainer.anchoredPosition = new Vector2(x, -y);
             ButtonContainer.sizeDelta = new Vector2(width, height);
         }
-
-        // Puts game parts the panel keeps under the details (the drone scrapper's icon and scrap arrow) at this place and
-        // width; returns their height, or 0 for none.
-        public virtual float PlaceExtras(float x, float y, float width) => 0f;
 
         // Hides the game's own selection and hover graphics on a slot's button.
         public virtual void HideSelection(MPButton button)

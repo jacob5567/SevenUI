@@ -40,6 +40,9 @@ namespace SevenUI.Tests
         // inventory's worth for the ones that offer the player's own items.
         private const int FewOptions = 3;
         private const int InventoryOptions = 12;
+        // Enough of the item scrapper's options for more rows than its scroll view shows.
+        private const int ScrollingOptions = 40;
+        private const float ScrollTolerance = 0.02f;
         // LookingGlass's setting for full item descriptions in the HUD, which the descriptions follow.
         private const string LookingGlassGUID = "droppod.lookingglass";
         private const string FullDescriptionSection = "Misc";
@@ -109,12 +112,18 @@ namespace SevenUI.Tests
             {
                 yield return new Scenario(1, "picker_panel_" + name, Stages.TitanicPlains, h => OtherPanel(h, name, key));
             }
+            string scrapper = GameNames.PickerPanels.First(entry => entry.Name == "scrapper").Key;
+            yield return new Scenario(1, "picker_scrapper_scrolls", Stages.TitanicPlains, h => OtherPanel(h, "scrapper", scrapper, ScrollingOptions, ScrollStays));
             yield return new Scenario(1, "picker_stats_one_less_lemurian_egg", Stages.TitanicPlains,
                 h => StatsByPanel(h, "lemurian_egg", StackChange.Lose));
             yield return new Scenario(1, "picker_stats_one_more_fragment_potential", Stages.TitanicPlains,
                 h => StatsByPanel(h, "fragment_potential", StackChange.Gain));
             yield return new Scenario(1, "picker_stats_as_held_delusion", Stages.TitanicPlains,
                 h => StatsByPanel(h, "delusion", StackChange.None));
+            // The scrapper takes every stack of the item (up to its cap), so its stats are the stack as held.
+            yield return new Scenario(1, "picker_stats_as_held_scrapper", Stages.TitanicPlains,
+                h => StatsByPanel(h, "scrapper", StackChange.None));
+            yield return new Scenario(1, "picker_scrapper_takes_stacks", Stages.TitanicPlains, ScrapperTakesStacks);
             yield return new Scenario(1, "item_counts_with_temporary_and_ethereal", Stages.TitanicPlains, CountsWithTemporaryAndEthereal);
             yield return new Scenario(1, "picker_count_hidden_on_locked_options", Stages.TitanicPlains, CountHiddenOnLockedOptions);
             yield return new Scenario(1, "picker_count_corrupted_by_void", Stages.TitanicPlains,
@@ -436,7 +445,8 @@ namespace SevenUI.Tests
 
         // Another of the game's panels, opened by a Command cube given it and items like the ones it offers. A panel
         // the mod restyles is checked as Command's are; one it leaves to the game must have none of its parts.
-        private static IEnumerator OtherPanel(Harness h, string name, string key)
+        private static IEnumerator OtherPanel(Harness h, string name, string key, int countOverride = 0,
+            Func<Harness, PickerPanel, IEnumerator> then = null)
         {
             GameObject prefab;
             try
@@ -452,6 +462,10 @@ namespace SevenUI.Tests
             if (!prefabPanel) throw h.Skip($"{key} is not a pick-an-item panel");
 
             (int count, ItemTier tier) = PanelOptions.TryGetValue(name, out (int, ItemTier) options) ? options : (FewOptions, ItemTier.Tier1);
+            if (countOverride > 0)
+            {
+                count = countOverride;
+            }
             PickupPickerController.Option[] items = ItemCatalog.allItemDefs
                 .Where(item => item.tier == tier && !item.hidden && !item.ContainsTag(ItemTag.WorldUnique))
                 .Select(item => PickupCatalog.FindPickupIndex(item.itemIndex))
@@ -482,6 +496,10 @@ namespace SevenUI.Tests
             if (panel != null)
             {
                 yield return CheckStyled(h, picker, panel);
+                if (then != null)
+                {
+                    yield return then(h, panel);
+                }
                 yield break;
             }
 
@@ -495,12 +513,45 @@ namespace SevenUI.Tests
             yield return h.Screenshot("game");
         }
 
+        // Scrolled to the bottom, the grid stays there as the panel is laid out again for a newly hovered option; laying
+        // it out put the grid back at the top, so the mouse wheel couldn't scroll it and a gamepad's moves flickered.
+        private static IEnumerator ScrollStays(Harness h, PickerPanel styled)
+        {
+            // CaptureLooks put the game's look back and restyled the panel, which made it a new PickerPanel.
+            PickerPanel panel = OpenPanel(styled.Panel);
+            if (panel == null || !panel.Styled || panel.Buttons.Count == 0) throw h.Fail("the scrapper isn't styled again after its screenshots");
+            ScrollRect scroll = panel.Component.GetComponentInChildren<ScrollRect>(true);
+            if (!scroll) throw h.Fail("the scrapper has no scroll view");
+            scroll.verticalNormalizedPosition = 0f;
+            yield return h.Wait(SettleSeconds);
+            if (scroll.verticalNormalizedPosition > ScrollTolerance) throw h.Fail($"the grid didn't scroll to the bottom ({scroll.verticalNormalizedPosition:0.##})");
+            MPEventSystem events = EventSystem.current as MPEventSystem;
+            if (!events) throw h.Fail("there is no event system to send the pointer's events with");
+            GameObject option = panel.Buttons[panel.Buttons.Count - 1].Button.gameObject;
+            PointerEventData pointer = new PointerEventData(events);
+            ExecuteEvents.Execute(option, pointer, ExecuteEvents.pointerEnterHandler);
+            h.OnCleanup(() =>
+            {
+                if (option)
+                {
+                    ExecuteEvents.Execute(option, pointer, ExecuteEvents.pointerExitHandler);
+                }
+            });
+            panel.Layout();
+            yield return h.Wait(SettleSeconds);
+            if (scroll.verticalNormalizedPosition > ScrollTolerance)
+                throw h.Fail($"laying the panel out again scrolled the grid back up ({scroll.verticalNormalizedPosition:0.##} of the way from the bottom)");
+            yield return h.Screenshot("scrolled");
+            ExecuteEvents.Execute(option, pointer, ExecuteEvents.pointerExitHandler);
+        }
+
         // As cards or a grid by how many options there are, laid out as the canvas's, with the details under a grid
         // showing its first item or the one under the pointer, in both looks.
         private static IEnumerator CheckStyled(Harness h, PickupPickerController picker, PickerPanel panel)
         {
             int count = picker.options.Length;
-            bool cards = count <= PickerPanel.CardLimit;
+            // The scrappers are a grid whatever their number of options.
+            bool cards = count <= PickerPanel.CardLimit && !panel.Source.AlwaysGrid;
             if (panel.Cards != cards) throw h.Fail($"{count} options are {(panel.Cards ? "cards" : "a grid")}");
             if (cards)
             {
@@ -510,6 +561,11 @@ namespace SevenUI.Tests
             {
                 yield return h.Until(() => GridAsCanvas(panel) == null, () => GridAsCanvas(panel));
                 yield return h.Until(() => DetailsShowResting(panel), () => $"the details show {DetailsLook(panel)}, not the first or hovered item");
+                if (panel.Source.Exchanges)
+                {
+                    // J2: the item scrapper trades each item for scrap in the exchange strip.
+                    yield return h.Until(() => ExchangeChecks.Problem(panel) == null, () => ExchangeChecks.Problem(panel));
+                }
             }
             yield return h.Wait(SettleSeconds);
             string shown = ShownAsStyled(panel);
@@ -555,14 +611,14 @@ namespace SevenUI.Tests
             string others = string.Join(", ", Object.FindObjectsOfType<PickupPickerPanel>()
                 .Where(other => other != panel.Panel && other.isActiveAndEnabled).Select(other => other.name));
             if (others.Length > 0) return $"other picker panels are open beside the restyled one: {others}";
-            Transform shownCancel = panel.Panel.buttonContainer.parent.Find(CancelName);
+            Transform shownCancel = panel.Source.Juice.Find(CancelName);
             if (shownCancel && shownCancel.gameObject.activeInHierarchy && panel.Cancel == null)
             {
                 return "the cancel button is showing in the game's look";
             }
-            Transform juice = panel.Panel.buttonContainer.parent;
+            Transform juice = panel.Source.Juice;
             string art = string.Join(", ", juice.Cast<Transform>()
-                .Where(child => child.gameObject.activeSelf && child != panel.Panel.buttonContainer && !child.name.StartsWith(SevenUIPrefix) &&
+                .Where(child => child.gameObject.activeSelf && child != panel.Source.ContentRoot && !child.name.StartsWith(SevenUIPrefix) &&
                                 !KeptParts.Contains(child.name))
                 .Select(child => child.name));
             return art.Length > 0 ? $"the game's art is showing again: {art}" : null;
@@ -751,8 +807,11 @@ namespace SevenUI.Tests
             if (!panel.Alive) return "the panel closed";
             if (!panel.MainPanel.Find("Juice/" + PickerPanel.BackdropName)) return "the panel has no backdrop";
             GridLayoutGroup grid = panel.Panel.gridlayoutGroup;
-            if (grid.constraintCount != panel.Panel.maxColumnCount)
-                return $"the grid's count is {grid.constraintCount}, not the game's {panel.Panel.maxColumnCount}";
+            // The game's columns, or fewer where the mod caps them (the item scrapper's, at six).
+            int cap = panel.Source.ColumnCap;
+            int wantColumns = cap > 0 ? Mathf.Min(panel.Panel.maxColumnCount, cap) : panel.Panel.maxColumnCount;
+            if (grid.constraintCount != wantColumns)
+                return $"the grid's count is {grid.constraintCount}, not {wantColumns} (the game's {panel.Panel.maxColumnCount}, cap {cap})";
             float firstRow = ((RectTransform)panel.Buttons[0].Button.transform).anchoredPosition.y;
             int columns = panel.Buttons.TakeWhile(option =>
                 Mathf.Abs(((RectTransform)option.Button.transform).anchoredPosition.y - firstRow) <= SizeTolerance).Count();
@@ -770,7 +829,8 @@ namespace SevenUI.Tests
                     return $"slot {i} reaches {-low.y:0.#} down, past the grid's {area.height:0.#}";
                 if (Mathf.Abs(rect.rect.width - PickerPanel.SlotSize) > SizeTolerance ||
                     Mathf.Abs(rect.rect.height - PickerPanel.SlotSize) > SizeTolerance)
-                    return $"slot {i} is {rect.rect.size}, not {PickerPanel.SlotSize:0.#} square";
+                    return $"slot {i} is {rect.rect.size}, not {PickerPanel.SlotSize:0.#} square (grid cell {grid.cellSize}, " +
+                           $"{grid.constraint} {grid.constraintCount}, {panel.Columns} columns, grid on {grid.enabled}, panel {panel.MainPanel.rect.size})";
                 Image frame = panel.Buttons[i].Button.image;
                 if (frame && frame.sprite) return $"slot {i} still has the game's frame {frame.sprite.name}";
                 // Its face draws in the item bar's slot grey: the button's tint, which multiplies it, is neutral.
@@ -877,6 +937,59 @@ namespace SevenUI.Tests
                 throw h.Fail($"LookingGlass's count \"{lookingGlassCount.GetComponent<TMP_Text>()?.text}\" shows beside the slot's");
             yield return h.Wait(SettleSeconds);
             yield return h.Screenshot("stats_" + name);
+        }
+
+        // One pick at the scrapper takes every stack of the item up to the scrapper's cap (ScrapperController
+        // .maxItemsToScrapAtATime, 10), one scrap each: the strip says how many of the held stack it takes and gives that
+        // much scrap. 12 held takes 10; 3 held takes all 3.
+        private static IEnumerator ScrapperTakesStacks(Harness h)
+        {
+            const int Cap = 10;
+            (ItemDef Item, int Held)[] held = { (RoR2Content.Items.Syringe, 12), (RoR2Content.Items.Bear, 3) };
+            Inventory inventory = Harness.LocalBody.master.inventory;
+            foreach ((ItemDef item, int count) in held)
+            {
+                int before = inventory.GetItemCountPermanent(item);
+                for (int i = before; i < count; i++)
+                {
+                    inventory.GiveItemPermanent(item);
+                }
+                h.OnCleanup(() =>
+                {
+                    while (inventory && inventory.GetItemCountPermanent(item) > before) inventory.RemoveItemPermanent(item);
+                });
+                if (inventory.GetItemCountPermanent(item) != count) throw h.Fail($"holding {inventory.GetItemCountPermanent(item)} {item.name}, not {count}");
+            }
+            string key = GameNames.PickerPanels.First(entry => entry.Name == "scrapper").Key;
+            GameObject prefab = Addressables.LoadAssetAsync<GameObject>(key).WaitForCompletion();
+            if (!prefab || !prefab.GetComponent<PickupPickerPanel>()) throw h.Skip($"{key} is not a pick-an-item panel");
+            yield return GoHome(h);
+            PickupPickerController picker = h.SpawnPrefab<PickupPickerController>(GameNames.CommandCube);
+            picker.panelPrefab = prefab;
+            picker.SetOptionsServer(held.Select(entry => new PickupPickerController.Option
+            {
+                pickup = new UniquePickup(PickupCatalog.FindPickupIndex(entry.Item.itemIndex)), available = true,
+            }).ToArray());
+            PickupPickerPanel opened = null;
+            yield return Open(h, picker, found => opened = found, true);
+            PickerPanel panel = null;
+            yield return h.Until(() => (panel = OpenPanel(opened)) != null && panel.Styled && panel.Buttons.Count == held.Length,
+                "the scrapper styled with its two options", OpenTimeout);
+            for (int i = 0; i < held.Length; i++)
+            {
+                Exchange exchange = panel.Source.ExchangeOf(i);
+                int taken = Mathf.Min(Cap, held[i].Held);
+                if (exchange == null || exchange.Held != held[i].Held || exchange.ScrapCount != taken)
+                    throw h.Fail($"scrapping {held[i].Held} {held[i].Item.name} gives x{exchange?.ScrapCount} of {exchange?.Held} held, not x{taken} of {held[i].Held}");
+            }
+            yield return h.Until(() => ExchangeChecks.Problem(panel) == null, () => ExchangeChecks.Problem(panel));
+            int shown = panel.DetailsIndex;
+            string sub = $"Scraps {Mathf.Min(Cap, held[shown].Held)} of your {held[shown].Held}";
+            if (panel.Exchange.SubText.text != sub) throw h.Fail($"the strip says \"{panel.Exchange.SubText.text}\", not \"{sub}\"");
+            string caption = panel.Buttons[shown].Parts.Caption;
+            if (!string.IsNullOrEmpty(caption)) throw h.Fail($"the scrapper's stats have the caption \"{caption}\"; it takes the whole stack");
+            yield return h.Wait(SettleSeconds);
+            yield return h.Screenshot("takes_stacks");
         }
 
         // Two permanent, a temporary and an Ethereal (rented) stack of one item, a hallowed item and a hex (H4): the item

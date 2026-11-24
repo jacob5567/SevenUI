@@ -29,14 +29,9 @@ namespace SevenUI.Tests
         private const float StandDistance = 2f;
         private const int FewOptions = 3;
         private const int ManyOptions = 9;
-        // The game's inspect panel, under the panel's buttons, and its parts.
-        private const string InspectName = "InspectPanel";
-        private const string InspectAreaPath = "InspectPanelArea";
-        private const string InspectBoxPath = InspectAreaPath + "/InspectionPanel";
-        private const string InspectBackgroundPath = InspectBoxPath + "/HorizontalBox/InspectIconContainer/InspectVisualBackground";
-        private const string InspectVisualPath = InspectBackgroundPath + "/InspectedVisual";
-        private const string TargetScrapName = "TargetScrap";
-        private const string ConversionGlyphName = "ConversionGlyph";
+        // The drones' bodies, by prefab name: the Incinerator Drone and the Gunner Drone.
+        private const string IncineratorBody = "FlameDroneBody";
+        private const string GunnerBody = "Drone1Body";
         // In HUD units: how far outside the panel a part may reach.
         private const float EdgeTolerance = 1f;
 
@@ -46,6 +41,7 @@ namespace SevenUI.Tests
             yield return new Scenario(1, "picker_drone_scrapper_many", Stages.TitanicPlains, h => Opened(h, ManyOptions));
             yield return new Scenario(1, "picker_drone_scrapper_options_change", Stages.TitanicPlains, OptionsChange);
             yield return new Scenario(1, "picker_drone_scrapper_flat_panels_off", Stages.TitanicPlains, FlatPanelsOff);
+            yield return new Scenario(1, "picker_drone_scrapper_upgraded_scrap", Stages.TitanicPlains, UpgradedScrap);
         }
 
         // As many options as asked for: the drones the game can scrap, over again if there are fewer.
@@ -59,6 +55,47 @@ namespace SevenUI.Tests
                 isCarryingItems = i % 2 == 1,
                 droneIndex = drones[i % drones.Count].droneIndex,
             }).ToArray();
+        }
+
+        // An Incinerator Drone combined from two (one upgrade) gives two scrap of the Incinerator's own tier, not a tier
+        // higher: the game takes the tier from the drone's DroneDef and the count from its upgrades
+        // (DroneScrapperController.BeginScrapping). Each option's strip is checked against that, worked out here from
+        // the game's own catalog rather than from the mod's.
+        private static IEnumerator UpgradedScrap(Harness h)
+        {
+            DroneDef incinerator = DroneCatalog.allDroneDefs.FirstOrDefault(drone => drone && drone.bodyPrefab && drone.bodyPrefab.name == IncineratorBody);
+            DroneDef gunner = DroneCatalog.allDroneDefs.FirstOrDefault(drone => drone && drone.bodyPrefab && drone.bodyPrefab.name == GunnerBody);
+            if (!incinerator || !gunner) throw h.Skip("the Incinerator or Gunner Drone isn't in the catalog");
+            h.Log($"Incinerator Drone tier {incinerator.tier}, Gunner Drone tier {gunner.tier}");
+            DroneScrapperPickerController.Option[] options =
+            {
+                new DroneScrapperPickerController.Option { networkID = new NetworkInstanceId(1), droneIndex = incinerator.droneIndex, droneUpgradeCount = 1 },
+                new DroneScrapperPickerController.Option { networkID = new NetworkInstanceId(2), droneIndex = incinerator.droneIndex },
+                new DroneScrapperPickerController.Option { networkID = new NetworkInstanceId(3), droneIndex = gunner.droneIndex, droneUpgradeCount = 2 },
+            };
+            DroneScrapperPickerController picker = null;
+            DroneScrapperPickerPanel opened = null;
+            yield return Open(h, 1, (made, panel) => { picker = made; opened = panel; });
+            picker.SetOptionsServer(options);
+            PickerPanel styled = null;
+            yield return h.Until(() => (styled = Styled(opened)) != null && styled.Styled && styled.Buttons.Count == options.Length,
+                "the panel restyled with the three drones", OpenTimeout);
+            // What each option trades for, as the strip would show it, against the game's rule.
+            for (int i = 0; i < options.Length; i++)
+            {
+                DroneDef drone = DroneCatalog.GetDroneDef(options[i].droneIndex);
+                PickupDef scrap = PickupCatalog.GetPickupDef(PickupCatalog.FindScrapIndexForItemTier(drone.tier));
+                int count = 1 << options[i].droneUpgradeCount;
+                Exchange exchange = styled.Source.ExchangeOf(i);
+                if (exchange == null || exchange.Scrap != scrap || exchange.ScrapCount != count)
+                    throw h.Fail($"option {i} ({drone.name}, {options[i].droneUpgradeCount} upgrades) trades for " +
+                                 $"{exchange?.Scrap?.internalName ?? "nothing"} x{exchange?.ScrapCount}, not {scrap.internalName} x{count}");
+                h.Log($"{drone.name} with {options[i].droneUpgradeCount} upgrades -> {Language.GetString(scrap.nameToken)} x{count}");
+            }
+            // The strip for the option the details show (the game's pointer, in the middle of the screen, may hover one).
+            yield return h.Until(() => ExchangeChecks.Problem(styled) == null, () => ExchangeChecks.Problem(styled), OpenTimeout);
+            yield return h.Wait(SettleSeconds);
+            yield return h.Screenshot("upgraded");
         }
 
         // Uses a scrapper and waits for its panel, which is then given this many options.
@@ -361,21 +398,8 @@ namespace SevenUI.Tests
         // description show, and the name takes the tier's color.
         private static string Details(PickerPanel panel)
         {
-            DroneScrapperPickerPanel game = (DroneScrapperPickerPanel)panel.Component;
-            Transform inspect = game.GetComponentsInChildren<Transform>(true).FirstOrDefault(part => part.name == "InspectPanel");
-            if (inspect)
-            {
-                foreach (TMP_Text text in inspect.GetComponentsInChildren<TMP_Text>(true))
-                {
-                    if (text.isActiveAndEnabled) return $"the game's {text.name} text in the inspect panel is showing, repeating the details";
-                }
-                Transform box = inspect.Find(InspectBoxPath);
-                Image boxImage = box ? box.GetComponent<Image>() : null;
-                if (boxImage && boxImage.isActiveAndEnabled) return $"the game's blue box behind the inspect panel ({InspectBoxPath}) is showing";
-            }
-            if (!panel.DetailsNameText || !panel.DetailsNameText.isActiveAndEnabled) return "the mod's name of the hovered drone is not showing";
             if (!panel.DetailsDescriptionText || !panel.DetailsDescriptionText.isActiveAndEnabled) return "the mod's description of the hovered drone is not showing";
-            return null;
+            return ExchangeChecks.Problem(panel);
         }
 
         // A game image on a button that is still drawn, other than its face, its icon and the "carrying items" mark on the
@@ -432,74 +456,22 @@ namespace SevenUI.Tests
             return null;
         }
 
-        // With a drone selected, as a gamepad selects it, the game shows its icon and the scrap it gives in the inspect
-        // panel: drawn at full alpha (the mod holds the area's CanvasGroup opaque), inside the flat panel, and under the
-        // mod's description.
+        // J2 design E: with option 0 selected, the exchange strip trades it for its scrap, and the game's inspect panel
+        // (its icon, scrap and arrow) stays hidden.
         private static IEnumerator IconRowShows(Harness h, PickerPanel panel)
         {
-            DroneScrapperPickerPanel game = (DroneScrapperPickerPanel)panel.Component;
-            Transform inspect = game.GetComponentsInChildren<Transform>(true).FirstOrDefault(part => part.name == InspectName);
-            if (!inspect) throw h.Fail($"the panel has no {InspectName}");
             MPEventSystem events = EventSystem.current as MPEventSystem;
             if (!events) throw h.Fail("there is no event system to select an option with");
             events.SetSelectedGameObject(panel.Buttons[0].Button.gameObject);
-            yield return h.Until(() => IconRow(panel, inspect) == null, () => IconRow(panel, inspect), OpenTimeout);
-        }
-
-        private static string IconRow(PickerPanel panel, Transform inspect)
-        {
-            if (!panel.Alive) return "the panel closed";
-            Transform area = inspect.Find(InspectAreaPath);
-            if (!area) return $"the inspect panel has no {InspectAreaPath}";
-            if (!area.gameObject.activeInHierarchy) return $"the inspect panel's {InspectAreaPath} is off with option 0 selected";
-            float alpha = 1f;
-            for (Transform part = area; part; part = part.parent)
-            {
-                CanvasGroup group = part.GetComponent<CanvasGroup>();
-                if (!group) continue;
-                alpha *= group.alpha;
-                if (group.ignoreParentGroups) break;
-            }
-            if (alpha < 0.99f) return $"the inspect panel's icon row is drawn at alpha {alpha:0.##}";
-            Transform visual = inspect.Find(InspectVisualPath);
-            Image icon = visual ? visual.GetComponent<Image>() : null;
-            if (!icon || !icon.isActiveAndEnabled) return $"the drone's icon ({InspectVisualPath}) is not showing";
-            Transform scrap = visual.Find(TargetScrapName);
-            if (!scrap || !scrap.gameObject.activeInHierarchy) return $"the scrap it gives ({TargetScrapName}) is not showing";
-            RectTransform iconRect = (RectTransform)visual;
-            if (iconRect.rect.width <= 0f || iconRect.rect.height <= 0f) return $"the drone's icon is {iconRect.rect.size} in size";
-            Transform background = inspect.Find(InspectBackgroundPath);
-            Image brackets = background ? background.GetComponent<Image>() : null;
-            if (brackets && brackets.isActiveAndEnabled) return $"the game's corner brackets around the drone's icon ({InspectBackgroundPath}) are showing";
-            // The whole row in the flat face, with the scrap and arrow that hang off the icon's corner.
-            Transform backdrop = panel.Source.Juice.Find(PickerPanel.BackdropName);
-            if (!backdrop) return "the panel has no flat face";
-            foreach (Transform part in new[] { visual, scrap, visual.Find(ConversionGlyphName) })
-            {
-                if (!part || !part.gameObject.activeInHierarchy) continue;
-                string outside = Outside((RectTransform)backdrop, (RectTransform)part);
-                if (outside != null) return $"the icon row's {part.name} {outside.Replace("the panel", "the flat face")}";
-            }
-            TMP_Text description = panel.DetailsDescriptionText;
-            if (description)
-            {
-                Vector3[] iconCorners = new Vector3[4];
-                Vector3[] textCorners = new Vector3[4];
-                iconRect.GetWorldCorners(iconCorners);
-                description.rectTransform.GetWorldCorners(textCorners);
-                float unit = panel.MainPanel.lossyScale.y > 0f ? panel.MainPanel.lossyScale.y : 1f;
-                // Corner 1 is the top left, corner 0 the bottom left.
-                if (iconCorners[1].y > textCorners[0].y + EdgeTolerance * unit) return "the drone's icon is not under the mod's description";
-            }
-            return null;
+            yield return h.Until(() => ExchangeChecks.Problem(panel) == null, () => ExchangeChecks.Problem(panel), OpenTimeout);
         }
 
         // The game's title of the hovered drone takes its tier's color, with the pointer's event sent to the option as
         // the game would get it.
         private static IEnumerator HoverShowsColor(Harness h, PickerPanel panel)
         {
-            TMP_Text text = panel.DetailsNameText;
-            if (!text) throw h.Fail("the panel shows no name of the hovered drone");
+            TMP_Text text = panel.Exchange.NameText;
+            if (!text) throw h.Fail("the exchange strip shows no name of the hovered drone");
             MPEventSystem events = EventSystem.current as MPEventSystem;
             if (!events) throw h.Fail("there is no event system to send the pointer's events with");
             int index = panel.Buttons.Count - 1;
@@ -514,7 +486,7 @@ namespace SevenUI.Tests
                 }
             });
             Color want = panel.Buttons[index].Entry.Color;
-            yield return h.Until(() => SevenUIChecks.Near(text.color, want), () => $"the details' name is {text.color} for option {index}, not its tier's {want}", OpenTimeout);
+            yield return h.Until(() => SevenUIChecks.Near(text.color, want), () => $"the strip's name is {text.color} for option {index}, not its tier's {want}", OpenTimeout);
         }
 
         // With FlatPanels off, a panel opened is the game's, and the look the mod gave it goes back as it was when the

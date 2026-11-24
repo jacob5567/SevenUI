@@ -107,5 +107,9 @@ namespace SevenUI
         public static readonly Color TooltipPanel = new Color(0.031f, 0.035f, 0.047f, 0.92f);
         public static readonly Color TooltipHeader = new Color(0.906f, 0.914f, 0.941f, 0.08f);
         public static readonly Color TooltipBody = new Color(0.765f, 0.780f, 0.827f, 1f);
+        // The scrappers' exchange strip across the panel's bottom (J2 design E): darker than the panel it sits on.
+        public static readonly Color ExchangeStrip = new Color(0f, 0f, 0f, 0.45f);
+        // The dialogs' band across the screen (J1 design E): near-black, a little see-through.
+        public static readonly Color DialogBand = new Color(0.020f, 0.024f, 0.031f, 0.88f);
     }
 }
