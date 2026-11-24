@@ -45,6 +45,8 @@ namespace SevenUI
         // The narrowest a scrapper's panel is; the exchange strip widens it further to fit its widest option.
         private const float ScrapperMinWidth = 440f * PickerPanel.Canvas;
         internal const int ItemColumns = 6;
+        // ScrapperController.maxItemsToScrapAtATime as the class sets it, for a scrapper without one.
+        private const int DefaultScrapCap = 10;
 
         private readonly Component panel;
         private readonly PickupPickerPanel itemPanel;
@@ -147,15 +149,18 @@ namespace SevenUI
             if (itemPanel)
             {
                 UniquePickup pickup = itemPanel.pickupOptions[index].pickup;
-                return PickerEntry.ForPickup(PickupCatalog.GetPickupDef(pickup.pickupIndex), StackChange.Lose,
+                return PickerEntry.ForPickup(PickupCatalog.GetPickupDef(pickup.pickupIndex), StackChange.None,
                     !pickup.isTempItem && !pickup.isRental);
             }
             return PickerEntry.ForDrone(DroneCatalog.GetDroneDef(dronePanel.droneOptions[index].droneIndex));
         }
 
         // What scrapping the option gives, as the game works it out (PickupCatalog.FindScrapIndexForItemTier, a lookup in
-        // the catalog): one scrap of the item's tier, or for a drone one of its tier per drone combined into it
-        // (DroneUpgradeUtils.GetDroneCountFromUpgradeCount, 2 to the power of its upgrades). Reads only.
+        // the catalog): for an item, one scrap of its tier per stack taken, and a pick takes every stack of the option's
+        // kind up to the scrapper's cap (ScrapperController.BeginScrapping, through ItemTransformation.CanTake: a
+        // temporary option takes only temporary stacks, a rented one only rented, a permanent one only permanent); for a
+        // drone, one of its tier per drone combined into it (DroneUpgradeUtils.GetDroneCountFromUpgradeCount, 2 to the
+        // power of its upgrades). Reads only; BeginScrapping is [Server] and takes the items, never call it.
         public override Exchange ExchangeOf(int index)
         {
             Exchange exchange = new Exchange();
@@ -166,8 +171,9 @@ namespace SevenUI
                 PickupDef pickup = PickupCatalog.GetPickupDef(items[index].pickup.pickupIndex);
                 if (pickup == null) return null;
                 exchange.Scrap = PickupCatalog.GetPickupDef(PickupCatalog.FindScrapIndexForItemTier(pickup.itemTier));
-                exchange.ScrapCount = 1;
                 exchange.Item = pickup.itemIndex;
+                exchange.Held = HeldOf(items[index].pickup);
+                exchange.ScrapCount = Mathf.Min(ScrapCap, exchange.Held);
                 return exchange;
             }
             DroneScrapperPickerController.Option[] drones = dronePanel.droneOptions;
@@ -179,6 +185,28 @@ namespace SevenUI
             exchange.DroneUpgrades = drones[index].droneUpgradeCount;
             exchange.CarryingItems = drones[index].isCarryingItems;
             return exchange;
+        }
+
+        // How many of the option's kind of the item the local player holds; the scrapper is used by the local player.
+        private static int HeldOf(UniquePickup pickup)
+        {
+            CharacterMaster master = LocalUserManager.GetFirstLocalUser()?.cachedMaster;
+            Inventory inventory = master ? master.inventory : null;
+            PickupDef def = PickupCatalog.GetPickupDef(pickup.pickupIndex);
+            if (!inventory || def == null || def.itemIndex == ItemIndex.None) return 0;
+            if (pickup.isTempItem) return inventory.GetItemCountTemp(def.itemIndex);
+            if (pickup.isRental) return inventory.GetItemCountRented(def.itemIndex);
+            return inventory.GetItemCountPermanent(def.itemIndex);
+        }
+
+        // The most stacks one pick takes: the scrapper's own cap, a field set on its prefab.
+        private int ScrapCap
+        {
+            get
+            {
+                ScrapperController scrapper = itemPanel && itemPanel.pickerController ? itemPanel.pickerController.GetComponent<ScrapperController>() : null;
+                return scrapper ? scrapper.maxItemsToScrapAtATime : DefaultScrapCap;
+            }
         }
 
         // The scroll view and the layout around it are the game's, which sized them to its panel; they are placed by hand

@@ -120,6 +120,10 @@ namespace SevenUI.Tests
                 h => StatsByPanel(h, "fragment_potential", StackChange.Gain));
             yield return new Scenario(1, "picker_stats_as_held_delusion", Stages.TitanicPlains,
                 h => StatsByPanel(h, "delusion", StackChange.None));
+            // The scrapper takes every stack of the item (up to its cap), so its stats are the stack as held.
+            yield return new Scenario(1, "picker_stats_as_held_scrapper", Stages.TitanicPlains,
+                h => StatsByPanel(h, "scrapper", StackChange.None));
+            yield return new Scenario(1, "picker_scrapper_takes_stacks", Stages.TitanicPlains, ScrapperTakesStacks);
             yield return new Scenario(1, "item_counts_with_temporary_and_ethereal", Stages.TitanicPlains, CountsWithTemporaryAndEthereal);
             yield return new Scenario(1, "picker_count_hidden_on_locked_options", Stages.TitanicPlains, CountHiddenOnLockedOptions);
             yield return new Scenario(1, "picker_count_corrupted_by_void", Stages.TitanicPlains,
@@ -933,6 +937,59 @@ namespace SevenUI.Tests
                 throw h.Fail($"LookingGlass's count \"{lookingGlassCount.GetComponent<TMP_Text>()?.text}\" shows beside the slot's");
             yield return h.Wait(SettleSeconds);
             yield return h.Screenshot("stats_" + name);
+        }
+
+        // One pick at the scrapper takes every stack of the item up to the scrapper's cap (ScrapperController
+        // .maxItemsToScrapAtATime, 10), one scrap each: the strip says how many of the held stack it takes and gives that
+        // much scrap. 12 held takes 10; 3 held takes all 3.
+        private static IEnumerator ScrapperTakesStacks(Harness h)
+        {
+            const int Cap = 10;
+            (ItemDef Item, int Held)[] held = { (RoR2Content.Items.Syringe, 12), (RoR2Content.Items.Bear, 3) };
+            Inventory inventory = Harness.LocalBody.master.inventory;
+            foreach ((ItemDef item, int count) in held)
+            {
+                int before = inventory.GetItemCountPermanent(item);
+                for (int i = before; i < count; i++)
+                {
+                    inventory.GiveItemPermanent(item);
+                }
+                h.OnCleanup(() =>
+                {
+                    while (inventory && inventory.GetItemCountPermanent(item) > before) inventory.RemoveItemPermanent(item);
+                });
+                if (inventory.GetItemCountPermanent(item) != count) throw h.Fail($"holding {inventory.GetItemCountPermanent(item)} {item.name}, not {count}");
+            }
+            string key = GameNames.PickerPanels.First(entry => entry.Name == "scrapper").Key;
+            GameObject prefab = Addressables.LoadAssetAsync<GameObject>(key).WaitForCompletion();
+            if (!prefab || !prefab.GetComponent<PickupPickerPanel>()) throw h.Skip($"{key} is not a pick-an-item panel");
+            yield return GoHome(h);
+            PickupPickerController picker = h.SpawnPrefab<PickupPickerController>(GameNames.CommandCube);
+            picker.panelPrefab = prefab;
+            picker.SetOptionsServer(held.Select(entry => new PickupPickerController.Option
+            {
+                pickup = new UniquePickup(PickupCatalog.FindPickupIndex(entry.Item.itemIndex)), available = true,
+            }).ToArray());
+            PickupPickerPanel opened = null;
+            yield return Open(h, picker, found => opened = found, true);
+            PickerPanel panel = null;
+            yield return h.Until(() => (panel = OpenPanel(opened)) != null && panel.Styled && panel.Buttons.Count == held.Length,
+                "the scrapper styled with its two options", OpenTimeout);
+            for (int i = 0; i < held.Length; i++)
+            {
+                Exchange exchange = panel.Source.ExchangeOf(i);
+                int taken = Mathf.Min(Cap, held[i].Held);
+                if (exchange == null || exchange.Held != held[i].Held || exchange.ScrapCount != taken)
+                    throw h.Fail($"scrapping {held[i].Held} {held[i].Item.name} gives x{exchange?.ScrapCount} of {exchange?.Held} held, not x{taken} of {held[i].Held}");
+            }
+            yield return h.Until(() => ExchangeChecks.Problem(panel) == null, () => ExchangeChecks.Problem(panel));
+            int shown = panel.DetailsIndex;
+            string sub = $"Scraps {Mathf.Min(Cap, held[shown].Held)} of your {held[shown].Held}";
+            if (panel.Exchange.SubText.text != sub) throw h.Fail($"the strip says \"{panel.Exchange.SubText.text}\", not \"{sub}\"");
+            string caption = panel.Buttons[shown].Parts.Caption;
+            if (!string.IsNullOrEmpty(caption)) throw h.Fail($"the scrapper's stats have the caption \"{caption}\"; it takes the whole stack");
+            yield return h.Wait(SettleSeconds);
+            yield return h.Screenshot("takes_stacks");
         }
 
         // Two permanent, a temporary and an Ethereal (rented) stack of one item, a hallowed item and a hex (H4): the item

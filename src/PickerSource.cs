@@ -14,8 +14,10 @@ namespace SevenUI
     {
         public PickupDef Scrap;
         public int ScrapCount = 1;
-        // The item scrapped (its held stack is counted), or none for a drone.
+        // The item scrapped, or none for a drone, and how many of the option's kind of it (permanent, temporary or
+        // rented) the player holds.
         public ItemIndex Item = ItemIndex.None;
+        public int Held;
         public int DroneUpgrades;
         public bool CarryingItems;
     }

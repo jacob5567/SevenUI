@@ -10,9 +10,9 @@ namespace SevenUI
 {
     // The scrappers' exchange strip (J2 design E, Jacob's pick, 2026-11-23): across the panel's bottom, on a darker band
     // under a thin line, it reads like a trade for the hovered option. At the left, the option's icon on a slot, its
-    // name in its tier's color (a drone's with its tier badge) and how many of it you hold ("1 of your 2"; for a drone
-    // that carries items, that it does); at the right, an arrow, the scrap's icon, its name in its tier's color and how
-    // many ("×2" for a drone combined from two).
+    // name in its tier's color (a drone's with its tier badge) and how many of it the pick scraps ("Scraps 3 of your 3";
+    // the scrapper takes every stack, up to its cap; for a drone that carries items, that it does); at the right, an
+    // arrow, the scrap's icon, its name in its tier's color and how many ("×3", or "×2" for a drone combined from two).
     internal sealed class PickerExchange
     {
         public const string StripName = "SevenUIPickerExchange";
@@ -28,7 +28,7 @@ namespace SevenUI
         private const float NameSize = 17f * PickerPanel.Canvas;
         private const float ScrapNameSize = 15f * PickerPanel.Canvas;
         private const float SubSize = 13f * PickerPanel.Canvas;
-        private const string HeldText = "1 of your {0}";
+        private const string HeldText = "Scraps {0} of your {1}";
         private const string CarryingText = "Carrying items";
         private const string CountText = "×{0}";
 
@@ -120,12 +120,12 @@ namespace SevenUI
             shownIndex = -1;
         }
 
-        // The hovered option's trade, written again when the option or its held count changes (a scrap taking one).
+        // The hovered option's trade, written again when the option or its held count changes (a scrap taking some).
         public void Show(int index, Inventory inventory)
         {
             if (!strip || index < 0 || index >= owner.Buttons.Count) return;
             Exchange exchange = source.ExchangeOf(index);
-            int held = exchange != null && exchange.Item != ItemIndex.None && inventory ? inventory.GetItemCountPermanent(exchange.Item) : 0;
+            int held = exchange != null ? exchange.Held : 0;
             if (index == shownIndex && held == shownHeld)
             {
                 // The scrap's icon, and the game's icon on the option's button, load in the background the first time.
@@ -172,7 +172,7 @@ namespace SevenUI
         }
 
         private static string SubOf(Exchange exchange, int held) =>
-            exchange == null ? "" : exchange.Item != ItemIndex.None ? string.Format(HeldText, Mathf.Max(held, 1))
+            exchange == null ? "" : exchange.Item != ItemIndex.None ? string.Format(HeldText, Mathf.Min(exchange.ScrapCount, held), held)
                 : exchange.CarryingItems ? CarryingText : "";
 
         // The panel's width that fits the strip for every option: the widest name (or line under it) beside the slot,
@@ -191,8 +191,9 @@ namespace SevenUI
             {
                 Exchange exchange = source.ExchangeOf(i);
                 names = Mathf.Max(names, name.GetPreferredValues(NameOf(owner.Buttons[i].Entry, exchange)).x);
-                // The held count is a number of at most a few digits; "99" stands for it.
-                names = Mathf.Max(names, sub.GetPreferredValues(SubOf(exchange, NeededHeld)).x);
+                // The counts are numbers of at most a few digits; "99" stands for them.
+                names = Mathf.Max(names, sub.GetPreferredValues(exchange != null && exchange.Item != ItemIndex.None
+                    ? string.Format(HeldText, NeededHeld, NeededHeld) : SubOf(exchange, NeededHeld)).x);
                 if (exchange?.Scrap == null) continue;
                 scraps = Mathf.Max(scraps, scrapName.GetPreferredValues(Language.GetString(exchange.Scrap.nameToken)).x);
                 scraps = Mathf.Max(scraps, scrapCount.GetPreferredValues(string.Format(CountText, exchange.ScrapCount)).x);

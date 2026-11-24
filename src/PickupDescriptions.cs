@@ -64,11 +64,11 @@ namespace SevenUI
         // LookingGlass counts one more only on Command's and the Void Potential's panels, the stack as held on every
         // other (the scrapper's, the Lemurian egg's, the other potentials'), and works its picker text out without the
         // player's master, which some stats need. So an item's text is asked for again here, with the local player's
-        // master: one more on a panel that gives the item, one less on one that takes it, the stack as held where the
-        // pick changes nothing. Null when there is nothing to work out (not an item, no LookingGlass) or LookingGlass's
-        // own text is the better one: its note that a held void item would corrupt the item, which it writes only
-        // while none of it is held, and a temporary or rented stack taken, which leaves the permanent count it counts
-        // as it is.
+        // master: one more on a panel that gives the item, one less on one that takes one, and the stack as held where
+        // the pick changes nothing or takes the whole stack (the scrapper, whose strip says how many it takes). Null when
+        // there is nothing to work out (not an item, no LookingGlass) or LookingGlass's own text is the better one: its
+        // note that a held void item would corrupt the item, which it writes only while none of it is held, and a
+        // temporary or rented stack, whose count isn't the permanent one it counts.
         private static string Counted(PickupDef pickup, string written, StackChange change, bool permanent)
         {
             ItemDef item = ItemCatalog.GetItemDef(pickup.itemIndex);
@@ -88,6 +88,8 @@ namespace SevenUI
                     string text = WithStats(item, held - 1, master, false);
                     return text != null ? ItemStatsText.WithCaption(text, LoseCaption) : null;
                 default:
+                    // A temporary or rented stack's own count isn't the permanent one LookingGlass counts.
+                    if (!permanent) return null;
                     return WithStats(item, held, master, false);
             }
         }
