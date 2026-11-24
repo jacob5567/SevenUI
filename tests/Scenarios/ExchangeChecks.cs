@@ -60,6 +60,15 @@ namespace SevenUI.Tests
                 if (needed > text.rectTransform.rect.width + Tolerance)
                     return $"the strip's {text.name} \"{text.text}\" needs {needed:0.#} but has {text.rectTransform.rect.width:0.#}";
             }
+            // The arrow midway between the option's texts and the scrap's icon.
+            Rect arrowRect = RectIn(strip, exchange.ArrowRect);
+            Rect scrapRect = RectIn(strip, (RectTransform)exchange.ScrapIconImage.transform);
+            float optionRight = Mathf.Max(RectIn(strip, exchange.NameText.rectTransform).xMax,
+                string.IsNullOrEmpty(exchange.SubText.text) ? float.MinValue : RectIn(strip, exchange.SubText.rectTransform).xMax);
+            float before = arrowRect.xMin - optionRight;
+            float after = scrapRect.xMin - arrowRect.xMax;
+            if (Mathf.Abs(before - after) > Tolerance) return $"the arrow is {before:0.#} from the option and {after:0.#} from the scrap, not midway";
+            if (before < 0f) return $"the arrow overlaps the option's name by {-before:0.#}";
             Rect nameRect = RectIn(strip, exchange.NameText.rectTransform);
             Rect iconRect = RectIn(strip, (RectTransform)exchange.ScrapIconImage.transform);
             if (nameRect.xMax > iconRect.xMin) return "the option's name runs into the scrap's side";

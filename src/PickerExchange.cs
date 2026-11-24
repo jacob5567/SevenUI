@@ -75,6 +75,8 @@ namespace SevenUI
 
         public Image OptionIcon => icon;
 
+        public RectTransform ArrowRect => arrow;
+
         public void Clear()
         {
             strip = null;
@@ -223,12 +225,17 @@ namespace SevenUI
             float scrapWidth = Mathf.Max(scrapName.GetPreferredValues(scrapName.text).x, scrapCount.GetPreferredValues(scrapCount.text).x);
             float scrapTextLeft = width - Padding - scrapWidth;
             float iconLeft = scrapTextLeft - Gap / 2f - ScrapIcon;
-            float arrowLeft = iconLeft - Gap - ArrowSize;
             Lines(scrapName, scrapCount, scrapTextLeft, scrapWidth);
             TopLeft((RectTransform)scrap.transform, iconLeft, (Height - ScrapIcon) / 2f, ScrapIcon, ScrapIcon);
-            TopLeft(arrow, arrowLeft, (Height - ArrowSize) / 2f, ArrowSize, ArrowSize);
+            // The option's side: its name and the line under it, as wide as the wider of them and no wider than the room
+            // left before the arrow; the arrow sits midway between their end and the scrap's icon.
             float nameLeft = Padding + Slot + Gap;
-            Lines(name, sub, nameLeft, Mathf.Max(0f, arrowLeft - Gap - nameLeft));
+            float room = Mathf.Max(0f, iconLeft - 2f * Gap - ArrowSize - nameLeft);
+            float nameWidth = Mathf.Min(room, Mathf.Max(name.GetPreferredValues(name.text).x, sub.GetPreferredValues(sub.text).x));
+            Lines(name, sub, nameLeft, nameWidth);
+            float nameRight = nameLeft + nameWidth;
+            float arrowLeft = (nameRight + iconLeft - ArrowSize) / 2f;
+            TopLeft(arrow, arrowLeft, (Height - ArrowSize) / 2f, ArrowSize, ArrowSize);
         }
 
         // A name over the line under it, the pair centered on the strip's height.
