@@ -2,6 +2,7 @@ using System.Linq;
 using RoR2;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace SevenUI.Tests
 {
@@ -72,6 +73,37 @@ namespace SevenUI.Tests
             Rect nameRect = RectIn(strip, exchange.NameText.rectTransform);
             Rect iconRect = RectIn(strip, (RectTransform)exchange.ScrapIconImage.transform);
             if (nameRect.xMax > iconRect.xMin) return "the option's name runs into the scrap's side";
+            return Scrolling(panel);
+        }
+
+        // The grid scrolls only up and down: the viewport is as wide as the grid, so no column is cut off and no
+        // horizontal bar shows, and when the options run past the scroll view the vertical bar shows in the padding
+        // right of the grid, inside the panel. The game's scroll view narrowed its viewport for the vertical bar.
+        internal static string Scrolling(PickerPanel panel)
+        {
+            ScrollRect scroll = panel.Component.GetComponentInChildren<ScrollRect>(true);
+            if (!scroll) return "the scrapper has no scroll view";
+            if (scroll.horizontal) return "the scroll view still scrolls sideways";
+            Transform horizontalBar = scroll.transform.Find("Scrollbar Horizontal");
+            if (horizontalBar && horizontalBar.gameObject.activeInHierarchy) return "the horizontal scroll bar is showing";
+            RectTransform viewport = scroll.viewport ? scroll.viewport : (RectTransform)scroll.transform;
+            RectTransform content = scroll.content;
+            if (!content) return "the scroll view has no content";
+            float columns = panel.Columns * PickerPanel.SlotSize + (panel.Columns - 1) * PickerPanel.SlotGap;
+            if (viewport.rect.width + Tolerance < columns)
+                return $"the viewport is {viewport.rect.width:0.#} wide, narrower than the grid's {panel.Columns} columns ({columns:0.#})";
+            bool scrolls = content.rect.height > viewport.rect.height + Tolerance;
+            Scrollbar bar = scroll.verticalScrollbar;
+            if (!bar) return scrolls ? "the scroll view has no vertical bar" : null;
+            if (scrolls != bar.gameObject.activeInHierarchy)
+                return $"the vertical bar is {(bar.gameObject.activeInHierarchy ? "showing" : "hidden")} with the grid {content.rect.height:0.#} tall in a {viewport.rect.height:0.#} view";
+            if (!scrolls) return null;
+            RectTransform main = panel.MainPanel;
+            Rect barRect = RectIn(main, (RectTransform)bar.transform);
+            Rect viewRect = RectIn(main, viewport);
+            if (barRect.xMin + Tolerance < viewRect.xMax) return $"the vertical bar ({barRect.xMin:0.#} to {barRect.xMax:0.#}) overlaps the grid, which ends at {viewRect.xMax:0.#}";
+            if (barRect.xMax > main.rect.xMax + Tolerance) return $"the vertical bar ends at {barRect.xMax:0.#}, past the panel's {main.rect.xMax:0.#}";
+            if (Mathf.Abs(barRect.height - viewRect.height) > Tolerance) return $"the vertical bar is {barRect.height:0.#} tall, not the view's {viewRect.height:0.#}";
             return null;
         }
 

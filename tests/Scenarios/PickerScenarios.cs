@@ -40,6 +40,8 @@ namespace SevenUI.Tests
         // inventory's worth for the ones that offer the player's own items.
         private const int FewOptions = 3;
         private const int InventoryOptions = 12;
+        // Enough of the item scrapper's options for more rows than its scroll view shows.
+        private const int ScrollingOptions = 40;
         // LookingGlass's setting for full item descriptions in the HUD, which the descriptions follow.
         private const string LookingGlassGUID = "droppod.lookingglass";
         private const string FullDescriptionSection = "Misc";
@@ -109,6 +111,8 @@ namespace SevenUI.Tests
             {
                 yield return new Scenario(1, "picker_panel_" + name, Stages.TitanicPlains, h => OtherPanel(h, name, key));
             }
+            string scrapper = GameNames.PickerPanels.First(entry => entry.Name == "scrapper").Key;
+            yield return new Scenario(1, "picker_scrapper_scrolls", Stages.TitanicPlains, h => OtherPanel(h, "scrapper", scrapper, ScrollingOptions));
             yield return new Scenario(1, "picker_stats_one_less_lemurian_egg", Stages.TitanicPlains,
                 h => StatsByPanel(h, "lemurian_egg", StackChange.Lose));
             yield return new Scenario(1, "picker_stats_one_more_fragment_potential", Stages.TitanicPlains,
@@ -436,7 +440,7 @@ namespace SevenUI.Tests
 
         // Another of the game's panels, opened by a Command cube given it and items like the ones it offers. A panel
         // the mod restyles is checked as Command's are; one it leaves to the game must have none of its parts.
-        private static IEnumerator OtherPanel(Harness h, string name, string key)
+        private static IEnumerator OtherPanel(Harness h, string name, string key, int countOverride = 0)
         {
             GameObject prefab;
             try
@@ -452,6 +456,10 @@ namespace SevenUI.Tests
             if (!prefabPanel) throw h.Skip($"{key} is not a pick-an-item panel");
 
             (int count, ItemTier tier) = PanelOptions.TryGetValue(name, out (int, ItemTier) options) ? options : (FewOptions, ItemTier.Tier1);
+            if (countOverride > 0)
+            {
+                count = countOverride;
+            }
             PickupPickerController.Option[] items = ItemCatalog.allItemDefs
                 .Where(item => item.tier == tier && !item.hidden && !item.ContainsTag(ItemTag.WorldUnique))
                 .Select(item => PickupCatalog.FindPickupIndex(item.itemIndex))

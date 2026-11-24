@@ -24,6 +24,8 @@ namespace SevenUI
         private const string InspectName = "InspectPanel";
         private const string AreaPath = "InspectPanelArea";
         private static readonly string[] ScrollbarNames = { "Scrollbar Vertical", "Scrollbar Horizontal" };
+        // The vertical bar's width, in the grid's right padding.
+        private const float ScrollbarWidth = 6f * PickerPanel.Canvas;
         private const string ScrollHandlePath = "Sliding Area/Handle";
         // The item scrapper's panel, by its prefab's name.
         private const string ItemScrapperName = "ScrapperPickerPanel";
@@ -50,6 +52,7 @@ namespace SevenUI
         private readonly Transform contentRoot;
         private readonly RectTransform inspect;
         private StyleRecorder recorder;
+        private RectTransform verticalBar;
 
         private ScrapperSource(Component panel, RectTransform mainPanel, RectTransform juice, Transform contentRoot)
         {
@@ -243,10 +246,44 @@ namespace SevenUI
             title.maxVisibleLines = TitleLines;
         }
 
-        // The scroll bars, shown only when the options run past the scroll view, as a flat handle without a track.
+        // The scroll bars, shown only when the options run past the scroll view, as a flat handle without a track. The
+        // grid scrolls only up and down. The game's scroll view narrows its viewport to make room for the vertical bar
+        // (ScrollbarVisibility.AutoHideAndExpandViewport), which cut off the last column and brought up the horizontal
+        // bar; the bar sits in the grid's right padding instead, and the viewport keeps the grid's width.
         private void StyleScrollbars(Transform scrollView)
         {
             if (!scrollView) return;
+            ScrollRect scroll = scrollView.GetComponent<ScrollRect>();
+            if (scroll)
+            {
+                bool horizontal = scroll.horizontal;
+                Scrollbar horizontalBar = scroll.horizontalScrollbar;
+                ScrollRect.ScrollbarVisibility verticalVisibility = scroll.verticalScrollbarVisibility;
+                recorder.OnRestore(() =>
+                {
+                    if (scroll)
+                    {
+                        scroll.horizontal = horizontal;
+                        scroll.horizontalScrollbar = horizontalBar;
+                        scroll.verticalScrollbarVisibility = verticalVisibility;
+                    }
+                });
+                scroll.horizontal = false;
+                scroll.horizontalScrollbar = null;
+                if (horizontalBar)
+                {
+                    recorder.SetActive(horizontalBar.gameObject, false);
+                }
+                if (verticalVisibility == ScrollRect.ScrollbarVisibility.AutoHideAndExpandViewport)
+                {
+                    scroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHide;
+                }
+                verticalBar = scroll.verticalScrollbar ? (RectTransform)scroll.verticalScrollbar.transform : null;
+                if (verticalBar)
+                {
+                    recorder.RecordRect(verticalBar);
+                }
+            }
             foreach (string name in ScrollbarNames)
             {
                 Transform bar = scrollView.Find(name);
@@ -298,6 +335,15 @@ namespace SevenUI
                 TopLeft(scrollView, x, y, width, height);
                 PickerPanel.Stretch(viewport);
                 viewport.pivot = new Vector2(0f, 1f);
+                if (verticalBar)
+                {
+                    // Just outside the scroll view's right edge, centered in the padding, as tall as the scroll view.
+                    verticalBar.anchorMin = new Vector2(1f, 0f);
+                    verticalBar.anchorMax = Vector2.one;
+                    verticalBar.pivot = new Vector2(0f, 0.5f);
+                    verticalBar.sizeDelta = new Vector2(ScrollbarWidth, 0f);
+                    verticalBar.anchoredPosition = new Vector2((PickerPanel.PaddingX - ScrollbarWidth) / 2f, 0f);
+                }
             }
             else
             {
