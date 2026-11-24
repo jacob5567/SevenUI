@@ -1,3 +1,10 @@
+## 1.10.0
+
+- Dialog boxes, such as Quit Run and Delete Profile, show on a dark band across the screen with a large centered title. Their buttons are plain words with an underline that brightens when hovered; a button that ends the run or deletes a profile is red.
+- Both scrappers, the item scrapper and the Drone Scrapper, share one look: a grid of slots (six to a row for items) that scrolls when long, the hovered option's description under it, and a strip across the bottom that reads like a trade, the item or drone on the left and the scrap it gives on the right.
+- The scrapper's strip says how many stacks one pick takes ("Scraps 10 of your 12"; the game takes every stack, up to 10) and gives that much scrap. A combined drone gives one scrap of its own tier per drone combined into it (×2 for a T2).
+- With LookingGlass, the item scrapper shows your stats for the stack you hold, not one less, since it takes the whole stack.
+
 ## 1.9.0
 
 - Drone names take their tier's color, rising like item tiers: white at tier 1, then green, red, and yellow from tier 4. From tier 2, a small rounded badge ("T2") replaces the game's "(Tier 2)". This shows on ally cards, the scoreboard's ally tiles and their tooltips. Allies that aren't drones, and drones the Drone Combiner can't upgrade, such as the Gunner Turret, keep their plain names.
