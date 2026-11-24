@@ -8,11 +8,29 @@ namespace SevenUI
     // after a line like "With another stack, you will have:" in a picker, one line per stat:
     // <color="white">Label: </color><style="cIsDamage">45%</style> (equipment's without the color tag). Text it did
     // not write has no such lines and is left whole as the description.
+    //
+    // Ten of its labels carry numbers of their own in the game's styles (unquoted, <style=cIsHealing>), and some of
+    // those have no value after them (LookingGlass's ItemDefinitions):
+    //   Medkit:          Healing: <style=cIsHealing>20</style> + </color><style="cIsHealing">5% HP</style>
+    //   Stun Grenade:    Stun Chance: <style=cIsDamage>0%</style> to <style=cIsDamage>25%</style>.</color>
+    //   Molotov and the like: Proc Coefficients <style=cIsUtility>1.0</style> + ... <style=cSub>Rapid Contact</style>
+    // The label is the words before its first number; the rest goes in front of the value, so Medkit's reads "Healing"
+    // and "20 + 5% HP", and a line with no value of its own shows the rest as its value ("0% to 25%"). A line with no
+    // value counts only in the white color LookingGlass gives item stats, or as a "Proc Coefficients" line, which its
+    // equipment writes without the color; other text could be the game's description.
     internal static class ItemStatsText
     {
+        // A label: plain text and the game's styled spans in it.
+        private const string Label = "(?<label>(?:[^\\n<]|<style=\\w+>[^<\\n]*</style>)*?)";
         private static readonly Regex StatLine = new Regex(
-            "\\n(?:<color=\"white\">)?(?<label>[^\\n<]*?)(?:</color>)?<style=\"\\w+\">(?<value>[^<\\n]*)</style>",
+            "\\n(?:(?:<color=\"white\">)?" + Label + "(?:</color>)?<style=\"\\w+\">(?<value>[^<\\n]*)</style>" +
+            "|<color=\"white\">" + Label + "</color>(?=\\n|$)" +
+            "|" + Label.Replace("(?<label>", "(?<label>" + ProcCoefficients) + "(?=\\n|$))",
             RegexOptions.Compiled);
+        private const string ProcCoefficients = "Proc Coefficients ";
+        private const string StyleStart = "<style=";
+        private static readonly Regex Tag = new Regex("<[^>]*>", RegexOptions.Compiled);
+        private const char SentenceEnd = '.';
         private static readonly Regex SizeWrapper = new Regex("^<size=[\\d.]+%>(?<inner>[\\s\\S]*)</size>$", RegexOptions.Compiled);
         private const string ParagraphBreak = "\n\n";
         private const char CaptionEnd = ':';
@@ -42,8 +60,9 @@ namespace SevenUI
             }
             foreach (Match line in lines)
             {
-                parts.Labels.Add(line.Groups["label"].Value.TrimEnd(LabelEnd));
-                parts.Values.Add(line.Groups["value"].Value);
+                (string label, string value) = LabelAndValue(line);
+                parts.Labels.Add(label);
+                parts.Values.Add(value);
             }
             string before = inner.Substring(0, lines[0].Index).TrimEnd();
             int lastBreak = before.LastIndexOf(ParagraphBreak, System.StringComparison.Ordinal);
@@ -58,6 +77,17 @@ namespace SevenUI
             string after = inner.Substring(last.Index + last.Length).Trim();
             parts.Description = after.Length > 0 ? before + ParagraphBreak + after : before;
             return parts;
+        }
+
+        // A stat line's label, without the numbers in it, and its value, with them in front.
+        private static (string Label, string Value) LabelAndValue(Match line)
+        {
+            string label = line.Groups["label"].Value;
+            string value = line.Groups["value"].Value;
+            int styled = label.IndexOf(StyleStart, System.StringComparison.Ordinal);
+            if (styled < 0) return (label.TrimEnd(LabelEnd), value);
+            string rest = Tag.Replace(label.Substring(styled), "");
+            return (label.Substring(0, styled).TrimEnd(LabelEnd), (rest + value).Trim().TrimEnd(SentenceEnd));
         }
 
         // The text with a caption put above its first stat as LookingGlass puts its own (a blank line after the
