@@ -1,8 +1,8 @@
 # Plan for the open Super Productivity tasks
 
-**Status (2026-11-20):** Phases A to F shipped in 1.5.0 to 1.8.0, except three tasks that were not addressed: B4 and C2 were never started, and F2 was split off. Each table's Status column says which; the three now sit in Phases H to J. D3 and F1 shipped without the C2 and B4 they were planned to follow. Phase G has not started.
+**Status (2026-11-24):** Phases A to F shipped in 1.5.0 to 1.8.0, except three tasks that were not addressed: B4 and C2 were never started, and F2 was split off. Each table's Status column says which; the three went into Phases H to J. D3 and F1 shipped without the C2 and B4 they were planned to follow. Phases H, I and J shipped as 1.8.1, 1.9.0 and 1.10.0. Phases K to M plan the five tasks added since. Phase G has not started.
 
-This plan orders the open tasks in the SevenUI project in Super Productivity: 23 as of 2026-11-15 (Phases A to G), and the ten added on 2026-11-20 with what A to G left open and four older bugs (Phases H to J). Each task's notes there hold the detail: repro, design and scope. This file only adds the order, the reasons for it and what each task depends on. Task titles are shortened; estimates are the ones in Super Productivity and total about 170 hours for Phases A to G and 64 for H to J (H10 and H11 are B4 and C2, counted in both).
+This plan orders the open tasks in the SevenUI project in Super Productivity: 23 as of 2026-11-15 (Phases A to G), and the ten added on 2026-11-20 with what A to G left open and four older bugs (Phases H to J); and five added from 2026-11-21 to 2026-11-22 (Phases K to M). Each task's notes there hold the detail: repro, design and scope. This file only adds the order, the reasons for it and what each task depends on. Task titles are shortened; estimates are the ones in Super Productivity and total about 170 hours for Phases A to G, 64 for H to J (H10 and H11 are B4 and C2, counted in both) and 36 for K to M.
 
 ## Why this order
 
@@ -211,26 +211,82 @@ Why this order:
 **Tests:** `panels` (the dialog checks) and `pickers` (the item scrapper with few and many items, as the drone scrapper is tested with 3 and 9), then the full run.
 **Manual check:** the dialogs in the main menu and in a run; scrapping with a gamepad and with the mouse.
 
-**Release point:** a feature release, 1.10.0. Then Phase G, whose G2 now also depends on J2.
+**Release point:** a feature release, 1.10.0. **Shipped as 1.10.0** (2026-11-24). The item scrapper also wraps at six columns, and its strip says how many stacks a pick takes (up to 10) and gives that much scrap.
+
+## Tasks added after 1.10.0 (Phases K to M)
+
+Five tasks were triaged between 2026-11-21 and 2026-11-22 and had no phase: two bugs, the CHEF's crafting dialog found in the H11 audit, and two tasks that carry SevenUI's tier shades past the HUD's panels. They run in the order K, L, M, then G.
+
+Why this order:
+
+1. **Bugs first, in one bug-fix release.** Both are small and independent of each other.
+2. **The CHEF's dialog right after the scrappers.** J2 just settled the picker and scrapper design, and this dialog is to share it, so it goes while that design is fresh. RecipeHelper's own task to match SevenUI waits for it.
+3. **The tier outlines last, together.** Both draw SevenUI's tier shades (`GameColors.OfTier`, `GameColors.ToCanvas`) on art the game colors itself, both need a mock-up and decisions from Jacob first, and M1 needs his answer on design principle 5 before any code.
+
+### Phase K: bugs (7 h)
+
+| # | Task | Est. | Depends on |
+|---|---|---|---|
+| K1 | Medkit's stats show inline with no divider or stats column | 2 h | none |
+| K2 | Item bar: an item icon is misplaced after a cauldron trade | 5 h | none |
+
+- K1 is in `ItemStatsText.Split`: its stat line pattern allows no markup in the label, and LookingGlass styles ten labels (Medkit, Monster Tooth, Stun Grenade, the "Proc Coefficients" lines). The fix moves a styled part of the label into the value. Decide how the "Proc Coefficients" lines show; they have no colon and no value at the end.
+- K2 isn't reproduced yet. The guess in its notes is the game's `ItemInventoryDisplay` keeping a stale `currentIconScale` when the bar's width changes, which SevenUI's `TopBarsWidth` can do at runtime. Confirm with the dump key first. A fix by reflection into `LayoutAllIcons` needs Jacob's agreement (principle 5).
+
+**Tests:** `panels`, `scoreboard` and `pickers`, then the full run. New scenarios: `Split` on Medkit, Monster Tooth and a Proc Coefficients line, and Medkit hovered on the board with the divider and one stat row (K1); items removed and given across an icon size step with the bar's width changed between, every icon the same scale and on the game's grid (K2).
+**Manual check:** Medkit and Monster Tooth on the scoreboard and in a Command picker (K1); a real Lunar Cauldron trade in the Bazaar with a full bar, and in multiplayer (K2).
+
+**Release point:** a bug-fix release, 1.10.1.
+
+### Phase L: the CHEF's crafting dialog (8 h)
+
+| # | Task | Est. | Depends on |
+|---|---|---|---|
+| L1 | Restyle the Wandering CHEF's crafting dialog | 8 h | J2 |
+
+- `RoR2.UI.CraftingPanel` keeps the game's look today, under the "panels with layouts of their own" rule. Mock it up next to the item picker and the scrappers so the three read as one design: header strip, dark slots with tier strips, outlined Confirm, the pickers' Cancel, and the hovered item outlined in the accent color.
+- Whether it gets a strip like the scrappers' (ingredients on the left, the result on the right) is a question for the mock-up.
+- RecipeHelper's task to use SevenUI's look in its sidebars follows this one, in RecipeHelper's project.
+
+**Tests:** `pickers` and `audit`, then the full run. A new scenario opens the dialog from a spawned MealPrep (`AuditScenarios.RecipeHelper` shows how), checks its layout and shoots both looks, with `FlatPanels` off putting the game's look back.
+**Manual check:** crafting a real recipe with the mouse and with a gamepad, with RecipeHelper's sidebars beside it.
+
+**Release point:** a feature release, 1.11.0.
+
+### Phase M: tier shades on icons and in the world (21 h)
+
+| # | Task | Est. | Depends on |
+|---|---|---|---|
+| M1 | Outline items in the world in SevenUI's tier shades | 8 h | Jacob's answer on principle 5 |
+| M2 | Recolor item icons' outlines to SevenUI's tier shades | 13 h | none |
+
+- M1 writes `highlightColor` and `CustomColor` on each pickup's `Highlight`, a local, visual-only component, found by polling `Highlight.readonlyHighlightList`. That steps past read-only game access, so ask Jacob before building: these two fields, or a hook on `Highlight.GetColor`. Its notes also leave open whether the colored particles change too, which pickups count, and whether it has its own setting.
+- M2 recolors the rim painted into each icon once per item on the CPU and caches the result. Its first step runs the prototype over every item icon and lists the ones it gets wrong; then a mock-up per tier for Jacob to pick. Open: whether the rim keeps its shading, whether equipment and drones are in, and its setting.
+- They are independent and can run in parallel, each on its own branch. Ask the two tasks' questions together, so their settings and scope match.
+
+**Tests:** `pickers`, `panels` and `scoreboard`, then the full run. M1: one pickup per tier spawned in front of the player, each `Highlight.GetColor()` equal to SevenUI's shade, and the game's color with the setting off. M2: an icon's rim pixels match the shade, and are the original with the setting off.
+**Manual check:** the outlines on a bright and a dark stage, the hover outline and the unaffordable grey (M1); the icons at the HUD's real sizes, with Hallowed Concepts' items and a modded item (M2).
+
+**Release point:** a feature release, 1.12.0. Then Phase G.
 
 ## Phase G: large design jobs (81 h)
 
 | # | Task | Est. | Depends on | Status |
 |---|---|---|---|---|
-| G1 | New icons for Drifter's display and the Radar Scanner | 13 h | C1 | Not started; after Phase J |
-| G2 | A background for each item picker | 34 h | D1, E3, J2 | Not started; after Phase J |
-| G3 | Restyle the character select screen | 34 h | D6 | Not started; after Phase J |
+| G1 | New icons for Drifter's display and the Radar Scanner | 13 h | C1 | Not started; after Phase M |
+| G2 | A background for each item picker | 34 h | D1, E3, J2 | Not started; after Phase M |
+| G3 | Restyle the character select screen | 34 h | D6 | Not started; after Phase M |
 
 - G1 follows C1 so the icons are drawn at the display's final size.
 - G2 follows D1, E3 and J2 so the backgrounds are designed for every picker state, including the empty one, and for both scrappers in their shared design. Split it into one subtask per picker once the designs are agreed, as its notes say.
 - G3 is last. It is the only task outside a run, so it needs a controller that isn't tied to a HUD. D6 gives the first dialog styling that may carry over.
 - Each is its own release.
 
-**Start early:** the lists and mock-ups for G1, G2 and G3 need no code changes, so they can be made at any time while Phases A to J are in progress.
+**Start early:** the lists and mock-ups for G1, G2 and G3 need no code changes, so they can be made at any time while Phases A to M are in progress.
 
 ## What the tests can't cover
 
 These stay with Jacob, at the phase's manual check:
 - Anything as a client of an unmodded host (D4 reads synced health; D2 reads synced buffs). The runner hosts the run, and extra players are stand-ins on the host, so nothing is tested as a client.
 - How smooth the hover feels (B4): a scenario can time it but not judge it.
-- Whether the look is right, for every mock-up-led task (E, G, I2, I3, J) and every new screenshot, and whether text is readable over a bright background (H3). The tests check sizes and places, not taste.
+- Whether the look is right, for every mock-up-led task (E, G, I2, I3, J, L, M) and every new screenshot, and whether text is readable over a bright background (H3). The tests check sizes and places, not taste.
