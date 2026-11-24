@@ -53,6 +53,13 @@ namespace SevenUI.Tests
                     rect.yMin < strip.rect.yMin - Tolerance || rect.yMax > strip.rect.yMax + Tolerance)
                     return $"the strip's {text.name} {rect} runs outside it {strip.rect}";
             }
+            // The name, and the scrap's name, whole: the panel is wide enough for them.
+            foreach (TMP_Text text in new[] { exchange.NameText, exchange.ScrapNameText })
+            {
+                float needed = text.GetPreferredValues(text.text).x;
+                if (needed > text.rectTransform.rect.width + Tolerance)
+                    return $"the strip's {text.name} \"{text.text}\" needs {needed:0.#} but has {text.rectTransform.rect.width:0.#}";
+            }
             Rect nameRect = RectIn(strip, exchange.NameText.rectTransform);
             Rect iconRect = RectIn(strip, (RectTransform)exchange.ScrapIconImage.transform);
             if (nameRect.xMax > iconRect.xMin) return "the option's name runs into the scrap's side";

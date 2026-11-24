@@ -316,7 +316,8 @@ namespace SevenUI
             shownButtonCount = elements.Count;
             Empty = count == 0;
             Cards = !Empty && !source.AlwaysGrid && count <= CardLimit;
-            grid.Columns = Cards ? count : grid.GameColumns(count);
+            grid.Columns = Cards ? count : source.ColumnCap > 0 ? Mathf.Clamp(Mathf.Min(source.MaxColumnCount, source.ColumnCap), 1, count)
+                : grid.GameColumns(count);
             ui.FullDescriptions = PickupDescriptions.Full();
             recorder.RecordRect(mainPanel);
             source.Prepare(recorder);
@@ -352,11 +353,11 @@ namespace SevenUI
                     source.HideSelection(elements[i]);
                 }
             }
-            if (Cards)
+            if (Cards || source.ColumnCap > 0)
             {
                 grid.Navigate(elements, count);
             }
-            else
+            if (!Cards)
             {
                 slots.AddDetails();
                 if (source.Exchanges)

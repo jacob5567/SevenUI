@@ -56,7 +56,8 @@ namespace SevenUI
         public void KeepColumns()
         {
             GridLayoutGroup grid = ui.Source.Grid;
-            if (!owner.Cards)
+            int cap = ui.Source.ColumnCap;
+            if (!owner.Cards && cap <= 0)
             {
                 // The options, not the buttons, which are styled after the grid.
                 int game = GameColumns(owner.ShownOptionCount);
@@ -66,6 +67,16 @@ namespace SevenUI
                     owner.Layout();
                 }
                 return;
+            }
+            if (!owner.Cards)
+            {
+                // A capped grid holds its own columns, as the cards hold one row.
+                int capped = Mathf.Clamp(Mathf.Min(ui.Source.MaxColumnCount, cap), 1, Mathf.Max(1, owner.ShownOptionCount));
+                if (capped != Columns)
+                {
+                    Columns = capped;
+                    owner.Layout();
+                }
             }
             if (grid.constraint != GridLayoutGroup.Constraint.FixedColumnCount)
             {
@@ -100,8 +111,8 @@ namespace SevenUI
             return Mathf.Clamp(game, 1, Mathf.Max(1, options));
         }
 
-        // The game's explicit gamepad navigation (PickupPickerPanel.SetPickupOptions) for the cards' one row, so up,
-        // down, left and right move as the cards are laid out.
+        // The game's explicit gamepad navigation (PickupPickerPanel.SetPickupOptions) for the cards' one row, or a
+        // capped grid's rows, so up, down, left and right move as the options are laid out.
         public void Navigate(ReadOnlyCollection<MPButton> elements, int count)
         {
             if (ui.Source.AutomaticNavigation) return;

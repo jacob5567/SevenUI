@@ -40,8 +40,9 @@ namespace SevenUI
         // The title is the scrapper's name and, on a second smaller line, "Turn anything into recyclable scrap!", in one
         // text; the header strip shows the first line.
         private const int TitleLines = 1;
-        // Wide enough for the exchange strip with a drone's name and the scrap's beside it.
+        // The narrowest a scrapper's panel is; the exchange strip widens it further to fit its widest option.
         private const float ScrapperMinWidth = 440f * PickerPanel.Canvas;
+        internal const int ItemColumns = 6;
 
         private readonly Component panel;
         private readonly PickupPickerPanel itemPanel;
@@ -84,6 +85,9 @@ namespace SevenUI
         public override float MinWidth => ScrapperMinWidth;
 
         public override bool Exchanges => true;
+
+        // The item scrapper's game grid is one row of up to a dozen; it wraps at six, as the Drone Scrapper's mock-up.
+        public override int ColumnCap => itemPanel ? ItemColumns : 0;
 
         public override Transform ContentRoot => contentRoot;
 

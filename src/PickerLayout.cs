@@ -134,7 +134,8 @@ namespace SevenUI
                 int rows = (count + columns - 1) / columns;
                 float gridWidth = columns * SlotSize + (columns - 1) * SlotGap;
                 float gridHeight = rows * SlotSize + (rows - 1) * SlotGap;
-                float width = Mathf.Max(source.MinWidth, gridWidth + 2f * PaddingX);
+                // A scrapper's panel is as wide as its exchange strip needs for its widest option.
+                float width = Mathf.Max(Mathf.Max(source.MinWidth, gridWidth + 2f * PaddingX), exchange.NeededWidth());
                 float textWidth = width - 2f * PaddingX;
                 slots.Strip.sizeDelta = new Vector2(0f, StripHeight);
                 if (title)

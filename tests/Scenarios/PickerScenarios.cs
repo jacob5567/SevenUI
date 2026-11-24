@@ -757,8 +757,11 @@ namespace SevenUI.Tests
             if (!panel.Alive) return "the panel closed";
             if (!panel.MainPanel.Find("Juice/" + PickerPanel.BackdropName)) return "the panel has no backdrop";
             GridLayoutGroup grid = panel.Panel.gridlayoutGroup;
-            if (grid.constraintCount != panel.Panel.maxColumnCount)
-                return $"the grid's count is {grid.constraintCount}, not the game's {panel.Panel.maxColumnCount}";
+            // The game's columns, or fewer where the mod caps them (the item scrapper's, at six).
+            int cap = panel.Source.ColumnCap;
+            int wantColumns = cap > 0 ? Mathf.Min(panel.Panel.maxColumnCount, cap) : panel.Panel.maxColumnCount;
+            if (grid.constraintCount != wantColumns)
+                return $"the grid's count is {grid.constraintCount}, not {wantColumns} (the game's {panel.Panel.maxColumnCount}, cap {cap})";
             float firstRow = ((RectTransform)panel.Buttons[0].Button.transform).anchoredPosition.y;
             int columns = panel.Buttons.TakeWhile(option =>
                 Mathf.Abs(((RectTransform)option.Button.transform).anchoredPosition.y - firstRow) <= SizeTolerance).Count();
@@ -776,7 +779,8 @@ namespace SevenUI.Tests
                     return $"slot {i} reaches {-low.y:0.#} down, past the grid's {area.height:0.#}";
                 if (Mathf.Abs(rect.rect.width - PickerPanel.SlotSize) > SizeTolerance ||
                     Mathf.Abs(rect.rect.height - PickerPanel.SlotSize) > SizeTolerance)
-                    return $"slot {i} is {rect.rect.size}, not {PickerPanel.SlotSize:0.#} square";
+                    return $"slot {i} is {rect.rect.size}, not {PickerPanel.SlotSize:0.#} square (grid cell {grid.cellSize}, " +
+                           $"{grid.constraint} {grid.constraintCount}, {panel.Columns} columns, grid on {grid.enabled}, panel {panel.MainPanel.rect.size})";
                 Image frame = panel.Buttons[i].Button.image;
                 if (frame && frame.sprite) return $"slot {i} still has the game's frame {frame.sprite.name}";
                 // Its face draws in the item bar's slot grey: the button's tint, which multiplies it, is neutral.

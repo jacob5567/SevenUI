@@ -48,6 +48,9 @@ namespace SevenUI
         // The tallest the buttons' scroll view shows before the rest scrolls.
         public virtual float MaxContentHeight => float.MaxValue;
 
+        // The most columns the grid shows, fewer than the game's (the item scrapper's one long row), or 0 for the game's.
+        public virtual int ColumnCap => 0;
+
         // The narrowest the panel is in grid mode.
         public virtual float MinWidth => PickerPanel.MinPanelWidth;
 

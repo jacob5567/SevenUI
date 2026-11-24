@@ -49,6 +49,10 @@ namespace SevenUI
         private int shownIndex = -1;
         private int shownHeld = -1;
         private PickupDef shownScrap;
+        private int neededCount = -1;
+        private TMP_FontAsset neededFont;
+        private float neededWidth;
+        private const int NeededHeld = 99;
 
         public PickerExchange(PickerPanel owner, PickerUi ui, PickerSource source)
         {
@@ -75,6 +79,7 @@ namespace SevenUI
         {
             strip = null;
             shownScrap = null;
+            neededCount = -1;
             shownIndex = -1;
             shownHeld = -1;
         }
@@ -141,17 +146,12 @@ namespace SevenUI
             Color tier = entry != null ? entry.Color : Palette.Text;
             tierStrip.color = tier;
             name.color = tier;
-            if (entry != null && entry.Drone && exchange != null && DroneTier.HasTier(entry.Drone))
+            if (entry != null && entry.Drone)
             {
                 TierBadge.Attach(name);
-                name.text = DroneTier.WithBadge(entry.Name, exchange.DroneUpgrades);
             }
-            else
-            {
-                name.text = entry != null ? entry.Name : "";
-            }
-            sub.text = exchange == null ? "" : exchange.Item != ItemIndex.None ? string.Format(HeldText, Mathf.Max(held, 1))
-                : exchange.CarryingItems ? CarryingText : "";
+            name.text = NameOf(entry, exchange);
+            sub.text = SubOf(exchange, held);
             PickupDef scrapDef = exchange?.Scrap;
             shownScrap = scrapDef;
             scrap.sprite = PickupIcons.Get(scrapDef);
@@ -160,6 +160,43 @@ namespace SevenUI
             scrapName.color = scrapDef != null ? GameColors.OfTier(scrapDef.itemTier, Palette.Text) : Palette.Text;
             scrapCount.text = exchange != null ? string.Format(CountText, exchange.ScrapCount) : "";
             Layout();
+        }
+
+        // The option's name as the strip shows it: a drone's with its tier badge (DroneTier).
+        private static string NameOf(PickerEntry entry, Exchange exchange)
+        {
+            if (entry == null) return "";
+            return entry.Drone && exchange != null && DroneTier.HasTier(entry.Drone) ? DroneTier.WithBadge(entry.Name, exchange.DroneUpgrades) : entry.Name;
+        }
+
+        private static string SubOf(Exchange exchange, int held) =>
+            exchange == null ? "" : exchange.Item != ItemIndex.None ? string.Format(HeldText, Mathf.Max(held, 1))
+                : exchange.CarryingItems ? CarryingText : "";
+
+        // The panel's width that fits the strip for every option: the widest name (or line under it) beside the slot,
+        // the arrow, the scrap's icon and the widest scrap's texts. Measured again only when the options or the font
+        // change. Read by PickerLayout, which widens the panel to it.
+        public float NeededWidth()
+        {
+            if (!strip) return 0f;
+            int count = owner.Buttons.Count;
+            if (count == neededCount && name.font == neededFont) return neededWidth;
+            neededCount = count;
+            neededFont = name.font;
+            float names = 0f;
+            float scraps = 0f;
+            for (int i = 0; i < count; i++)
+            {
+                Exchange exchange = source.ExchangeOf(i);
+                names = Mathf.Max(names, name.GetPreferredValues(NameOf(owner.Buttons[i].Entry, exchange)).x);
+                // The held count is a number of at most a few digits; "99" stands for it.
+                names = Mathf.Max(names, sub.GetPreferredValues(SubOf(exchange, NeededHeld)).x);
+                if (exchange?.Scrap == null) continue;
+                scraps = Mathf.Max(scraps, scrapName.GetPreferredValues(Language.GetString(exchange.Scrap.nameToken)).x);
+                scraps = Mathf.Max(scraps, scrapCount.GetPreferredValues(string.Format(CountText, exchange.ScrapCount)).x);
+            }
+            neededWidth = Padding + Slot + Gap + names + Gap + ArrowSize + Gap + ScrapIcon + Gap / 2f + scraps + Padding;
+            return neededWidth;
         }
 
         private void ShowIcon(PickerButton option)
