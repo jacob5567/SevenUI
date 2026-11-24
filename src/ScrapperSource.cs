@@ -53,6 +53,7 @@ namespace SevenUI
         private readonly RectTransform inspect;
         private StyleRecorder recorder;
         private RectTransform verticalBar;
+        private bool placed;
 
         private ScrapperSource(Component panel, RectTransform mainPanel, RectTransform juice, Transform contentRoot)
         {
@@ -349,7 +350,17 @@ namespace SevenUI
             {
                 TopLeft(viewport, x, y, width, height);
             }
-            ButtonContainer.anchoredPosition = Vector2.zero;
+            // The grid starts at its top. After that the scroll view owns how far down it is: the panel is laid out again
+            // as options are hovered, and putting it back at the top each time undid every scroll.
+            if (!placed)
+            {
+                placed = true;
+                ButtonContainer.anchoredPosition = Vector2.zero;
+            }
+            else
+            {
+                ButtonContainer.anchoredPosition = new Vector2(0f, ButtonContainer.anchoredPosition.y);
+            }
             ButtonContainer.sizeDelta = new Vector2(width, Mathf.Max(height, contentHeight));
         }
 

@@ -42,6 +42,7 @@ namespace SevenUI.Tests
         private const int InventoryOptions = 12;
         // Enough of the item scrapper's options for more rows than its scroll view shows.
         private const int ScrollingOptions = 40;
+        private const float ScrollTolerance = 0.02f;
         // LookingGlass's setting for full item descriptions in the HUD, which the descriptions follow.
         private const string LookingGlassGUID = "droppod.lookingglass";
         private const string FullDescriptionSection = "Misc";
@@ -112,7 +113,7 @@ namespace SevenUI.Tests
                 yield return new Scenario(1, "picker_panel_" + name, Stages.TitanicPlains, h => OtherPanel(h, name, key));
             }
             string scrapper = GameNames.PickerPanels.First(entry => entry.Name == "scrapper").Key;
-            yield return new Scenario(1, "picker_scrapper_scrolls", Stages.TitanicPlains, h => OtherPanel(h, "scrapper", scrapper, ScrollingOptions));
+            yield return new Scenario(1, "picker_scrapper_scrolls", Stages.TitanicPlains, h => OtherPanel(h, "scrapper", scrapper, ScrollingOptions, ScrollStays));
             yield return new Scenario(1, "picker_stats_one_less_lemurian_egg", Stages.TitanicPlains,
                 h => StatsByPanel(h, "lemurian_egg", StackChange.Lose));
             yield return new Scenario(1, "picker_stats_one_more_fragment_potential", Stages.TitanicPlains,
@@ -440,7 +441,8 @@ namespace SevenUI.Tests
 
         // Another of the game's panels, opened by a Command cube given it and items like the ones it offers. A panel
         // the mod restyles is checked as Command's are; one it leaves to the game must have none of its parts.
-        private static IEnumerator OtherPanel(Harness h, string name, string key, int countOverride = 0)
+        private static IEnumerator OtherPanel(Harness h, string name, string key, int countOverride = 0,
+            Func<Harness, PickerPanel, IEnumerator> then = null)
         {
             GameObject prefab;
             try
@@ -490,6 +492,10 @@ namespace SevenUI.Tests
             if (panel != null)
             {
                 yield return CheckStyled(h, picker, panel);
+                if (then != null)
+                {
+                    yield return then(h, panel);
+                }
                 yield break;
             }
 
@@ -501,6 +507,38 @@ namespace SevenUI.Tests
             if (parts.Length > 0) throw h.Fail($"the unstyled panel has the mod's {parts}");
             yield return h.Wait(SettleSeconds);
             yield return h.Screenshot("game");
+        }
+
+        // Scrolled to the bottom, the grid stays there as the panel is laid out again for a newly hovered option; laying
+        // it out put the grid back at the top, so the mouse wheel couldn't scroll it and a gamepad's moves flickered.
+        private static IEnumerator ScrollStays(Harness h, PickerPanel styled)
+        {
+            // CaptureLooks put the game's look back and restyled the panel, which made it a new PickerPanel.
+            PickerPanel panel = OpenPanel(styled.Panel);
+            if (panel == null || !panel.Styled || panel.Buttons.Count == 0) throw h.Fail("the scrapper isn't styled again after its screenshots");
+            ScrollRect scroll = panel.Component.GetComponentInChildren<ScrollRect>(true);
+            if (!scroll) throw h.Fail("the scrapper has no scroll view");
+            scroll.verticalNormalizedPosition = 0f;
+            yield return h.Wait(SettleSeconds);
+            if (scroll.verticalNormalizedPosition > ScrollTolerance) throw h.Fail($"the grid didn't scroll to the bottom ({scroll.verticalNormalizedPosition:0.##})");
+            MPEventSystem events = EventSystem.current as MPEventSystem;
+            if (!events) throw h.Fail("there is no event system to send the pointer's events with");
+            GameObject option = panel.Buttons[panel.Buttons.Count - 1].Button.gameObject;
+            PointerEventData pointer = new PointerEventData(events);
+            ExecuteEvents.Execute(option, pointer, ExecuteEvents.pointerEnterHandler);
+            h.OnCleanup(() =>
+            {
+                if (option)
+                {
+                    ExecuteEvents.Execute(option, pointer, ExecuteEvents.pointerExitHandler);
+                }
+            });
+            panel.Layout();
+            yield return h.Wait(SettleSeconds);
+            if (scroll.verticalNormalizedPosition > ScrollTolerance)
+                throw h.Fail($"laying the panel out again scrolled the grid back up ({scroll.verticalNormalizedPosition:0.##} of the way from the bottom)");
+            yield return h.Screenshot("scrolled");
+            ExecuteEvents.Execute(option, pointer, ExecuteEvents.pointerExitHandler);
         }
 
         // As cards or a grid by how many options there are, laid out as the canvas's, with the details under a grid
