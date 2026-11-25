@@ -72,6 +72,7 @@ namespace SevenUI.Tests
             yield return new Scenario(1, "scoreboard_inspect_stats_none_without_stats", Stages.TitanicPlains, NoStatsNoColumn);
             yield return new Scenario(1, "scoreboard_inspect_stats_flat_panels_off", Stages.TitanicPlains, StatsFlatPanelsOff);
             yield return new Scenario(1, "scoreboard_inspect_stats_board_item", Stages.TitanicPlains, StatsBoardItem);
+            yield return new Scenario(1, "scoreboard_inspect_stats_styled_labels", Stages.TitanicPlains, StatsStyledLabels);
             yield return new Scenario(1, "tier_colors_match_everywhere", Stages.TitanicPlains, TierColorsMatch);
             yield return new Scenario(1, "scoreboard_inspect_corruption_line", Stages.TitanicPlains, CorruptionLine);
         }
@@ -327,6 +328,50 @@ namespace SevenUI.Tests
             if (values == firstValues) throw h.Fail($"LookingGlass's stats are the same for one more Alien Head ({values})");
             yield return h.Until(() => (problem = StatsProblem(h, item)) == null,
                 () => $"the stats column for {before + 1} Alien Heads held: {problem} {h.Diagnosis()}");
+        }
+
+        // LookingGlass writes some labels with numbers of their own in them (Medkit's "Healing: 20 + " before its value,
+        // Monster Tooth's the same), or with no value after them at all (Vile Censer's "Stun Chance: 0% to 25%.", Stun
+        // Grenade's ... "Proc Coefficients 1.0 + 0.2 Rapid Contact"). Each is a stat row, with the label's words on the
+        // left and its numbers and value on the right, and Medkit's shows as a column after the line.
+        private static IEnumerator StatsStyledLabels(Harness h)
+        {
+            ConfigEntry<bool> full = LookingGlassSettings(h);
+            h.SetConfig(SevenUIPlugin.Settings.DebugLogging, true);
+            h.SetConfig(SevenUIPlugin.Settings.FlatPanels, true);
+            h.SetConfig(full, true);
+            (string Item, string Label, string ValueStart)[] expected =
+            {
+                ("Medkit", "Healing", "20 + "),
+                ("Tooth", "Healing", "8 + "),
+                ("VileCenser", "Stun Chance", "0% to 25%"),
+                ("StunAndPierce", "Proc Coefficients", "1.0 + 0.2 Rapid Contact"),
+            };
+            foreach ((string name, string label, string valueStart) in expected)
+            {
+                ItemIndex index = ItemCatalog.FindItemIndex(name);
+                if (index == ItemIndex.None)
+                {
+                    h.Log($"{name} isn't in this game; its row isn't checked");
+                    continue;
+                }
+                ItemStatsText.Parts parts = LookingGlassParts(h, ItemCatalog.GetItemDef(index));
+                int row = parts.Labels.IndexOf(label);
+                string rows = string.Join(", ", parts.Labels.Select((l, i) => $"\"{l}\" = \"{parts.Values[i]}\""));
+                if (row < 0 || !parts.Values[row].StartsWith(valueStart, System.StringComparison.Ordinal))
+                    throw h.Fail($"{name}'s stats split as {rows}, without \"{label}\" = \"{valueStart}...\"");
+                if (parts.Description.Contains(label + ":") || parts.Description.Contains(label + " <"))
+                    throw h.Fail($"{name}'s \"{label}\" line is still in the description: \"{parts.Description}\"");
+                h.Log($"{name}: {rows}");
+            }
+
+            yield return ScoreboardSetUp.Open(h);
+            ItemDef medkit = RoR2Content.Items.Medkit;
+            yield return Inspect(h, Discovered(medkit));
+            string problem = null;
+            yield return h.Until(() => (problem = StatsProblem(h, medkit)) == null,
+                () => $"Medkit's stats column beside the description: {problem} {h.Diagnosis()}");
+            yield return h.Screenshot("scoreboard_inspect_stats_medkit");
         }
 
         // An item clicked on the board is looked at, not picked up: with two Alien Heads held, the column has the stats

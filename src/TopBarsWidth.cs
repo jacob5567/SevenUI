@@ -1,4 +1,5 @@
 using System.Text;
+using RoR2.UI;
 using UnityEngine;
 
 namespace SevenUI
@@ -9,6 +10,9 @@ namespace SevenUI
     //
     // The HUD is drawn by a perspective camera, and the main area sits behind the canvas, so it is drawn smaller than
     // the screen; the width is measured on screen through the HUD's camera, not in the canvas's units.
+    //
+    // Each refit changes the item bar's width, after which the game can leave an icon off its grid; ItemBarRepair puts
+    // it back.
     internal sealed class TopBarsWidth : IStyler
     {
         private const float ScreenShare = 900f / 1920f;
@@ -20,6 +24,9 @@ namespace SevenUI
         private readonly Vector3[] corners = new Vector3[4];
         private Camera camera;
         private RectTransform topCenter;
+        private readonly ItemBarRepair itemBar = new ItemBarRepair();
+
+        public ItemBarRepair ItemBar => itemBar;
 
         public TopBarsWidth(Transform root)
         {
@@ -35,6 +42,7 @@ namespace SevenUI
             Canvas canvas = root.GetComponent<Canvas>();
             camera = canvas && canvas.renderMode != RenderMode.ScreenSpaceOverlay ? canvas.worldCamera : null;
             recorder.RecordRect(topCenter);
+            itemBar.Attach(topCenter.GetComponentInChildren<ItemInventoryDisplay>(true));
         }
 
         public void Restore()
@@ -50,6 +58,7 @@ namespace SevenUI
         public void Update()
         {
             if (!topCenter) return;
+            itemBar.Update();
             Rect screen = Screen;
             topCenter.GetWorldCorners(corners);
             float shown = (Project(corners[2]) - Project(corners[0])).x;
@@ -65,7 +74,7 @@ namespace SevenUI
 
         public void Describe(StringBuilder output)
         {
-            output.AppendLine($"  top bars: {(topCenter ? $"{topCenter.rect.width:0} wide" : "none")}, camera={(camera ? camera.name : "none")}");
+            output.AppendLine($"  top bars: {(topCenter ? $"{topCenter.rect.width:0} wide" : "none")}, camera={(camera ? camera.name : "none")}, item bar laid out again {itemBar.Repairs} times");
         }
     }
 }

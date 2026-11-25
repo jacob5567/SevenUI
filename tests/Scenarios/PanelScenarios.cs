@@ -17,6 +17,10 @@ namespace SevenUI.Tests
     // objective panel shows its stats in two columns.
     internal static class PanelScenarios
     {
+        private const float GridTolerance = 0.01f;
+        private const float RepairSeconds = 1f;
+        // Between the trade's taking and giving, as the cauldron takes the items before it gives.
+        private const float TradeGapSeconds = 0.5f;
         // Plenty for a small chest at any difficulty or stage count the tests reach.
         private const int ChestMoney = 1000;
         // The game counts the shown amount up over about this long.
@@ -82,6 +86,7 @@ namespace SevenUI.Tests
             yield return new Scenario(1, "top_is_flat", Stages.TitanicPlains, TopIsFlat);
             yield return new Scenario(1, "item_icons_are_flat", Stages.TitanicPlains, ItemIconsAreFlat);
             yield return new Scenario(1, "item_count_clear_of_marks", Stages.TitanicPlains, ItemCountClearOfMarks);
+            yield return new Scenario(1, "item_bar_icons_on_one_grid", Stages.TitanicPlains, ItemBarIconsOnOneGrid);
             yield return new Scenario(1, "prompt_is_flat", Stages.TitanicPlains, PromptIsFlat);
             yield return new Scenario(1, "prompt_as_canvas", Stages.TitanicPlains, PromptAsCanvas);
             yield return new Scenario(1, "prompt_strip_health", Stages.TitanicPlains, PromptStripHealth);
@@ -240,6 +245,84 @@ namespace SevenUI.Tests
             yield return h.ExpectBuffsInGameRow();
             h.SetConfig(SevenUIPlugin.Settings.FlatPanels, true);
             yield return h.ExpectBuffsInRows(2);
+        }
+
+        // The item bar's icons stay on one grid at one size. With a full bar, a Lunar Cauldron's trade (three items taken
+        // in one frame, a green given after) leaves every icon alike. Then an icon the game left at another size and place
+        // (as it can after the bar's width changes; see ItemBarRepair), made here by hand as the new icon appears, is put
+        // back on the grid by SevenUI within a few frames.
+        private static IEnumerator ItemBarIconsOnOneGrid(Harness h)
+        {
+            const int Held = 24;
+            const int Traded = 3;
+            const float WrongScale = 1.25f;
+            Inventory inventory = Harness.LocalBody.inventory;
+            ItemDef[] whites = ItemCatalog.allItemDefs
+                .Where(item => item.tier == ItemTier.Tier1 && !item.hidden && !item.ContainsTag(ItemTag.WorldUnique) && inventory.GetItemCountPermanent(item) == 0)
+                .Take(Held).ToArray();
+            ItemDef[] greens = ItemCatalog.allItemDefs
+                .Where(item => item.tier == ItemTier.Tier2 && !item.hidden && !item.ContainsTag(ItemTag.WorldUnique) && inventory.GetItemCountPermanent(item) == 0)
+                .Take(2).ToArray();
+            if (whites.Length < Held || greens.Length < 2) throw h.Skip($"the game has {whites.Length} white and {greens.Length} green items to give");
+            List<ItemDef> given = new List<ItemDef>();
+            h.OnCleanup(() =>
+            {
+                foreach (ItemDef item in given)
+                {
+                    if (inventory && inventory.GetItemCountPermanent(item) > 0) inventory.RemoveItemPermanent(item);
+                }
+            });
+            foreach (ItemDef item in whites)
+            {
+                inventory.GiveItemPermanent(item);
+                given.Add(item);
+            }
+            HUD hud = SevenUIChecks.HudRoot(h).GetComponent<HUD>();
+            ItemInventoryDisplay bar = hud.itemInventoryDisplay;
+            string problem = null;
+            yield return h.Until(() => (problem = OffGrid(bar, Held)) == null, () => $"the bar with {Held} items: {problem}");
+
+            // The cauldron's trade.
+            for (int i = 0; i < Traded; i++)
+            {
+                inventory.RemoveItemPermanent(whites[i]);
+            }
+            yield return h.Wait(TradeGapSeconds);
+            inventory.GiveItemPermanent(greens[0]);
+            given.Add(greens[0]);
+            int count = Held - Traded + 1;
+            yield return h.Until(() => (problem = OffGrid(bar, count)) == null, () => $"the bar after a cauldron's trade: {problem}");
+            yield return h.Screenshot("item_bar_after_trade");
+
+            // An icon left at another size, as the game can leave the newest one.
+            inventory.GiveItemPermanent(greens[1]);
+            given.Add(greens[1]);
+            count++;
+            yield return h.Until(() => bar.GetComponentsInChildren<ItemIcon>().Length == count, $"the bar's {count}th icon");
+            RectTransform newest = bar.GetComponentsInChildren<ItemIcon>().Last().rectTransform;
+            newest.localScale *= WrongScale;
+            newest.localPosition += new Vector3(newest.rect.width, -newest.rect.height, 0f);
+            yield return h.Until(() => (problem = OffGrid(bar, count)) == null, () => $"an icon left off the grid wasn't put back: {problem}", RepairSeconds);
+        }
+
+        // Null when the bar shows this many icons, all at one scale, each a whole number of icon widths from the first
+        // across and down (the game's grid); otherwise what differs.
+        private static string OffGrid(ItemInventoryDisplay bar, int count)
+        {
+            ItemIcon[] icons = bar.GetComponentsInChildren<ItemIcon>();
+            if (icons.Length != count) return $"{icons.Length} icons, not {count}";
+            Vector3 scale = icons[0].rectTransform.localScale;
+            float size = bar.itemIconPrefabWidth * scale.x;
+            Vector3 first = icons[0].rectTransform.localPosition;
+            for (int i = 1; i < icons.Length; i++)
+            {
+                RectTransform icon = icons[i].rectTransform;
+                if (Mathf.Abs(icon.localScale.x - scale.x) > GridTolerance) return $"icon {i} is at scale {icon.localScale.x:0.###}, the first at {scale.x:0.###}";
+                Vector3 offset = (icon.localPosition - first) / size;
+                if (Mathf.Abs(offset.x - Mathf.Round(offset.x)) > GridTolerance || Mathf.Abs(offset.y - Mathf.Round(offset.y)) > GridTolerance)
+                    return $"icon {i} is {offset.x:0.##} by {offset.y:0.##} icons from the first, off the grid";
+            }
+            return null;
         }
 
         // With temporary and Ethereal (rented) stacks held, each slot's count sits in its top-right corner, clear of the
