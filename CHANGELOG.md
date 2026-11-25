@@ -1,3 +1,8 @@
+## 1.10.1
+
+- With LookingGlass, stat lines whose label carries a number, such as Medkit's and Monster Tooth's "Healing" and Vile Censer's "Stun Chance", show below the divider with the label on the left and the value in the stats column, like every other stat line.
+- After a Lunar Cauldron trade, the newest item bar icon no longer sits bigger than the rest and off the rows.
+
 ## 1.10.0
 
 - Dialog boxes, such as Quit Run and Delete Profile, show on a dark band across the screen with a large centered title. Their buttons are plain words with an underline that brightens when hovered; a button that ends the run or deletes a profile is red.
